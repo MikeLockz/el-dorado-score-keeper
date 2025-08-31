@@ -7,6 +7,8 @@ import { Check, X, Plus, Minus, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useAppState } from "@/components/state-provider"
+import Leaderboard from "@/components/leaderboard"
 
 function uuid() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
@@ -308,6 +310,7 @@ export default function ScoreTracker() {
   return (
     <div className="p-2 max-w-full mx-auto">
       <h1 className="text-lg font-bold mb-2 text-center">El Dorado Score Keeper</h1>
+      <Leaderboard />
 
       {/* Add Player Button */}
       <div className="mb-2 flex justify-center">
