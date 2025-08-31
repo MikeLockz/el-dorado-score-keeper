@@ -8,14 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-// Round states
-type RoundState = "locked" | "bidding" | "complete" | "scored"
-
-// Player bid and score data
-type PlayerRoundData = {
-  bid: number | null
-  madeBid: boolean | null
-  score: number | null
+function uuid() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
+  return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
 // Track which player cells are in details view
@@ -26,18 +21,11 @@ type PlayerCellView = {
 }
 
 export default function ScoreTracker() {
-  const [players, setPlayers] = useState([
-    { id: 1, name: "Player 1", abbr: "P1" },
-    { id: 2, name: "Player 2", abbr: "P2" },
-    { id: 3, name: "Player 3", abbr: "P3" },
-    { id: 4, name: "Player 4", abbr: "P4" },
-  ])
+  const { state, append } = useAppState()
+  const [name, setName] = useState("")
 
-  // Generate rounds (10 down to 1 tricks)
-  const rounds = Array.from({ length: 10 }, (_, i) => ({
-    round: i + 1,
-    tricks: 10 - i,
-  }))
+  const players = Object.entries(state.players).map(([id, name]) => ({ id, name }))
+  const scoreOf = (id: string) => state.scores[id] ?? 0
 
   // Initialize round states - only first round is active
   const [roundStates, setRoundStates] = useState<RoundState[]>(() => {
