@@ -63,3 +63,30 @@ describe('state instance (multi-tab)', () => {
   })
 })
 
+describe('idempotent duplicate append', () => {
+  it('does not double-apply on duplicate eventId', async () => {
+    const dbName = `dup-${Math.random().toString(36).slice(2)}`
+    const a = await createInstance({ dbName, channelName: `chan-${dbName}` })
+    const e = ev('score/added', { playerId: 'p1', delta: 5 }, 'dup-1')
+    // ensure player exists
+    await a.append(ev('player/added', { id: 'p1', name: 'P' }, 'dup-0'))
+    const s1 = await a.append(e)
+    const s2 = await a.append(e) // duplicate
+    expect(s2).toBe(s1)
+    expect(a.getState().scores.p1).toBe(5)
+    // Count events in DB should be 2 (player+score)
+    const db = await new Promise<IDBDatabase>((res, rej) => {
+      const r = indexedDB.open(dbName)
+      r.onsuccess = () => res(r.result)
+      r.onerror = () => rej(r.error)
+    })
+    const tx = db.transaction(['events'], 'readonly')
+    const count = await new Promise<number>((res, rej) => {
+      const req = tx.objectStore('events').count()
+      req.onsuccess = () => res(req.result)
+      req.onerror = () => rej(req.error)
+    })
+    expect(count).toBe(2)
+    db.close(); a.close()
+  })
+})
