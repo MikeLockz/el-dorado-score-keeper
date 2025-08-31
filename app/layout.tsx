@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import StateRoot from "@/components/state-root"
 import Devtools from "@/components/devtools"
+import Header from "@/components/header"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -48,6 +49,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <StateRoot>
+            <Header />
             <main className="min-h-screen bg-background">{children}</main>
             {process.env.NODE_ENV !== 'production' ? <Devtools /> : null}
           </StateRoot>

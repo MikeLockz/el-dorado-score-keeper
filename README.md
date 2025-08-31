@@ -81,6 +81,7 @@ Notes:
 - `/`: Rounds — default view for per-round bidding and scoring (alias also at `/rounds`).
 - `/rounds`: Same as `/` for convenience.
 - `/settings`: Scoreboard — add players, adjust scores, and view the live leaderboard.
+- `/rules`: Quick reference for scoring and phases.
 
 ### Scoreboard (`/settings`) details
 
@@ -101,6 +102,10 @@ Notes:
 - Finalize scoring: from complete, when all players are marked; applies ±(5 + bid) to totals and sets round to scored.
 - Auto‑unlock: finalizing a round sets the next locked round to bidding.
 - Scored view: shows made/missed, bid, point delta, and current total score.
+
+## UI
+
+- Mobile header: brand “El Dorado” on the left; menu button on the right opens links to Rounds, Settings, and Rules.
 
 ## Deployment
 
