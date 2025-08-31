@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Fragment } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Check, X, Plus, Minus } from "lucide-react"
@@ -222,10 +222,9 @@ export default function ScoreTracker() {
 
           {/* Score rows */}
           {rounds.map((round) => (
-            <>
+            <Fragment key={round.round}>
               {/* Round number and tricks */}
               <div
-                key={`round-${round.round}`}
                 className={`p-1 text-center border-b border-r flex flex-col justify-center transition-all duration-200
                   ${
                     roundStates[round.round - 1] === "locked"
@@ -236,7 +235,6 @@ export default function ScoreTracker() {
                 onClick={() => cycleRoundState(round.round)}
               >
                 <div className="font-bold text-sm">{round.tricks}</div>
-                <div className="text-[0.6rem] opacity-80">↓</div>
                 <div className="text-[0.55rem] mt-0.5 font-semibold">
                   {roundStates[round.round - 1] === "locked"
                     ? "Locked"
@@ -379,7 +377,7 @@ export default function ScoreTracker() {
                   )}
                 </div>
               ))}
-            </>
+            </Fragment>
           ))}
         </div>
       </Card>
