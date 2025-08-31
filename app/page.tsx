@@ -201,14 +201,21 @@ export default function ScoreTracker() {
 
   return (
     <div className="p-2 max-w-md mx-auto">
-      <h1 className="text-lg font-bold mb-2 text-center">Game Score Tracker</h1>
+      <h1 className="text-lg font-bold mb-2 text-center">
+        El Dorado Score Keeper
+      </h1>
 
       <Card className="overflow-hidden shadow-lg">
         <div className="grid grid-cols-[3rem_repeat(4,1fr)] text-[0.65rem] sm:text-xs">
           {/* Header row */}
-          <div className="bg-slate-700 text-white p-1 font-bold text-center border-b border-r">Rd</div>
+          <div className="bg-slate-700 text-white p-1 font-bold text-center border-b border-r">
+            Rd
+          </div>
           {players.map((player) => (
-            <div key={player.id} className="bg-slate-700 text-white p-1 font-bold text-center border-b">
+            <div
+              key={player.id}
+              className="bg-slate-700 text-white p-1 font-bold text-center border-b"
+            >
               {player.abbr}
             </div>
           ))}
@@ -220,20 +227,24 @@ export default function ScoreTracker() {
               <div
                 key={`round-${round.round}`}
                 className={`p-1 text-center border-b border-r flex flex-col justify-center transition-all duration-200
-                  ${roundStates[round.round - 1] === "locked" ? "cursor-not-allowed" : "cursor-pointer hover:opacity-80"}
+                  ${
+                    roundStates[round.round - 1] === "locked"
+                      ? "cursor-not-allowed"
+                      : "cursor-pointer hover:opacity-80"
+                  }
                   ${getRoundStateStyles(roundStates[round.round - 1])}`}
                 onClick={() => cycleRoundState(round.round)}
               >
-                <div className="font-bold text-sm">{round.round}</div>
-                <div className="text-[0.6rem] opacity-80">{round.tricks}↓</div>
+                <div className="font-bold text-sm">{round.tricks}</div>
+                <div className="text-[0.6rem] opacity-80">↓</div>
                 <div className="text-[0.55rem] mt-0.5 font-semibold">
                   {roundStates[round.round - 1] === "locked"
                     ? "Locked"
                     : roundStates[round.round - 1] === "bidding"
-                      ? "Active"
-                      : roundStates[round.round - 1] === "complete"
-                        ? "Complete"
-                        : "Scored"}
+                    ? "Active"
+                    : roundStates[round.round - 1] === "complete"
+                    ? "Complete"
+                    : "Scored"}
                 </div>
               </div>
 
@@ -241,7 +252,9 @@ export default function ScoreTracker() {
               {players.map((player) => (
                 <div
                   key={`${round.round}-${player.id}`}
-                  className={`border-b grid grid-cols-1 grid-rows-2 transition-all duration-200 ${getPlayerCellBackgroundStyles(roundStates[round.round - 1])}`}
+                  className={`border-b grid grid-cols-1 grid-rows-2 transition-all duration-200 ${getPlayerCellBackgroundStyles(
+                    roundStates[round.round - 1]
+                  )}`}
                 >
                   {roundStates[round.round - 1] === "locked" && (
                     <>
@@ -262,7 +275,9 @@ export default function ScoreTracker() {
                           variant="outline"
                           className="h-4 w-4 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700"
                           onClick={() => decrementBid(round.round, player.id)}
-                          disabled={(playerData[round.round][player.id].bid || 0) <= 0}
+                          disabled={
+                            (playerData[round.round][player.id].bid || 0) <= 0
+                          }
                         >
                           <Minus className="h-2 w-2" />
                         </Button>
@@ -274,13 +289,18 @@ export default function ScoreTracker() {
                           variant="outline"
                           className="h-4 w-4 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700"
                           onClick={() => incrementBid(round.round, player.id)}
-                          disabled={(playerData[round.round][player.id].bid || 0) >= round.tricks}
+                          disabled={
+                            (playerData[round.round][player.id].bid || 0) >=
+                            round.tricks
+                          }
                         >
                           <Plus className="h-2 w-2" />
                         </Button>
                       </div>
                       <div className="flex items-center justify-between px-1 py-0.5">
-                        <span className="text-[0.6rem] text-sky-700 font-medium">Total</span>
+                        <span className="text-[0.6rem] text-sky-700 font-medium">
+                          Total
+                        </span>
                         <span className="w-8 h-5 text-center text-[0.65rem] font-semibold text-sky-900">
                           {getRunningTotal(player.id, round.round - 1)}
                         </span>
@@ -298,17 +318,29 @@ export default function ScoreTracker() {
                       <div className="flex items-center justify-center gap-1 py-0.5">
                         <Button
                           size="sm"
-                          variant={playerData[round.round][player.id].madeBid === true ? "default" : "outline"}
+                          variant={
+                            playerData[round.round][player.id].madeBid === true
+                              ? "default"
+                              : "outline"
+                          }
                           className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
-                          onClick={() => handleMadeBidToggle(round.round, player.id, true)}
+                          onClick={() =>
+                            handleMadeBidToggle(round.round, player.id, true)
+                          }
                         >
                           <Check className="h-3 w-3" />
                         </Button>
                         <Button
                           size="sm"
-                          variant={playerData[round.round][player.id].madeBid === false ? "destructive" : "outline"}
+                          variant={
+                            playerData[round.round][player.id].madeBid === false
+                              ? "destructive"
+                              : "outline"
+                          }
                           className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
-                          onClick={() => handleMadeBidToggle(round.round, player.id, false)}
+                          onClick={() =>
+                            handleMadeBidToggle(round.round, player.id, false)
+                          }
                         >
                           <X className="h-3 w-3" />
                         </Button>
@@ -320,7 +352,9 @@ export default function ScoreTracker() {
                     <>
                       <div className="border-b flex items-center justify-between px-1 py-0.5">
                         <span className="text-[0.6rem] font-medium text-emerald-800">
-                          {playerData[round.round][player.id].madeBid ? "Made" : "Missed"}
+                          {playerData[round.round][player.id].madeBid
+                            ? "Made"
+                            : "Missed"}
                         </span>
                         <span className="text-[0.6rem] text-emerald-700">
                           Bid: {playerData[round.round][player.id].bid ?? "-"}
@@ -328,7 +362,12 @@ export default function ScoreTracker() {
                       </div>
                       <div className="flex items-center justify-between px-1 py-0.5">
                         <span
-                          className={`text-[0.6rem] font-semibold ${playerData[round.round][player.id].score && playerData[round.round][player.id].score >= 0 ? "text-green-700" : "text-red-700"}`}
+                          className={`text-[0.6rem] font-semibold ${
+                            playerData[round.round][player.id].score &&
+                            playerData[round.round][player.id].score >= 0
+                              ? "text-green-700"
+                              : "text-red-700"
+                          }`}
                         >
                           {playerData[round.round][player.id].score ?? "-"}
                         </span>
@@ -345,5 +384,5 @@ export default function ScoreTracker() {
         </div>
       </Card>
     </div>
-  )
+  );
 }

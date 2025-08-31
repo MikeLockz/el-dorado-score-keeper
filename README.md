@@ -1,4 +1,6 @@
-# Mobile friendly score interface
+# El Dorado Score Keeper
+
+This app now includes Open Graph metadata, a web manifest, and icon references so it installs nicely on mobile and renders rich previews when shared.
 
 *Automatically synced with your [v0.app](https://v0.app) deployments*
 
