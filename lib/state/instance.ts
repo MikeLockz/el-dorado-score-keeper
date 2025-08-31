@@ -19,6 +19,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   let height = 0
   const listeners = new Set<(s: AppState, h: number) => void>()
   const notify = () => { for (const l of listeners) l(memoryState, height) }
+  const SNAPSHOT_EVERY = 20
 
   function isPlainObject(v: any) { return v && typeof v === 'object' && !Array.isArray(v) }
   function isValidStateRecord(rec: any): rec is CurrentStateRecord {
@@ -102,7 +103,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
       throw err
     }
     // single transaction to add event and update current state
-    const t = tx(db, 'readwrite', [storeNames.EVENTS, storeNames.STATE])
+    const t = tx(db, 'readwrite', [storeNames.EVENTS, storeNames.STATE, storeNames.SNAPSHOTS])
     const events = t.objectStore(storeNames.EVENTS)
     const addReq = events.add(event)
     let seq: number | undefined
@@ -138,6 +139,13 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
       t.onabort = () => rej(t.error)
       t.onerror = () => rej(t.error)
     })
+    if (height % SNAPSHOT_EVERY === 0) {
+      const snapPut = t.objectStore(storeNames.SNAPSHOTS).put({ height, state: memoryState })
+      await new Promise<void>((res, rej) => {
+        snapPut.onsuccess = () => res()
+        snapPut.onerror = () => rej(snapPut.error)
+      })
+    }
     chan.postMessage({ type: 'append', seq })
     notify()
     return seq!
