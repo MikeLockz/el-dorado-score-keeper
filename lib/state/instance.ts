@@ -24,6 +24,14 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   const listeners = new Set<(s: AppState, h: number) => void>()
   const notify = () => { for (const l of listeners) l(memoryState, height) }
   const SNAPSHOT_EVERY = 20
+  // serialize catch-up operations to avoid double-apply under races
+  let applyChain: Promise<void> = Promise.resolve()
+  const enqueueCatchUp = (fn: () => Promise<void>) => {
+    const next = applyChain.then(fn, fn)
+    // keep chain from rejecting
+    applyChain = next.catch(() => {})
+    return next
+  }
 
   function isPlainObject(v: any) { return v && typeof v === 'object' && !Array.isArray(v) }
   function warn(code: string, info?: any) { try { onWarn?.(code, info) } catch {} }
@@ -114,19 +122,24 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
 
   if (chan) {
     chan.addEventListener('message', async (ev: MessageEvent) => {
-      if (!ev?.data || typeof ev.data.seq !== 'number') return
-      await applyTail(height)
-      await persistCurrent()
-      notify()
+      const seq = Number((ev as any)?.data?.seq)
+      if (!Number.isFinite(seq)) return
+      await enqueueCatchUp(async () => {
+        await applyTail(height)
+        await persistCurrent()
+        notify()
+      })
     })
   } else if (typeof addEventListener === 'function') {
     addEventListener('storage', async (ev: any) => {
       if (!ev || ev.key !== `app-events:lastSeq:${dbName}`) return
       const seq = Number(ev.newValue)
-      if (!Number.isFinite(seq) || seq <= height) return
-      await applyTail(height)
-      await persistCurrent()
-      notify()
+      if (!Number.isFinite(seq)) return
+      await enqueueCatchUp(async () => {
+        await applyTail(height)
+        await persistCurrent()
+        notify()
+      })
     })
   }
 
@@ -149,29 +162,46 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
       const err = Object.assign(new Error(name), { name })
       throw err
     }
-    // single transaction to add event and update current state
-    const t = tx(db, 'readwrite', [storeNames.EVENTS, storeNames.STATE, storeNames.SNAPSHOTS])
-    const events = t.objectStore(storeNames.EVENTS)
-    const addReq = events.add(event)
+    // Special test hook: add and then abort single transaction to ensure atomic rollback
+    if (testAbortAfterAdd) {
+      testAbortAfterAdd = false
+      const t = tx(db, 'readwrite', [storeNames.EVENTS, storeNames.STATE])
+      const addReq = t.objectStore(storeNames.EVENTS).add(event)
+      await new Promise<void>((res, rej) => {
+        addReq.onsuccess = () => res()
+        addReq.onerror = () => rej(addReq.error)
+      })
+      try { t.abort() } catch {}
+      const err = Object.assign(new Error('AbortedAfterAdd'), { name: 'AbortedAfterAdd' })
+      throw err
+    }
+    // Phase 1: attempt to add the event in its own transaction
     let seq: number | undefined
     let duplicate = false
-    seq = await new Promise<number>((res, rej) => {
-      addReq.onsuccess = () => res(addReq.result as number)
-      addReq.onerror = () => {
-        // treat duplicate eventId as idempotent success
-        const err: any = addReq.error
-        if (err && (err.name === 'ConstraintError' || String(err).includes('Constraint'))) {
-          duplicate = true
-          // find existing seq by eventId index
-          const idx = events.index('eventId')
-          const getReq = idx.getKey((event as any).eventId)
+    try {
+      const tAdd = tx(db, 'readwrite', [storeNames.EVENTS])
+      const addReq = tAdd.objectStore(storeNames.EVENTS).add(event)
+      seq = await new Promise<number>((res, rej) => {
+        addReq.onsuccess = () => res(addReq.result as number)
+        addReq.onerror = () => rej(addReq.error)
+        tAdd.onabort = () => rej(tAdd.error)
+        tAdd.onerror = () => rej(tAdd.error)
+      })
+    } catch (err: any) {
+      // Treat duplicate eventId as idempotent success; look up existing seq
+      if (err && (err.name === 'ConstraintError' || String(err).includes('Constraint'))) {
+        duplicate = true
+        const tFind = tx(db, 'readonly', [storeNames.EVENTS])
+        const idx = tFind.objectStore(storeNames.EVENTS).index('eventId')
+        const getReq = idx.getKey((event as any).eventId)
+        seq = await new Promise<number>((res, rej) => {
           getReq.onsuccess = () => res((getReq.result as number) ?? height)
           getReq.onerror = () => rej(getReq.error)
-        } else {
-          rej(addReq.error)
-        }
+        })
+      } else {
+        throw err
       }
-    })
+    }
     // Optional test hook: abort after add but before state put
     if (testAbortAfterAdd) {
       testAbortAfterAdd = false
@@ -179,27 +209,27 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
       const err = Object.assign(new Error('AbortedAfterAdd'), { name: 'AbortedAfterAdd' })
       throw err
     }
-    // apply/persist: if duplicate, catch up by applying tail; otherwise reduce directly
-    if (duplicate) {
+    // apply/persist: always catch up by applying tail from current height
+    // This ensures we process any missing earlier events before (and including) this one
+    await enqueueCatchUp(async () => {
       await applyTail(height)
-    } else {
-      memoryState = reduce(memoryState, event)
-      height = seq
-    }
-    const putReq = t.objectStore(storeNames.STATE).put({ id: 'current', height, state: memoryState } as CurrentStateRecord)
-    await new Promise<void>((res, rej) => {
-      putReq.onsuccess = () => res()
-      putReq.onerror = () => rej(putReq.error)
-      t.onabort = () => rej(t.error)
-      t.onerror = () => rej(t.error)
-    })
-    if (height % SNAPSHOT_EVERY === 0) {
-      const snapPut = t.objectStore(storeNames.SNAPSHOTS).put({ height, state: memoryState })
+      // Phase 2: persist current state and optional snapshot in a separate transaction
+      const tPersist = tx(db, 'readwrite', [storeNames.STATE, storeNames.SNAPSHOTS])
+      const putReq = tPersist.objectStore(storeNames.STATE).put({ id: 'current', height, state: memoryState } as CurrentStateRecord)
       await new Promise<void>((res, rej) => {
-        snapPut.onsuccess = () => res()
-        snapPut.onerror = () => rej(snapPut.error)
+        putReq.onsuccess = () => res()
+        putReq.onerror = () => rej(putReq.error)
+        tPersist.onabort = () => rej(tPersist.error)
+        tPersist.onerror = () => rej(tPersist.error)
       })
-    }
+      if (height % SNAPSHOT_EVERY === 0) {
+        const snapPut = tPersist.objectStore(storeNames.SNAPSHOTS).put({ height, state: memoryState })
+        await new Promise<void>((res, rej) => {
+          snapPut.onsuccess = () => res()
+          snapPut.onerror = () => rej(snapPut.error)
+        })
+      }
+    })
     if (chan) {
       chan.postMessage({ type: 'append', seq })
     } else if (typeof localStorage !== 'undefined') {

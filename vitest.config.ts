@@ -6,7 +6,8 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.ts'],
     setupFiles: ['tests/setup/global.ts'],
-    threads: false,
+    // Run in a single context to avoid worker pool issues
+    isolate: false,
     coverage: {
       provider: 'v8',
       all: true,

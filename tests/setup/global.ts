@@ -50,10 +50,8 @@ class TestBroadcastChannel {
   }
 }
 
-// Expose polyfill if not present
-if (!(globalThis as any).BroadcastChannel) {
-  ;(globalThis as any).BroadcastChannel = TestBroadcastChannel as any
-}
+// Always replace with the test polyfill to ensure deterministic behavior
+;(globalThis as any).BroadcastChannel = TestBroadcastChannel as any
 
 // Very small localStorage polyfill with storage event
 if (!(globalThis as any).localStorage) {
@@ -97,8 +95,11 @@ if (!(globalThis as any).localStorage) {
     key: (i: number) => Array.from(store.keys())[i] ?? null,
     get length() { return store.size },
   } as Storage
+  const originalAdd = (globalThis as any).addEventListener
   ;(globalThis as any).addEventListener = (type: string, cb: any) => {
     if (type === 'storage') listeners.add(cb)
+    if (typeof originalAdd === 'function') {
+      try { originalAdd(type as any, cb as any) } catch {}
+    }
   }
 }
-

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { initInstance, makeTestDB, drain } from '@/tests/utils/helpers'
+import { createInstance } from '@/lib/state/instance'
 
 const now = 1_700_000_000_000
 
