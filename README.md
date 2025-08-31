@@ -78,10 +78,11 @@ Notes:
 
 ## Routes
 
-- `/`: Scoreboard — add players, adjust scores, and view the live leaderboard.
-- `/rounds`: Rounds — manage per-round bidding and scoring. Cycles states (locked → bidding → complete → scored), set bids per player, mark made/missed, and finalize to apply points to totals.
+- `/`: Rounds — default view for per-round bidding and scoring (alias also at `/rounds`).
+- `/rounds`: Same as `/` for convenience.
+- `/settings`: Scoreboard — add players, adjust scores, and view the live leaderboard.
 
-### Scoreboard (`/`) details
+### Scoreboard (`/settings`) details
 
 - Add players: type a name and press Add; empty/whitespace is ignored.
 - Adjust scores: per-player −1 and +1 buttons update totals immediately.
@@ -90,7 +91,7 @@ Notes:
 - Persistence: data saved locally (IndexedDB) and synced across tabs.
 - Devtools (development only): floating panel for event height, time‑travel preview, and recent warnings.
 
-### Rounds (`/rounds`) details
+### Rounds (`/`, `/rounds`) details
 
 - Round grid: 10 rounds (tricks 10 → 1) across all players; header shows two‑letter initials.
 - State machine: click round tile to cycle bidding → complete → scored → bidding. Locked rounds cannot be advanced directly.
