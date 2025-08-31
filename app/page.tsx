@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Minus } from "lucide-react"
+import { Plus, Minus, Edit, Trash } from "lucide-react"
 import { useAppState } from "@/components/state-provider"
 import Leaderboard from "@/components/leaderboard"
 
@@ -32,6 +32,17 @@ export default function ScoreboardPage() {
     await append({ type: 'score/added', payload: { playerId, delta }, eventId: uuid(), ts: Date.now() })
   }
 
+  const renamePlayer = async (playerId: string, currentName: string) => {
+    const name = prompt('Rename player', currentName)?.trim()
+    if (!name || name === currentName) return
+    await append({ type: 'player/renamed', payload: { id: playerId, name }, eventId: uuid(), ts: Date.now() })
+  }
+
+  const removePlayer = async (playerId: string, currentName: string) => {
+    if (!confirm(`Remove player ${currentName}?`)) return
+    await append({ type: 'player/removed', payload: { id: playerId }, eventId: uuid(), ts: Date.now() })
+  }
+
   return (
     <div className="p-3 max-w-xl mx-auto">
       <h1 className="text-lg font-bold mb-2 text-center">El Dorado Score Keeper</h1>
@@ -52,6 +63,7 @@ export default function ScoreboardPage() {
           <div className="bg-slate-700 text-white p-2 font-bold text-center">Score</div>
           <div className="bg-slate-700 text-white p-2 font-bold text-center">-1</div>
           <div className="bg-slate-700 text-white p-2 font-bold text-center">+1</div>
+          <div className="bg-slate-700 text-white p-2 font-bold text-center">Actions</div>
           {players.map((p) => (
             <>
               <div key={`${p.id}-name`} className="p-2 border-b truncate">{p.name}</div>
@@ -62,14 +74,17 @@ export default function ScoreboardPage() {
               <div key={`${p.id}-inc`} className="p-2 border-b text-center">
                 <Button size="sm" onClick={() => bump(p.id, +1)} className="h-7 w-16"><Plus className="h-4 w-4" /></Button>
               </div>
+              <div key={`${p.id}-actions`} className="p-2 border-b text-center flex items-center justify-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => renamePlayer(p.id, p.name)} className="h-7 px-2"><Edit className="h-4 w-4" /></Button>
+                <Button size="sm" variant="destructive" onClick={() => removePlayer(p.id, p.name)} className="h-7 px-2"><Trash className="h-4 w-4" /></Button>
+              </div>
             </>
           ))}
           {players.length === 0 && (
-            <div className="col-span-4 p-4 text-center text-slate-500">Add players to get started.</div>
+            <div className="col-span-5 p-4 text-center text-slate-500">Add players to get started.</div>
           )}
         </div>
       </Card>
     </div>
   )
 }
-

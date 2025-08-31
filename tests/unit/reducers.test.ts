@@ -55,5 +55,22 @@ describe('reducers', () => {
     expect(s.rounds[1].state).toBe('scored')
     expect(s.rounds[2].state).toBe('bidding')
   })
-})
 
+  it('renames and removes players via events', () => {
+    let s = INITIAL_STATE
+    s = reduce(s, ev('player/added', { id: 'p1', name: 'Alice' }, 'x1'))
+    s = reduce(s, ev('player/added', { id: 'p2', name: 'Bob' }, 'x2'))
+    s = reduce(s, ev('player/renamed', { id: 'p2', name: 'Bobby' }, 'x3'))
+    expect(s.players).toEqual({ p1: 'Alice', p2: 'Bobby' })
+    // add some bids/made and scores
+    s = reduce(s, ev('bid/set', { round: 1, playerId: 'p2', bid: 3 }, 'x4'))
+    s = reduce(s, ev('made/set', { round: 1, playerId: 'p2', made: true }, 'x5'))
+    s = reduce(s, ev('score/added', { playerId: 'p2', delta: 5 }, 'x6'))
+    // remove p2
+    s = reduce(s, ev('player/removed', { id: 'p2' }, 'x7'))
+    expect(s.players).toEqual({ p1: 'Alice' })
+    expect(s.scores.p2).toBeUndefined()
+    expect(s.rounds[1].bids.p2).toBeUndefined()
+    expect(s.rounds[1].made.p2).toBeUndefined()
+  })
+})
