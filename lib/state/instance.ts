@@ -12,10 +12,11 @@ export type Instance = {
 
 type CurrentStateRecord = { id: 'current'; height: number; state: AppState }
 
-export async function createInstance(opts?: { dbName?: string; channelName?: string; useChannel?: boolean }): Promise<Instance> {
+export async function createInstance(opts?: { dbName?: string; channelName?: string; useChannel?: boolean; onWarn?: (code: string, info?: any) => void }): Promise<Instance> {
   const dbName = opts?.dbName ?? 'app-db'
   const chanName = opts?.channelName ?? 'app-events'
   const useChannel = opts?.useChannel !== false
+  const onWarn = opts?.onWarn
   const db = await openDB(dbName)
   const chan = useChannel ? (new BroadcastChannel(chanName) as BroadcastChannel) : null
   let memoryState: AppState = INITIAL_STATE
@@ -25,6 +26,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   const SNAPSHOT_EVERY = 20
 
   function isPlainObject(v: any) { return v && typeof v === 'object' && !Array.isArray(v) }
+  function warn(code: string, info?: any) { try { onWarn?.(code, info) } catch {} }
   function isValidStateRecord(rec: any): rec is CurrentStateRecord {
     if (!rec || rec.id !== 'current' || typeof rec.height !== 'number') return false
     const s = rec.state
@@ -34,10 +36,14 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
     for (const k of Object.keys(s.scores)) if (typeof (s.scores as any)[k] !== 'number') return false
     return true
   }
+  function isValidEvent(e: any): e is AppEvent {
+    return e && typeof e.type === 'string' && typeof e.eventId === 'string' && typeof e.ts === 'number'
+  }
 
   async function loadCurrent() {
-    const t = tx(db, 'readonly', [storeNames.STATE])
-    const req = t.objectStore(storeNames.STATE).get('current')
+    // Try fast path: current record
+    const t1 = tx(db, 'readonly', [storeNames.STATE])
+    const req = t1.objectStore(storeNames.STATE).get('current')
     const rec = await new Promise<CurrentStateRecord | undefined>((res, rej) => {
       req.onsuccess = () => res(req.result as any)
       req.onerror = () => rej(req.error)
@@ -45,10 +51,33 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
     if (isValidStateRecord(rec)) {
       memoryState = rec.state
       height = rec.height
-    } else if (rec) {
-      memoryState = INITIAL_STATE
-      height = 0
+      return
     }
+    if (rec) {
+      warn('state.invalid_current')
+    }
+    // Fallback: use the latest snapshot if present
+    const t2 = tx(db, 'readonly', [storeNames.SNAPSHOTS])
+    try {
+      const curReq = t2.objectStore(storeNames.SNAPSHOTS).openCursor(null, 'prev')
+      const snap = await new Promise<{ height: number; state: AppState } | undefined>((res, rej) => {
+        curReq.onsuccess = () => {
+          const c = curReq.result
+          if (!c) return res(undefined)
+          res(c.value as any)
+        }
+        curReq.onerror = () => rej(curReq.error)
+      })
+      if (snap && typeof snap.height === 'number' && snap.state) {
+        memoryState = snap.state
+        height = snap.height
+        return
+      }
+    } catch {
+      // ignore snapshot failures; continue with initial
+    }
+    memoryState = INITIAL_STATE
+    height = 0
   }
 
   async function applyTail(fromExclusive: number) {
@@ -59,8 +88,12 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
       cursorReq.onsuccess = () => {
         const cur = cursorReq.result
         if (!cur) return res()
-        const ev = cur.value as AppEvent
-        memoryState = reduce(memoryState, ev)
+        const ev = cur.value as any
+        if (isValidEvent(ev)) {
+          memoryState = reduce(memoryState, ev)
+        } else {
+          warn('rehydrate.malformed_event')
+        }
         height = Number(cur.primaryKey ?? cur.key)
         cur.continue()
       }
@@ -107,6 +140,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   await rehydrate()
 
   let testFailMode: 'quota' | 'generic' | null = null
+  let testAbortAfterAdd = false
 
   async function append(event: AppEvent): Promise<number> {
     if (testFailMode) {
@@ -138,6 +172,13 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
         }
       }
     })
+    // Optional test hook: abort after add but before state put
+    if (testAbortAfterAdd) {
+      testAbortAfterAdd = false
+      try { t.abort() } catch {}
+      const err = Object.assign(new Error('AbortedAfterAdd'), { name: 'AbortedAfterAdd' })
+      throw err
+    }
     // apply/persist: if duplicate, catch up by applying tail; otherwise reduce directly
     if (duplicate) {
       await applyTail(height)
@@ -175,6 +216,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   function close() { chan?.close(); db.close() }
   function subscribe(cb: (s: AppState, h: number) => void) { listeners.add(cb); return () => { listeners.delete(cb) } }
   function setTestAppendFailure(mode: 'quota' | 'generic' | null) { testFailMode = mode }
+  function setTestAbortAfterAddOnce() { testAbortAfterAdd = true }
 
-  return { append, getState, getHeight, rehydrate, close, subscribe, setTestAppendFailure } as Instance & { setTestAppendFailure: typeof setTestAppendFailure }
+  return { append, getState, getHeight, rehydrate, close, subscribe, setTestAppendFailure, setTestAbortAfterAddOnce } as Instance & { setTestAppendFailure: typeof setTestAppendFailure; setTestAbortAfterAddOnce: typeof setTestAbortAfterAddOnce }
 }

@@ -3,6 +3,7 @@ import "@/app/globals.css"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { StateProvider } from "@/components/state-provider"
+import Devtools from "@/components/devtools"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -46,8 +47,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <StateProvider>
+          <StateProvider onWarn={(code, info) => {
+            if (process.env.NODE_ENV !== 'production') {
+              // eslint-disable-next-line no-console
+              console.warn('[state warn]', code, info)
+            }
+          }}>
             <main className="min-h-screen bg-background">{children}</main>
+            {process.env.NODE_ENV !== 'production' ? <Devtools /> : null}
           </StateProvider>
         </ThemeProvider>
       </body>

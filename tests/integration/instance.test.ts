@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { createInstance } from '@/lib/state/instance'
+import { initInstance, makeTestDB, drain } from '@/tests/utils/helpers'
 
 const now = 1_700_000_000_000
 
@@ -9,14 +9,12 @@ function ev(type: string, payload: any, eventId: string) {
 
 describe('state instance (single)', () => {
   beforeEach(() => {
-    // unique DB per test
-    const rnd = Math.random().toString(36).slice(2)
-    ;(globalThis as any).__DB_NAME__ = `inst-${rnd}`
+    ;(globalThis as any).__DB_NAME__ = makeTestDB('inst')
   })
 
   it('appends events and rehydrates correctly', async () => {
     const dbName = (globalThis as any).__DB_NAME__
-    const a = await createInstance({ dbName, channelName: `chan-${dbName}` })
+    const a = await initInstance(dbName)
     expect(a.getHeight()).toBe(0)
     expect(a.getState().players).toEqual({})
 
@@ -29,7 +27,7 @@ describe('state instance (single)', () => {
     a.close()
 
     // re-open and ensure state persists and tails apply
-    const b = await createInstance({ dbName, channelName: `chan-${dbName}` })
+    const b = await initInstance(dbName)
     expect(b.getHeight()).toBe(2)
     expect(b.getState().scores.p1).toBe(7)
     await b.append(ev('score/added', { playerId: 'p1', delta: 3 }, 'e3'))
@@ -42,11 +40,11 @@ describe('state instance (single)', () => {
 describe('state instance (multi-tab)', () => {
   it('keeps instances in sync via BroadcastChannel', async () => {
     const dbName = `mt-${Math.random().toString(36).slice(2)}`
-    const A = await createInstance({ dbName, channelName: `chan-${dbName}` })
-    const B = await createInstance({ dbName, channelName: `chan-${dbName}` })
+    const A = await initInstance(dbName)
+    const B = await initInstance(dbName)
 
     await A.append(ev('player/added', { id: 'p1', name: 'Alice' }, 'e1'))
-    await new Promise(res => setTimeout(res, 0))
+    await drain()
     expect(B.getHeight()).toBe(1)
     expect(B.getState().players.p1).toBe('Alice')
 
@@ -55,7 +53,7 @@ describe('state instance (multi-tab)', () => {
       A.append(ev('score/added', { playerId: 'p1', delta: 4 }, 'e2')),
       B.append(ev('score/added', { playerId: 'p1', delta: 6 }, 'e3')),
     ])
-    await new Promise(res => setTimeout(res, 0))
+    await drain()
     expect(A.getState().scores.p1).toBe(10)
     expect(B.getState().scores.p1).toBe(10)
 
