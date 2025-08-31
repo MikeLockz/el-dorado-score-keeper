@@ -7,6 +7,7 @@ export type Instance = {
   getHeight: () => number
   rehydrate: () => Promise<void>
   close: () => void
+  subscribe: (cb: (s: AppState, h: number) => void) => () => void
 }
 
 type CurrentStateRecord = { id: 'current'; height: number; state: AppState }
@@ -16,6 +17,19 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   const chan = new BroadcastChannel(opts?.channelName ?? 'app-events')
   let memoryState: AppState = INITIAL_STATE
   let height = 0
+  const listeners = new Set<(s: AppState, h: number) => void>()
+  const notify = () => { for (const l of listeners) l(memoryState, height) }
+
+  function isPlainObject(v: any) { return v && typeof v === 'object' && !Array.isArray(v) }
+  function isValidStateRecord(rec: any): rec is CurrentStateRecord {
+    if (!rec || rec.id !== 'current' || typeof rec.height !== 'number') return false
+    const s = rec.state
+    if (!isPlainObject(s)) return false
+    if (!isPlainObject(s.players) || !isPlainObject(s.scores)) return false
+    for (const k of Object.keys(s.players)) if (typeof (s.players as any)[k] !== 'string') return false
+    for (const k of Object.keys(s.scores)) if (typeof (s.scores as any)[k] !== 'number') return false
+    return true
+  }
 
   async function loadCurrent() {
     const t = tx(db, 'readonly', [storeNames.STATE])
@@ -24,9 +38,12 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
       req.onsuccess = () => res(req.result as any)
       req.onerror = () => rej(req.error)
     })
-    if (rec) {
+    if (isValidStateRecord(rec)) {
       memoryState = rec.state
       height = rec.height
+    } else if (rec) {
+      memoryState = INITIAL_STATE
+      height = 0
     }
   }
 
@@ -38,9 +55,9 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
       cursorReq.onsuccess = () => {
         const cur = cursorReq.result
         if (!cur) return res()
-        const ev = cur.value as AppEvent & { seq: number }
+        const ev = cur.value as AppEvent
         memoryState = reduce(memoryState, ev)
-        height = ev.seq
+        height = Number(cur.primaryKey ?? cur.key)
         cur.continue()
       }
       cursorReq.onerror = () => rej(cursorReq.error)
@@ -63,17 +80,27 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
     // fetch any events beyond our current height
     await applyTail(height)
     await persistCurrent()
+    notify()
   })
 
   async function rehydrate() {
     await loadCurrent()
     await applyTail(height)
     await persistCurrent()
+    notify()
   }
 
   await rehydrate()
 
+  let testFailMode: 'quota' | 'generic' | null = null
+
   async function append(event: AppEvent): Promise<number> {
+    if (testFailMode) {
+      const name = testFailMode === 'quota' ? 'QuotaExceededError' : 'TestAppendError'
+      testFailMode = null
+      const err = Object.assign(new Error(name), { name })
+      throw err
+    }
     // single transaction to add event and update current state
     const t = tx(db, 'readwrite', [storeNames.EVENTS, storeNames.STATE])
     const events = t.objectStore(storeNames.EVENTS)
@@ -112,13 +139,15 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
       t.onerror = () => rej(t.error)
     })
     chan.postMessage({ type: 'append', seq })
+    notify()
     return seq!
   }
 
   function getState() { return memoryState }
   function getHeight() { return height }
   function close() { chan.close(); db.close() }
+  function subscribe(cb: (s: AppState, h: number) => void) { listeners.add(cb); return () => { listeners.delete(cb) } }
+  function setTestAppendFailure(mode: 'quota' | 'generic' | null) { testFailMode = mode }
 
-  return { append, getState, getHeight, rehydrate, close }
+  return { append, getState, getHeight, rehydrate, close, subscribe, setTestAppendFailure } as Instance & { setTestAppendFailure: typeof setTestAppendFailure }
 }
-
