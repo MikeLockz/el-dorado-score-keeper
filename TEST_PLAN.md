@@ -116,4 +116,3 @@ Validates the simplified design in STATE.md via automated tests only. No manual 
 - All tests pass in CI on Node 18+.
 - Coverage thresholds met; mutation tests (optional) show reducers are robust.
 - Manual testing is not necessary to validate durability, replay, refresh resilience, multi‑tab sync, undo/time‑travel, and export/import.
-

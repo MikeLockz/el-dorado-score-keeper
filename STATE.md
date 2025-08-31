@@ -22,14 +22,14 @@ This is a simpler plan that still delivers: durability, replay/time‑travel, re
 
 ## Event Shape
 
-```ts
+\`\`\`ts
 type AppEvent<T = any> = {
   eventId: string;      // uuid v4
   type: string;         // e.g., 'player/added'
   payload: T;           // minimal intent
   ts: number;           // Date.now()
 };
-```
+\`\`\`
 
 ## Write Path (Single Transaction)
 
@@ -80,7 +80,7 @@ Notes:
 
 ## Minimal Pseudocode
 
-```ts
+\`\`\`ts
 // append
 tx = db.transaction(['events','state'], 'readwrite')
 seq = await tx.events.add(event)          // ordered across tabs
@@ -96,6 +96,6 @@ for await (const e of db.events.range(height + 1, Infinity)) {
   height = e.seq
 }
 memoryState = state
-```
+\`\`\`
 
 This approach stays small and understandable while meeting the requirements: durable actions, replay/time‑travel, resilience to refreshes, and safe multi‑tab usage — without extra systems we don’t yet need.
