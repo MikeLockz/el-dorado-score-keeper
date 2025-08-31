@@ -12,9 +12,12 @@ export type Instance = {
 
 type CurrentStateRecord = { id: 'current'; height: number; state: AppState }
 
-export async function createInstance(opts?: { dbName?: string; channelName?: string }): Promise<Instance> {
-  const db = await openDB(opts?.dbName ?? 'app-db')
-  const chan = new BroadcastChannel(opts?.channelName ?? 'app-events')
+export async function createInstance(opts?: { dbName?: string; channelName?: string; useChannel?: boolean }): Promise<Instance> {
+  const dbName = opts?.dbName ?? 'app-db'
+  const chanName = opts?.channelName ?? 'app-events'
+  const useChannel = opts?.useChannel !== false
+  const db = await openDB(dbName)
+  const chan = useChannel ? (new BroadcastChannel(chanName) as BroadcastChannel) : null
   let memoryState: AppState = INITIAL_STATE
   let height = 0
   const listeners = new Set<(s: AppState, h: number) => void>()
@@ -76,13 +79,23 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
     })
   }
 
-  chan.addEventListener('message', async (ev: MessageEvent) => {
-    if (!ev?.data || typeof ev.data.seq !== 'number') return
-    // fetch any events beyond our current height
-    await applyTail(height)
-    await persistCurrent()
-    notify()
-  })
+  if (chan) {
+    chan.addEventListener('message', async (ev: MessageEvent) => {
+      if (!ev?.data || typeof ev.data.seq !== 'number') return
+      await applyTail(height)
+      await persistCurrent()
+      notify()
+    })
+  } else if (typeof addEventListener === 'function') {
+    addEventListener('storage', async (ev: any) => {
+      if (!ev || ev.key !== `app-events:lastSeq:${dbName}`) return
+      const seq = Number(ev.newValue)
+      if (!Number.isFinite(seq) || seq <= height) return
+      await applyTail(height)
+      await persistCurrent()
+      notify()
+    })
+  }
 
   async function rehydrate() {
     await loadCurrent()
@@ -146,14 +159,20 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
         snapPut.onerror = () => rej(snapPut.error)
       })
     }
-    chan.postMessage({ type: 'append', seq })
+    if (chan) {
+      chan.postMessage({ type: 'append', seq })
+    } else if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(`app-events:lastSeq:${dbName}`, String(seq))
+      } catch {}
+    }
     notify()
     return seq!
   }
 
   function getState() { return memoryState }
   function getHeight() { return height }
-  function close() { chan.close(); db.close() }
+  function close() { chan?.close(); db.close() }
   function subscribe(cb: (s: AppState, h: number) => void) { listeners.add(cb); return () => { listeners.delete(cb) } }
   function setTestAppendFailure(mode: 'quota' | 'generic' | null) { testFailMode = mode }
 
