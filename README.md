@@ -86,6 +86,7 @@ Notes:
 
 - Add players: type a name and press Add; empty/whitespace is ignored.
 - Adjust scores: per-player −1 and +1 buttons update totals immediately.
+- Manage players: rename and remove actions per player.
 - Leaderboard: shows top players (up to 5), sorted by score then name.
 - Empty state: friendly prompt when no players exist.
 - Persistence: data saved locally (IndexedDB) and synced across tabs.
