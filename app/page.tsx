@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Check, X, Plus, Minus } from "lucide-react"
+import { useAppState } from "@/components/state-provider"
 
 // Round states
 type RoundState = "locked" | "bidding" | "complete" | "scored"
@@ -15,7 +16,14 @@ type PlayerRoundData = {
   score: number | null
 }
 
+function uuid() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
+  return Math.random().toString(36).slice(2) + Date.now().toString(36)
+}
+
 export default function ScoreTracker() {
+  const { state, append } = useAppState()
+  const [newName, setNewName] = useState("")
   const [players, setPlayers] = useState([
     { id: 1, name: "Player 1", abbr: "P1" },
     { id: 2, name: "Player 2", abbr: "P2" },
@@ -205,6 +213,39 @@ export default function ScoreTracker() {
         El Dorado Score Keeper
       </h1>
 
+      {/* Event-sourced players and scores */}
+      <Card className="p-3 mb-3">
+        <div className="flex gap-2 mb-2">
+          <input
+            className="flex-1 rounded border px-2 py-1 text-sm"
+            placeholder="Add player name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addPlayer(state, append, newName, setNewName) }}
+          />
+          <Button size="sm" onClick={() => addPlayer(state, append, newName, setNewName)}>Add</Button>
+        </div>
+        <div className="space-y-2">
+          {Object.keys(state.players).length === 0 && (
+            <div className="text-sm text-muted-foreground">No players yet. Add one above.</div>
+          )}
+          {Object.entries(state.players).map(([id, name]) => (
+            <div key={id} className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="font-medium text-sm">{name}</div>
+                <div className="text-xs text-muted-foreground">score: {state.scores[id] ?? 0}</div>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => addScore(append, id, -5)}><Minus className="h-3 w-3" /></Button>
+                <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => addScore(append, id, -1)}>-1</Button>
+                <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => addScore(append, id, +1)}>+1</Button>
+                <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => addScore(append, id, +5)}><Plus className="h-3 w-3" /></Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       <Card className="overflow-hidden shadow-lg">
         <div className="grid grid-cols-[3rem_repeat(4,1fr)] text-[0.65rem] sm:text-xs">
           {/* Header row */}
@@ -385,4 +426,16 @@ export default function ScoreTracker() {
       </Card>
     </div>
   );
+}
+
+function addPlayer(state: any, append: any, name: string, setName: (v: string) => void) {
+  const trimmed = name.trim()
+  if (!trimmed) return
+  const id = uuid()
+  append({ type: 'player/added', payload: { id, name: trimmed }, eventId: uuid(), ts: Date.now() })
+  setName("")
+}
+
+function addScore(append: any, playerId: string, delta: number) {
+  append({ type: 'score/added', payload: { playerId, delta }, eventId: uuid(), ts: Date.now() })
 }
