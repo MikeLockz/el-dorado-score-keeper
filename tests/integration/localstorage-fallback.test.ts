@@ -14,11 +14,13 @@ describe('localStorage fallback sync (no BroadcastChannel)', () => {
 
     await A.append(ev('player/added', { id: 'p1', name: 'Alice' }, 'lse1'))
     await drain()
+    for (let i = 0; i < 50 && B.getHeight() !== 1; i++) await drain()
     expect(B.getHeight()).toBe(1)
     expect(B.getState().players.p1).toBe('Alice')
 
     await A.append(ev('score/added', { playerId: 'p1', delta: 4 }, 'lse2'))
     await drain()
+    for (let i = 0; i < 50 && (B.getState().scores.p1 ?? 0) !== 4; i++) await drain()
     expect(B.getState().scores.p1).toBe(4)
 
     A.close(); B.close()

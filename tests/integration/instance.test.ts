@@ -47,6 +47,8 @@ describe('state instance (multi-tab)', () => {
 
     await A.append(ev('player/added', { id: 'p1', name: 'Alice' }, 'e1'))
     await drain()
+    // wait for cross-tab sync
+    for (let i = 0; i < 50 && B.getHeight() !== 1; i++) await drain()
     expect(B.getHeight()).toBe(1)
     expect(B.getState().players.p1).toBe('Alice')
 
@@ -56,6 +58,8 @@ describe('state instance (multi-tab)', () => {
       B.append(ev('score/added', { playerId: 'p1', delta: 6 }, 'e3')),
     ])
     await drain()
+    for (let i = 0; i < 50 && (A.getState().scores.p1 ?? 0) !== 10; i++) await drain()
+    for (let i = 0; i < 50 && (B.getState().scores.p1 ?? 0) !== 10; i++) await drain()
     expect(A.getState().scores.p1).toBe(10)
     expect(B.getState().scores.p1).toBe(10)
 

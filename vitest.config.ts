@@ -6,8 +6,15 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.ts'],
     setupFiles: ['tests/setup/global.ts'],
-    // Run in a single context to avoid worker pool issues
+    // Avoid tinypool shutdown quirks in some environments by using a single worker thread
+    pool: 'threads',
+    poolOptions: {
+      threads: { singleThread: true },
+    },
+    // Run in a single context and share globals
     isolate: false,
+    fileParallelism: false,
+    maxConcurrency: 1,
     coverage: {
       provider: 'v8',
       all: true,

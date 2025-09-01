@@ -41,6 +41,7 @@ describe('player removal integration', () => {
     await A.append(ev('player/added', { id: 'p1', name: 'A' }, 'pt-1'))
     await A.append(ev('player/added', { id: 'p2', name: 'B' }, 'pt-2'))
     await drain()
+    for (let i = 0; i < 50 && B.getState().players.p2 !== 'B'; i++) await drain()
     expect(B.getState().players.p2).toBe('B')
     // remove from A
     await A.append(ev('player/removed', { id: 'p2' }, 'pt-3'))
