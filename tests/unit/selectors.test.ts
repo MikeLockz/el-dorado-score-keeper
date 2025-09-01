@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { INITIAL_STATE, reduce, type AppEvent, type AppState } from '@/lib/state/types'
 import { selectLeaders, selectRoundSummary, selectScores } from '@/lib/state/selectors'
+import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events'
 
 const now = 1_700_000_000_000
-const ev = (type: string, payload: any, id: string): AppEvent => ({ type, payload, eventId: id, ts: now })
+const ev = <T extends AppEventType>(type: T, payload: EventPayloadByType<T>, id: string): AppEvent =>
+  makeEvent(type, payload, { eventId: id, ts: now })
 
 function replay(events: AppEvent[], base: AppState = INITIAL_STATE): AppState {
   return events.reduce((s, e) => reduce(s, e), base)
@@ -76,4 +78,3 @@ describe('selectors', () => {
     expect(c.p1).toBe(3)
   })
 })
-

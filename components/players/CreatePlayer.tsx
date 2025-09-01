@@ -5,11 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus } from 'lucide-react'
 import { useAppState } from '@/components/state-provider'
+import { uuid } from '@/lib/utils'
+import { events } from '@/lib/state/events'
 
-function uuid() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as any).randomUUID()
-  return Math.random().toString(36).slice(2) + Date.now().toString(36)
-}
 
 export default function CreatePlayer() {
   const { append } = useAppState()
@@ -19,7 +17,7 @@ export default function CreatePlayer() {
     const n = name.trim()
     if (!n) return
     const id = uuid()
-    await append({ type: 'player/added', payload: { id, name: n }, eventId: uuid(), ts: Date.now() })
+    await append(events.playerAdded({ id, name: n }))
     setName('')
   }
 
@@ -32,4 +30,3 @@ export default function CreatePlayer() {
     </div>
   )
 }
-

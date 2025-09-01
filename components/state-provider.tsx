@@ -4,6 +4,7 @@ import { createInstance } from '@/lib/state/instance'
 import type { AppEvent, AppState } from '@/lib/state/types'
 import { INITIAL_STATE } from '@/lib/state/types'
 import { previewAt as previewFromDB } from '@/lib/state/io'
+import { events } from '@/lib/state/events'
 
 type Warning = { code: string; info?: any; at: number }
 
@@ -79,8 +80,7 @@ export function StateProvider({ children, onWarn }: { children: React.ReactNode;
       const ids = ['p1', 'p2', 'p3', 'p4']
       try {
         for (let i = 0; i < ids.length; i++) {
-          const e: AppEvent = { type: 'player/added', payload: { id: ids[i], name: names[i] }, eventId: `seed:${ids[i]}` as any, ts: Date.now() + i }
-          await inst.append(e)
+          await inst.append(events.playerAdded({ id: ids[i], name: names[i] }, { eventId: `seed:${ids[i]}`, ts: Date.now() + i }))
         }
       } finally {
         seedingRef.current = false

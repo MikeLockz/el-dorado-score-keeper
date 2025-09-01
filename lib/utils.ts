@@ -5,6 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// UUID utility used across the app and tests
+export function uuid(): string {
+  try {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as any).randomUUID()
+  } catch {
+    // ignore
+  }
+  return Math.random().toString(36).slice(2) + Date.now().toString(36)
+}
+
 export function twoCharAbbrs(entries: Array<{ id: string | number; name: string }>): Record<string, string> {
   const byFirst: Record<string, Array<{ id: string; name: string; raw: string }>> = {}
   for (const e of entries) {

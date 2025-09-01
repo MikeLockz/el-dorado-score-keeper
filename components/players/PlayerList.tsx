@@ -5,11 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Edit, Trash } from 'lucide-react'
 import { useAppState } from '@/components/state-provider'
-
-function uuid() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as any).randomUUID()
-  return Math.random().toString(36).slice(2) + Date.now().toString(36)
-}
+import { events } from '@/lib/state/events'
 
 export default function PlayerList() {
   const { state, append, ready } = useAppState()
@@ -18,12 +14,12 @@ export default function PlayerList() {
   const renamePlayer = async (playerId: string, currentName: string) => {
     const name = prompt('Rename player', currentName)?.trim()
     if (!name || name === currentName) return
-    await append({ type: 'player/renamed', payload: { id: playerId, name }, eventId: uuid(), ts: Date.now() })
+    await append(events.playerRenamed({ id: playerId, name }))
   }
 
   const removePlayer = async (playerId: string, currentName: string) => {
     if (!confirm(`Remove player ${currentName}?`)) return
-    await append({ type: 'player/removed', payload: { id: playerId }, eventId: uuid(), ts: Date.now() })
+    await append(events.playerRemoved({ id: playerId }))
   }
 
   return (
@@ -63,4 +59,3 @@ export default function PlayerList() {
     </Card>
   )
 }
-

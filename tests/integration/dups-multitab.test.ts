@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { withTabs } from '@/tests/utils/helpers'
+import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events'
 
 const now = 1_700_000_000_000
-const ev = (type: string, payload: any, id: string) => ({ type, payload, eventId: id, ts: now })
+const ev = <T extends AppEventType>(type: T, payload: EventPayloadByType<T>, id: string) =>
+  makeEvent(type, payload, { eventId: id, ts: now })
 
 describe('duplicate event across tabs', () => {
   it('applies once when two instances append same eventId', async () => {
@@ -10,7 +12,7 @@ describe('duplicate event across tabs', () => {
     await A.append(ev('player/added', { id: 'p1', name: 'A' }, 'd0'))
 
     // Race the same eventId from both
-    const e = ev('score/added', { playerId: 'p1', delta: 5 }, 'd1')
+const e = ev('score/added', { playerId: 'p1', delta: 5 }, 'd1')
     await Promise.allSettled([
       A.append(e),
       B.append(e),

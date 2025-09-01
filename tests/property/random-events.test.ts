@@ -3,6 +3,7 @@ import { reduce, INITIAL_STATE, type AppEvent, type AppState } from '@/lib/state
 import { createInstance } from '@/lib/state/instance'
 import { makeTestDB } from '@/tests/utils/helpers'
 import { exportBundle, importBundle } from '@/lib/state/io'
+import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events'
 
 // Simple deterministic PRNG (Mulberry32)
 function mulberry32(seed: number) {
@@ -16,8 +17,8 @@ function mulberry32(seed: number) {
 }
 
 const now = 1_700_000_000_000
-function ev(type: string, payload: any, id: string): AppEvent {
-  return { type, payload, eventId: id, ts: now }
+function ev<T extends AppEventType>(type: T, payload: EventPayloadByType<T>, id: string): AppEvent {
+  return makeEvent(type, payload, { eventId: id, ts: now })
 }
 
 function genEvents(seed: number, count: number) {

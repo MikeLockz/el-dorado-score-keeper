@@ -5,11 +5,7 @@ import { useAppState } from '@/components/state-provider'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import PlayerManagement from '@/components/players/PlayerManagement'
-
-function uuid() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as any).randomUUID()
-  return Math.random().toString(36).slice(2) + Date.now().toString(36)
-}
+import { events } from '@/lib/state/events'
 
 export default function PlayersPage() {
   const { state, append, ready } = useAppState()
@@ -20,7 +16,7 @@ export default function PlayersPage() {
     if (!hasPlayers) return
     if (!confirm('Remove all players? This will clear scores and per-round data for them.')) return
     for (const [id] of players) {
-      await append({ type: 'player/removed', payload: { id }, eventId: uuid(), ts: Date.now() })
+      await append(events.playerRemoved({ id }))
     }
   }
 

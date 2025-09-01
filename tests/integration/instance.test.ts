@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { initInstance, makeTestDB, drain } from '@/tests/utils/helpers'
 import { createInstance } from '@/lib/state/instance'
+import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events'
 
 const now = 1_700_000_000_000
 
-function ev(type: string, payload: any, eventId: string) {
-  return { type, payload, eventId, ts: now }
+function ev<T extends AppEventType>(type: T, payload: EventPayloadByType<T>, eventId: string) {
+  return makeEvent(type, payload, { eventId, ts: now })
 }
 
 describe('state instance (single)', () => {

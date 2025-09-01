@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { initInstance, makeTestDB, drain } from '@/tests/utils/helpers'
+import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events'
 
 const now = 1_700_000_000_000
-const ev = (type: string, payload: any, id: string) => ({ type, payload, eventId: id, ts: now })
+const ev = <T extends AppEventType>(type: T, payload: EventPayloadByType<T>, id: string) =>
+  makeEvent(type, payload, { eventId: id, ts: now })
 
 describe('missed broadcast message', () => {
   it('B lags after dropped message and catches up on next', async () => {

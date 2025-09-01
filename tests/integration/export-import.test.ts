@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { initInstance, makeTestDB } from '@/tests/utils/helpers'
 import { exportBundle, importBundle } from '@/lib/state/io'
+import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events'
 
 const now = 1_700_000_000_000
-function ev(type: string, payload: any, eventId: string) {
-  return { type, payload, eventId, ts: now }
+function ev<T extends AppEventType>(type: T, payload: EventPayloadByType<T>, eventId: string) {
+  return makeEvent(type, payload, { eventId, ts: now })
 }
 
 describe('export/import round trip', () => {

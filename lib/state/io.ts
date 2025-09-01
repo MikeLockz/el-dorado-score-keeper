@@ -1,6 +1,8 @@
 import { openDB, storeNames, tx } from './db'
 import type { AppEvent, AppState } from './types'
 import { INITIAL_STATE, reduce } from './types'
+import { events } from './events'
+import { uuid } from '@/lib/utils'
 
 export type ExportBundle = {
   latestSeq: number
@@ -154,10 +156,7 @@ export async function previewAt(dbName: string, h: number): Promise<AppState> {
   return s
 }
 
-function uuid() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as any).randomUUID()
-  return Math.random().toString(36).slice(2) + Date.now().toString(36)
-}
+// uuid is imported from lib/utils
 
 function reduceBundle(bundle: ExportBundle): AppState {
   let s = INITIAL_STATE
@@ -270,12 +269,9 @@ export async function archiveCurrentGameAndReset(dbName: string = DEFAULT_DB_NAM
   gamesDb.close()
 
   // Reset current DB but preserve player roster by seeding player/added events
-  const seedEvents: AppEvent[] = Object.entries(endState.players).map(([id, name], idx) => ({
-    type: 'player/added',
-    payload: { id, name },
-    eventId: uuid(),
-    ts: finishedAt + idx + 1,
-  }))
+  const seedEvents: AppEvent[] = Object.entries(endState.players).map(([id, name], idx) => (
+    events.playerAdded({ id, name }, { ts: finishedAt + idx + 1 })
+  ))
   await importBundleSoft(dbName, { latestSeq: seedEvents.length, events: seedEvents })
   try {
     localStorage.setItem(`app-events:lastSeq:${dbName}`, String(seedEvents.length))

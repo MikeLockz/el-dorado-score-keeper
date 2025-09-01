@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { initInstance, makeTestDB } from '@/tests/utils/helpers'
+import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events'
 
 const now = 1_700_000_000_000
-const ev = (type: string, payload: any, eventId: string) => ({ type, payload, eventId, ts: now })
+const ev = <T extends AppEventType>(type: T, payload: EventPayloadByType<T>, eventId: string) =>
+  makeEvent(type, payload, { eventId, ts: now })
 
 describe('transaction atomicity (abort after add)', () => {
   it('aborts entire transaction; no partial event persists', async () => {

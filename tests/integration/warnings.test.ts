@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { createInstance } from '@/lib/state/instance'
+import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events'
 import { makeTestDB } from '@/tests/utils/helpers'
 
 const now = 1_700_000_000_000
-const ev = (type: string, payload: any, id: string) => ({ type, payload, eventId: id, ts: now })
+const ev = <T extends AppEventType>(type: T, payload: EventPayloadByType<T>, id: string) =>
+  makeEvent(type, payload, { eventId: id, ts: now })
 
 describe('warnings logger', () => {
   it('emits warning when current state record is invalid', async () => {
@@ -66,4 +68,3 @@ describe('warnings logger', () => {
     inst.close()
   })
 })
-

@@ -6,11 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Check, X, Plus, Minus } from "lucide-react"
 import { useAppState } from "@/components/state-provider"
 import { twoCharAbbrs } from "@/lib/utils"
+import { events } from "@/lib/state/events"
 
-function uuid() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as any).randomUUID()
-  return Math.random().toString(36).slice(2) + Date.now().toString(36)
-}
 
 type RoundState = 'locked' | 'bidding' | 'complete' | 'scored'
 
@@ -122,33 +119,33 @@ export default function CurrentGame() {
   const incrementBid = async (round: number, playerId: string, max: number) => {
     const current = state.rounds[round]?.bids[playerId] ?? 0
     const next = Math.min(max, current + 1)
-    if (next !== current) await append({ type: 'bid/set', payload: { round, playerId, bid: next }, eventId: uuid(), ts: Date.now() })
+    if (next !== current) await append(events.bidSet({ round, playerId, bid: next }))
   }
   const decrementBid = async (round: number, playerId: string) => {
     const current = state.rounds[round]?.bids[playerId] ?? 0
     const next = Math.max(0, current - 1)
-    if (next !== current) await append({ type: 'bid/set', payload: { round, playerId, bid: next }, eventId: uuid(), ts: Date.now() })
+    if (next !== current) await append(events.bidSet({ round, playerId, bid: next }))
   }
   const toggleMade = async (round: number, playerId: string, made: boolean) => {
-    await append({ type: 'made/set', payload: { round, playerId, made }, eventId: uuid(), ts: Date.now() })
+    await append(events.madeSet({ round, playerId, made }))
   }
 
   const cycleRoundState = async (round: number) => {
     const current = state.rounds[round]?.state ?? 'locked'
     if (current === 'locked') return
     if (current === 'bidding') {
-      await append({ type: 'round/state-set', payload: { round, state: 'complete' }, eventId: uuid(), ts: Date.now() })
+      await append(events.roundStateSet({ round, state: 'complete' }))
       return
     }
     if (current === 'complete') {
       const allMarked = players.every(p => (state.rounds[round]?.made[p.id] ?? null) !== null)
       if (allMarked) {
-        await append({ type: 'round/finalize', payload: { round }, eventId: uuid(), ts: Date.now() })
+        await append(events.roundFinalize({ round }))
       }
       return
     }
     if (current === 'scored') {
-      await append({ type: 'round/state-set', payload: { round, state: 'bidding' }, eventId: uuid(), ts: Date.now() })
+      await append(events.roundStateSet({ round, state: 'bidding' }))
     }
   }
 

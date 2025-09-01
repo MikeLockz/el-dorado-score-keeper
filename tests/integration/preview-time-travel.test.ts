@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { initInstance, makeTestDB } from '@/tests/utils/helpers'
 import { previewAt } from '@/lib/state/io'
 import { reduce, INITIAL_STATE, type AppEvent } from '@/lib/state/types'
+import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events'
 
 const now = 1_700_000_000_000
-const ev = (type: string, payload: any, id: string): AppEvent => ({ type, payload, eventId: id, ts: now })
+const ev = <T extends AppEventType>(type: T, payload: EventPayloadByType<T>, id: string): AppEvent =>
+  makeEvent(type, payload, { eventId: id, ts: now })
 
 function replayTo(events: AppEvent[], h: number): any {
   let s = INITIAL_STATE
