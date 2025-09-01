@@ -3,6 +3,7 @@ import type { AppEvent, AppState } from './types'
 import { INITIAL_STATE, reduce } from './types'
 import { events } from './events'
 import { uuid } from '@/lib/utils'
+import { formatDateTime } from '@/lib/format'
 
 export type ExportBundle = {
   latestSeq: number
@@ -259,7 +260,7 @@ export async function archiveCurrentGameAndReset(dbName: string = DEFAULT_DB_NAM
   const id = uuid()
   const createdAt = Number(bundle.events[0]?.ts ?? Date.now())
   const finishedAt = Date.now()
-  const title = (opts?.title && opts.title.trim()) || new Date(finishedAt).toLocaleString()
+  const title = (opts?.title && opts.title.trim()) || formatDateTime(finishedAt)
   const endState = reduceBundle(bundle)
   const summary = summarizeState(endState)
 

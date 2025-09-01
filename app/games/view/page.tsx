@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import type { GameRecord } from '@/lib/state/io'
 import { getGame, restoreGame } from '@/lib/state/io'
+import { formatDateTime } from '@/lib/format'
 
 function GameDetailPageInner() {
   const search = useSearchParams()
@@ -54,7 +55,7 @@ function GameDetailPageInner() {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h1 className="text-lg font-bold">{game.title || 'Game'}</h1>
-          <div className="text-sm text-slate-500">Finished {new Date(game.finishedAt).toLocaleString()}</div>
+          <div className="text-sm text-slate-500">Finished {formatDateTime(game.finishedAt)}</div>
         </div>
         <Button onClick={onRestore}>Restore</Button>
       </div>

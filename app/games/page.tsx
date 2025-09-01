@@ -1,12 +1,14 @@
 "use client"
 
 import React from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { MoreHorizontal } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import type { GameRecord } from '@/lib/state/io'
 import { listGames, archiveCurrentGameAndReset, deleteGame, restoreGame } from '@/lib/state/io'
+import { formatDateTime } from '@/lib/format'
 
 export default function GamesPage() {
   const [games, setGames] = React.useState<GameRecord[] | null>(null)
@@ -24,6 +26,9 @@ export default function GamesPage() {
   }, [])
 
   React.useEffect(() => { load() }, [load])
+
+  // Manage mobile action menu visibility and anchor position
+  const [menuOpen, setMenuOpen] = React.useState<null | { id: string; x: number; y: number; openUp?: boolean }>(null)
 
   const onNewGame = async () => {
     if (loading) return
@@ -55,34 +60,97 @@ export default function GamesPage() {
         <h1 className="text-lg font-bold">Games</h1>
         <Button onClick={onNewGame} disabled={loading}>{loading ? 'Working…' : 'New Game'}</Button>
       </div>
-      <Card>
-        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 text-sm items-center">
-          <div className="bg-slate-700 text-white p-2 font-bold">Title</div>
-          <div className="bg-slate-700 text-white p-2 font-bold text-center">Players</div>
-          <div className="bg-slate-700 text-white p-2 font-bold text-center">Winner</div>
-          <div className="bg-slate-700 text-white p-2 font-bold text-center">Actions</div>
-          {games === null ? (
-            <div className="col-span-4 p-4 text-center text-slate-500">Loading…</div>
-          ) : games.length === 0 ? (
-            <div className="col-span-4 p-4 text-center text-slate-500">No archived games yet.</div>
-          ) : (
-            games.map(g => (
-              <React.Fragment key={g.id}>
-                <div className="p-2 border-b truncate">
-                  <div className="font-medium">{g.title || 'Untitled'}</div>
-                  <div className="text-[0.7rem] text-slate-500">{new Date(g.finishedAt).toLocaleString()}</div>
-                </div>
-                <div className="p-2 border-b text-center">{g.summary.players}</div>
-                <div className="p-2 border-b text-center">{g.summary.winnerName ?? '-'}</div>
-                <div className="p-2 border-b text-center flex items-center justify-center gap-2">
-                  <Link href={`/games/view?id=${g.id}`} className="underline text-slate-700">View</Link>
-                  <button onClick={() => onRestore(g.id)} className="underline text-sky-700">Restore</button>
-                  <button onClick={() => onDelete(g.id)} className="underline text-red-700">Delete</button>
-                </div>
-              </React.Fragment>
-            ))
-          )}
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50/80 backdrop-blur supports-[backdrop-filter]:bg-slate-50/60 dark:bg-slate-900/60 supports-[backdrop-filter]:dark:bg-slate-900/40">
+              <tr>
+                <th scope="col" className="sticky top-0 z-10 px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-200 bg-inherit">Title</th>
+                <th scope="col" className="sticky top-0 z-10 px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-200 bg-inherit">Players</th>
+                <th scope="col" className="sticky top-0 z-10 px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-200 bg-inherit">Winner</th>
+                <th scope="col" className="sticky top-0 z-10 px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-200 bg-inherit">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {games === null ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">Loading…</td>
+                </tr>
+              ) : games.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">No archived games yet.</td>
+                </tr>
+              ) : (
+                games.map(g => (
+                  <tr
+                    key={g.id}
+                    className="group odd:bg-white even:bg-slate-50 hover:bg-slate-100 dark:odd:bg-slate-950 dark:even:bg-slate-900/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    onClick={() => router.push(`/games/view?id=${g.id}`)}
+                  >
+                    <td className="px-4 py-3 align-top">
+                      <div className="font-medium truncate text-slate-900 dark:text-slate-100 group-hover:text-slate-900 dark:group-hover:text-slate-100 transition-colors">{g.title || 'Untitled'}</div>
+                      <div className="text-[0.72rem] text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">{formatDateTime(g.finishedAt)}</div>
+                    </td>
+                    <td className="px-4 py-3 text-center align-top text-slate-900 dark:text-slate-100">{g.summary.players}</td>
+                    <td className="px-4 py-3 text-center align-top text-slate-900 dark:text-slate-100 font-semibold">{g.summary.winnerName ?? '-'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="hidden sm:flex items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => onRestore(g.id)}>Restore</Button>
+                          <Button size="sm" variant="destructive" onClick={() => onDelete(g.id)}>Delete</Button>
+                        </div>
+                        <div className="sm:hidden">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            aria-label="Actions"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                              const spaceBelow = window.innerHeight - rect.bottom
+                              const openUp = spaceBelow < 120
+                              setMenuOpen(menuOpen && menuOpen.id === g.id ? null : { id: g.id, x: rect.right, y: openUp ? rect.top : rect.bottom, openUp })
+                            }}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
+        {menuOpen && createPortal(
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
+            <div
+              className="fixed z-50 w-40 rounded-md border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 shadow-md py-1 text-sm"
+              style={{
+                top: menuOpen.openUp ? menuOpen.y - 8 : menuOpen.y + 8,
+                left: menuOpen.x,
+                transform: menuOpen.openUp ? 'translate(-100%, -100%)' : 'translateX(-100%)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="block w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                onClick={() => { setMenuOpen(null); onRestore(menuOpen.id) }}
+              >
+                Restore
+              </button>
+              <button
+                className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                onClick={() => { setMenuOpen(null); onDelete(menuOpen.id) }}
+              >
+                Delete
+              </button>
+            </div>
+          </>,
+          document.body
+        )}
       </Card>
     </div>
   )

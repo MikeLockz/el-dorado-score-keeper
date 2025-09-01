@@ -1,6 +1,7 @@
 "use client"
 import React from 'react'
 import { useAppState } from '@/components/state-provider'
+import { formatTime } from '@/lib/format'
 
 export default function Devtools() {
   const { height, state, previewAt, warnings, clearWarnings } = useAppState()
@@ -46,7 +47,7 @@ export default function Devtools() {
                 <div style={{ marginTop: 4, maxHeight: 80, overflow: 'auto' }}>
                   {warnings.slice(0, 3).map((w, i) => (
                     <div key={i} style={{ opacity: 0.9 }}>
-                      {new Date(w.at).toLocaleTimeString()} — {w.code}
+                      {formatTime(w.at)} — {w.code}
                     </div>
                   ))}
                 </div>
