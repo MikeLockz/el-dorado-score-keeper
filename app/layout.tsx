@@ -1,4 +1,5 @@
 import type React from "react"
+import type { Metadata, Viewport } from "next"
 import "@/app/globals.css"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -8,11 +9,10 @@ import Header from "@/components/header"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "El Dorado Score Keeper",
   description: "Score keeper for El Dorado",
   generator: 'v0.app',
-  themeColor: '#0ea5e9',
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
@@ -37,6 +37,10 @@ export const metadata = {
     title: 'El Dorado Score Keeper',
     description: 'Score keeper for El Dorado',
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#0ea5e9',
 }
 
 export default function RootLayout({

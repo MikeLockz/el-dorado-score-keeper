@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Fragment } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,20 +67,20 @@ export default function ScoreboardView() {
           {ready ? (
             <>
               {players.map((p) => (
-                <>
-                  <div key={`${p.id}-name`} className="p-2 border-b truncate">{p.name}</div>
-                  <div key={`${p.id}-score`} className="p-2 border-b text-center font-mono">{scoreOf(p.id)}</div>
-                  <div key={`${p.id}-dec`} className="p-2 border-b text-center">
+                <Fragment key={p.id}>
+                  <div className="p-2 border-b truncate">{p.name}</div>
+                  <div className="p-2 border-b text-center font-mono">{scoreOf(p.id)}</div>
+                  <div className="p-2 border-b text-center">
                     <Button size="sm" variant="outline" onClick={() => bump(p.id, -1)} className="h-7 w-16"><Minus className="h-4 w-4" /></Button>
                   </div>
-                  <div key={`${p.id}-inc`} className="p-2 border-b text-center">
+                  <div className="p-2 border-b text-center">
                     <Button size="sm" onClick={() => bump(p.id, +1)} className="h-7 w-16"><Plus className="h-4 w-4" /></Button>
                   </div>
-                  <div key={`${p.id}-actions`} className="p-2 border-b text-center flex items-center justify-center gap-2">
+                  <div className="p-2 border-b text-center flex items-center justify-center gap-2">
                     <Button size="sm" variant="outline" onClick={() => renamePlayer(p.id, p.name)} className="h-7 px-2"><Edit className="h-4 w-4" /></Button>
                     <Button size="sm" variant="destructive" onClick={() => removePlayer(p.id, p.name)} className="h-7 px-2"><Trash className="h-4 w-4" /></Button>
                   </div>
-                </>
+                </Fragment>
               ))}
               {players.length === 0 && (
                 <div className="col-span-5 p-4 text-center text-slate-500">Add players to get started.</div>
@@ -89,20 +89,20 @@ export default function ScoreboardView() {
           ) : (
             <>
               {Array.from({ length: 4 }).map((_, i) => (
-                <>
-                  <div key={`placeholder-${i}-name`} className="p-2 border-b truncate text-slate-400">-</div>
-                  <div key={`placeholder-${i}-score`} className="p-2 border-b text-center font-mono text-slate-400">-</div>
-                  <div key={`placeholder-${i}-dec`} className="p-2 border-b text-center">
+                <Fragment key={`placeholder-${i}`}>
+                  <div className="p-2 border-b truncate text-slate-400">-</div>
+                  <div className="p-2 border-b text-center font-mono text-slate-400">-</div>
+                  <div className="p-2 border-b text-center">
                     <Button size="sm" variant="outline" disabled className="h-7 w-16"><Minus className="h-4 w-4" /></Button>
                   </div>
-                  <div key={`placeholder-${i}-inc`} className="p-2 border-b text-center">
+                  <div className="p-2 border-b text-center">
                     <Button size="sm" disabled className="h-7 w-16"><Plus className="h-4 w-4" /></Button>
                   </div>
-                  <div key={`placeholder-${i}-actions`} className="p-2 border-b text-center flex items-center justify-center gap-2">
+                  <div className="p-2 border-b text-center flex items-center justify-center gap-2">
                     <Button size="sm" variant="outline" disabled className="h-7 px-2"><Edit className="h-4 w-4" /></Button>
                     <Button size="sm" variant="destructive" disabled className="h-7 px-2"><Trash className="h-4 w-4" /></Button>
                   </div>
-                </>
+                </Fragment>
               ))}
             </>
           )}

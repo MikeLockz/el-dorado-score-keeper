@@ -233,7 +233,15 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
       chan.postMessage({ type: 'append', seq })
     } else if (typeof localStorage !== 'undefined') {
       try {
-        localStorage.setItem(`app-events:lastSeq:${dbName}`, String(seq))
+        const key = `app-events:lastSeq:${dbName}`
+        const val = String(seq)
+        localStorage.setItem(key, val)
+        // In some environments, 'storage' may not fire across contexts. Best-effort dispatch.
+        try {
+          // @ts-ignore - StorageEvent may not be fully typed in Node
+          const ev = new StorageEvent('storage', { key, newValue: val, storageArea: localStorage })
+          dispatchEvent(ev)
+        } catch {}
       } catch {}
     }
     notify()

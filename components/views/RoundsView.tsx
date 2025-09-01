@@ -90,7 +90,6 @@ export default function RoundsView() {
 
   return (
     <div className="p-2 max-w-md mx-auto">
-      <h1 className="text-lg font-bold mb-2 text-center">Rounds</h1>
       <Card className="overflow-hidden shadow-lg">
         <div
           className="grid text-[0.65rem] sm:text-xs"

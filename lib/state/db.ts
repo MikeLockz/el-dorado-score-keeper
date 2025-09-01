@@ -11,6 +11,7 @@ export function tx(db: IDBDatabase, mode: IDBTransactionMode, stores: StoreName[
 }
 
 export async function openDB(name: string): Promise<IDBDatabase> {
+  // Single version schema; create all stores on initial upgrade
   const req = indexedDB.open(name, 1)
   req.onupgradeneeded = () => {
     const db = req.result
@@ -31,10 +32,14 @@ export async function openDB(name: string): Promise<IDBDatabase> {
     if (!have.has(storeNames.SNAPSHOTS)) {
       db.createObjectStore(storeNames.SNAPSHOTS, { keyPath: 'height' })
     }
+    // archived games store
+    if (!have.has('games')) {
+      const games = db.createObjectStore('games', { keyPath: 'id' })
+      try { games.createIndex('createdAt', 'createdAt', { unique: false }) } catch {}
+    }
   }
   return new Promise((res, rej) => {
     req.onsuccess = () => res(req.result)
     req.onerror = () => rej(req.error)
   })
 }
-
