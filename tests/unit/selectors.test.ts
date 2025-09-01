@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { INITIAL_STATE, reduce, type AppEvent, type AppState } from '@/lib/state/types'
-import { selectLeaders, selectRoundSummary, selectScores } from '@/lib/state/selectors'
+import { selectLeaders, selectRoundSummary, selectScores, selectRoundInfo, selectCumulativeScoresThrough, selectNextActionableRound, selectIsGameComplete } from '@/lib/state/selectors'
 import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events'
 
 const now = 1_700_000_000_000
@@ -76,5 +76,66 @@ describe('selectors', () => {
     const c = selectScores(s2)
     expect(c).not.toBe(a)
     expect(c.p1).toBe(3)
+  })
+
+  it('round info computes sumBids and over/under/match', () => {
+    const s1 = replay([
+      ev('player/added', { id: 'p1', name: 'A' }, 'i1'),
+      ev('player/added', { id: 'p2', name: 'B' }, 'i2'),
+      ev('bid/set', { round: 1, playerId: 'p1', bid: 2 }, 'i3'),
+      ev('bid/set', { round: 1, playerId: 'p2', bid: 1 }, 'i4'),
+    ])
+    const info = selectRoundInfo(s1, 1)
+    expect(info.sumBids).toBe(3)
+    // round 1 tricks = 10
+    expect(info.tricks).toBe(10)
+    expect(info.overUnder).toBe('under')
+  })
+
+  it('cumulative scores through round reflects only scored rounds', () => {
+    let s = replay([
+      ev('player/added', { id: 'p1', name: 'A' }, 'c1'),
+      ev('bid/set', { round: 1, playerId: 'p1', bid: 2 }, 'c2'),
+      ev('made/set', { round: 1, playerId: 'p1', made: true }, 'c3'),
+    ])
+    // Not finalized; should be 0
+    let totals = selectCumulativeScoresThrough(s, 1)
+    expect(totals.p1).toBe(0)
+    // Finalize then totals update
+    s = replay([ev('round/finalize', { round: 1 }, 'c4')], s)
+    totals = selectCumulativeScoresThrough(s, 1)
+    expect(totals.p1).toBe(7)
+  })
+
+  it('next actionable round prefers bidding/complete, else next locked after scored', () => {
+    let s = replay([
+      ev('player/added', { id: 'p1', name: 'A' }, 'n1'),
+      ev('bid/set', { round: 1, playerId: 'p1', bid: 1 }, 'n2'),
+    ])
+    // round 1 is bidding
+    expect(selectNextActionableRound(s)).toBe(1)
+    s = replay([
+      ev('made/set', { round: 1, playerId: 'p1', made: true }, 'n3'),
+      ev('round/state-set', { round: 1, state: 'complete' }, 'n4'),
+    ], s)
+    expect(selectNextActionableRound(s)).toBe(1)
+    s = replay([ev('round/finalize', { round: 1 }, 'n5')], s)
+    // After finalize, next (round 2) should be actionable (locked after all prev scored)
+    expect(selectNextActionableRound(s)).toBe(2)
+  })
+
+  it('game completion detects all rounds scored', () => {
+    let s = INITIAL_STATE
+    expect(selectIsGameComplete(s)).toBe(false)
+    // Score all rounds for a single player quickly
+    s = replay([ev('player/added', { id: 'p', name: 'A' }, 'g0')], s)
+    for (let r = 1; r <= 10; r++) {
+      s = replay([
+        ev('bid/set', { round: r, playerId: 'p', bid: 0 }, `g${r}a`),
+        ev('made/set', { round: r, playerId: 'p', made: true }, `g${r}b`),
+        ev('round/finalize', { round: r }, `g${r}c`),
+      ], s)
+    }
+    expect(selectIsGameComplete(s)).toBe(true)
   })
 })

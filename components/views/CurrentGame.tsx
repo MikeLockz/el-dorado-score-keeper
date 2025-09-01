@@ -7,6 +7,7 @@ import { Check, X, Plus, Minus } from "lucide-react"
 import { useAppState } from "@/components/state-provider"
 import { twoCharAbbrs } from "@/lib/utils"
 import { roundDelta, ROUNDS_TOTAL, tricksForRound } from "@/lib/state/logic"
+import { selectCumulativeScoresThrough, selectRoundInfo } from "@/lib/state/selectors"
 import type { RoundState } from "@/lib/state/types"
 import { events } from "@/lib/state/events"
 
@@ -96,23 +97,8 @@ export default function CurrentGame() {
     setDetailCells((m) => ({ ...m, [key]: !m[key] }))
   }
 
-  const cumulativeScoreThrough = React.useCallback((roundNo: number, playerId: string) => {
-    let total = 0
-    for (let r = 1; r <= roundNo; r++) {
-      const rd = state.rounds[r]
-      if (!rd || rd.state !== 'scored') continue
-      const bid = rd.bids[playerId] ?? 0
-      const made = rd.made[playerId] ?? false
-      total += roundDelta(bid, made)
-    }
-    return total
-  }, [state.rounds])
-
-  const totalRoundBid = React.useCallback((roundNo: number) => {
-    const rd = state.rounds[roundNo]
-    if (!rd) return 0
-    return players.reduce((sum, p) => sum + (rd.bids[p.id] ?? 0), 0)
-  }, [state.rounds, players])
+  const cumulativeScoresThrough = React.useCallback((roundNo: number) => selectCumulativeScoresThrough(state, roundNo), [state])
+  const roundInfo = React.useCallback((roundNo: number) => selectRoundInfo(state, roundNo), [state])
 
   // Before state hydration: show 4 placeholder columns to avoid layout shift.
   const DEFAULT_COLUMNS = 4
@@ -177,8 +163,9 @@ export default function CurrentGame() {
                 {(() => {
                   const rState = (state.rounds[round.round]?.state ?? 'locked') as RoundState
                   const showBid = (rState === 'bidding' || rState === 'scored')
-                  const total = showBid ? totalRoundBid(round.round) : 0
-                  const mismatch = showBid && total !== round.tricks
+                  const info = roundInfo(round.round)
+                  const total = showBid ? info.sumBids : 0
+                  const mismatch = showBid && total !== info.tricks
                   const label = showBid ? `Bid: ${total}` : labelForRoundState(rState)
                   return (
                     <div className={`text-[0.55rem] mt-0.5 font-semibold ${mismatch ? 'text-red-700' : ''}`}>{label}</div>
@@ -249,7 +236,7 @@ export default function CurrentGame() {
                                 <>
                                   <span className={`${made ? 'text-emerald-800' : 'text-red-700'}`}>{made ? 'Made' : 'Missed'}</span>
                                   {(() => {
-                                    const cum = cumulativeScoreThrough(round.round, c.id)
+                                    const cum = cumulativeScoresThrough(round.round)[c.id] ?? 0
                                     const isNeg = cum < 0
                                     return (
                                       <span>
@@ -276,7 +263,7 @@ export default function CurrentGame() {
                                 <>
                                   <span className={`${made ? 'text-emerald-800' : 'text-red-700'}`}>{made ? 'Made' : 'Missed'}</span>
                                   {(() => {
-                                    const cum = cumulativeScoreThrough(round.round, c.id)
+                                    const cum = cumulativeScoresThrough(round.round)[c.id] ?? 0
                                     const isNeg = cum < 0
                                     return (
                                       <span>
@@ -306,7 +293,7 @@ export default function CurrentGame() {
                             <span className="w-full text-right font-extrabold text-xl text-black">{bid}</span>
                             <span className="px-1 font-extrabold text-xl text-black">-</span>
                             {(() => {
-                              const cum = cumulativeScoreThrough(round.round, c.id)
+                              const cum = cumulativeScoresThrough(round.round)[c.id] ?? 0
                               const isNeg = cum < 0
                               return (
                                 <div className="w-full text-left">

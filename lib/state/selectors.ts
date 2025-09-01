@@ -1,5 +1,5 @@
 import type { AppState, RoundData } from './types'
-import { roundDelta } from './logic'
+import { roundDelta, tricksForRound, ROUNDS_TOTAL } from './logic'
 
 // Simple memo helpers keyed by object identity and primitive args.
 function memo1<A extends object, R>(fn: (a: A) => R) {
@@ -55,4 +55,69 @@ export const selectRoundSummary = memo2((s: AppState, round: number): RoundSumma
     return { id, name: s.players[id], bid, made, delta }
   })
   return { round, state: r?.state ?? 'locked', rows }
+})
+
+export type RoundInfo = {
+  round: number
+  state: RoundData['state']
+  tricks: number
+  sumBids: number
+  overUnder: 'under' | 'over' | 'match'
+}
+
+export const selectRoundInfo = memo2((s: AppState, round: number): RoundInfo => {
+  const r: RoundData | undefined = s.rounds[round]
+  const tricks = tricksForRound(round)
+  let sumBids = 0
+  for (const id of Object.keys(s.players)) sumBids += r?.bids[id] ?? 0
+  const overUnder: RoundInfo['overUnder'] = sumBids === tricks ? 'match' : (sumBids > tricks ? 'over' : 'under')
+  return { round, state: r?.state ?? 'locked', tricks, sumBids, overUnder }
+})
+
+export const selectCumulativeScoresThrough = memo2((s: AppState, round: number): Record<string, number> => {
+  const totals: Record<string, number> = {}
+  for (const id of Object.keys(s.players)) totals[id] = 0
+  for (let r = 1; r <= round; r++) {
+    const rd = s.rounds[r]
+    if (!rd || rd.state !== 'scored') continue
+    for (const id of Object.keys(s.players)) {
+      const bid = rd.bids[id] ?? 0
+      const made = (rd.made[id] ?? false) as boolean
+      totals[id] = (totals[id] ?? 0) + roundDelta(bid, made)
+    }
+  }
+  return totals
+})
+
+export const selectNextActionableRound = memo1((s: AppState): number | null => {
+  // Prefer a current round in bidding/complete; otherwise the next locked after all prior scored; else null if all scored
+  let firstLockedAfterScored: number | null = null
+  for (let r = 1; r <= ROUNDS_TOTAL; r++) {
+    const st = s.rounds[r]?.state ?? 'locked'
+    if (st === 'bidding' || st === 'complete') return r
+    if (st === 'locked') {
+      // If all previous are scored, this is next actionable
+      let allPrevScored = true
+      for (let p = 1; p < r; p++) {
+        const pst = s.rounds[p]?.state ?? 'locked'
+        if (pst !== 'scored') { allPrevScored = false; break }
+      }
+      if (allPrevScored) {
+        firstLockedAfterScored = r
+        break
+      }
+    }
+  }
+  if (firstLockedAfterScored != null) return firstLockedAfterScored
+  // If any non-scored remains, return the first such; else null
+  for (let r = 1; r <= ROUNDS_TOTAL; r++) {
+    const st = s.rounds[r]?.state ?? 'locked'
+    if (st !== 'scored') return r
+  }
+  return null
+})
+
+export const selectIsGameComplete = memo1((s: AppState): boolean => {
+  for (let r = 1; r <= ROUNDS_TOTAL; r++) if ((s.rounds[r]?.state ?? 'locked') !== 'scored') return false
+  return true
 })
