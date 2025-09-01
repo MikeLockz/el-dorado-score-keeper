@@ -44,10 +44,72 @@ function getPlayerCellBackgroundStyles(state: RoundState) {
   }
 }
 
+// Shrinks row text to keep everything on a single line without wrapping
+function FitRow({ full, abbrev, className, maxRem = 0.65, minRem = 0.5, step = 0.02, abbrevAtRem = 0.55 }: { full: React.ReactNode; abbrev?: React.ReactNode; className?: string; maxRem?: number; minRem?: number; step?: number; abbrevAtRem?: number }) {
+  const ref = React.useRef<HTMLDivElement | null>(null)
+  const [size, setSize] = React.useState(maxRem)
+  const [useAbbrev, setUseAbbrev] = React.useState(false)
+
+  React.useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    let frame = 0
+    const fit = () => {
+      if (!el) return
+      let current = maxRem
+      el.style.fontSize = `${current}rem`
+      // Ensure no wrapping and reduce until it fits
+      while ((el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight) && current > minRem) {
+        current = Math.max(minRem, current - step)
+        el.style.fontSize = `${current}rem`
+      }
+      setSize(current)
+      if (!useAbbrev && abbrev && current <= abbrevAtRem) {
+        // Switch to abbreviated labels and let next frame refit
+        setUseAbbrev(true)
+      }
+    }
+    fit()
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(fit)
+    })
+    ro.observe(el)
+    return () => {
+      cancelAnimationFrame(frame)
+      ro.disconnect()
+    }
+  }, [maxRem, minRem, step, full, abbrev, useAbbrev, abbrevAtRem])
+
+  return (
+    <div ref={ref} className={`whitespace-nowrap overflow-hidden ${className ?? ''}`} style={{ fontSize: `${size}rem` }}>
+      {useAbbrev && abbrev ? abbrev : full}
+    </div>
+  )
+}
+
 export default function CurrentGame() {
   const { state, append, ready } = useAppState()
   const players = Object.entries(state.players).map(([id, name]) => ({ id, name }))
   const abbr = twoCharAbbrs(players)
+  const [detailCells, setDetailCells] = React.useState<Record<string, boolean>>({})
+  const toggleCellDetails = (round: number, playerId: string) => {
+    const key = `${round}-${playerId}`
+    setDetailCells((m) => ({ ...m, [key]: !m[key] }))
+  }
+
+  const cumulativeScoreThrough = React.useCallback((roundNo: number, playerId: string) => {
+    let total = 0
+    for (let r = 1; r <= roundNo; r++) {
+      const rd = state.rounds[r]
+      if (!rd || rd.state !== 'scored') continue
+      const bid = rd.bids[playerId] ?? 0
+      const made = rd.made[playerId] ?? false
+      total += (made ? 1 : -1) * (5 + bid)
+    }
+    return total
+  }, [state.rounds])
 
   // Before state hydration: show 4 placeholder columns to avoid layout shift.
   const DEFAULT_COLUMNS = 4
@@ -117,8 +179,16 @@ export default function CurrentGame() {
                 const bid = c.placeholder ? 0 : (state.rounds[round.round]?.bids[c.id] ?? 0)
                 const made = c.placeholder ? null : (state.rounds[round.round]?.made[c.id] ?? null)
                 const max = round.tricks
+                const cellKey = `${round.round}-${c.id}`
+                const showDetails = rState !== 'scored' ? true : !!detailCells[cellKey]
                 return (
-                  <div key={`${round.round}-${c.id}`} className={`border-b grid grid-cols-1 grid-rows-2 transition-all duration-200 ${getPlayerCellBackgroundStyles(rState)}`}>
+                  <div
+                    key={`${round.round}-${c.id}`}
+                    className={`border-b grid grid-cols-1 ${showDetails ? 'grid-rows-2' : 'grid-rows-1'} transition-all duration-200 ${getPlayerCellBackgroundStyles(rState)}`}
+                    onClick={() => {
+                      if (rState === 'scored') toggleCellDetails(round.round, c.id)
+                    }}
+                  >
                     {c.placeholder ? (
                       <>
                         <div className="border-b flex items-center justify-center px-1 py-0.5"><span className="text-[0.6rem] text-gray-500">-</span></div>
@@ -153,14 +223,89 @@ export default function CurrentGame() {
                       </>
                     ) : (
                       <>
-                        <div className="border-b flex items-center justify-between px-1 py-0.5">
-                          <span className="text-[0.6rem] font-medium text-emerald-800">{made ? 'Made' : 'Missed'}</span>
-                          <span className="text-[0.6rem] text-emerald-700">Bid: {bid}</span>
-                        </div>
-                        <div className="flex items-center justify-between px-1 py-0.5">
-                          <span className={`text-[0.6rem] font-semibold ${made ? 'text-green-700' : 'text-red-700'}`}>{(made ? 1 : -1) * (5 + bid)}</span>
-                          <span className="font-bold text-[0.65rem] text-emerald-900">{(state.scores[c.id] ?? 0)}</span>
-                        </div>
+                        {showDetails ? (
+                          <>
+                            <FitRow
+                              className="flex items-center justify-between px-1 py-0.5"
+                              maxRem={0.65}
+                              minRem={0.5}
+                              full={
+                                <>
+                                  <span className={`${made ? 'text-emerald-800' : 'text-red-700'} font-medium`}>{made ? 'Made' : 'Missed'}</span>
+                                  <span className="text-emerald-700">Bid: {bid}</span>
+                                </>
+                              }
+                            />
+                            <FitRow
+                              className="flex items-center justify-between px-1 py-0.5"
+                              maxRem={0.65}
+                              minRem={0.5}
+                              abbrevAtRem={0.55}
+                              full={
+                                <>
+                                  <span className={`${made ? 'text-green-700' : 'text-red-700'} font-semibold`}>Round: {(made ? 1 : -1) * (5 + bid)}</span>
+                                  {(() => {
+                                    const cum = cumulativeScoreThrough(round.round, c.id)
+                                    const isNeg = cum < 0
+                                    return (
+                                      <span>
+                                        <span className="mr-1">Total:</span>
+                                        {isNeg ? (
+                                          <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
+                                            <span className="text-red-700 leading-none">{Math.abs(cum)}</span>
+                                          </span>
+                                        ) : (
+                                          <span className="text-emerald-900">{cum}</span>
+                                        )}
+                                      </span>
+                                    )
+                                  })()}
+                                </>
+                              }
+                              abbrev={
+                                <>
+                                  <span className={`${made ? 'text-green-700' : 'text-red-700'} font-semibold`}>Rnd: {(made ? 1 : -1) * (5 + bid)}</span>
+                                  {(() => {
+                                    const cum = cumulativeScoreThrough(round.round, c.id)
+                                    const isNeg = cum < 0
+                                    return (
+                                      <span>
+                                        <span className="mr-1">Tot:</span>
+                                        {isNeg ? (
+                                          <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
+                                            <span className="text-red-700 leading-none">{Math.abs(cum)}</span>
+                                          </span>
+                                        ) : (
+                                          <span className="text-emerald-900">{cum}</span>
+                                        )}
+                                      </span>
+                                    )
+                                  })()}
+                                </>
+                              }
+                            />
+                          </>
+                        ) : (
+                          <div className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none">
+                            <span className="w-full text-right font-extrabold text-xl text-emerald-900">{bid}</span>
+                            <span className="px-1 font-extrabold text-xl text-emerald-900">-</span>
+                            {(() => {
+                              const cum = cumulativeScoreThrough(round.round, c.id)
+                              const isNeg = cum < 0
+                              return (
+                                <div className="w-full text-left">
+                                  {isNeg ? (
+                                    <span className="relative inline-flex items-center justify-center align-middle w-[5ch] h-[5ch] rounded-full border-2 border-red-500">
+                                      <span className="font-extrabold text-xl text-red-700 leading-none">{Math.abs(cum)}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="font-extrabold text-xl text-emerald-900">{cum}</span>
+                                  )}
+                                </div>
+                              )
+                            })()}
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
