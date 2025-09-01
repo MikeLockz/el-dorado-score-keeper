@@ -212,7 +212,7 @@ export default function CurrentGame() {
                         <div className="flex items-center justify-center px-1 py-0.5"><span className="text-[0.6rem] text-gray-500">-</span></div>
                       </>
                     ) : rState === 'bidding' ? (
-                      <div className="flex items-center justify-center gap-1.5 px-1 py-0.5">
+                      <div className="flex items-center justify-center px-1">
                         <Button size="sm" variant="outline" className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 border-sky-700 text-white" onClick={() => decrementBid(round.round, c.id)} disabled={bid <= 0}><Minus className="h-3 w-3" /></Button>
                         <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-black bg-white/60 px-1.5 rounded">{bid}</span>
                         <Button size="sm" variant="outline" className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 border-sky-700 text-white" onClick={() => incrementBid(round.round, c.id, max)} disabled={bid >= max}><Plus className="h-3 w-3" /></Button>
