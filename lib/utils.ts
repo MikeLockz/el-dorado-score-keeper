@@ -63,3 +63,17 @@ export function twoCharAbbrs(entries: Array<{ id: string | number; name: string 
   }
   return result
 }
+
+// Format duration in ms into a compact human string like 1h 02m 03s
+export function formatDuration(ms: number): string {
+  if (!isFinite(ms) || ms <= 0) return '0s'
+  const totalSec = Math.floor(ms / 1000)
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  const parts: string[] = []
+  if (h > 0) parts.push(`${h}h`)
+  if (m > 0 || h > 0) parts.push(`${h > 0 ? String(m).padStart(2, '0') : m}m`)
+  parts.push(`${(h > 0 || m > 0) ? String(s).padStart(2, '0') : s}s`)
+  return parts.join(' ')
+}
