@@ -1,0 +1,43 @@
+import type { AppState, RoundData, RoundState } from './types'
+
+export const ROUNDS_TOTAL = 10
+
+export function tricksForRound(roundNo: number): number {
+  return Math.max(0, Math.min(10, 11 - Math.floor(roundNo)))
+}
+
+export function clampBid(round: number, bid: number): number {
+  const max = tricksForRound(round)
+  return Math.max(0, Math.min(max, Math.floor(bid)))
+}
+
+export function roundDelta(bid: number, made: boolean | null | undefined): number {
+  if (made == null) return 0
+  const base = 5 + Math.floor(bid)
+  return (made ? 1 : -1) * base
+}
+
+export function initialRounds(total: number = ROUNDS_TOTAL): Record<number, RoundData> {
+  const rounds: Record<number, RoundData> = {}
+  for (let i = 1; i <= total; i++) {
+    rounds[i] = { state: i === 1 ? 'bidding' : 'locked', bids: {}, made: {} } as RoundData
+  }
+  return rounds
+}
+
+export function finalizeRound(prev: AppState, round: number): AppState {
+  const r = prev.rounds[round] ?? { state: 'locked', bids: {}, made: {} }
+  let scores = { ...prev.scores }
+  for (const pid of Object.keys(prev.players)) {
+    const bid = r.bids[pid] ?? 0
+    const made = (r.made[pid] ?? false) as boolean
+    scores[pid] = (scores[pid] ?? 0) + roundDelta(bid, made)
+  }
+  const rounds = { ...prev.rounds, [round]: { ...r, state: 'scored' as RoundState } }
+  const nextRound = round + 1
+  if (rounds[nextRound] && rounds[nextRound].state === 'locked') {
+    rounds[nextRound] = { ...rounds[nextRound], state: 'bidding' }
+  }
+  return { ...prev, scores, rounds }
+}
+

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Check, X, Plus, Minus } from "lucide-react"
 import { useAppState } from "@/components/state-provider"
 import { twoCharAbbrs } from "@/lib/utils"
+import { roundDelta } from "@/lib/state/logic"
 import { events } from "@/lib/state/events"
 
 
@@ -103,7 +104,7 @@ export default function CurrentGame() {
       if (!rd || rd.state !== 'scored') continue
       const bid = rd.bids[playerId] ?? 0
       const made = rd.made[playerId] ?? false
-      total += (made ? 1 : -1) * (5 + bid)
+      total += roundDelta(bid, made)
     }
     return total
   }, [state.rounds])
@@ -240,7 +241,7 @@ export default function CurrentGame() {
                               abbrevAtRem={0.55}
                               full={
                                 <>
-                                  <span className={`${made ? 'text-green-700' : 'text-red-700'} font-semibold`}>Round: {(made ? 1 : -1) * (5 + bid)}</span>
+                                  <span className={`${made ? 'text-green-700' : 'text-red-700'} font-semibold`}>Round: {roundDelta(bid, made)}</span>
                                   {(() => {
                                     const cum = cumulativeScoreThrough(round.round, c.id)
                                     const isNeg = cum < 0
@@ -261,7 +262,7 @@ export default function CurrentGame() {
                               }
                               abbrev={
                                 <>
-                                  <span className={`${made ? 'text-green-700' : 'text-red-700'} font-semibold`}>Rnd: {(made ? 1 : -1) * (5 + bid)}</span>
+                                  <span className={`${made ? 'text-green-700' : 'text-red-700'} font-semibold`}>Rnd: {roundDelta(bid, made)}</span>
                                   {(() => {
                                     const cum = cumulativeScoreThrough(round.round, c.id)
                                     const isNeg = cum < 0

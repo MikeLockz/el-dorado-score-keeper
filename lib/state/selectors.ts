@@ -1,4 +1,5 @@
 import type { AppState, RoundData } from './types'
+import { roundDelta } from './logic'
 
 // Simple memo helpers keyed by object identity and primitive args.
 function memo1<A extends object, R>(fn: (a: A) => R) {
@@ -50,10 +51,8 @@ export const selectRoundSummary = memo2((s: AppState, round: number): RoundSumma
   const rows: RoundRow[] = Object.keys(s.players).map((id) => {
     const bid = r?.bids[id] ?? 0
     const made = (r?.made[id] ?? null) as boolean | null
-    const base = 5 + bid
-    const delta = made == null ? 0 : (made ? base : -base)
+    const delta = roundDelta(bid, made)
     return { id, name: s.players[id], bid, made, delta }
   })
   return { round, state: r?.state ?? 'locked', rows }
 })
-
