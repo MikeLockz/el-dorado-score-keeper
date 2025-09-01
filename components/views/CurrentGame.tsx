@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Check, X, Plus, Minus } from "lucide-react"
 import { useAppState } from "@/components/state-provider"
+import { twoCharAbbrs } from "@/lib/utils"
 
 function uuid() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as any).randomUUID()
@@ -46,6 +47,7 @@ function getPlayerCellBackgroundStyles(state: RoundState) {
 export default function CurrentGame() {
   const { state, append, ready } = useAppState()
   const players = Object.entries(state.players).map(([id, name]) => ({ id, name }))
+  const abbr = twoCharAbbrs(players)
 
   // Before state hydration: show 4 placeholder columns to avoid layout shift.
   const DEFAULT_COLUMNS = 4
@@ -97,7 +99,7 @@ export default function CurrentGame() {
         >
           <div className="bg-slate-700 text-white p-1 font-bold text-center border-b border-r">Rd</div>
           {columns.map((c) => (
-            <div key={`hdr-${c.id}`} className="bg-slate-700 text-white p-1 font-bold text-center border-b">{c.placeholder ? '-' : c.name.substring(0, 2)}</div>
+            <div key={`hdr-${c.id}`} className="bg-slate-700 text-white p-1 font-bold text-center border-b">{c.placeholder ? '-' : (abbr[c.id] ?? c.name.substring(0, 2))}</div>
           ))}
 
           {Array.from({ length: 10 }, (_, i) => ({ round: i + 1, tricks: 10 - i })).map((round) => (
