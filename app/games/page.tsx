@@ -31,8 +31,7 @@ export default function GamesPage() {
     if (loading) return
     setLoading(true)
     try {
-      const title = prompt('Title for archived game (optional)') || undefined
-      await archiveCurrentGameAndReset(DB_NAME, { title })
+      await archiveCurrentGameAndReset(DB_NAME)
       await load()
       router.push('/')
     } finally {
@@ -90,4 +89,3 @@ export default function GamesPage() {
     </div>
   )
 }
-
