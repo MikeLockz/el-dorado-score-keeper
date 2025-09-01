@@ -126,12 +126,12 @@ Detailed Implementation Steps
 3) UI integration (Games > Details page)
    - File: `app/games/view/page.tsx`.
    - Load `GameRecord` (already implemented), then call `analyzeGame(game)`.
-   - Render a new “Statistics” card below Final Scores with grouped sections:
+   - Render a new “Statistics” card below Final Scores with grouped sections (always visible, no toggles):
      - Leaders: Most/Least total bid, Highest single bid, Biggest single loss.
      - Totals: Total points bid, Hands won, Hands lost.
      - Rounds: Table listing round, tricks, sum of bids, status (Over/Under/Exact). Consider badges with color coding.
      - Timing: Started, Ended, Duration (humanized, e.g., 1h 12m 03s).
-   - Add an “Advanced” toggle to reveal optional metrics (see Optional Metrics below).
+   - Show all implemented statistics by default; do not hide any metrics behind toggles.
 
 4) UX & Presentation
    - Keep layout compact and scannable; prefer small tables and definition lists.
@@ -157,7 +157,7 @@ Detailed Implementation Steps
    - Verify with a few archived games; cross-check totals by quick manual calculations.
    - If desired later, we can persist `stats` into `GameRecord.summary.v2` on archive to speed load; today we compute on demand to avoid migrations.
 
-Optional/Advanced Metrics (behind toggle)
+Additional Metrics (future additions; always visible once implemented)
 - Bid behavior
   - Average bid per round per player; standard deviation/variance of bids.
   - Zero bids ("nil") count and success rate (made when bid=0).
@@ -266,13 +266,13 @@ export function analyzeGame(rec: GameRecord): GameStats {
 
 Open Questions / Decisions
 - Leaders tie display: Do we want to show multiple names when tied? (Default: single winner with deterministic tie-break.)
-- Include “exact” rounds in the main list or under Advanced? (Default: show in list; useful context.)
+- Include “exact” rounds in the main list? (Yes; useful context.)
 - Persist computed stats into `GameRecord.summary` v2 on archive for faster loading? (Defer until needed.)
 
 Work Breakdown & Estimates
 - Analytics module and tests: 4–6 hours.
 - UI integration and styling: 2–4 hours.
-- Advanced metrics + toggles: 2–4 hours.
+- Additional metrics: 2–4 hours.
 - Polish, docs, and review: 1–2 hours.
 
 Risks & Mitigations

@@ -25,12 +25,14 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   const chan = useChannel ? (new BroadcastChannel(chanName) as BroadcastChannel) : null
   let memoryState: AppState = INITIAL_STATE
   let height = 0
+  let isClosed = false
   const listeners = new Set<(s: AppState, h: number) => void>()
   const notify = () => { for (const l of listeners) l(memoryState, height) }
   const SNAPSHOT_EVERY = 20
   // serialize catch-up operations to avoid double-apply under races
   let applyChain: Promise<void> = Promise.resolve()
   const enqueueCatchUp = (fn: () => Promise<void>) => {
+    if (isClosed) return Promise.resolve()
     const next = applyChain.then(fn, fn)
     // keep chain from rejecting
     applyChain = next.catch(() => {})
@@ -93,6 +95,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   }
 
   async function applyTail(fromExclusive: number) {
+    if (isClosed) return
     const t = tx(db, 'readonly', [storeNames.EVENTS])
     const range = IDBKeyRange.lowerBound(fromExclusive + 1)
     const cursorReq = t.objectStore(storeNames.EVENTS).openCursor(range)
@@ -114,6 +117,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   }
 
   async function persistCurrent() {
+    if (isClosed) return
     const t = tx(db, 'readwrite', [storeNames.STATE])
     const req = t.objectStore(storeNames.STATE).put({ id: 'current', height, state: memoryState } as CurrentStateRecord)
     await new Promise<void>((res, rej) => {
@@ -272,7 +276,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
 
   function getState() { return memoryState }
   function getHeight() { return height }
-  function close() { chan?.close(); db.close() }
+  function close() { isClosed = true; try { chan?.close() } catch {}; try { db.close() } catch {} }
   function subscribe(cb: (s: AppState, h: number) => void) { listeners.add(cb); return () => { listeners.delete(cb) } }
   function setTestAppendFailure(mode: 'quota' | 'generic' | null) { testFailMode = mode }
   function setTestAbortAfterAddOnce() { testAbortAfterAdd = true }
