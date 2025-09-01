@@ -11,32 +11,30 @@ export function tx(db: IDBDatabase, mode: IDBTransactionMode, stores: StoreName[
   return db.transaction(stores as string[], mode)
 }
 
+// IndexedDB schema versions
+// v1: stores `events`, `state`, `snapshots`; `events.eventId` unique index
+// v2: adds `games` store with `createdAt` index
+export const SCHEMA_V1 = 1
+export const SCHEMA_V2 = 2
+export const SCHEMA_VERSION = SCHEMA_V2
+
 export async function openDB(name: string): Promise<IDBDatabase> {
-  // Schema version 2 (adds `games` store). Upgrades from v1 -> v2 create missing stores.
-  const req = indexedDB.open(name, 2)
-  req.onupgradeneeded = () => {
+  // Upgrades are gated by `oldVersion` to avoid redundant checks and index re-creation.
+  const req = indexedDB.open(name, SCHEMA_VERSION)
+  req.onupgradeneeded = (ev) => {
     const db = req.result
-    const have = new Set<string>(Array.from(db.objectStoreNames as any))
-    if (!have.has(storeNames.EVENTS)) {
+    const oldVersion = (ev as IDBVersionChangeEvent).oldVersion || 0
+    // Fresh DB or upgrade from < v1: create base stores and indexes
+    if (oldVersion < SCHEMA_V1) {
       const events = db.createObjectStore(storeNames.EVENTS, { keyPath: 'seq', autoIncrement: true })
       events.createIndex('eventId', 'eventId', { unique: true })
-    } else {
-      // ensure index exists (in case of older DBs)
-      const store = req.transaction!.objectStore(storeNames.EVENTS)
-      if (!(store.indexNames as any).contains?.('eventId') && !(store.indexNames as any).contains?.('eventId')) {
-        try { store.createIndex('eventId', 'eventId', { unique: true }) } catch {}
-      }
-    }
-    if (!have.has(storeNames.STATE)) {
       db.createObjectStore(storeNames.STATE, { keyPath: 'id' })
-    }
-    if (!have.has(storeNames.SNAPSHOTS)) {
       db.createObjectStore(storeNames.SNAPSHOTS, { keyPath: 'height' })
     }
-    // archived games store
-    if (!have.has(storeNames.GAMES)) {
+    // v1 -> v2: add archived games store
+    if (oldVersion < SCHEMA_V2) {
       const games = db.createObjectStore(storeNames.GAMES, { keyPath: 'id' })
-      try { games.createIndex('createdAt', 'createdAt', { unique: false }) } catch {}
+      games.createIndex('createdAt', 'createdAt', { unique: false })
     }
   }
   return new Promise((res, rej) => {

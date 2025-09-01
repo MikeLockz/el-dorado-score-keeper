@@ -1,5 +1,6 @@
 import { openDB, storeNames, tx } from './db'
 import { AppEvent, AppState, INITIAL_STATE, reduce } from './types'
+import { validateEventStrict } from './validation'
 
 export type Instance = {
   append: (event: AppEvent) => Promise<number>
@@ -186,6 +187,20 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   let testAbortAfterAdd = false
 
   async function append(event: AppEvent): Promise<number> {
+    // Validate event shape and payload before attempting to write
+    try {
+      // Ensure strict KnownAppEvent
+      event = validateEventStrict(event)
+    } catch (err: any) {
+      const info = (err && err.info) || undefined
+      const code = (info && (info.code as string)) || 'append.invalid_event_shape'
+      warn(code, info)
+      const ex = new Error('InvalidEvent')
+      ;(ex as any).name = 'InvalidEvent'
+      ;(ex as any).code = code
+      ;(ex as any).info = info
+      throw ex
+    }
     if (testFailMode) {
       const name = testFailMode === 'quota' ? 'QuotaExceededError' : 'TestAppendError'
       testFailMode = null

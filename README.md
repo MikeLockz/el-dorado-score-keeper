@@ -121,3 +121,10 @@ Notes:
 Deployed on Vercel: https://vercel.com/budgetflowr-4480s-projects/v0-mobile-friendly-score-interface
 
 You can also continue building from v0.app if you use it for deployments: https://v0.app/chat/projects/TyFuAeQ3Y59
+
+## IndexedDB Schema
+
+- Version constants live in `lib/state/db.ts` (`SCHEMA_V1`, `SCHEMA_V2`, `SCHEMA_VERSION`).
+- v1: stores `events` (with unique `eventId` index), `state`, and `snapshots`.
+- v2: adds `games` store with non‑unique `createdAt` index for listing archived games.
+- Migrations use `onupgradeneeded` with `oldVersion` guards to avoid redundant index creation. Upgrading from v1→v2 only creates the `games` store/index and preserves existing data.
