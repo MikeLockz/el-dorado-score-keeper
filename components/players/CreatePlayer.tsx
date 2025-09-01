@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Plus } from 'lucide-react'
 import { useAppState } from '@/components/state-provider'
 import { uuid } from '@/lib/utils'
+import type { UUID } from '@/lib/state/types'
 import { events } from '@/lib/state/events'
 
 
@@ -19,7 +20,7 @@ export default function CreatePlayer() {
     if (maxReached) return
     const n = name.trim()
     if (!n) return
-    const id = uuid()
+    const id: UUID = uuid()
     await append(events.playerAdded({ id, name: n }))
     setName('')
   }
