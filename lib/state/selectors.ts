@@ -89,6 +89,48 @@ export const selectCumulativeScoresThrough = memo2((s: AppState, round: number):
   return totals
 })
 
+// Heavy derived data helpers to avoid per-cell recalculation
+export type CumulativeByRound = Record<number, Record<string, number>>
+
+export const selectCumulativeScoresAllRounds = memo1((s: AppState): CumulativeByRound => {
+  // Build progressive totals once and snapshot after each round.
+  const ids = Object.keys(s.players)
+  let running: Record<string, number> = {}
+  for (const id of ids) running[id] = 0
+  const out: CumulativeByRound = {}
+  for (let r = 1; r <= ROUNDS_TOTAL; r++) {
+    const rd = s.rounds[r]
+    // create new object to keep snapshots stable per round
+    const next: Record<string, number> = { ...running }
+    if (rd && rd.state === 'scored') {
+      for (const id of ids) {
+        const bid = rd.bids[id] ?? 0
+        const made = (rd.made[id] ?? false) as boolean
+        next[id] = (next[id] ?? 0) + roundDelta(bid, made)
+      }
+    }
+    out[r] = next
+    running = next
+  }
+  return out
+})
+
+export type RoundInfoMap = Record<number, RoundInfo>
+
+export const selectRoundInfosAll = memo1((s: AppState): RoundInfoMap => {
+  const ids = Object.keys(s.players)
+  const out: RoundInfoMap = {}
+  for (let r = 1; r <= ROUNDS_TOTAL; r++) {
+    const rd: RoundData | undefined = s.rounds[r]
+    const tricks = tricksForRound(r)
+    let sumBids = 0
+    for (const id of ids) sumBids += rd?.bids[id] ?? 0
+    const overUnder: RoundInfo['overUnder'] = sumBids === tricks ? 'match' : (sumBids > tricks ? 'over' : 'under')
+    out[r] = { round: r, state: rd?.state ?? 'locked', tricks, sumBids, overUnder }
+  }
+  return out
+})
+
 export const selectNextActionableRound = memo1((s: AppState): number | null => {
   // Prefer a current round in bidding/complete; otherwise the next locked after all prior scored; else null if all scored
   let firstLockedAfterScored: number | null = null

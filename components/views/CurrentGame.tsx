@@ -7,7 +7,7 @@ import { Check, X, Plus, Minus } from "lucide-react"
 import { useAppState } from "@/components/state-provider"
 import { twoCharAbbrs } from "@/lib/utils"
 import { roundDelta, ROUNDS_TOTAL, tricksForRound } from "@/lib/state/logic"
-import { selectCumulativeScoresThrough, selectRoundInfo } from "@/lib/state/selectors"
+import { selectCumulativeScoresAllRounds, selectRoundInfosAll } from "@/lib/state/selectors"
 import type { RoundState } from "@/lib/state/types"
 import { events } from "@/lib/state/events"
 
@@ -97,8 +97,9 @@ export default function CurrentGame() {
     setDetailCells((m) => ({ ...m, [key]: !m[key] }))
   }
 
-  const cumulativeScoresThrough = React.useCallback((roundNo: number) => selectCumulativeScoresThrough(state, roundNo), [state])
-  const roundInfo = React.useCallback((roundNo: number) => selectRoundInfo(state, roundNo), [state])
+  // Precompute heavy derived data once per state change
+  const totalsByRound = React.useMemo(() => selectCumulativeScoresAllRounds(state), [state])
+  const roundInfoByRound = React.useMemo(() => selectRoundInfosAll(state), [state])
 
   // Before state hydration: show 4 placeholder columns to avoid layout shift.
   const DEFAULT_COLUMNS = 4
@@ -163,7 +164,7 @@ export default function CurrentGame() {
                 {(() => {
                   const rState = (state.rounds[round.round]?.state ?? 'locked') as RoundState
                   const showBid = (rState === 'bidding' || rState === 'scored')
-                  const info = roundInfo(round.round)
+                  const info = roundInfoByRound[round.round]
                   const total = showBid ? info.sumBids : 0
                   const mismatch = showBid && total !== info.tricks
                   const label = showBid ? `Bid: ${total}` : labelForRoundState(rState)
@@ -236,7 +237,7 @@ export default function CurrentGame() {
                                 <>
                                   <span className={`${made ? 'text-emerald-800' : 'text-red-700'}`}>{made ? 'Made' : 'Missed'}</span>
                                   {(() => {
-                                    const cum = cumulativeScoresThrough(round.round)[c.id] ?? 0
+                                    const cum = totalsByRound[round.round]?.[c.id] ?? 0
                                     const isNeg = cum < 0
                                     return (
                                       <span>
@@ -263,7 +264,7 @@ export default function CurrentGame() {
                                 <>
                                   <span className={`${made ? 'text-emerald-800' : 'text-red-700'}`}>{made ? 'Made' : 'Missed'}</span>
                                   {(() => {
-                                    const cum = cumulativeScoresThrough(round.round)[c.id] ?? 0
+                                    const cum = totalsByRound[round.round]?.[c.id] ?? 0
                                     const isNeg = cum < 0
                                     return (
                                       <span>
@@ -293,7 +294,7 @@ export default function CurrentGame() {
                             <span className="w-full text-right font-extrabold text-xl text-black">{bid}</span>
                             <span className="px-1 font-extrabold text-xl text-black">-</span>
                             {(() => {
-                              const cum = cumulativeScoresThrough(round.round)[c.id] ?? 0
+                              const cum = totalsByRound[round.round]?.[c.id] ?? 0
                               const isNeg = cum < 0
                               return (
                                 <div className="w-full text-left">
