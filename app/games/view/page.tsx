@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import type { GameRecord } from '@/lib/state/io'
 import { getGame, restoreGame } from '@/lib/state/io'
 
-export default function GameDetailPage() {
+function GameDetailPageInner() {
   const search = useSearchParams()
   const id = search.get('id') || ''
   const [game, setGame] = React.useState<GameRecord | null | undefined>(undefined)
@@ -83,5 +83,13 @@ export default function GameDetailPage() {
         <div className="text-sm text-slate-600">Events: {game.bundle.events.length} • Seq: {game.lastSeq}</div>
       </Card>
     </div>
+  )
+}
+
+export default function GameDetailPage() {
+  return (
+    <React.Suspense fallback={<div className="p-3 max-w-2xl mx-auto">Loading…</div>}>
+      <GameDetailPageInner />
+    </React.Suspense>
   )
 }
