@@ -43,10 +43,19 @@ export function StateProvider({ children, onWarn }: { children: React.ReactNode;
       })
       if (closed) { inst.close(); return }
       instRef.current = inst
-      setState(inst.getState())
-      setHeight(inst.getHeight())
-      setReady(true)
-      unsubs = inst.subscribe((s, h) => { setState(s); setHeight(h) })
+      // Mark initial state set and subsequent stream updates as transitions to
+      // keep input responsive during rapid event bursts (e.g., bid spamming).
+      React.startTransition(() => {
+        setState(inst.getState())
+        setHeight(inst.getHeight())
+        setReady(true)
+      })
+      unsubs = inst.subscribe((s, h) => {
+        React.startTransition(() => {
+          setState(s)
+          setHeight(h)
+        })
+      })
     })()
     return () => {
       closed = true
