@@ -530,8 +530,7 @@ export default function ScoreTracker() {
                               Round:{" "}
                               <span
                                 className={`font-semibold ${
-                                  playerData[round.round][player.id].score &&
-                                  playerData[round.round][player.id].score >= 0
+                                  (playerData[round.round][player.id].score ?? -1) >= 0
                                     ? "text-green-700"
                                     : "text-red-700"
                                 }`}

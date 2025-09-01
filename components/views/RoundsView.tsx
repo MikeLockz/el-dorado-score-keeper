@@ -44,8 +44,16 @@ function getPlayerCellBackgroundStyles(state: RoundState) {
 }
 
 export default function RoundsView() {
-  const { state, append } = useAppState()
+  const { state, append, ready } = useAppState()
   const players = Object.entries(state.players).map(([id, name]) => ({ id, name }))
+
+  // Before state hydration: show 4 placeholder columns to avoid layout shift.
+  const DEFAULT_COLUMNS = 4
+  const useDefault = !ready
+  const columnCount = useDefault ? DEFAULT_COLUMNS : players.length
+  const columns: Array<{ id: string; name: string; placeholder: boolean }> = useDefault
+    ? Array.from({ length: DEFAULT_COLUMNS }, (_, i) => ({ id: `placeholder-${i}`, name: '-', placeholder: true }))
+    : players.map(p => ({ ...p, placeholder: false }))
 
   const incrementBid = async (round: number, playerId: string, max: number) => {
     const current = state.rounds[round]?.bids[playerId] ?? 0
@@ -84,16 +92,18 @@ export default function RoundsView() {
     <div className="p-2 max-w-md mx-auto">
       <h1 className="text-lg font-bold mb-2 text-center">Rounds</h1>
       <Card className="overflow-hidden shadow-lg">
-        <div className="grid grid-cols-[3rem_repeat(4,1fr)] text-[0.65rem] sm:text-xs">
+        <div
+          className="grid text-[0.65rem] sm:text-xs"
+          style={{ gridTemplateColumns: `3rem repeat(${columnCount}, 1fr)` }}
+        >
           <div className="bg-slate-700 text-white p-1 font-bold text-center border-b border-r">Rd</div>
-          {players.map((p) => (
-            <div key={p.id} className="bg-slate-700 text-white p-1 font-bold text-center border-b">{p.name.substring(0,2)}</div>
+          {columns.map((c) => (
+            <div key={`hdr-${c.id}`} className="bg-slate-700 text-white p-1 font-bold text-center border-b">{c.placeholder ? '-' : c.name.substring(0, 2)}</div>
           ))}
 
           {Array.from({ length: 10 }, (_, i) => ({ round: i + 1, tricks: 10 - i })).map((round) => (
-            <>
+            <React.Fragment key={`row-${round.round}`}>
               <div
-                key={`round-${round.round}`}
                 className={`p-1 text-center border-b border-r flex flex-col justify-center transition-all duration-200 ${getRoundStateStyles((state.rounds[round.round]?.state ?? 'locked') as RoundState)}`}
                 onClick={() => cycleRoundState(round.round)}
               >
@@ -101,44 +111,46 @@ export default function RoundsView() {
                 <div className="text-[0.55rem] mt-0.5 font-semibold">{labelForRoundState((state.rounds[round.round]?.state ?? 'locked') as RoundState)}</div>
               </div>
 
-              {players.map((p) => {
+              {columns.map((c) => {
                 const rState = (state.rounds[round.round]?.state ?? 'locked') as RoundState
-                const bid = state.rounds[round.round]?.bids[p.id] ?? 0
-                const made = state.rounds[round.round]?.made[p.id] ?? null
+                const bid = c.placeholder ? 0 : (state.rounds[round.round]?.bids[c.id] ?? 0)
+                const made = c.placeholder ? null : (state.rounds[round.round]?.made[c.id] ?? null)
                 const max = round.tricks
                 return (
-                  <div key={`${round.round}-${p.id}`} className={`border-b grid grid-cols-1 grid-rows-2 transition-all duration-200 ${getPlayerCellBackgroundStyles(rState)}`}>
-                    {rState === 'locked' && (
+                  <div key={`${round.round}-${c.id}`} className={`border-b grid grid-cols-1 grid-rows-2 transition-all duration-200 ${getPlayerCellBackgroundStyles(rState)}`}>
+                    {c.placeholder ? (
                       <>
                         <div className="border-b flex items-center justify-center px-1 py-0.5"><span className="text-[0.6rem] text-gray-500">-</span></div>
                         <div className="flex items-center justify-center px-1 py-0.5"><span className="text-[0.6rem] text-gray-500">-</span></div>
                       </>
-                    )}
-                    {rState === 'bidding' && (
+                    ) : rState === 'locked' ? (
+                      <>
+                        <div className="border-b flex items-center justify-center px-1 py-0.5"><span className="text-[0.6rem] text-gray-500">-</span></div>
+                        <div className="flex items-center justify-center px-1 py-0.5"><span className="text-[0.6rem] text-gray-500">-</span></div>
+                      </>
+                    ) : rState === 'bidding' ? (
                       <>
                         <div className="border-b flex items-center justify-between px-1 py-0.5">
-                          <Button size="sm" variant="outline" className="h-4 w-4 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700" onClick={() => decrementBid(round.round, p.id)} disabled={bid <= 0}><Minus className="h-2 w-2" /></Button>
+                          <Button size="sm" variant="outline" className="h-4 w-4 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700" onClick={() => decrementBid(round.round, c.id)} disabled={bid <= 0}><Minus className="h-2 w-2" /></Button>
                           <span className="text-[0.7rem] font-bold min-w-[1rem] text-center text-sky-900 bg-white/60 px-1 rounded">{bid}</span>
-                          <Button size="sm" variant="outline" className="h-4 w-4 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700" onClick={() => incrementBid(round.round, p.id, max)} disabled={bid >= max}><Plus className="h-2 w-2" /></Button>
+                          <Button size="sm" variant="outline" className="h-4 w-4 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700" onClick={() => incrementBid(round.round, c.id, max)} disabled={bid >= max}><Plus className="h-2 w-2" /></Button>
                         </div>
                         <div className="flex items-center justify-between px-1 py-0.5">
                           <span className="text-[0.6rem] text-sky-700 font-medium">Bid</span>
                           <span className="w-8 h-5 text-center text-[0.65rem] font-semibold text-sky-900">{bid}</span>
                         </div>
                       </>
-                    )}
-                    {rState === 'complete' && (
+                    ) : rState === 'complete' ? (
                       <>
                         <div className="border-b flex items-center justify-between px-1 py-0.5">
                           <span className="text-[0.6rem] text-orange-800 font-medium">Bid: {bid}</span>
                         </div>
                         <div className="flex items-center justify-center gap-1 py-0.5">
-                          <Button size="sm" variant={made === true ? 'default' : 'outline'} className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300" onClick={() => toggleMade(round.round, p.id, true)}><Check className="h-3 w-3" /></Button>
-                          <Button size="sm" variant={made === false ? 'destructive' : 'outline'} className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300" onClick={() => toggleMade(round.round, p.id, false)}><X className="h-3 w-3" /></Button>
+                          <Button size="sm" variant={made === true ? 'default' : 'outline'} className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300" onClick={() => toggleMade(round.round, c.id, true)}><Check className="h-3 w-3" /></Button>
+                          <Button size="sm" variant={made === false ? 'destructive' : 'outline'} className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300" onClick={() => toggleMade(round.round, c.id, false)}><X className="h-3 w-3" /></Button>
                         </div>
                       </>
-                    )}
-                    {rState === 'scored' && (
+                    ) : (
                       <>
                         <div className="border-b flex items-center justify-between px-1 py-0.5">
                           <span className="text-[0.6rem] font-medium text-emerald-800">{made ? 'Made' : 'Missed'}</span>
@@ -146,14 +158,14 @@ export default function RoundsView() {
                         </div>
                         <div className="flex items-center justify-between px-1 py-0.5">
                           <span className={`text-[0.6rem] font-semibold ${made ? 'text-green-700' : 'text-red-700'}`}>{(made ? 1 : -1) * (5 + bid)}</span>
-                          <span className="font-bold text-[0.65rem] text-emerald-900">{(state.scores[p.id] ?? 0)}</span>
+                          <span className="font-bold text-[0.65rem] text-emerald-900">{(state.scores[c.id] ?? 0)}</span>
                         </div>
                       </>
                     )}
                   </div>
-                )}
+                )
               })}
-            </>
+            </React.Fragment>
           ))}
         </div>
       </Card>

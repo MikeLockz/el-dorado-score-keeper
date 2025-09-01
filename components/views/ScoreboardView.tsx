@@ -14,7 +14,7 @@ function uuid() {
 }
 
 export default function ScoreboardView() {
-  const { state, append } = useAppState()
+  const { state, append, ready } = useAppState()
   const [newName, setNewName] = useState("")
 
   const players = Object.entries(state.players).map(([id, name]) => ({ id, name }))
@@ -64,24 +64,47 @@ export default function ScoreboardView() {
           <div className="bg-slate-700 text-white p-2 font-bold text-center">-1</div>
           <div className="bg-slate-700 text-white p-2 font-bold text-center">+1</div>
           <div className="bg-slate-700 text-white p-2 font-bold text-center">Actions</div>
-          {players.map((p) => (
+          {ready ? (
             <>
-              <div key={`${p.id}-name`} className="p-2 border-b truncate">{p.name}</div>
-              <div key={`${p.id}-score`} className="p-2 border-b text-center font-mono">{scoreOf(p.id)}</div>
-              <div key={`${p.id}-dec`} className="p-2 border-b text-center">
-                <Button size="sm" variant="outline" onClick={() => bump(p.id, -1)} className="h-7 w-16"><Minus className="h-4 w-4" /></Button>
-              </div>
-              <div key={`${p.id}-inc`} className="p-2 border-b text-center">
-                <Button size="sm" onClick={() => bump(p.id, +1)} className="h-7 w-16"><Plus className="h-4 w-4" /></Button>
-              </div>
-              <div key={`${p.id}-actions`} className="p-2 border-b text-center flex items-center justify-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => renamePlayer(p.id, p.name)} className="h-7 px-2"><Edit className="h-4 w-4" /></Button>
-                <Button size="sm" variant="destructive" onClick={() => removePlayer(p.id, p.name)} className="h-7 px-2"><Trash className="h-4 w-4" /></Button>
-              </div>
+              {players.map((p) => (
+                <>
+                  <div key={`${p.id}-name`} className="p-2 border-b truncate">{p.name}</div>
+                  <div key={`${p.id}-score`} className="p-2 border-b text-center font-mono">{scoreOf(p.id)}</div>
+                  <div key={`${p.id}-dec`} className="p-2 border-b text-center">
+                    <Button size="sm" variant="outline" onClick={() => bump(p.id, -1)} className="h-7 w-16"><Minus className="h-4 w-4" /></Button>
+                  </div>
+                  <div key={`${p.id}-inc`} className="p-2 border-b text-center">
+                    <Button size="sm" onClick={() => bump(p.id, +1)} className="h-7 w-16"><Plus className="h-4 w-4" /></Button>
+                  </div>
+                  <div key={`${p.id}-actions`} className="p-2 border-b text-center flex items-center justify-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => renamePlayer(p.id, p.name)} className="h-7 px-2"><Edit className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="destructive" onClick={() => removePlayer(p.id, p.name)} className="h-7 px-2"><Trash className="h-4 w-4" /></Button>
+                  </div>
+                </>
+              ))}
+              {players.length === 0 && (
+                <div className="col-span-5 p-4 text-center text-slate-500">Add players to get started.</div>
+              )}
             </>
-          ))}
-          {players.length === 0 && (
-            <div className="col-span-5 p-4 text-center text-slate-500">Add players to get started.</div>
+          ) : (
+            <>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <>
+                  <div key={`placeholder-${i}-name`} className="p-2 border-b truncate text-slate-400">-</div>
+                  <div key={`placeholder-${i}-score`} className="p-2 border-b text-center font-mono text-slate-400">-</div>
+                  <div key={`placeholder-${i}-dec`} className="p-2 border-b text-center">
+                    <Button size="sm" variant="outline" disabled className="h-7 w-16"><Minus className="h-4 w-4" /></Button>
+                  </div>
+                  <div key={`placeholder-${i}-inc`} className="p-2 border-b text-center">
+                    <Button size="sm" disabled className="h-7 w-16"><Plus className="h-4 w-4" /></Button>
+                  </div>
+                  <div key={`placeholder-${i}-actions`} className="p-2 border-b text-center flex items-center justify-center gap-2">
+                    <Button size="sm" variant="outline" disabled className="h-7 px-2"><Edit className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="destructive" disabled className="h-7 px-2"><Trash className="h-4 w-4" /></Button>
+                  </div>
+                </>
+              ))}
+            </>
           )}
         </div>
       </Card>

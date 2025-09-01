@@ -10,6 +10,7 @@ type Warning = { code: string; info?: any; at: number }
 type Ctx = {
   state: AppState
   height: number
+  ready: boolean
   append: (e: AppEvent) => Promise<number>
   previewAt: (height: number) => Promise<AppState>
   warnings: Warning[]
@@ -21,6 +22,7 @@ const StateCtx = React.createContext<Ctx | null>(null)
 export function StateProvider({ children, onWarn }: { children: React.ReactNode; onWarn?: (code: string, info?: any) => void }) {
   const [state, setState] = React.useState<AppState>(INITIAL_STATE)
   const [height, setHeight] = React.useState(0)
+  const [ready, setReady] = React.useState(false)
   const [warnings, setWarnings] = React.useState<Warning[]>([])
   const instRef = React.useRef<Awaited<ReturnType<typeof createInstance>> | null>(null)
   const dbNameRef = React.useRef<string>('app-db')
@@ -42,6 +44,7 @@ export function StateProvider({ children, onWarn }: { children: React.ReactNode;
       instRef.current = inst
       setState(inst.getState())
       setHeight(inst.getHeight())
+      setReady(true)
       unsubs = inst.subscribe((s, h) => { setState(s); setHeight(h) })
     })()
     return () => {
@@ -62,7 +65,7 @@ export function StateProvider({ children, onWarn }: { children: React.ReactNode;
     return previewFromDB(dbNameRef.current, h)
   }
 
-  const value: Ctx = { state, height, append, previewAt, warnings, clearWarnings: () => setWarnings([]) }
+  const value: Ctx = { state, height, ready, append, previewAt, warnings, clearWarnings: () => setWarnings([]) }
   return <StateCtx.Provider value={value}>{children}</StateCtx.Provider>
 }
 

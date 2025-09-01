@@ -205,7 +205,6 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
     // Optional test hook: abort after add but before state put
     if (testAbortAfterAdd) {
       testAbortAfterAdd = false
-      try { t.abort() } catch {}
       const err = Object.assign(new Error('AbortedAfterAdd'), { name: 'AbortedAfterAdd' })
       throw err
     }
