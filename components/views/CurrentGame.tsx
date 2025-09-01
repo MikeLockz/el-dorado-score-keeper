@@ -196,7 +196,7 @@ export default function CurrentGame() {
                 return (
                   <div
                     key={`${round.round}-${c.id}`}
-                    className={`border-b grid grid-cols-1 ${showDetails ? 'grid-rows-2' : 'grid-rows-1'} transition-all duration-200 ${getPlayerCellBackgroundStyles(rState)}`}
+                    className={`border-b grid grid-cols-1 ${rState === 'bidding' ? 'grid-rows-1' : (showDetails ? 'grid-rows-2' : 'grid-rows-1')} transition-all duration-200 ${getPlayerCellBackgroundStyles(rState)}`}
                     onClick={() => {
                       if (rState === 'scored') toggleCellDetails(round.round, c.id)
                     }}
@@ -212,17 +212,11 @@ export default function CurrentGame() {
                         <div className="flex items-center justify-center px-1 py-0.5"><span className="text-[0.6rem] text-gray-500">-</span></div>
                       </>
                     ) : rState === 'bidding' ? (
-                      <>
-                        <div className="border-b flex items-center justify-between px-1 py-0.5">
-                          <Button size="sm" variant="outline" className="h-4 w-4 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700" onClick={() => decrementBid(round.round, c.id)} disabled={bid <= 0}><Minus className="h-2 w-2" /></Button>
-                          <span className="text-[0.7rem] font-bold min-w-[1rem] text-center text-sky-900 bg-white/60 px-1 rounded">{bid}</span>
-                          <Button size="sm" variant="outline" className="h-4 w-4 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700" onClick={() => incrementBid(round.round, c.id, max)} disabled={bid >= max}><Plus className="h-2 w-2" /></Button>
-                        </div>
-                        <div className="flex items-center justify-between px-1 py-0.5">
-                          <span className="text-[0.6rem] text-sky-700 font-medium">Bid</span>
-                          <span className="w-8 h-5 text-center text-[0.65rem] font-semibold text-sky-900">{bid}</span>
-                        </div>
-                      </>
+                      <div className="flex items-center justify-center gap-1.5 px-1 py-0.5">
+                        <Button size="sm" variant="outline" className="h-6 w-6 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700" onClick={() => decrementBid(round.round, c.id)} disabled={bid <= 0}><Minus className="h-3 w-3" /></Button>
+                        <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-sky-900 bg-white/60 px-1.5 rounded">{bid}</span>
+                        <Button size="sm" variant="outline" className="h-6 w-6 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700" onClick={() => incrementBid(round.round, c.id, max)} disabled={bid >= max}><Plus className="h-3 w-3" /></Button>
+                      </div>
                     ) : rState === 'complete' ? (
                       <>
                         <div className="border-b flex items-center justify-between px-1 py-0.5">
