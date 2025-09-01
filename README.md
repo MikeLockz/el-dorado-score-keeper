@@ -78,8 +78,7 @@ Notes:
 
 ## Routes
 
-- `/`: Rounds — default view for per-round bidding and scoring (alias also at `/rounds`).
-- `/rounds`: Same as `/` for convenience.
+- `/`: Rounds — default view for per-round bidding and scoring.
 - `/settings`: Scoreboard — add players, adjust scores, and view the live leaderboard.
 - `/rules`: Quick reference for scoring and phases.
 
@@ -93,7 +92,7 @@ Notes:
 - Persistence: data saved locally (IndexedDB) and synced across tabs.
 - Devtools (development only): floating panel for event height, time‑travel preview, and recent warnings.
 
-### Rounds (`/`, `/rounds`) details
+### Rounds (`/`) details
 
 - Round grid: 10 rounds (tricks 10 → 1) across all players; header shows two‑letter initials.
 - State machine: click round tile to cycle bidding → complete → scored → bidding. Locked rounds cannot be advanced directly.

@@ -56,7 +56,7 @@ Change
 - Use the state version whenever `statePlayers.length > 0`; otherwise use the existing local accumulation.
 
 Test
-1) In `/rounds`, add some bids, mark complete, and finalize at least 2 rounds so totals exist in state.
+1) In `/`, add some bids, mark complete, and finalize at least 2 rounds so totals exist in state.
 2) Visit `/`. Confirm totals reflect finalized rounds from state for each player.
 3) Reload the page. Confirm totals persist (stateful) and still match.
 
@@ -78,7 +78,7 @@ Change
 - Keep local handlers for now (no writes to state yet).
 
 Test
-1) In `/rounds`, change bids and marks; finalize a round. Return to `/`.
+1) In `/`, change bids and marks; finalize a round. Return to `/`.
 2) Confirm that `/` mirrors state: the same round state labels, bids, and made indicators.
 3) Reload `/`. Confirm persisted view matches state.
 
@@ -99,7 +99,7 @@ Change
 Test
 1) On `/`, click +/−. Confirm the UI updates immediately (state provider re‑renders).
 2) Reload `/`. Confirm bids persist.
-3) Cross‑check `/rounds` shows the same bids.
+3) Cross‑check `/` shows the same bids.
 
 Commit
 - Example: `git commit -m "migrate(step4): wire bid +/- to state events"`
@@ -116,7 +116,7 @@ Change
 
 Test
 1) On `/`, mark made/missed for players in a round.
-2) Reload and verify persistence. Confirm `/rounds` reflects the same values.
+2) Reload and verify persistence. Confirm `/` reflects the same values.
 
 Commit
 - Example: `git commit -m "migrate(step5): wire made toggle to state events"`
@@ -160,7 +160,7 @@ Change
 
 Test
 1) Add players from `/` and `/settings` and confirm they are consistent across routes.
-2) Rename a player from `/` and confirm `/rounds` and `/settings` reflect it.
+2) Rename a player from `/` and confirm `/settings` reflects it.
 3) Remove a player and confirm the player disappears across routes; check rounds data cleans as expected, no errors.
 4) Reload and confirm persistence.
 
@@ -179,7 +179,7 @@ Change
 - Keep the exact layout (avoid visual regressions).
 
 Test
-1) Comprehensive click‑through on `/` and `/rounds`:
+1) Comprehensive click‑through on `/`:
    - Add players, rename, remove.
    - Bids +/−.
    - Complete, finalize scoring; verify totals and next round unlock.
@@ -195,7 +195,7 @@ Commit
 ## Validation Checklist (quick)
 
 - Players
-  - Names/initials match across `/`, `/rounds`, `/settings`.
+  - Names/initials match across `/`, `/settings`.
   - Add/rename/remove persists and reflects immediately.
 - Rounds
   - 10 rounds always visible; no wrapping caused by column count.
@@ -220,4 +220,3 @@ Commit
 - Development: prefer `pnpm dev`. In restricted networks, `next/font/google` can block production builds; dev mode works fine.
 - Static export: project is configured for static export in `next.config.mjs` (for GitHub Pages). Use a static server to preview `out/` if you build.
 - Rounds grid: if you change the number of players, ensure grid columns remain `3rem + repeat(players, 1fr)` to avoid row wrapping.
-

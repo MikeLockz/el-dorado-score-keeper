@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 
 export default function Header() {
   const pathname = usePathname()
-  const isActive = (href: string) => (href === "/" ? pathname === "/" || pathname === "/rounds" : pathname === href)
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname === href)
   const itemBase = "rounded-sm text-sm outline-none focus:bg-accent focus:text-accent-foreground cursor-pointer px-2 py-1.5"
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
