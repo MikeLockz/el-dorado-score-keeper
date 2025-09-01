@@ -10,7 +10,7 @@ function uuid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
-export default function SettingsPage() {
+export default function PlayersPage() {
   const { state, append, ready } = useAppState()
   const players = Object.entries(state.players)
   const hasPlayers = players.length > 0
@@ -25,7 +25,7 @@ export default function SettingsPage() {
 
   return (
     <div className="p-3 max-w-xl mx-auto">
-      <h1 className="text-lg font-bold mb-3">Settings</h1>
+      <h1 className="text-lg font-bold mb-3">Players</h1>
       <Card className="p-3 flex items-center justify-between">
         <div>
           <div className="font-semibold">Reset Players</div>
