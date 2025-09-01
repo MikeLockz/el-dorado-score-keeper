@@ -24,6 +24,10 @@ export type GameRecord = {
   bundle: ExportBundle
 }
 
+// Default database names
+export const DEFAULT_DB_NAME = 'app-db'
+export const GAMES_DB_NAME = 'app-games-db'
+
 export async function exportBundle(dbName: string): Promise<ExportBundle> {
   const db = await openDB(dbName)
   const t = tx(db, 'readonly', [storeNames.EVENTS])
@@ -168,8 +172,8 @@ async function putGameRecord(db: IDBDatabase, rec: GameRecord): Promise<void> {
   })
 }
 
-export async function listGames(dbName: string): Promise<GameRecord[]> {
-  const db = await openDB(dbName)
+export async function listGames(gamesDbName: string = GAMES_DB_NAME): Promise<GameRecord[]> {
+  const db = await openDB(gamesDbName)
   // Read all records via index if present; fallback to cursor
   const t = tx(db, 'readonly', ['games'])
   const store = t.objectStore('games')
@@ -193,8 +197,8 @@ export async function listGames(dbName: string): Promise<GameRecord[]> {
   return out
 }
 
-export async function getGame(dbName: string, id: string): Promise<GameRecord | null> {
-  const db = await openDB(dbName)
+export async function getGame(gamesDbName: string = GAMES_DB_NAME, id: string): Promise<GameRecord | null> {
+  const db = await openDB(gamesDbName)
   const t = tx(db, 'readonly', ['games'])
   const req = t.objectStore('games').get(id)
   const rec = await new Promise<GameRecord | null>((res, rej) => {
@@ -205,8 +209,8 @@ export async function getGame(dbName: string, id: string): Promise<GameRecord | 
   return rec
 }
 
-export async function deleteGame(dbName: string, id: string): Promise<void> {
-  const db = await openDB(dbName)
+export async function deleteGame(gamesDbName: string = GAMES_DB_NAME, id: string): Promise<void> {
+  const db = await openDB(gamesDbName)
   const t = tx(db, 'readwrite', ['games'])
   const req = t.objectStore('games').delete(id)
   await new Promise<void>((res, rej) => {
@@ -216,7 +220,7 @@ export async function deleteGame(dbName: string, id: string): Promise<void> {
   db.close()
 }
 
-export async function archiveCurrentGameAndReset(dbName: string, opts?: { title?: string }): Promise<GameRecord | null> {
+export async function archiveCurrentGameAndReset(dbName: string = DEFAULT_DB_NAME, opts?: { title?: string }): Promise<GameRecord | null> {
   // Export current bundle
   const bundle = await exportBundle(dbName)
   if (!bundle.latestSeq || bundle.latestSeq <= 0) {
@@ -234,9 +238,9 @@ export async function archiveCurrentGameAndReset(dbName: string, opts?: { title?
   const summary = summarizeState(endState)
 
   const rec: GameRecord = { id, title, createdAt, finishedAt, lastSeq: bundle.latestSeq, summary, bundle }
-  const db = await openDB(dbName)
-  await putGameRecord(db, rec)
-  db.close()
+  const gamesDb = await openDB(GAMES_DB_NAME)
+  await putGameRecord(gamesDb, rec)
+  gamesDb.close()
 
   // Reset current DB
   await importBundle(dbName, { latestSeq: 0, events: [] })
@@ -244,8 +248,8 @@ export async function archiveCurrentGameAndReset(dbName: string, opts?: { title?
   return rec
 }
 
-export async function restoreGame(dbName: string, id: string): Promise<void> {
-  const rec = await getGame(dbName, id)
+export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string): Promise<void> {
+  const rec = await getGame(GAMES_DB_NAME, id)
   if (!rec) return
   await importBundle(dbName, rec.bundle)
   try { localStorage.setItem(`app-events:lastSeq:${dbName}`, String(rec.lastSeq || 0)) } catch {}

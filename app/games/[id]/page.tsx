@@ -7,8 +7,6 @@ import { Card } from '@/components/ui/card'
 import type { GameRecord } from '@/lib/state/io'
 import { getGame, restoreGame } from '@/lib/state/io'
 
-const DB_NAME = 'app-db'
-
 export default function GameDetailPage() {
   const params = useParams() as { id?: string }
   const id = params?.id as string
@@ -19,7 +17,7 @@ export default function GameDetailPage() {
     let on = true
     ;(async () => {
       try {
-        const rec = id ? await getGame(DB_NAME, id) : null
+        const rec = id ? await getGame(undefined, id) : null
         if (on) setGame(rec)
       } catch (e) {
         console.warn('Failed to load game', e)
@@ -32,7 +30,7 @@ export default function GameDetailPage() {
   const onRestore = async () => {
     if (!game) return
     if (!confirm('Restore this game as current? Current progress will be replaced.')) return
-    await restoreGame(DB_NAME, game.id)
+    await restoreGame(undefined, game.id)
     router.push('/')
   }
 
@@ -82,4 +80,3 @@ export default function GameDetailPage() {
     </div>
   )
 }
-

@@ -8,8 +8,6 @@ import { Card } from '@/components/ui/card'
 import type { GameRecord } from '@/lib/state/io'
 import { listGames, archiveCurrentGameAndReset, deleteGame, restoreGame } from '@/lib/state/io'
 
-const DB_NAME = 'app-db'
-
 export default function GamesPage() {
   const [games, setGames] = React.useState<GameRecord[] | null>(null)
   const [loading, setLoading] = React.useState(false)
@@ -17,7 +15,7 @@ export default function GamesPage() {
 
   const load = React.useCallback(async () => {
     try {
-      const list = await listGames(DB_NAME)
+      const list = await listGames()
       setGames(list)
     } catch (e) {
       console.warn('Failed to load games', e)
@@ -31,7 +29,7 @@ export default function GamesPage() {
     if (loading) return
     setLoading(true)
     try {
-      await archiveCurrentGameAndReset(DB_NAME)
+      await archiveCurrentGameAndReset()
       await load()
       router.push('/')
     } finally {
@@ -41,13 +39,13 @@ export default function GamesPage() {
 
   const onRestore = async (id: string) => {
     if (!confirm('Restore this game as current? Current progress will be replaced.')) return
-    await restoreGame(DB_NAME, id)
+    await restoreGame(undefined, id)
     router.push('/')
   }
 
   const onDelete = async (id: string) => {
     if (!confirm('Delete this archived game? This cannot be undone.')) return
-    await deleteGame(DB_NAME, id)
+    await deleteGame(undefined, id)
     await load()
   }
 
