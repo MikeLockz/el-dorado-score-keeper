@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Check, X, Plus, Minus } from "lucide-react"
 import { useAppState } from "@/components/state-provider"
 import { twoCharAbbrs } from "@/lib/utils"
-import { roundDelta } from "@/lib/state/logic"
+import { roundDelta, ROUNDS_TOTAL, tricksForRound } from "@/lib/state/logic"
+import type { RoundState } from "@/lib/state/types"
 import { events } from "@/lib/state/events"
 
-
-type RoundState = 'locked' | 'bidding' | 'complete' | 'scored'
 
 function labelForRoundState(s: RoundState) {
   return s === 'locked' ? 'Locked' : s === 'bidding' ? 'Active' : s === 'complete' ? 'Complete' : 'Scored'
@@ -168,7 +167,7 @@ export default function CurrentGame() {
             <div key={`hdr-${c.id}`} className="bg-slate-700 text-white p-1 font-bold text-center border-b">{c.placeholder ? '-' : (abbr[c.id] ?? c.name.substring(0, 2))}</div>
           ))}
 
-          {Array.from({ length: 10 }, (_, i) => ({ round: i + 1, tricks: 10 - i })).map((round) => (
+          {Array.from({ length: ROUNDS_TOTAL }, (_, i) => ({ round: i + 1, tricks: tricksForRound(i + 1) })).map((round) => (
             <React.Fragment key={`row-${round.round}`}>
               <div
                 className={`p-1 text-center border-b border-r flex flex-col justify-center transition-all duration-200 ${getRoundStateStyles((state.rounds[round.round]?.state ?? 'locked') as RoundState)}`}
@@ -191,7 +190,7 @@ export default function CurrentGame() {
                 const rState = (state.rounds[round.round]?.state ?? 'locked') as RoundState
                 const bid = c.placeholder ? 0 : (state.rounds[round.round]?.bids[c.id] ?? 0)
                 const made = c.placeholder ? null : (state.rounds[round.round]?.made[c.id] ?? null)
-                const max = round.tricks
+                const max = tricksForRound(round.round)
                 const cellKey = `${round.round}-${c.id}`
                 const showDetails = rState !== 'scored' ? true : !!detailCells[cellKey]
                 return (
