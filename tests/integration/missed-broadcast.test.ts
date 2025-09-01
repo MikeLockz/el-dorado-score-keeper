@@ -6,6 +6,14 @@ const now = 1_700_000_000_000
 const ev = <T extends AppEventType>(type: T, payload: EventPayloadByType<T>, id: string) =>
   makeEvent(type, payload, { eventId: id, ts: now })
 
+async function waitUntil(fn: () => boolean, timeoutMs = 200, stepMs = 5) {
+  const start = Date.now()
+  while (!fn()) {
+    if (Date.now() - start > timeoutMs) break
+    await new Promise(r => setTimeout(r, stepMs))
+  }
+}
+
 describe('missed broadcast message', () => {
   it('B lags after dropped message and catches up on next', async () => {
     const dbName = makeTestDB('miss')
@@ -15,6 +23,7 @@ describe('missed broadcast message', () => {
     // Seed: ensure both start in sync
     await A.append(ev('player/added', { id: 'p1', name: 'Alice' }, 'm0'))
     await drain()
+    await waitUntil(() => B.getHeight() === 1)
     expect(B.getHeight()).toBe(1)
 
     // Monkey-patch to drop exactly one broadcast call
@@ -41,6 +50,7 @@ describe('missed broadcast message', () => {
     // Next append should cause B to receive and catch up to both events via tail
     await A.append(ev('score/added', { playerId: 'p1', delta: 6 }, 'm2'))
     await drain()
+    await waitUntil(() => B.getHeight() === 3)
     expect(B.getHeight()).toBe(3)
     expect(B.getState().scores.p1).toBe(10)
 
