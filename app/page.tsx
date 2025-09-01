@@ -36,8 +36,13 @@ export default function ScoreTracker() {
   ])
   const statePlayers = useMemo(() => {
     const entries = Object.entries(state.players)
-    if (!entries.length) return [] as { id: number; name: string; abbr: string }[]
-    return entries.map(([_, name], i) => ({ id: i + 1, name, abbr: (name.length <= 3 ? name : name.slice(0, 3)).toUpperCase() }))
+    if (!entries.length) return [] as { id: number; name: string; abbr: string; realId: string }[]
+    return entries.map(([realId, name], i) => ({
+      id: i + 1,
+      realId,
+      name,
+      abbr: (name.length <= 3 ? name : name.slice(0, 3)).toUpperCase(),
+    }))
   }, [state.players])
   const viewPlayers = statePlayers.length ? statePlayers : players
 
@@ -110,8 +115,8 @@ export default function ScoreTracker() {
     setPlayerCellViews({})
   }, [roundStates])
 
-  // Calculate running total for a player up to a specific round
-  const getRunningTotal = (playerId: number, upToRound: number) => {
+  // Calculate running total (state-backed if available; otherwise local fallback)
+  const getRunningTotalLocal = (playerId: number, upToRound: number) => {
     let total = 0
     for (let i = 1; i <= upToRound; i++) {
       const roundScore = playerData[i][playerId].score
@@ -121,6 +126,22 @@ export default function ScoreTracker() {
     }
     return total
   }
+  const getRunningTotalFromState = (playerId: number, upToRound: number) => {
+    const idx = playerId - 1
+    const realId = statePlayers[idx]?.realId
+    if (!realId) return getRunningTotalLocal(playerId, upToRound)
+    let total = 0
+    for (let i = 1; i <= upToRound; i++) {
+      const r = (state as any).rounds?.[i]
+      if (!r || r.state !== 'scored') continue
+      const bid = r.bids?.[realId] ?? 0
+      const made = r.made?.[realId] ?? false
+      total += (made ? 1 : -1) * (5 + (bid ?? 0))
+    }
+    return total
+  }
+  const getRunningTotal = (playerId: number, upToRound: number) =>
+    statePlayers.length ? getRunningTotalFromState(playerId, upToRound) : getRunningTotalLocal(playerId, upToRound)
 
   // Handle round state cycling
   const cycleRoundState = (roundNumber: number) => {
