@@ -36,7 +36,7 @@ export const selectScores = memo1((s: AppState) => s.scores)
 export const selectLeaders = memo1((s: AppState): Leader[] => {
   const leaders: Leader[] = Object.keys(s.players).map((id) => ({
     id,
-    name: s.players[id],
+    name: s.players[id]!,
     score: s.scores[id] ?? 0,
   }))
   leaders.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
@@ -52,7 +52,7 @@ export const selectRoundSummary = memo2((s: AppState, round: number): RoundSumma
     const bid = r?.bids[id] ?? 0
     const made = (r?.made[id] ?? null) as boolean | null
     const delta = roundDelta(bid, made)
-    return { id, name: s.players[id], bid, made, delta }
+    return { id, name: s.players[id]!, bid, made, delta }
   })
   return { round, state: r?.state ?? 'locked', rows }
 })

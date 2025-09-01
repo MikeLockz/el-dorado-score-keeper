@@ -35,9 +35,9 @@ export function finalizeRound(prev: AppState, round: number): AppState {
   }
   const rounds = { ...prev.rounds, [round]: { ...r, state: 'scored' as RoundState } }
   const nextRound = round + 1
-  if (rounds[nextRound] && rounds[nextRound].state === 'locked') {
-    rounds[nextRound] = { ...rounds[nextRound], state: 'bidding' }
+  const nr = rounds[nextRound]
+  if (nr && nr.state === 'locked') {
+    rounds[nextRound] = { ...nr, state: 'bidding' }
   }
   return { ...prev, scores, rounds }
 }
-

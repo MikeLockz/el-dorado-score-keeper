@@ -72,7 +72,7 @@ export async function importBundle(dbName: string, bundle: ExportBundle): Promis
   const store = t.objectStore(storeNames.EVENTS)
   for (const e of bundle.events) {
     await new Promise<void>((res) => {
-      const r = store.add(e as any)
+      const r = store.add(e)
       r.onsuccess = () => res()
       r.onerror = () => {
         // Ignore duplicates on import
@@ -101,13 +101,13 @@ export async function importBundleSoft(dbName: string, bundle: ExportBundle): Pr
   await new Promise<void>((res, rej) => { const r = snapsStore.clear(); r.onsuccess = () => res(); r.onerror = () => rej(r.error) })
   // Add events
   for (const e of bundle.events) {
-    await new Promise<void>((res) => { const r = eventsStore.add(e as any); r.onsuccess = () => res(); r.onerror = () => res() })
+    await new Promise<void>((res) => { const r = eventsStore.add(e); r.onsuccess = () => res(); r.onerror = () => res() })
   }
   // Persist current state directly for quick load
   const finalState = reduceBundle(bundle)
   const h = bundle.latestSeq ?? bundle.events.length
   await new Promise<void>((res, rej) => {
-    const r = stateStore.put({ id: 'current', height: h, state: finalState } as any)
+    const r = stateStore.put({ id: 'current', height: h, state: finalState })
     r.onsuccess = () => res()
     r.onerror = () => rej(r.error)
   })
@@ -127,7 +127,7 @@ export async function previewAt(dbName: string, h: number): Promise<AppState> {
       curReq.onsuccess = () => {
         const c = curReq.result
         if (!c) return res(undefined)
-        res(c.value as any)
+        res(c.value as { height: number; state: AppState })
       }
       curReq.onerror = () => rej(curReq.error)
     })
@@ -189,8 +189,8 @@ function summarizeState(s: AppState): GameRecord['summary'] {
 }
 
 async function putGameRecord(db: IDBDatabase, rec: GameRecord): Promise<void> {
-  const t = tx(db, 'readwrite', ['games'])
-  const r = t.objectStore('games').put(rec as any)
+  const t = tx(db, 'readwrite', [storeNames.GAMES])
+  const r = t.objectStore(storeNames.GAMES).put(rec)
   await new Promise<void>((res, rej) => {
     r.onsuccess = () => res()
     r.onerror = () => rej(r.error)
@@ -202,9 +202,9 @@ async function putGameRecord(db: IDBDatabase, rec: GameRecord): Promise<void> {
 export async function listGames(gamesDbName: string = GAMES_DB_NAME): Promise<GameRecord[]> {
   const db = await openDB(gamesDbName)
   // Read all records via index if present; fallback to cursor
-  const t = tx(db, 'readonly', ['games'])
-  const store = t.objectStore('games')
-  const useIndex = (store.indexNames as any).contains?.('createdAt')
+  const t = tx(db, 'readonly', [storeNames.GAMES])
+  const store = t.objectStore(storeNames.GAMES)
+  const useIndex = (store.indexNames as DOMStringList).contains?.('createdAt') ?? false
   const cursorReq = useIndex
     ? store.index('createdAt').openCursor(null, 'prev')
     : store.openCursor()
@@ -213,7 +213,7 @@ export async function listGames(gamesDbName: string = GAMES_DB_NAME): Promise<Ga
     cursorReq.onsuccess = () => {
       const c = cursorReq.result
       if (!c) return res()
-      out.push(c.value as any)
+      out.push(c.value as GameRecord)
       c.continue()
     }
     cursorReq.onerror = () => rej(cursorReq.error)
@@ -226,10 +226,10 @@ export async function listGames(gamesDbName: string = GAMES_DB_NAME): Promise<Ga
 
 export async function getGame(gamesDbName: string = GAMES_DB_NAME, id: string): Promise<GameRecord | null> {
   const db = await openDB(gamesDbName)
-  const t = tx(db, 'readonly', ['games'])
-  const req = t.objectStore('games').get(id)
+  const t = tx(db, 'readonly', [storeNames.GAMES])
+  const req = t.objectStore(storeNames.GAMES).get(id)
   const rec = await new Promise<GameRecord | null>((res, rej) => {
-    req.onsuccess = () => res((req.result as any) ?? null)
+    req.onsuccess = () => res((req.result as GameRecord | null) ?? null)
     req.onerror = () => rej(req.error)
   })
   db.close()
@@ -238,8 +238,8 @@ export async function getGame(gamesDbName: string = GAMES_DB_NAME, id: string): 
 
 export async function deleteGame(gamesDbName: string = GAMES_DB_NAME, id: string): Promise<void> {
   const db = await openDB(gamesDbName)
-  const t = tx(db, 'readwrite', ['games'])
-  const req = t.objectStore('games').delete(id)
+  const t = tx(db, 'readwrite', [storeNames.GAMES])
+  const req = t.objectStore(storeNames.GAMES).delete(id)
   await new Promise<void>((res, rej) => {
     req.onsuccess = () => res()
     req.onerror = () => rej(req.error)

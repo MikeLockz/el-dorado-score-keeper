@@ -80,7 +80,9 @@ export function StateProvider({ children, onWarn }: { children: React.ReactNode;
       const ids = ['p1', 'p2', 'p3', 'p4']
       try {
         for (let i = 0; i < ids.length; i++) {
-          await inst.append(events.playerAdded({ id: ids[i], name: names[i] }, { eventId: `seed:${ids[i]}`, ts: Date.now() + i }))
+          const id = ids[i]!
+          const name = names[i]!
+          await inst.append(events.playerAdded({ id, name }, { eventId: `seed:${id}`, ts: Date.now() + i }))
         }
       } finally {
         seedingRef.current = false

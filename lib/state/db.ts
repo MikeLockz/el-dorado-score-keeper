@@ -2,6 +2,7 @@ export const storeNames = {
   EVENTS: 'events',
   STATE: 'state',
   SNAPSHOTS: 'snapshots',
+  GAMES: 'games',
 } as const
 
 export type StoreName = typeof storeNames[keyof typeof storeNames]
@@ -33,8 +34,8 @@ export async function openDB(name: string): Promise<IDBDatabase> {
       db.createObjectStore(storeNames.SNAPSHOTS, { keyPath: 'height' })
     }
     // archived games store
-    if (!have.has('games')) {
-      const games = db.createObjectStore('games', { keyPath: 'id' })
+    if (!have.has(storeNames.GAMES)) {
+      const games = db.createObjectStore(storeNames.GAMES, { keyPath: 'id' })
       try { games.createIndex('createdAt', 'createdAt', { unique: false }) } catch {}
     }
   }

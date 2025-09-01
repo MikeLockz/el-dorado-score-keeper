@@ -12,7 +12,7 @@ export type Instance = {
 
 type CurrentStateRecord = { id: 'current'; height: number; state: AppState }
 
-export async function createInstance(opts?: { dbName?: string; channelName?: string; useChannel?: boolean; onWarn?: (code: string, info?: any) => void }): Promise<Instance> {
+export async function createInstance(opts?: { dbName?: string; channelName?: string; useChannel?: boolean; onWarn?: (code: string, info?: unknown) => void }): Promise<Instance> {
   const dbName = opts?.dbName ?? 'app-db'
   const chanName = opts?.channelName ?? 'app-events'
   const useChannel = opts?.useChannel !== false
@@ -39,19 +39,23 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
     return next
   }
 
-  function isPlainObject(v: any) { return v && typeof v === 'object' && !Array.isArray(v) }
-  function warn(code: string, info?: any) { try { onWarn?.(code, info) } catch {} }
-  function isValidStateRecord(rec: any): rec is CurrentStateRecord {
-    if (!rec || rec.id !== 'current' || typeof rec.height !== 'number') return false
-    const s = rec.state
+  function isPlainObject(v: unknown): v is Record<string, unknown> { return !!v && typeof v === 'object' && !Array.isArray(v) }
+  function warn(code: string, info?: unknown) { try { onWarn?.(code, info) } catch {} }
+  function isValidStateRecord(rec: unknown): rec is CurrentStateRecord {
+    if (!isPlainObject(rec)) return false
+    const obj = rec as Record<string, unknown>
+    if (obj['id'] !== 'current' || typeof obj['height'] !== 'number') return false
+    const s = obj['state']
     if (!isPlainObject(s)) return false
     if (!isPlainObject(s.players) || !isPlainObject(s.scores)) return false
-    for (const k of Object.keys(s.players)) if (typeof (s.players as any)[k] !== 'string') return false
-    for (const k of Object.keys(s.scores)) if (typeof (s.scores as any)[k] !== 'number') return false
+    const playersObj = s.players as Record<string, unknown>
+    const scoresObj = s.scores as Record<string, unknown>
+    for (const k of Object.keys(playersObj)) if (typeof playersObj[k] !== 'string') return false
+    for (const k of Object.keys(scoresObj)) if (typeof scoresObj[k] !== 'number') return false
     return true
   }
-  function isValidEvent(e: any): e is AppEvent {
-    return e && typeof e.type === 'string' && typeof e.eventId === 'string' && typeof e.ts === 'number'
+  function isValidEvent(e: unknown): e is AppEvent {
+    return isPlainObject(e) && typeof e.type === 'string' && typeof e.eventId === 'string' && typeof e.ts === 'number'
   }
 
   async function loadCurrent() {
@@ -59,7 +63,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
     const t1 = tx(db, 'readonly', [storeNames.STATE])
     const req = t1.objectStore(storeNames.STATE).get('current')
     const rec = await new Promise<CurrentStateRecord | undefined>((res, rej) => {
-      req.onsuccess = () => res(req.result as any)
+      req.onsuccess = () => res(req.result as unknown as CurrentStateRecord | undefined)
       req.onerror = () => rej(req.error)
     })
     if (isValidStateRecord(rec)) {
@@ -78,7 +82,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
         curReq.onsuccess = () => {
           const c = curReq.result
           if (!c) return res(undefined)
-          res(c.value as any)
+          res(c.value as { height: number; state: AppState })
         }
         curReq.onerror = () => rej(curReq.error)
       })
@@ -103,7 +107,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
       cursorReq.onsuccess = () => {
         const cur = cursorReq.result
         if (!cur) return res()
-        const ev = cur.value as any
+        const ev = cur.value as unknown
         if (isValidEvent(ev)) {
           memoryState = reduce(memoryState, ev)
         } else {
@@ -130,8 +134,8 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
 
   if (chan) {
     chan.addEventListener('message', async (ev: MessageEvent) => {
-      const data: any = (ev as any)?.data
-      if (data && data.type === 'reset') {
+      const data: unknown = ev?.data
+      if (isPlainObject(data) && data.type === 'reset') {
         await enqueueCatchUp(async () => {
           await replaceDB()
           await rehydrate()
@@ -139,7 +143,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
         })
         return
       }
-      const seq = Number(data?.seq)
+      const seq = Number((isPlainObject(data) ? data.seq : undefined))
       if (!Number.isFinite(seq)) return
       await enqueueCatchUp(async () => {
         await applyTail(height)
@@ -213,13 +217,14 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
         tAdd.onabort = () => rej(tAdd.error)
         tAdd.onerror = () => rej(tAdd.error)
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Treat duplicate eventId as idempotent success; look up existing seq
-      if (err && (err.name === 'ConstraintError' || String(err).includes('Constraint'))) {
+      const name = (err as { name?: string } | null)?.name
+      if (err && (name === 'ConstraintError' || String(err).includes('Constraint'))) {
         duplicate = true
         const tFind = tx(db, 'readonly', [storeNames.EVENTS])
         const idx = tFind.objectStore(storeNames.EVENTS).index('eventId')
-        const getReq = idx.getKey((event as any).eventId)
+        const getReq = idx.getKey(event.eventId)
         seq = await new Promise<number>((res, rej) => {
           getReq.onsuccess = () => res((getReq.result as number) ?? height)
           getReq.onerror = () => rej(getReq.error)

@@ -75,7 +75,7 @@ export function analyzeGame(rec: GameRecord): GameStats {
       const bid = rd.bids[pid] ?? 0
       const made = rd.made[pid]
       sumBids += bid
-      const p = players[pid]
+      const p = players[pid]!
       p.totalBid += bid
       if (
         !p.highestSingleBid ||
@@ -134,4 +134,3 @@ export function analyzeGame(rec: GameRecord): GameStats {
     timing: { startedAt, finishedAt, durationMs: Math.max(0, finishedAt - startedAt) },
   }
 }
-
