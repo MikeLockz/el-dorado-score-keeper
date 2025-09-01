@@ -3,7 +3,7 @@ import React from 'react'
 import { useAppState } from '@/components/state-provider'
 
 export default function Devtools() {
-  const { height, state, previewAt } = useAppState()
+  const { height, state, previewAt, warnings, clearWarnings } = useAppState()
   const [cursor, setCursor] = React.useState<number>(height)
   const [preview, setPreview] = React.useState<any | null>(null)
   const [loading, setLoading] = React.useState(false)
@@ -38,9 +38,23 @@ export default function Devtools() {
         <div style={{ fontSize: 12, marginTop: 8, opacity: 0.9 }}>
           <div>live players: {players}, scores: {scores}</div>
           <div>preview: {loading ? 'loading…' : preview ? `players ${Object.keys(preview.players).length}, scores ${Object.keys(preview.scores).length}` : '—'}</div>
+          <div style={{ marginTop: 6 }}>
+            <span>warnings: {warnings.length}</span>
+            {warnings.length > 0 && (
+              <>
+                <button onClick={clearWarnings} style={{ marginLeft: 8, fontSize: 11, padding: '2px 6px', background: '#334155', color: '#fff', borderRadius: 4 }}>clear</button>
+                <div style={{ marginTop: 4, maxHeight: 80, overflow: 'auto' }}>
+                  {warnings.slice(0, 3).map((w, i) => (
+                    <div key={i} style={{ opacity: 0.9 }}>
+                      {new Date(w.at).toLocaleTimeString()} — {w.code}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
   )
 }
-

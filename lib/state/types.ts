@@ -48,6 +48,24 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       if (state.players[id]) return state
       return { ...state, players: { ...state.players, [id]: name } }
     }
+    case 'player/renamed': {
+      const { id, name } = event.payload as { id: string; name: string }
+      if (!state.players[id]) return state
+      return { ...state, players: { ...state.players, [id]: String(name) } }
+    }
+    case 'player/removed': {
+      const { id } = event.payload as { id: string }
+      if (!state.players[id]) return state
+      const { [id]: _, ...restPlayers } = state.players as any
+      const { [id]: __, ...restScores } = state.scores as any
+      const rounds: Record<number, RoundData> = {}
+      for (const [k, r] of Object.entries(state.rounds)) {
+        const { [id]: _b, ...bids } = (r.bids as any) ?? {}
+        const { [id]: _m, ...made } = (r.made as any) ?? {}
+        rounds[Number(k)] = { ...r, bids, made }
+      }
+      return { ...state, players: restPlayers, scores: restScores, rounds }
+    }
     case 'score/added': {
       const { playerId, delta } = event.payload as { playerId: string; delta: number }
       const next = (state.scores[playerId] ?? 0) + delta

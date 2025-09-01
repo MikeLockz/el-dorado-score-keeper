@@ -1,0 +1,38 @@
+import { describe, it, expect } from 'vitest'
+import { initInstance, makeTestDB } from '@/tests/utils/helpers'
+import { previewAt } from '@/lib/state/io'
+import { reduce, INITIAL_STATE, type AppEvent } from '@/lib/state/types'
+
+const now = 1_700_000_000_000
+const ev = (type: string, payload: any, id: string): AppEvent => ({ type, payload, eventId: id, ts: now })
+
+function replayTo(events: AppEvent[], h: number): any {
+  let s = INITIAL_STATE
+  for (let i = 0; i < h && i < events.length; i++) s = reduce(s, events[i])
+  return s
+}
+
+describe('time travel preview', () => {
+  it('previewAt(h) equals exact replay to height', async () => {
+    const dbName = makeTestDB('tt')
+    const inst = await initInstance(dbName)
+    const events: AppEvent[] = [
+      ev('player/added', { id: 'p1', name: 'A' }, 't1'),
+      ev('score/added', { playerId: 'p1', delta: 2 }, 't2'),
+      ev('score/added', { playerId: 'p1', delta: 5 }, 't3'),
+      ev('bid/set', { round: 1, playerId: 'p1', bid: 3 }, 't4'),
+      ev('made/set', { round: 1, playerId: 'p1', made: true }, 't5'),
+      ev('round/finalize', { round: 1 }, 't6'),
+    ]
+    for (const e of events) await inst.append(e)
+    const H = inst.getHeight()
+
+    for (let h = 0; h <= H; h++) {
+      const prev = await previewAt(dbName, h)
+      const expected = replayTo(events, h)
+      expect(prev).toEqual(expected)
+    }
+
+    inst.close()
+  })
+})
