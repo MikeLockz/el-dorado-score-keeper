@@ -85,6 +85,33 @@ export async function importBundle(dbName: string, bundle: ExportBundle): Promis
   db.close()
 }
 
+// Replace DB contents without deleting the database to avoid blocked deletions.
+export async function importBundleSoft(dbName: string, bundle: ExportBundle): Promise<void> {
+  const db = await openDB(dbName)
+  const t = tx(db, 'readwrite', [storeNames.EVENTS, storeNames.STATE, storeNames.SNAPSHOTS])
+  const eventsStore = t.objectStore(storeNames.EVENTS)
+  const stateStore = t.objectStore(storeNames.STATE)
+  const snapsStore = t.objectStore(storeNames.SNAPSHOTS)
+  // Clear existing data
+  await new Promise<void>((res, rej) => { const r = eventsStore.clear(); r.onsuccess = () => res(); r.onerror = () => rej(r.error) })
+  await new Promise<void>((res, rej) => { const r = stateStore.clear(); r.onsuccess = () => res(); r.onerror = () => rej(r.error) })
+  await new Promise<void>((res, rej) => { const r = snapsStore.clear(); r.onsuccess = () => res(); r.onerror = () => rej(r.error) })
+  // Add events
+  for (const e of bundle.events) {
+    await new Promise<void>((res) => { const r = eventsStore.add(e as any); r.onsuccess = () => res(); r.onerror = () => res() })
+  }
+  // Persist current state directly for quick load
+  const finalState = reduceBundle(bundle)
+  const h = bundle.latestSeq ?? bundle.events.length
+  await new Promise<void>((res, rej) => {
+    const r = stateStore.put({ id: 'current', height: h, state: finalState } as any)
+    r.onsuccess = () => res()
+    r.onerror = () => rej(r.error)
+  })
+  await new Promise<void>((res, rej) => { t.oncomplete = () => res(); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error) })
+  db.close()
+}
+
 export async function previewAt(dbName: string, h: number): Promise<AppState> {
   const db = await openDB(dbName)
   // nearest snapshot <= h
@@ -249,14 +276,42 @@ export async function archiveCurrentGameAndReset(dbName: string = DEFAULT_DB_NAM
     eventId: uuid(),
     ts: finishedAt + idx + 1,
   }))
-  await importBundle(dbName, { latestSeq: seedEvents.length, events: seedEvents })
-  try { localStorage.setItem(`app-events:lastSeq:${dbName}`, String(seedEvents.length)) } catch {}
+  await importBundleSoft(dbName, { latestSeq: seedEvents.length, events: seedEvents })
+  try {
+    localStorage.setItem(`app-events:lastSeq:${dbName}`, String(seedEvents.length))
+    localStorage.setItem(`app-events:signal:${dbName}`, 'reset')
+    try {
+      // best-effort self-dispatch for same-tab listeners
+      // @ts-ignore
+      const ev = new StorageEvent('storage', { key: `app-events:signal:${dbName}`, newValue: 'reset', storageArea: localStorage })
+      dispatchEvent(ev)
+    } catch {}
+  } catch {}
+  try {
+    const bc = new BroadcastChannel('app-events')
+    bc.postMessage({ type: 'reset' })
+    bc.close()
+  } catch {}
   return rec
 }
 
 export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string): Promise<void> {
   const rec = await getGame(GAMES_DB_NAME, id)
   if (!rec) return
-  await importBundle(dbName, rec.bundle)
-  try { localStorage.setItem(`app-events:lastSeq:${dbName}`, String(rec.lastSeq || 0)) } catch {}
+  await importBundleSoft(dbName, rec.bundle)
+  try {
+    localStorage.setItem(`app-events:lastSeq:${dbName}`, String(rec.lastSeq || 0))
+    localStorage.setItem(`app-events:signal:${dbName}`, 'reset')
+    try {
+      // best-effort self-dispatch for same-tab listeners
+      // @ts-ignore
+      const ev = new StorageEvent('storage', { key: `app-events:signal:${dbName}`, newValue: 'reset', storageArea: localStorage })
+      dispatchEvent(ev)
+    } catch {}
+  } catch {}
+  try {
+    const bc = new BroadcastChannel('app-events')
+    bc.postMessage({ type: 'reset' })
+    bc.close()
+  } catch {}
 }

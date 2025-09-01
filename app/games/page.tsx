@@ -30,7 +30,7 @@ export default function GamesPage() {
     setLoading(true)
     try {
       await archiveCurrentGameAndReset()
-      await load()
+      // Navigate to default route; avoid immediate reload to not cancel navigation
       router.push('/')
     } finally {
       setLoading(false)
@@ -75,7 +75,7 @@ export default function GamesPage() {
                 <div className="p-2 border-b text-center">{g.summary.players}</div>
                 <div className="p-2 border-b text-center">{g.summary.winnerName ?? '-'}</div>
                 <div className="p-2 border-b text-center flex items-center justify-center gap-2">
-                  <Link href={`/games/${g.id}`} className="underline text-slate-700">View</Link>
+                  <Link href={`/games/view?id=${g.id}`} className="underline text-slate-700">View</Link>
                   <button onClick={() => onRestore(g.id)} className="underline text-sky-700">Restore</button>
                   <button onClick={() => onDelete(g.id)} className="underline text-red-700">Delete</button>
                 </div>

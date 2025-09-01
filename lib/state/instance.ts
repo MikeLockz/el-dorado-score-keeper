@@ -17,7 +17,11 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   const chanName = opts?.channelName ?? 'app-events'
   const useChannel = opts?.useChannel !== false
   const onWarn = opts?.onWarn
-  const db = await openDB(dbName)
+  let db = await openDB(dbName)
+  async function replaceDB() {
+    try { db.close() } catch {}
+    db = await openDB(dbName)
+  }
   const chan = useChannel ? (new BroadcastChannel(chanName) as BroadcastChannel) : null
   let memoryState: AppState = INITIAL_STATE
   let height = 0
@@ -122,7 +126,16 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
 
   if (chan) {
     chan.addEventListener('message', async (ev: MessageEvent) => {
-      const seq = Number((ev as any)?.data?.seq)
+      const data: any = (ev as any)?.data
+      if (data && data.type === 'reset') {
+        await enqueueCatchUp(async () => {
+          await replaceDB()
+          await rehydrate()
+          notify()
+        })
+        return
+      }
+      const seq = Number(data?.seq)
       if (!Number.isFinite(seq)) return
       await enqueueCatchUp(async () => {
         await applyTail(height)
@@ -132,7 +145,16 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
     })
   } else if (typeof addEventListener === 'function') {
     addEventListener('storage', async (ev: any) => {
-      if (!ev || ev.key !== `app-events:lastSeq:${dbName}`) return
+      if (!ev) return
+      if (ev.key === `app-events:signal:${dbName}` && ev.newValue === 'reset') {
+        await enqueueCatchUp(async () => {
+          await replaceDB()
+          await rehydrate()
+          notify()
+        })
+        return
+      }
+      if (ev.key !== `app-events:lastSeq:${dbName}`) return
       const seq = Number(ev.newValue)
       if (!Number.isFinite(seq)) return
       await enqueueCatchUp(async () => {

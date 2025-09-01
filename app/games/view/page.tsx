@@ -1,15 +1,15 @@
 "use client"
 
 import React from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import type { GameRecord } from '@/lib/state/io'
 import { getGame, restoreGame } from '@/lib/state/io'
 
 export default function GameDetailPage() {
-  const params = useParams() as { id?: string }
-  const id = params?.id as string
+  const search = useSearchParams()
+  const id = search.get('id') || ''
   const [game, setGame] = React.useState<GameRecord | null | undefined>(undefined)
   const router = useRouter()
 
@@ -32,8 +32,13 @@ export default function GameDetailPage() {
     if (!confirm('Restore this game as current? Current progress will be replaced.')) return
     await restoreGame(undefined, game.id)
     router.push('/')
+    // Ensure same-tab state picks up restored DB
+    setTimeout(() => { try { location.reload() } catch {} }, 0)
   }
 
+  if (!id) {
+    return <div className="p-3 max-w-2xl mx-auto">Missing id.</div>
+  }
   if (game === undefined) {
     return <div className="p-3 max-w-2xl mx-auto">Loading…</div>
   }
