@@ -17,6 +17,13 @@ const nextConfig = {
   // Generate a fully static export for GitHub Pages
   output: 'export',
   trailingSlash: true,
+  // Transpile certain ESM packages for wider browser compatibility (e.g., Safari 12/13)
+  // Narrowed to minimum set observed in error stack
+  transpilePackages: [
+    '@radix-ui/react-menu',
+    '@radix-ui/react-id',
+    '@radix-ui/react-use-layout-effect',
+  ],
   ...(basePath ? { basePath } : {}),
   ...(assetPrefix ? { assetPrefix } : {}),
   eslint: {
