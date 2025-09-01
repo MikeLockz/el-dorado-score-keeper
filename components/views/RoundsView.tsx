@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Check, X, Plus, Minus } from "lucide-react"
@@ -159,4 +160,3 @@ export default function RoundsView() {
     </div>
   )
 }
-
