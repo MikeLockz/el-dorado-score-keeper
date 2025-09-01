@@ -174,14 +174,15 @@ export default function CurrentGame() {
                 className={`p-1 text-center border-b border-r flex flex-col justify-center transition-all duration-200 ${getRoundStateStyles((state.rounds[round.round]?.state ?? 'locked') as RoundState)}`}
                 onClick={() => cycleRoundState(round.round)}
               >
-                <div className="font-bold text-sm">{round.tricks}</div>
+                <div className="font-bold text-sm text-black">{round.tricks}</div>
                 {(() => {
                   const rState = (state.rounds[round.round]?.state ?? 'locked') as RoundState
-                  const label = (rState === 'bidding' || rState === 'scored')
-                    ? `Bid: ${totalRoundBid(round.round)}`
-                    : labelForRoundState(rState)
+                  const showBid = (rState === 'bidding' || rState === 'scored')
+                  const total = showBid ? totalRoundBid(round.round) : 0
+                  const mismatch = showBid && total !== round.tricks
+                  const label = showBid ? `Bid: ${total}` : labelForRoundState(rState)
                   return (
-                    <div className="text-[0.55rem] mt-0.5 font-semibold">{label}</div>
+                    <div className={`text-[0.55rem] mt-0.5 font-semibold ${mismatch ? 'text-red-700' : ''}`}>{label}</div>
                   )
                 })()}
               </div>
@@ -196,7 +197,7 @@ export default function CurrentGame() {
                 return (
                   <div
                     key={`${round.round}-${c.id}`}
-                    className={`border-b grid grid-cols-1 ${rState === 'bidding' ? 'grid-rows-1' : (showDetails ? 'grid-rows-2' : 'grid-rows-1')} transition-all duration-200 ${getPlayerCellBackgroundStyles(rState)}`}
+                    className={`border-b grid grid-cols-1 ${rState === 'bidding' || rState === 'complete' ? 'grid-rows-1' : (showDetails ? 'grid-rows-2' : 'grid-rows-1')} transition-all duration-200 ${getPlayerCellBackgroundStyles(rState)}`}
                     onClick={() => {
                       if (rState === 'scored') toggleCellDetails(round.round, c.id)
                     }}
@@ -213,20 +214,15 @@ export default function CurrentGame() {
                       </>
                     ) : rState === 'bidding' ? (
                       <div className="flex items-center justify-center gap-1.5 px-1 py-0.5">
-                        <Button size="sm" variant="outline" className="h-6 w-6 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700" onClick={() => decrementBid(round.round, c.id)} disabled={bid <= 0}><Minus className="h-3 w-3" /></Button>
-                        <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-sky-900 bg-white/60 px-1.5 rounded">{bid}</span>
-                        <Button size="sm" variant="outline" className="h-6 w-6 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700" onClick={() => incrementBid(round.round, c.id, max)} disabled={bid >= max}><Plus className="h-3 w-3" /></Button>
+                        <Button size="sm" variant="outline" className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 border-sky-700 text-white" onClick={() => decrementBid(round.round, c.id)} disabled={bid <= 0}><Minus className="h-3 w-3" /></Button>
+                        <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-black bg-white/60 px-1.5 rounded">{bid}</span>
+                        <Button size="sm" variant="outline" className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 border-sky-700 text-white" onClick={() => incrementBid(round.round, c.id, max)} disabled={bid >= max}><Plus className="h-3 w-3" /></Button>
                       </div>
                     ) : rState === 'complete' ? (
-                      <>
-                        <div className="border-b flex items-center justify-between px-1 py-0.5">
-                          <span className="text-[0.6rem] text-orange-800 font-medium">Bid: {bid}</span>
-                        </div>
-                        <div className="flex items-center justify-center gap-1 py-0.5">
-                          <Button size="sm" variant={made === true ? 'default' : 'outline'} className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300" onClick={() => toggleMade(round.round, c.id, true)}><Check className="h-3 w-3" /></Button>
-                          <Button size="sm" variant={made === false ? 'destructive' : 'outline'} className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300" onClick={() => toggleMade(round.round, c.id, false)}><X className="h-3 w-3" /></Button>
-                        </div>
-                      </>
+                      <div className="flex items-center justify-center gap-4 w-full px-1 py-0.5">
+                        <Button size="sm" variant={made === true ? 'default' : 'outline'} className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300" onClick={() => toggleMade(round.round, c.id, true)}><Check className="h-3 w-3" /></Button>
+                        <Button size="sm" variant={made === false ? 'destructive' : 'outline'} className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300" onClick={() => toggleMade(round.round, c.id, false)}><X className="h-3 w-3" /></Button>
+                      </div>
                     ) : (
                       <>
                         {showDetails ? (
@@ -237,8 +233,11 @@ export default function CurrentGame() {
                               minRem={0.5}
                               full={
                                 <>
-                                  <span className={`${made ? 'text-emerald-800' : 'text-red-700'} font-medium`}>{made ? 'Made' : 'Missed'}</span>
-                                  <span className="text-emerald-700">Bid: {bid}</span>
+                                  <span className="text-black">Bid: {bid}</span>
+                                  <span>
+                                    <span className="text-black mr-1">Round:</span>
+                                    <span className={`${made ? 'text-green-700' : 'text-red-700'}`}>{roundDelta(bid, made)}</span>
+                                  </span>
                                 </>
                               }
                             />
@@ -249,13 +248,13 @@ export default function CurrentGame() {
                               abbrevAtRem={0.55}
                               full={
                                 <>
-                                  <span className={`${made ? 'text-green-700' : 'text-red-700'} font-semibold`}>Round: {roundDelta(bid, made)}</span>
+                                  <span className={`${made ? 'text-emerald-800' : 'text-red-700'}`}>{made ? 'Made' : 'Missed'}</span>
                                   {(() => {
                                     const cum = cumulativeScoreThrough(round.round, c.id)
                                     const isNeg = cum < 0
                                     return (
                                       <span>
-                                        <span className="text-emerald-900 mr-1">
+                                        <span className="text-black mr-1">
                                           Total:
                                         </span>
                                         {isNeg ? (
@@ -265,7 +264,7 @@ export default function CurrentGame() {
                                             </span>
                                           </span>
                                         ) : (
-                                          <span className="text-emerald-900">
+                                          <span className="text-black">
                                             {cum}
                                           </span>
                                         )}
@@ -276,13 +275,13 @@ export default function CurrentGame() {
                               }
                               abbrev={
                                 <>
-                                  <span className={`${made ? 'text-green-700' : 'text-red-700'} font-semibold`}>Rnd: {roundDelta(bid, made)}</span>
+                                  <span className={`${made ? 'text-emerald-800' : 'text-red-700'}`}>{made ? 'Made' : 'Missed'}</span>
                                   {(() => {
                                     const cum = cumulativeScoreThrough(round.round, c.id)
                                     const isNeg = cum < 0
                                     return (
                                       <span>
-                                        <span className="text-emerald-900 mr-1">
+                                        <span className="text-black mr-1">
                                           Tot:
                                         </span>
                                         {isNeg ? (
@@ -292,7 +291,7 @@ export default function CurrentGame() {
                                             </span>
                                           </span>
                                         ) : (
-                                          <span className="text-emerald-900">
+                                          <span className="text-black">
                                             {cum}
                                           </span>
                                         )}
@@ -305,8 +304,8 @@ export default function CurrentGame() {
                           </>
                         ) : (
                           <div className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none">
-                            <span className="w-full text-right font-extrabold text-xl text-emerald-900">{bid}</span>
-                            <span className="px-1 font-extrabold text-xl text-emerald-900">-</span>
+                            <span className="w-full text-right font-extrabold text-xl text-black">{bid}</span>
+                            <span className="px-1 font-extrabold text-xl text-black">-</span>
                             {(() => {
                               const cum = cumulativeScoreThrough(round.round, c.id)
                               const isNeg = cum < 0
@@ -316,8 +315,8 @@ export default function CurrentGame() {
                                     <span className="relative inline-flex items-center justify-center align-middle w-[5ch] h-[5ch] rounded-full border-2 border-red-500">
                                       <span className="font-extrabold text-xl text-red-700 leading-none">{Math.abs(cum)}</span>
                                     </span>
-                                  ) : (
-                                    <span className="font-extrabold text-xl text-emerald-900">{cum}</span>
+                                    ) : (
+                                    <span className="font-extrabold text-xl text-black">{cum}</span>
                                   )}
                                 </div>
                               )
