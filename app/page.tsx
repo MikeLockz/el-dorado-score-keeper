@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Check, X, Plus, Minus, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useAppState } from "@/components/state-provider"
 
 // Round states
 type RoundState = "locked" | "bidding" | "complete" | "scored"
@@ -26,12 +27,19 @@ type PlayerCellView = {
 }
 
 export default function ScoreTracker() {
+  const { state } = useAppState()
   const [players, setPlayers] = useState([
     { id: 1, name: "Player 1", abbr: "P1" },
     { id: 2, name: "Player 2", abbr: "P2" },
     { id: 3, name: "Player 3", abbr: "P3" },
     { id: 4, name: "Player 4", abbr: "P4" },
   ])
+  const statePlayers = useMemo(() => {
+    const entries = Object.entries(state.players)
+    if (!entries.length) return [] as { id: number; name: string; abbr: string }[]
+    return entries.map(([_, name], i) => ({ id: i + 1, name, abbr: (name.length <= 3 ? name : name.slice(0, 3)).toUpperCase() }))
+  }, [state.players])
+  const viewPlayers = statePlayers.length ? statePlayers : players
 
   // Generate rounds (10 down to 1 tricks)
   const rounds = Array.from({ length: 10 }, (_, i) => ({
@@ -53,7 +61,7 @@ export default function ScoreTracker() {
   const [playerData, setPlayerData] = useState<Record<number, Record<number, PlayerRoundData>>>(
     rounds.reduce(
       (acc, round) => {
-        acc[round.round] = players.reduce(
+        acc[round.round] = viewPlayers.reduce(
           (playerAcc, player) => {
             playerAcc[player.id] = { bid: 0, madeBid: null, score: null }
             return playerAcc
@@ -323,9 +331,9 @@ export default function ScoreTracker() {
 
       {/* Add Player Button */}
       <div className="mb-2 flex justify-center">
-        <Button onClick={addPlayer} disabled={players.length >= 10} size="sm" className="text-xs">
+        <Button onClick={addPlayer} disabled={viewPlayers.length >= 10} size="sm" className="text-xs">
           <Plus className="h-3 w-3 mr-1" />
-          Player ({players.length}/10)
+          Player ({viewPlayers.length}/10)
         </Button>
       </div>
 
@@ -333,13 +341,13 @@ export default function ScoreTracker() {
         <div
           className="grid text-[0.65rem] sm:text-xs min-w-fit"
           style={{
-            gridTemplateColumns: `3rem repeat(${players.length}, 1fr)`,
-            minWidth: `${3 + players.length * 4}rem`,
+            gridTemplateColumns: `3rem repeat(${viewPlayers.length}, 1fr)`,
+            minWidth: `${3 + viewPlayers.length * 4}rem`,
           }}
         >
           {/* Header row */}
           <div className="bg-slate-700 text-white p-1 font-bold text-center border-b border-r">Rd</div>
-          {players.map((player) => (
+          {viewPlayers.map((player) => (
             <div
               key={player.id}
               className="bg-slate-700 text-white p-1 font-bold text-center border-b cursor-pointer hover:bg-slate-600 transition-colors"
@@ -376,7 +384,7 @@ export default function ScoreTracker() {
               </div>
 
               {/* Player bid/score cells */}
-              {players.map((player) => (
+              {viewPlayers.map((player) => (
                 <div
                   key={`${round.round}-${player.id}`}
                   className={`border-b grid grid-cols-1 transition-all duration-200 ${getPlayerCellBackgroundStyles(
@@ -549,7 +557,7 @@ export default function ScoreTracker() {
               <Button
                 variant="destructive"
                 onClick={deletePlayer}
-                disabled={players.length <= 2}
+                disabled={viewPlayers.length <= 2}
                 className="flex items-center gap-2"
               >
                 <Trash2 className="h-4 w-4" />
@@ -564,7 +572,7 @@ export default function ScoreTracker() {
                 </Button>
               </div>
             </div>
-            {players.length <= 2 && <p className="text-sm text-muted-foreground">Minimum 2 players required</p>}
+            {viewPlayers.length <= 2 && <p className="text-sm text-muted-foreground">Minimum 2 players required</p>}
           </div>
         </DialogContent>
       </Dialog>
