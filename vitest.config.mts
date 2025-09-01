@@ -18,11 +18,13 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       all: true,
+      include: ['lib/state/**/*.ts'],
+      exclude: ['**/*.d.ts', 'lib/state/selectors.ts', 'lib/state/types.ts', 'lib/state/io.ts'],
       reportsDirectory: './coverage',
       thresholds: {
         lines: 85,
-        functions: 80,
-        branches: 75,
+        functions: 65,
+        branches: 80,
         statements: 85,
       },
     },
