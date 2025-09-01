@@ -55,7 +55,7 @@ export default function GamesPage() {
         <h1 className="text-lg font-bold">Games</h1>
         <Button onClick={onNewGame} disabled={loading}>{loading ? 'Working…' : 'New Game'}</Button>
       </div>
-      <Card className="p-2">
+      <Card>
         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 text-sm items-center">
           <div className="bg-slate-700 text-white p-2 font-bold">Title</div>
           <div className="bg-slate-700 text-white p-2 font-bold text-center">Players</div>

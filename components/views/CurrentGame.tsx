@@ -109,6 +109,12 @@ export default function CurrentGame() {
     return total
   }, [state.rounds])
 
+  const totalRoundBid = React.useCallback((roundNo: number) => {
+    const rd = state.rounds[roundNo]
+    if (!rd) return 0
+    return players.reduce((sum, p) => sum + (rd.bids[p.id] ?? 0), 0)
+  }, [state.rounds, players])
+
   // Before state hydration: show 4 placeholder columns to avoid layout shift.
   const DEFAULT_COLUMNS = 4
   const useDefault = !ready
@@ -151,7 +157,7 @@ export default function CurrentGame() {
   }
 
   return (
-    <div className="p-2 max-w-md mx-auto">
+    <div className="p-2 mx-auto">
       <Card className="overflow-hidden shadow-lg">
         <div
           className="grid text-[0.65rem] sm:text-xs"
@@ -169,7 +175,15 @@ export default function CurrentGame() {
                 onClick={() => cycleRoundState(round.round)}
               >
                 <div className="font-bold text-sm">{round.tricks}</div>
-                <div className="text-[0.55rem] mt-0.5 font-semibold">{labelForRoundState((state.rounds[round.round]?.state ?? 'locked') as RoundState)}</div>
+                {(() => {
+                  const rState = (state.rounds[round.round]?.state ?? 'locked') as RoundState
+                  const label = (rState === 'bidding' || rState === 'scored')
+                    ? `Bid: ${totalRoundBid(round.round)}`
+                    : labelForRoundState(rState)
+                  return (
+                    <div className="text-[0.55rem] mt-0.5 font-semibold">{label}</div>
+                  )
+                })()}
               </div>
 
               {columns.map((c) => {
@@ -247,16 +261,22 @@ export default function CurrentGame() {
                                     const isNeg = cum < 0
                                     return (
                                       <span>
-                                        <span className="mr-1">Total:</span>
+                                        <span className="text-emerald-900 mr-1">
+                                          Total:
+                                        </span>
                                         {isNeg ? (
                                           <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
-                                            <span className="text-red-700 leading-none">{Math.abs(cum)}</span>
+                                            <span className="text-red-700 leading-none">
+                                              {Math.abs(cum)}
+                                            </span>
                                           </span>
                                         ) : (
-                                          <span className="text-emerald-900">{cum}</span>
+                                          <span className="text-emerald-900">
+                                            {cum}
+                                          </span>
                                         )}
                                       </span>
-                                    )
+                                    );
                                   })()}
                                 </>
                               }
@@ -268,16 +288,22 @@ export default function CurrentGame() {
                                     const isNeg = cum < 0
                                     return (
                                       <span>
-                                        <span className="mr-1">Tot:</span>
+                                        <span className="text-emerald-900 mr-1">
+                                          Tot:
+                                        </span>
                                         {isNeg ? (
                                           <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
-                                            <span className="text-red-700 leading-none">{Math.abs(cum)}</span>
+                                            <span className="text-red-700 leading-none">
+                                              {Math.abs(cum)}
+                                            </span>
                                           </span>
                                         ) : (
-                                          <span className="text-emerald-900">{cum}</span>
+                                          <span className="text-emerald-900">
+                                            {cum}
+                                          </span>
                                         )}
                                       </span>
-                                    )
+                                    );
                                   })()}
                                 </>
                               }
