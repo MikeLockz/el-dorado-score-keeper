@@ -45,9 +45,6 @@ export default function ScoreboardView() {
 
   return (
     <div className="p-3 max-w-xl mx-auto">
-      <h1 className="text-lg font-bold mb-2 text-center">El Dorado Score Keeper</h1>
-      <Leaderboard />
-
       <Card className="p-2 mb-3">
         <div className="flex gap-2">
           <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Add player name" className="h-9" />

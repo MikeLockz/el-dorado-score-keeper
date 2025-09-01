@@ -4,6 +4,7 @@ import React from 'react'
 import { useAppState } from '@/components/state-provider'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import ScoreboardView from '@/components/views/ScoreboardView'
 
 function uuid() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as any).randomUUID()
@@ -25,17 +26,24 @@ export default function PlayersPage() {
 
   return (
     <div className="p-3 max-w-xl mx-auto">
-      <h1 className="text-lg font-bold mb-3">Players</h1>
+      <ScoreboardView />
+
       <Card className="p-3 flex items-center justify-between">
         <div>
           <div className="font-semibold">Reset Players</div>
-          <div className="text-sm text-slate-600">Remove all players from the current game.</div>
+          <div className="text-sm text-slate-600">
+            Remove all players from the current game.
+          </div>
         </div>
-        <Button variant="destructive" onClick={resetPlayers} disabled={!ready || !hasPlayers}>
+        <Button
+          variant="destructive"
+          onClick={resetPlayers}
+          disabled={!ready || !hasPlayers}
+        >
           Reset Players
         </Button>
       </Card>
     </div>
-  )
+  );
 }
 

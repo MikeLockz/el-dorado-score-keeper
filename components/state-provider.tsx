@@ -65,6 +65,29 @@ export function StateProvider({ children, onWarn }: { children: React.ReactNode;
     return previewFromDB(dbNameRef.current, h)
   }
 
+  // Seed default players on a truly fresh DB (height 0, no players)
+  const seedingRef = React.useRef(false)
+  React.useEffect(() => {
+    if (!ready || seedingRef.current) return
+    if (height !== 0) return
+    if (Object.keys(state.players || {}).length > 0) return
+    seedingRef.current = true
+    ;(async () => {
+      const inst = instRef.current
+      if (!inst) { seedingRef.current = false; return }
+      const names = ['Player 1', 'Player 2', 'Player 3', 'Player 4']
+      const ids = ['p1', 'p2', 'p3', 'p4']
+      try {
+        for (let i = 0; i < ids.length; i++) {
+          const e: AppEvent = { type: 'player/added', payload: { id: ids[i], name: names[i] }, eventId: `seed:${ids[i]}` as any, ts: Date.now() + i }
+          await inst.append(e)
+        }
+      } finally {
+        seedingRef.current = false
+      }
+    })()
+  }, [ready, height, state.players])
+
   const value: Ctx = { state, height, ready, append, previewAt, warnings, clearWarnings: () => setWarnings([]) }
   return <StateCtx.Provider value={value}>{children}</StateCtx.Provider>
 }
