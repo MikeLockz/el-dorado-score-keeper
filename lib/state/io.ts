@@ -242,9 +242,15 @@ export async function archiveCurrentGameAndReset(dbName: string = DEFAULT_DB_NAM
   await putGameRecord(gamesDb, rec)
   gamesDb.close()
 
-  // Reset current DB
-  await importBundle(dbName, { latestSeq: 0, events: [] })
-  try { localStorage.setItem(`app-events:lastSeq:${dbName}`, '0') } catch {}
+  // Reset current DB but preserve player roster by seeding player/added events
+  const seedEvents: AppEvent[] = Object.entries(endState.players).map(([id, name], idx) => ({
+    type: 'player/added',
+    payload: { id, name },
+    eventId: uuid(),
+    ts: finishedAt + idx + 1,
+  }))
+  await importBundle(dbName, { latestSeq: seedEvents.length, events: seedEvents })
+  try { localStorage.setItem(`app-events:lastSeq:${dbName}`, String(seedEvents.length)) } catch {}
   return rec
 }
 
