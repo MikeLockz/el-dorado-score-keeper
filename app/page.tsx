@@ -1,9 +1,9 @@
-import RoundsView from "@/components/views/RoundsView"
+import CurrentGame from "@/components/views/CurrentGame"
 
 export default function Page() {
   return (
     <div className="space-y-3">
-      <RoundsView />
+      <CurrentGame />
     </div>
   )
 }

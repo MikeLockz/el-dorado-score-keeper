@@ -43,7 +43,7 @@ function getPlayerCellBackgroundStyles(state: RoundState) {
   }
 }
 
-export default function RoundsView() {
+export default function CurrentGame() {
   const { state, append, ready } = useAppState()
   const players = Object.entries(state.players).map(([id, name]) => ({ id, name }))
 

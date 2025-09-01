@@ -26,7 +26,7 @@ export default function Header() {
               itemBase,
               isActive("/") && "bg-accent text-accent-foreground font-semibold -mb-px relative z-10"
             )}>
-              <Link href="/">Rounds</Link>
+              <Link href="/">Current Game</Link>
             </DropdownMenu.Item>
             <DropdownMenu.Item asChild className={cn(
               itemBase,

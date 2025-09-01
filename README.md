@@ -1,6 +1,6 @@
 # El Dorado Score Keeper
 
-Simple score keeper for The Quest for El Dorado. Built with Next.js App Router and Tailwind, with a small state layer and optional devtools in development.
+Simple score keeper for the card game El Dorado.
 
 [![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/budgetflowr-4480s-projects/v0-mobile-friendly-score-interface)
 [![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/TyFuAeQ3Y59)
@@ -78,21 +78,28 @@ Notes:
 
 ## Routes
 
-- `/`: Rounds — default view for per-round bidding and scoring.
-- `/settings`: Scoreboard — add players, adjust scores, and view the live leaderboard.
+- `/`: Current Game — default view for per-round bidding and scoring.
+- `/players`: Players — add, rename, and remove players; reset all players.
+- `/games`: Games — archive the current game, and view/restore/delete archived games.
 - `/rules`: Quick reference for scoring and phases.
 
-### Scoreboard (`/settings`) details
+### Players (`/players`) details
 
 - Add players: type a name and press Add; empty/whitespace is ignored.
-- Adjust scores: per-player −1 and +1 buttons update totals immediately.
 - Manage players: rename and remove actions per player.
-- Leaderboard: shows top players (up to 5), sorted by score then name.
+- Reset players: clear all players (and their scores/round data) for a fresh start.
 - Empty state: friendly prompt when no players exist.
 - Persistence: data saved locally (IndexedDB) and synced across tabs.
 - Devtools (development only): floating panel for event height, time‑travel preview, and recent warnings.
 
-### Rounds (`/`) details
+### Games (`/games`) details
+
+- List: shows archived games with title, finished time, players count, and winner.
+- New Game: archives the current game and starts a fresh one; navigates to `/`.
+- Restore: replaces current progress with a selected archived game.
+- Delete: permanently removes an archived game.
+
+### Current Game (`/`) details
 
 - Round grid: 10 rounds (tricks 10 → 1) across all players; header shows two‑letter initials.
 - State machine: click round tile to cycle bidding → complete → scored → bidding. Locked rounds cannot be advanced directly.
@@ -102,9 +109,12 @@ Notes:
 - Auto‑unlock: finalizing a round sets the next locked round to bidding.
 - Scored view: shows made/missed, bid, point delta, and current total score.
 
-## UI
+### Rules (`/rules`) details
 
-- Mobile header: brand “El Dorado” on the left; menu button on the right opens links to Rounds, Settings, and Rules.
+- Overview: 10 rounds; tricks decrease 10 → 1; bid, mark made/missed, then finalize to apply points.
+- Round flow: Bidding → Complete → Finalize; next locked round auto‑unlocks to bidding.
+- Scoring: Made = + (5 + bid); Missed = − (5 + bid).
+- Notes: Round states cycle locked → bidding → complete → scored; locked rounds can’t advance; data persists locally and syncs across tabs.
 
 ## Deployment
 
