@@ -10,10 +10,13 @@ import { events } from '@/lib/state/events'
 
 
 export default function CreatePlayer() {
-  const { append } = useAppState()
+  const { append, state } = useAppState()
   const [name, setName] = React.useState('')
+  const playerCount = Object.keys(state.players || {}).length
+  const maxReached = playerCount >= 10
 
   const onAdd = async () => {
+    if (maxReached) return
     const n = name.trim()
     if (!n) return
     const id = uuid()
@@ -22,11 +25,14 @@ export default function CreatePlayer() {
   }
 
   return (
-    <div className="flex gap-2">
-      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Add player name" className="h-9" />
-      <Button onClick={onAdd} disabled={!name.trim()} className="h-9">
-        <Plus className="h-4 w-4 mr-1" /> Add
-      </Button>
+    <div className="flex flex-col gap-1.5">
+      <div className="flex gap-2">
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Add player name" className="h-9" disabled={maxReached} />
+        <Button onClick={onAdd} disabled={!name.trim() || maxReached} className="h-9">
+          <Plus className="h-4 w-4 mr-1" /> Add
+        </Button>
+      </div>
+      <div className={`text-[0.72rem] ${maxReached ? 'text-red-600' : 'text-slate-500'}`}>{maxReached ? 'Maximum 10 players reached' : '2–10 players supported'}</div>
     </div>
   )
 }

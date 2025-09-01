@@ -10,6 +10,7 @@ import { events } from '@/lib/state/events'
 export default function PlayerList() {
   const { state, append, ready } = useAppState()
   const players = Object.entries(state.players).map(([id, name]) => ({ id, name }))
+  const minReached = players.length <= 2
 
   const renamePlayer = async (playerId: string, currentName: string) => {
     const name = prompt('Rename player', currentName)?.trim()
@@ -18,6 +19,10 @@ export default function PlayerList() {
   }
 
   const removePlayer = async (playerId: string, currentName: string) => {
+    if (players.length <= 2) {
+      alert('At least 2 players are required.')
+      return
+    }
     if (!confirm(`Remove player ${currentName}?`)) return
     await append(events.playerRemoved({ id: playerId }))
   }
@@ -34,7 +39,7 @@ export default function PlayerList() {
                 <div className="p-2 border-b truncate">{p.name}</div>
                 <div className="p-2 border-b text-center flex items-center justify-center gap-2">
                   <Button size="sm" variant="outline" onClick={() => renamePlayer(p.id, p.name)} className="h-7 px-2"><Edit className="h-4 w-4" /></Button>
-                  <Button size="sm" variant="destructive" onClick={() => removePlayer(p.id, p.name)} className="h-7 px-2"><Trash className="h-4 w-4" /></Button>
+                  <Button size="sm" variant="destructive" onClick={() => removePlayer(p.id, p.name)} className="h-7 px-2" disabled={minReached}><Trash className="h-4 w-4" /></Button>
                 </div>
               </Fragment>
             ))}

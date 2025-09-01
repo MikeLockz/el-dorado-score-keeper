@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MoreHorizontal } from 'lucide-react'
-import { createPortal } from 'react-dom'
 import type { GameRecord } from '@/lib/state/io'
 import { listGames, archiveCurrentGameAndReset, deleteGame, restoreGame } from '@/lib/state/io'
 import { formatDateTime } from '@/lib/format'
@@ -123,7 +122,7 @@ export default function GamesPage() {
             </tbody>
           </table>
         </div>
-        {menuOpen && createPortal(
+        {menuOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
             <div
@@ -148,8 +147,7 @@ export default function GamesPage() {
                 Delete
               </button>
             </div>
-          </>,
-          document.body
+          </>
         )}
       </Card>
     </div>
