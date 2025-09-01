@@ -24,6 +24,11 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
     db = await openDB(dbName)
   }
   const chan = useChannel ? (new BroadcastChannel(chanName) as BroadcastChannel) : null
+  const DEV = typeof process !== 'undefined' ? (process.env?.NODE_ENV !== 'production') : false
+  function devLog(event: string, info?: unknown) {
+    if (!DEV) return
+    try { console.debug('[rehydrate]', event, info ?? '') } catch {}
+  }
   let memoryState: AppState = INITIAL_STATE
   let height = 0
   let isClosed = false
@@ -117,11 +122,30 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   }
 
   function isPlainObject(v: unknown): v is Record<string, unknown> { return !!v && typeof v === 'object' && !Array.isArray(v) }
-  function warn(code: string, info?: unknown) { try { onWarn?.(code, info) } catch {} }
+  function warn(code: string, info?: unknown) {
+    try { onWarn?.(code, info) } catch {}
+    // Dev-only console reporter for snapshot selection metrics
+    if (DEV && (code === 'rehydrate.snapshot_invalid_record' || code === 'rehydrate.snapshot_ahead_of_events' || code === 'rehydrate.no_valid_snapshot')) {
+      devLog(code, info)
+    }
+  }
   function isValidStateRecord(rec: unknown): rec is CurrentStateRecord {
     if (!isPlainObject(rec)) return false
     const obj = rec as Record<string, unknown>
     if (obj['id'] !== 'current' || typeof obj['height'] !== 'number') return false
+    const s = obj['state']
+    if (!isPlainObject(s)) return false
+    if (!isPlainObject(s.players) || !isPlainObject(s.scores)) return false
+    const playersObj = s.players as Record<string, unknown>
+    const scoresObj = s.scores as Record<string, unknown>
+    for (const k of Object.keys(playersObj)) if (typeof playersObj[k] !== 'string') return false
+    for (const k of Object.keys(scoresObj)) if (typeof scoresObj[k] !== 'number') return false
+    return true
+  }
+  function isValidSnapshot(rec: unknown): rec is { height: number; state: AppState } {
+    if (!isPlainObject(rec)) return false
+    const obj = rec as Record<string, unknown>
+    if (typeof obj['height'] !== 'number') return false
     const s = obj['state']
     if (!isPlainObject(s)) return false
     if (!isPlainObject(s.players) || !isPlainObject(s.scores)) return false
@@ -151,28 +175,65 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
     if (rec) {
       warn('state.invalid_current')
     }
-    // Fallback: use the latest snapshot if present
-    const t2 = tx(db, 'readonly', [storeNames.SNAPSHOTS])
+    // Fallback: use the last valid snapshot not ahead of events
     try {
+      // Determine latest event seq for sanity checks
+      let latestSeq = 0
+      try {
+        const tEv = tx(db, 'readonly', [storeNames.EVENTS])
+        const curEv = tEv.objectStore(storeNames.EVENTS).openCursor(null, 'prev')
+        latestSeq = await new Promise<number>((res, rej) => {
+          curEv.onsuccess = () => {
+            const c = curEv.result as IDBCursorWithValue | null
+            if (!c) return res(0)
+            const k = Number((c as any).primaryKey ?? c.key)
+            res(Number.isFinite(k) ? k : 0)
+          }
+          curEv.onerror = () => rej(curEv.error)
+        })
+      } catch {
+        latestSeq = 0
+      }
+      const t2 = tx(db, 'readonly', [storeNames.SNAPSHOTS])
       const curReq = t2.objectStore(storeNames.SNAPSHOTS).openCursor(null, 'prev')
-      const snap = await new Promise<{ height: number; state: AppState } | undefined>((res, rej) => {
+      let tried = 0
+      let invalid = 0
+      let ahead = 0
+      const chosen = await new Promise<{ height: number; state: AppState } | undefined>((res, rej) => {
         curReq.onsuccess = () => {
-          const c = curReq.result
+          const c = curReq.result as IDBCursorWithValue | null
           if (!c) return res(undefined)
-          res(c.value as { height: number; state: AppState })
+          tried++
+          const v = c.value
+          if (!isValidSnapshot(v)) {
+            invalid++
+            warn('rehydrate.snapshot_invalid_record')
+            return c.continue()
+          }
+          if (v.height > latestSeq) {
+            ahead++
+            warn('rehydrate.snapshot_ahead_of_events', { snapshotHeight: v.height, latestSeq })
+            return c.continue()
+          }
+          return res(v)
         }
         curReq.onerror = () => rej(curReq.error)
       })
-      if (snap && typeof snap.height === 'number' && snap.state) {
-        memoryState = snap.state
-        height = snap.height
+      if (chosen) {
+        devLog('rehydrate.snapshot_chosen', { height: chosen.height, latestSeq })
+        memoryState = chosen.state
+        height = chosen.height
         return
+      }
+      if (tried > 0) {
+        warn('rehydrate.no_valid_snapshot', { tried, invalid, ahead })
       }
     } catch {
       // ignore snapshot failures; continue with initial
     }
     memoryState = INITIAL_STATE
     height = 0
+    devLog('rehydrate.fallback_initial')
   }
 
   async function applyTail(fromExclusive: number) {
