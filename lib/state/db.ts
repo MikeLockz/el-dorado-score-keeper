@@ -11,8 +11,8 @@ export function tx(db: IDBDatabase, mode: IDBTransactionMode, stores: StoreName[
 }
 
 export async function openDB(name: string): Promise<IDBDatabase> {
-  // Single version schema; create all stores on initial upgrade
-  const req = indexedDB.open(name, 1)
+  // Schema version 2 (adds `games` store). Upgrades from v1 -> v2 create missing stores.
+  const req = indexedDB.open(name, 2)
   req.onupgradeneeded = () => {
     const db = req.result
     const have = new Set<string>(Array.from(db.objectStoreNames as any))
