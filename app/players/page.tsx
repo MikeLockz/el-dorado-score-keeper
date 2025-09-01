@@ -4,7 +4,7 @@ import React from 'react'
 import { useAppState } from '@/components/state-provider'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import ScoreboardView from '@/components/views/ScoreboardView'
+import PlayerManagement from '@/components/players/PlayerManagement'
 
 function uuid() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as any).randomUUID()
@@ -25,8 +25,8 @@ export default function PlayersPage() {
   }
 
   return (
-    <div className="p-3 max-w-xl mx-auto">
-      <ScoreboardView />
+    <div className="p-3 max-w-xl mx-auto space-y-3">
+      <PlayerManagement />
 
       <Card className="p-3 flex items-center justify-between">
         <div>
@@ -46,4 +46,3 @@ export default function PlayersPage() {
     </div>
   );
 }
-

@@ -8,7 +8,7 @@ Summary
 Changes
 - `components/state-provider.tsx`: add `ready` flag and set after state instance creation.
 - `components/views/RoundsView.tsx`: default 4 columns pre-hydration; switch to dynamic columns post-hydration using `gridTemplateColumns`; placeholder headers/cells.
-- `components/views/ScoreboardView.tsx`: skeleton 4 rows before ready; show empty-state only when `ready && players.length === 0`.
+- `components/players/PlayerManagement.tsx`: player creation and list (rename/delete) with skeletons before ready.
 - `app/page.tsx`: simplified to render `RoundsView`.
 - Removed `app/rounds/page.tsx`. Updated `components/header.tsx` active logic.
 - Docs: updated `README.md` and `STATE_INTEGRATION.MD` to remove `/rounds` references.
