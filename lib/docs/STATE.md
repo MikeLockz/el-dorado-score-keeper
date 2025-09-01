@@ -75,7 +75,12 @@ Notes:
 
 ## Performance Defaults
 
-- Snapshot/update `state['current']` every 20 events (tunable).
+- Snapshot/update `state['current']` roughly every 20 events by default.
+  The interval auto-tunes based on total event volume (e.g., 20 for small DBs,
+  50–200 for larger ones) and can be overridden via `createInstance({ snapshotEvery })`.
+  Old snapshots are compacted in the background: we keep a handful of the most
+  recent snapshots and retain periodic historical anchors to bound startup cost
+  without unbounded growth.
 - Keep reducers pure and small; derive totals in selectors.
 
 ## Minimal Pseudocode

@@ -13,7 +13,7 @@ export type Instance = {
 
 type CurrentStateRecord = { id: 'current'; height: number; state: AppState }
 
-export async function createInstance(opts?: { dbName?: string; channelName?: string; useChannel?: boolean; onWarn?: (code: string, info?: unknown) => void }): Promise<Instance> {
+export async function createInstance(opts?: { dbName?: string; channelName?: string; useChannel?: boolean; onWarn?: (code: string, info?: unknown) => void; snapshotEvery?: number; keepRecentSnapshots?: number; anchorFactor?: number }): Promise<Instance> {
   const dbName = opts?.dbName ?? 'app-db'
   const chanName = opts?.channelName ?? 'app-events'
   const useChannel = opts?.useChannel !== false
@@ -29,7 +29,11 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   let isClosed = false
   const listeners = new Set<(s: AppState, h: number) => void>()
   const notify = () => { for (const l of listeners) l(memoryState, height) }
-  const SNAPSHOT_EVERY = 20
+  // Snapshot tuning defaults; may be adjusted after inspecting event volume
+  let snapshotEvery = 20
+  const keepRecentSnapshots = Math.max(0, Math.floor(opts?.keepRecentSnapshots ?? 5))
+  const anchorFactor = Math.max(1, Math.floor(opts?.anchorFactor ?? 5))
+  const anchorEvery = () => Math.max(snapshotEvery, snapshotEvery * anchorFactor)
   // serialize catch-up operations to avoid double-apply under races
   let applyChain: Promise<void> = Promise.resolve()
   const enqueueCatchUp = (fn: () => Promise<void>) => {
@@ -38,6 +42,78 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
     // keep chain from rejecting
     applyChain = next.catch(() => {})
     return next
+  }
+
+  function chooseSnapshotEvery(totalEvents: number): number {
+    // Simple heuristic: prefer tighter snapshots at low volumes for speed,
+    // relax at higher volumes to limit snapshot count.
+    if (!Number.isFinite(totalEvents) || totalEvents <= 0) return 20
+    if (totalEvents <= 1_000) return 20
+    if (totalEvents <= 5_000) return 50
+    if (totalEvents <= 20_000) return 100
+    return 200
+  }
+
+  async function initSnapshotStrategy() {
+    if (typeof opts?.snapshotEvery === 'number' && opts.snapshotEvery > 0) {
+      snapshotEvery = Math.floor(opts.snapshotEvery)
+      return
+    }
+    try {
+      const t = tx(db, 'readonly', [storeNames.EVENTS])
+      const countReq = t.objectStore(storeNames.EVENTS).count()
+      const total = await new Promise<number>((res, rej) => {
+        countReq.onsuccess = () => res(Number(countReq.result || 0))
+        countReq.onerror = () => rej(countReq.error)
+      })
+      snapshotEvery = chooseSnapshotEvery(total)
+    } catch {
+      snapshotEvery = 20
+    }
+  }
+
+  async function compactSnapshots() {
+    if (isClosed) return
+    // Skip compaction for small histories
+    const minCompactionHeight = snapshotEvery * (keepRecentSnapshots + 5)
+    if (height < minCompactionHeight) return
+    // Collect heights to delete: keep latest N and periodic anchors
+    const toDelete: number[] = []
+    try {
+      const tRead = tx(db, 'readonly', [storeNames.SNAPSHOTS])
+      const curReq = tRead.objectStore(storeNames.SNAPSHOTS).openCursor(null, 'prev')
+      let seen = 0
+      const period = anchorEvery()
+      await new Promise<void>((res, rej) => {
+        curReq.onsuccess = () => {
+          const c = curReq.result as IDBCursorWithValue | null
+          if (!c) return res()
+          const h = Number(c.key)
+          if (seen < keepRecentSnapshots) {
+            seen++
+          } else {
+            // Retain periodic anchors only
+            if (period > 0 && h % period !== 0) {
+              toDelete.push(h)
+            }
+          }
+          c.continue()
+        }
+        curReq.onerror = () => rej(curReq.error)
+      })
+    } catch {
+      return
+    }
+    if (!toDelete.length) return
+    try {
+      const tDel = tx(db, 'readwrite', [storeNames.SNAPSHOTS])
+      for (const h of toDelete) {
+        const delReq = tDel.objectStore(storeNames.SNAPSHOTS).delete(h)
+        await new Promise<void>((res, rej) => { delReq.onsuccess = () => res(); delReq.onerror = () => rej(delReq.error) })
+      }
+    } catch {
+      // best-effort; ignore failures
+    }
   }
 
   function isPlainObject(v: unknown): v is Record<string, unknown> { return !!v && typeof v === 'object' && !Array.isArray(v) }
@@ -175,6 +251,7 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
   }
 
   async function rehydrate() {
+    await initSnapshotStrategy()
     await loadCurrent()
     await applyTail(height)
     await persistCurrent()
@@ -267,12 +344,14 @@ export async function createInstance(opts?: { dbName?: string; channelName?: str
         tPersist.onabort = () => rej(tPersist.error)
         tPersist.onerror = () => rej(tPersist.error)
       })
-      if (height % SNAPSHOT_EVERY === 0) {
+      if (height % snapshotEvery === 0) {
         const snapPut = tPersist.objectStore(storeNames.SNAPSHOTS).put({ height, state: memoryState })
         await new Promise<void>((res, rej) => {
           snapPut.onsuccess = () => res()
           snapPut.onerror = () => rej(snapPut.error)
         })
+        // Opportunistic background compaction (non-blocking)
+        try { setTimeout(() => { compactSnapshots().catch(() => {}) }, 0) } catch {}
       }
     })
     if (chan) {
