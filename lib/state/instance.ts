@@ -35,6 +35,20 @@ export async function createInstance(opts?: {
   }
   const chan = useChannel ? (new BroadcastChannel(chanName)) : null;
   const DEV = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
+  function asError(e: unknown, fallbackMessage: string): Error {
+    if (e instanceof Error) return e;
+    const message =
+      typeof e === 'string'
+        ? e
+        : (e && typeof (e as { message?: unknown }).message === 'string'
+            ? String((e as { message?: unknown }).message)
+            : fallbackMessage);
+    const err = new Error(message);
+    try {
+      (err as { cause?: unknown }).cause = e;
+    } catch {}
+    return err;
+  }
   function devLog(event: string, info?: unknown) {
     if (!DEV) return;
     try {
@@ -83,7 +97,7 @@ export async function createInstance(opts?: {
       const countReq = t.objectStore(storeNames.EVENTS).count();
       const total = await new Promise<number>((res, rej) => {
         countReq.onsuccess = () => res(Number(countReq.result || 0));
-        countReq.onerror = () => rej(countReq.error);
+        countReq.onerror = () => rej(asError(countReq.error, 'Failed to count events'));
       });
       snapshotEvery = chooseSnapshotEvery(total);
     } catch {
@@ -118,7 +132,7 @@ export async function createInstance(opts?: {
           }
           c.continue();
         };
-        curReq.onerror = () => rej(curReq.error);
+        curReq.onerror = () => rej(asError(curReq.error, 'Failed reading snapshots for compaction'));
       });
     } catch {
       return;
@@ -130,7 +144,7 @@ export async function createInstance(opts?: {
         const delReq = tDel.objectStore(storeNames.SNAPSHOTS).delete(h);
         await new Promise<void>((res, rej) => {
           delReq.onsuccess = () => res();
-          delReq.onerror = () => rej(delReq.error);
+          delReq.onerror = () => rej(asError(delReq.error, 'Failed deleting snapshot'));
         });
       }
     } catch {
@@ -196,7 +210,7 @@ export async function createInstance(opts?: {
     const req = t1.objectStore(storeNames.STATE).get('current');
     const rec = await new Promise<CurrentStateRecord | undefined>((res, rej) => {
       req.onsuccess = () => res(req.result as unknown as CurrentStateRecord | undefined);
-      req.onerror = () => rej(req.error);
+      req.onerror = () => rej(asError(req.error, 'Failed to load current state'));
     });
     if (isValidStateRecord(rec)) {
       memoryState = rec.state;
@@ -217,10 +231,10 @@ export async function createInstance(opts?: {
           curEv.onsuccess = () => {
             const c = curEv.result;
             if (!c) return res(0);
-            const k = Number((c as any).primaryKey ?? c.key);
+            const k = Number((c as IDBCursorWithValue & { primaryKey?: IDBValidKey }).primaryKey ?? c.key);
             res(Number.isFinite(k) ? k : 0);
           };
-          curEv.onerror = () => rej(curEv.error);
+          curEv.onerror = () => rej(asError(curEv.error, 'Failed reading latest event seq'));
         });
       } catch {
         latestSeq = 0;
@@ -236,7 +250,7 @@ export async function createInstance(opts?: {
             const c = curReq.result;
             if (!c) return res(undefined);
             tried++;
-            const v = c.value;
+            const v: unknown = c.value;
             if (!isValidSnapshot(v)) {
               invalid++;
               warn('rehydrate.snapshot_invalid_record');
@@ -249,7 +263,7 @@ export async function createInstance(opts?: {
             }
             return res(v);
           };
-          curReq.onerror = () => rej(curReq.error);
+          curReq.onerror = () => rej(asError(curReq.error, 'Failed iterating snapshots'));
         },
       );
       if (chosen) {
@@ -287,7 +301,7 @@ export async function createInstance(opts?: {
         height = Number(cur.primaryKey ?? cur.key);
         cur.continue();
       };
-      cursorReq.onerror = () => rej(cursorReq.error);
+      cursorReq.onerror = () => rej(asError(cursorReq.error, 'Failed reading event tail'));
     });
   }
 
@@ -299,17 +313,17 @@ export async function createInstance(opts?: {
       .put({ id: 'current', height, state: memoryState } as CurrentStateRecord);
     await new Promise<void>((res, rej) => {
       req.onsuccess = () => res();
-      req.onerror = () => rej(req.error);
-      t.onabort = () => rej(t.error);
-      t.onerror = () => rej(t.error);
+      req.onerror = () => rej(asError(req.error, 'Failed to persist current state'));
+      t.onabort = () => rej(asError(t.error, 'Transaction aborted persisting current state'));
+      t.onerror = () => rej(asError(t.error, 'Transaction error persisting current state'));
     });
   }
 
   if (chan) {
-    chan.addEventListener('message', async (ev: MessageEvent) => {
+    chan.addEventListener('message', (ev: MessageEvent) => {
       const data: unknown = ev?.data;
       if (isPlainObject(data) && data.type === 'reset') {
-        await enqueueCatchUp(async () => {
+        void enqueueCatchUp(async () => {
           await replaceDB();
           await rehydrate();
           notify();
@@ -318,17 +332,17 @@ export async function createInstance(opts?: {
       }
       const seq = Number(isPlainObject(data) ? data.seq : undefined);
       if (!Number.isFinite(seq)) return;
-      await enqueueCatchUp(async () => {
+      void enqueueCatchUp(async () => {
         await applyTail(height);
         await persistCurrent();
         notify();
       });
     });
   } else if (typeof addEventListener === 'function') {
-    addEventListener('storage', async (ev: any) => {
+    addEventListener('storage', (ev: StorageEvent) => {
       if (!ev) return;
       if (ev.key === `app-events:signal:${dbName}` && ev.newValue === 'reset') {
-        await enqueueCatchUp(async () => {
+        void enqueueCatchUp(async () => {
           await replaceDB();
           await rehydrate();
           notify();
@@ -338,7 +352,7 @@ export async function createInstance(opts?: {
       if (ev.key !== `app-events:lastSeq:${dbName}`) return;
       const seq = Number(ev.newValue);
       if (!Number.isFinite(seq)) return;
-      await enqueueCatchUp(async () => {
+      void enqueueCatchUp(async () => {
         await applyTail(height);
         await persistCurrent();
         notify();
@@ -364,14 +378,15 @@ export async function createInstance(opts?: {
     try {
       // Ensure strict KnownAppEvent
       event = validateEventStrict(event);
-    } catch (err: any) {
-      const info = (err && err.info) || undefined;
-      const code = (info && (info.code as string)) || 'append.invalid_event_shape';
+    } catch (err: unknown) {
+      const info = (err as { info?: unknown } | null)?.info;
+      const code =
+        (info && (info as { code?: string } | null)?.code) || 'append.invalid_event_shape';
       warn(code, info);
-      const ex = new Error('InvalidEvent');
-      (ex as any).name = 'InvalidEvent';
-      (ex as any).code = code;
-      (ex as any).info = info;
+      const ex: Error & { code: string; info?: unknown } = Object.assign(
+        new Error('InvalidEvent'),
+        { name: 'InvalidEvent', code, info },
+      );
       throw ex;
     }
     if (testFailMode) {
@@ -387,7 +402,7 @@ export async function createInstance(opts?: {
       const addReq = t.objectStore(storeNames.EVENTS).add(event);
       await new Promise<void>((res, rej) => {
         addReq.onsuccess = () => res();
-        addReq.onerror = () => rej(addReq.error);
+        addReq.onerror = () => rej(asError(addReq.error, 'Failed to add test event'));
       });
       try {
         t.abort();
@@ -397,27 +412,26 @@ export async function createInstance(opts?: {
     }
     // Phase 1: attempt to add the event in its own transaction
     let seq: number | undefined;
-    let duplicate = false;
     try {
       const tAdd = tx(db, 'readwrite', [storeNames.EVENTS]);
       const addReq = tAdd.objectStore(storeNames.EVENTS).add(event);
       seq = await new Promise<number>((res, rej) => {
         addReq.onsuccess = () => res(addReq.result as number);
-        addReq.onerror = () => rej(addReq.error);
-        tAdd.onabort = () => rej(tAdd.error);
-        tAdd.onerror = () => rej(tAdd.error);
+        addReq.onerror = () => rej(asError(addReq.error, 'Failed to add event'));
+        tAdd.onabort = () => rej(asError(tAdd.error, 'Transaction aborted adding event'));
+        tAdd.onerror = () => rej(asError(tAdd.error, 'Transaction error adding event'));
       });
     } catch (err: unknown) {
       // Treat duplicate eventId as idempotent success; look up existing seq
       const name = (err as { name?: string } | null)?.name;
-      if (err && (name === 'ConstraintError' || String(err).includes('Constraint'))) {
-        duplicate = true;
+      const message = err instanceof Error ? err.message : '';
+      if (err && (name === 'ConstraintError' || message.includes('Constraint'))) {
         const tFind = tx(db, 'readonly', [storeNames.EVENTS]);
         const idx = tFind.objectStore(storeNames.EVENTS).index('eventId');
         const getReq = idx.getKey(event.eventId);
         seq = await new Promise<number>((res, rej) => {
           getReq.onsuccess = () => res((getReq.result as number) ?? height);
-          getReq.onerror = () => rej(getReq.error);
+          getReq.onerror = () => rej(asError(getReq.error, 'Failed to lookup duplicate event'));
         });
       } else {
         throw err;
@@ -440,9 +454,9 @@ export async function createInstance(opts?: {
         .put({ id: 'current', height, state: memoryState } as CurrentStateRecord);
       await new Promise<void>((res, rej) => {
         putReq.onsuccess = () => res();
-        putReq.onerror = () => rej(putReq.error);
-        tPersist.onabort = () => rej(tPersist.error);
-        tPersist.onerror = () => rej(tPersist.error);
+        putReq.onerror = () => rej(asError(putReq.error, 'Failed to persist state during append'));
+        tPersist.onabort = () => rej(asError(tPersist.error, 'Transaction aborted persisting state'));
+        tPersist.onerror = () => rej(asError(tPersist.error, 'Transaction error persisting state'));
       });
       if (height % snapshotEvery === 0) {
         const snapPut = tPersist
@@ -450,7 +464,7 @@ export async function createInstance(opts?: {
           .put({ height, state: memoryState });
         await new Promise<void>((res, rej) => {
           snapPut.onsuccess = () => res();
-          snapPut.onerror = () => rej(snapPut.error);
+          snapPut.onerror = () => rej(asError(snapPut.error, 'Failed to persist snapshot'));
         });
         // Opportunistic background compaction (non-blocking)
         try {
@@ -469,7 +483,7 @@ export async function createInstance(opts?: {
         localStorage.setItem(key, val);
         // In some environments, 'storage' may not fire across contexts. Best-effort dispatch.
         try {
-          // @ts-ignore - StorageEvent may not be fully typed in Node
+          // @ts-expect-error - StorageEvent may not be fully typed in Node
           const ev = new StorageEvent('storage', { key, newValue: val, storageArea: localStorage });
           dispatchEvent(ev);
         } catch {}
