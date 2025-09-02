@@ -200,7 +200,7 @@ export default function CurrentGame() {
             <React.Fragment key={`row-${round.round}`}>
               <div
                 className={`p-1 text-center border-b border-r flex flex-col justify-center transition-all duration-200 ${getRoundStateStyles((state.rounds[round.round]?.state ?? 'locked'))}`}
-                onClick={() => cycleRoundState(round.round)}
+                onClick={() => void cycleRoundState(round.round)}
               >
                 <div className="font-bold text-sm text-black">{round.tricks}</div>
                 {(() => {
@@ -259,7 +259,7 @@ export default function CurrentGame() {
                           size="sm"
                           variant="outline"
                           className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 border-sky-700 text-white"
-                          onClick={() => decrementBid(round.round, c.id)}
+                          onClick={() => void decrementBid(round.round, c.id)}
                           disabled={bid <= 0}
                         >
                           <Minus className="h-3 w-3" />
@@ -271,7 +271,7 @@ export default function CurrentGame() {
                           size="sm"
                           variant="outline"
                           className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 border-sky-700 text-white"
-                          onClick={() => incrementBid(round.round, c.id, max)}
+                          onClick={() => void incrementBid(round.round, c.id, max)}
                           disabled={bid >= max}
                         >
                           <Plus className="h-3 w-3" />
@@ -283,7 +283,7 @@ export default function CurrentGame() {
                           size="sm"
                           variant={made === true ? 'default' : 'outline'}
                           className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
-                          onClick={() => toggleMade(round.round, c.id, true)}
+                          onClick={() => void toggleMade(round.round, c.id, true)}
                         >
                           <Check className="h-3 w-3" />
                         </Button>
@@ -291,7 +291,7 @@ export default function CurrentGame() {
                           size="sm"
                           variant={made === false ? 'destructive' : 'outline'}
                           className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
-                          onClick={() => toggleMade(round.round, c.id, false)}
+                          onClick={() => void toggleMade(round.round, c.id, false)}
                         >
                           <X className="h-3 w-3" />
                         </Button>
