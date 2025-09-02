@@ -1,9 +1,9 @@
-"use client"
+'use client';
 
-import React from 'react'
-import { Card } from '@/components/ui/card'
-import CreatePlayer from './CreatePlayer'
-import PlayerList from './PlayerList'
+import React from 'react';
+import { Card } from '@/components/ui/card';
+import CreatePlayer from './CreatePlayer';
+import PlayerList from './PlayerList';
 
 export default function PlayerManagement() {
   return (
@@ -16,6 +16,5 @@ export default function PlayerManagement() {
 
       <PlayerList />
     </div>
-  )
+  );
 }
-

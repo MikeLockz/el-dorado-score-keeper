@@ -1,29 +1,31 @@
-import { describe, it, expect } from 'vitest'
-import { initInstance, makeTestDB } from '@/tests/utils/helpers'
-import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events'
+import { describe, it, expect } from 'vitest';
+import { initInstance, makeTestDB } from '@/tests/utils/helpers';
+import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events';
 
-const now = 1_700_000_000_000
+const now = 1_700_000_000_000;
 const ev = <T extends AppEventType>(type: T, payload: EventPayloadByType<T>, eventId: string) =>
-  makeEvent(type, payload, { eventId, ts: now })
+  makeEvent(type, payload, { eventId, ts: now });
 
 describe('transaction atomicity (abort after add)', () => {
   it('aborts entire transaction; no partial event persists', async () => {
-    const dbName = makeTestDB('atom')
-    const a = await initInstance(dbName)
+    const dbName = makeTestDB('atom');
+    const a = await initInstance(dbName);
     // seed player
-    await a.append(ev('player/added', { id: 'p1', name: 'A' }, 'aa-0'))
+    await a.append(ev('player/added', { id: 'p1', name: 'A' }, 'aa-0'));
 
     // trigger abort after add
-    ;(a as any).setTestAbortAfterAddOnce()
-    await expect(a.append(ev('score/added', { playerId: 'p1', delta: 9 }, 'aa-1'))).rejects.toBeTruthy()
-    const heightAfter = a.getHeight()
-    expect(heightAfter).toBe(1)
-    a.close()
+    (a as any).setTestAbortAfterAddOnce();
+    await expect(
+      a.append(ev('score/added', { playerId: 'p1', delta: 9 }, 'aa-1')),
+    ).rejects.toBeTruthy();
+    const heightAfter = a.getHeight();
+    expect(heightAfter).toBe(1);
+    a.close();
 
     // reopen and ensure only the seed event exists in DB
-    const b = await initInstance(dbName)
-    expect(b.getHeight()).toBe(1)
-    expect(b.getState().scores.p1 ?? 0).toBe(0)
-    b.close()
-  })
-})
+    const b = await initInstance(dbName);
+    expect(b.getHeight()).toBe(1);
+    expect(b.getState().scores.p1 ?? 0).toBe(0);
+    b.close();
+  });
+});

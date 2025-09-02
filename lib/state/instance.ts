@@ -1,445 +1,523 @@
-import { openDB, storeNames, tx } from './db'
-import { AppEvent, AppState, INITIAL_STATE, reduce } from './types'
-import { validateEventStrict } from './validation'
+import { openDB, storeNames, tx } from './db';
+import { AppEvent, AppState, INITIAL_STATE, reduce } from './types';
+import { validateEventStrict } from './validation';
 
 export type Instance = {
-  append: (event: AppEvent) => Promise<number>
-  getState: () => AppState
-  getHeight: () => number
-  rehydrate: () => Promise<void>
-  close: () => void
-  subscribe: (cb: (s: AppState, h: number) => void) => () => void
-}
+  append: (event: AppEvent) => Promise<number>;
+  getState: () => AppState;
+  getHeight: () => number;
+  rehydrate: () => Promise<void>;
+  close: () => void;
+  subscribe: (cb: (s: AppState, h: number) => void) => () => void;
+};
 
-type CurrentStateRecord = { id: 'current'; height: number; state: AppState }
+type CurrentStateRecord = { id: 'current'; height: number; state: AppState };
 
-export async function createInstance(opts?: { dbName?: string; channelName?: string; useChannel?: boolean; onWarn?: (code: string, info?: unknown) => void; snapshotEvery?: number; keepRecentSnapshots?: number; anchorFactor?: number }): Promise<Instance> {
-  const dbName = opts?.dbName ?? 'app-db'
-  const chanName = opts?.channelName ?? 'app-events'
-  const useChannel = opts?.useChannel !== false
-  const onWarn = opts?.onWarn
-  let db = await openDB(dbName)
+export async function createInstance(opts?: {
+  dbName?: string;
+  channelName?: string;
+  useChannel?: boolean;
+  onWarn?: (code: string, info?: unknown) => void;
+  snapshotEvery?: number;
+  keepRecentSnapshots?: number;
+  anchorFactor?: number;
+}): Promise<Instance> {
+  const dbName = opts?.dbName ?? 'app-db';
+  const chanName = opts?.channelName ?? 'app-events';
+  const useChannel = opts?.useChannel !== false;
+  const onWarn = opts?.onWarn;
+  let db = await openDB(dbName);
   async function replaceDB() {
-    try { db.close() } catch {}
-    db = await openDB(dbName)
+    try {
+      db.close();
+    } catch {}
+    db = await openDB(dbName);
   }
-  const chan = useChannel ? (new BroadcastChannel(chanName) as BroadcastChannel) : null
-  const DEV = typeof process !== 'undefined' ? (process.env?.NODE_ENV !== 'production') : false
+  const chan = useChannel ? (new BroadcastChannel(chanName)) : null;
+  const DEV = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
   function devLog(event: string, info?: unknown) {
-    if (!DEV) return
-    try { console.debug('[rehydrate]', event, info ?? '') } catch {}
+    if (!DEV) return;
+    try {
+      console.debug('[rehydrate]', event, info ?? '');
+    } catch {}
   }
-  let memoryState: AppState = INITIAL_STATE
-  let height = 0
-  let isClosed = false
-  const listeners = new Set<(s: AppState, h: number) => void>()
-  const notify = () => { for (const l of listeners) l(memoryState, height) }
+  let memoryState: AppState = INITIAL_STATE;
+  let height = 0;
+  let isClosed = false;
+  const listeners = new Set<(s: AppState, h: number) => void>();
+  const notify = () => {
+    for (const l of listeners) l(memoryState, height);
+  };
   // Snapshot tuning defaults; may be adjusted after inspecting event volume
-  let snapshotEvery = 20
-  const keepRecentSnapshots = Math.max(0, Math.floor(opts?.keepRecentSnapshots ?? 5))
-  const anchorFactor = Math.max(1, Math.floor(opts?.anchorFactor ?? 5))
-  const anchorEvery = () => Math.max(snapshotEvery, snapshotEvery * anchorFactor)
+  let snapshotEvery = 20;
+  const keepRecentSnapshots = Math.max(0, Math.floor(opts?.keepRecentSnapshots ?? 5));
+  const anchorFactor = Math.max(1, Math.floor(opts?.anchorFactor ?? 5));
+  const anchorEvery = () => Math.max(snapshotEvery, snapshotEvery * anchorFactor);
   // serialize catch-up operations to avoid double-apply under races
-  let applyChain: Promise<void> = Promise.resolve()
+  let applyChain: Promise<void> = Promise.resolve();
   const enqueueCatchUp = (fn: () => Promise<void>) => {
-    if (isClosed) return Promise.resolve()
-    const next = applyChain.then(fn, fn)
+    if (isClosed) return Promise.resolve();
+    const next = applyChain.then(fn, fn);
     // keep chain from rejecting
-    applyChain = next.catch(() => {})
-    return next
-  }
+    applyChain = next.catch(() => {});
+    return next;
+  };
 
   function chooseSnapshotEvery(totalEvents: number): number {
     // Simple heuristic: prefer tighter snapshots at low volumes for speed,
     // relax at higher volumes to limit snapshot count.
-    if (!Number.isFinite(totalEvents) || totalEvents <= 0) return 20
-    if (totalEvents <= 1_000) return 20
-    if (totalEvents <= 5_000) return 50
-    if (totalEvents <= 20_000) return 100
-    return 200
+    if (!Number.isFinite(totalEvents) || totalEvents <= 0) return 20;
+    if (totalEvents <= 1_000) return 20;
+    if (totalEvents <= 5_000) return 50;
+    if (totalEvents <= 20_000) return 100;
+    return 200;
   }
 
   async function initSnapshotStrategy() {
     if (typeof opts?.snapshotEvery === 'number' && opts.snapshotEvery > 0) {
-      snapshotEvery = Math.floor(opts.snapshotEvery)
-      return
+      snapshotEvery = Math.floor(opts.snapshotEvery);
+      return;
     }
     try {
-      const t = tx(db, 'readonly', [storeNames.EVENTS])
-      const countReq = t.objectStore(storeNames.EVENTS).count()
+      const t = tx(db, 'readonly', [storeNames.EVENTS]);
+      const countReq = t.objectStore(storeNames.EVENTS).count();
       const total = await new Promise<number>((res, rej) => {
-        countReq.onsuccess = () => res(Number(countReq.result || 0))
-        countReq.onerror = () => rej(countReq.error)
-      })
-      snapshotEvery = chooseSnapshotEvery(total)
+        countReq.onsuccess = () => res(Number(countReq.result || 0));
+        countReq.onerror = () => rej(countReq.error);
+      });
+      snapshotEvery = chooseSnapshotEvery(total);
     } catch {
-      snapshotEvery = 20
+      snapshotEvery = 20;
     }
   }
 
   async function compactSnapshots() {
-    if (isClosed) return
+    if (isClosed) return;
     // Skip compaction for small histories
-    const minCompactionHeight = snapshotEvery * (keepRecentSnapshots + 5)
-    if (height < minCompactionHeight) return
+    const minCompactionHeight = snapshotEvery * (keepRecentSnapshots + 5);
+    if (height < minCompactionHeight) return;
     // Collect heights to delete: keep latest N and periodic anchors
-    const toDelete: number[] = []
+    const toDelete: number[] = [];
     try {
-      const tRead = tx(db, 'readonly', [storeNames.SNAPSHOTS])
-      const curReq = tRead.objectStore(storeNames.SNAPSHOTS).openCursor(null, 'prev')
-      let seen = 0
-      const period = anchorEvery()
+      const tRead = tx(db, 'readonly', [storeNames.SNAPSHOTS]);
+      const curReq = tRead.objectStore(storeNames.SNAPSHOTS).openCursor(null, 'prev');
+      let seen = 0;
+      const period = anchorEvery();
       await new Promise<void>((res, rej) => {
         curReq.onsuccess = () => {
-          const c = curReq.result as IDBCursorWithValue | null
-          if (!c) return res()
-          const h = Number(c.key)
+          const c = curReq.result;
+          if (!c) return res();
+          const h = Number(c.key);
           if (seen < keepRecentSnapshots) {
-            seen++
+            seen++;
           } else {
             // Retain periodic anchors only
             if (period > 0 && h % period !== 0) {
-              toDelete.push(h)
+              toDelete.push(h);
             }
           }
-          c.continue()
-        }
-        curReq.onerror = () => rej(curReq.error)
-      })
+          c.continue();
+        };
+        curReq.onerror = () => rej(curReq.error);
+      });
     } catch {
-      return
+      return;
     }
-    if (!toDelete.length) return
+    if (!toDelete.length) return;
     try {
-      const tDel = tx(db, 'readwrite', [storeNames.SNAPSHOTS])
+      const tDel = tx(db, 'readwrite', [storeNames.SNAPSHOTS]);
       for (const h of toDelete) {
-        const delReq = tDel.objectStore(storeNames.SNAPSHOTS).delete(h)
-        await new Promise<void>((res, rej) => { delReq.onsuccess = () => res(); delReq.onerror = () => rej(delReq.error) })
+        const delReq = tDel.objectStore(storeNames.SNAPSHOTS).delete(h);
+        await new Promise<void>((res, rej) => {
+          delReq.onsuccess = () => res();
+          delReq.onerror = () => rej(delReq.error);
+        });
       }
     } catch {
       // best-effort; ignore failures
     }
   }
 
-  function isPlainObject(v: unknown): v is Record<string, unknown> { return !!v && typeof v === 'object' && !Array.isArray(v) }
+  function isPlainObject(v: unknown): v is Record<string, unknown> {
+    return !!v && typeof v === 'object' && !Array.isArray(v);
+  }
   function warn(code: string, info?: unknown) {
-    try { onWarn?.(code, info) } catch {}
+    try {
+      onWarn?.(code, info);
+    } catch {}
     // Dev-only console reporter for snapshot selection metrics
-    if (DEV && (code === 'rehydrate.snapshot_invalid_record' || code === 'rehydrate.snapshot_ahead_of_events' || code === 'rehydrate.no_valid_snapshot')) {
-      devLog(code, info)
+    if (
+      DEV &&
+      (code === 'rehydrate.snapshot_invalid_record' ||
+        code === 'rehydrate.snapshot_ahead_of_events' ||
+        code === 'rehydrate.no_valid_snapshot')
+    ) {
+      devLog(code, info);
     }
   }
   function isValidStateRecord(rec: unknown): rec is CurrentStateRecord {
-    if (!isPlainObject(rec)) return false
-    const obj = rec as Record<string, unknown>
-    if (obj['id'] !== 'current' || typeof obj['height'] !== 'number') return false
-    const s = obj['state']
-    if (!isPlainObject(s)) return false
-    if (!isPlainObject(s.players) || !isPlainObject(s.scores)) return false
-    const playersObj = s.players as Record<string, unknown>
-    const scoresObj = s.scores as Record<string, unknown>
-    for (const k of Object.keys(playersObj)) if (typeof playersObj[k] !== 'string') return false
-    for (const k of Object.keys(scoresObj)) if (typeof scoresObj[k] !== 'number') return false
-    return true
+    if (!isPlainObject(rec)) return false;
+    const obj = rec;
+    if (obj['id'] !== 'current' || typeof obj['height'] !== 'number') return false;
+    const s = obj['state'];
+    if (!isPlainObject(s)) return false;
+    if (!isPlainObject(s.players) || !isPlainObject(s.scores)) return false;
+    const playersObj = s.players;
+    const scoresObj = s.scores;
+    for (const k of Object.keys(playersObj)) if (typeof playersObj[k] !== 'string') return false;
+    for (const k of Object.keys(scoresObj)) if (typeof scoresObj[k] !== 'number') return false;
+    return true;
   }
   function isValidSnapshot(rec: unknown): rec is { height: number; state: AppState } {
-    if (!isPlainObject(rec)) return false
-    const obj = rec as Record<string, unknown>
-    if (typeof obj['height'] !== 'number') return false
-    const s = obj['state']
-    if (!isPlainObject(s)) return false
-    if (!isPlainObject(s.players) || !isPlainObject(s.scores)) return false
-    const playersObj = s.players as Record<string, unknown>
-    const scoresObj = s.scores as Record<string, unknown>
-    for (const k of Object.keys(playersObj)) if (typeof playersObj[k] !== 'string') return false
-    for (const k of Object.keys(scoresObj)) if (typeof scoresObj[k] !== 'number') return false
-    return true
+    if (!isPlainObject(rec)) return false;
+    const obj = rec;
+    if (typeof obj['height'] !== 'number') return false;
+    const s = obj['state'];
+    if (!isPlainObject(s)) return false;
+    if (!isPlainObject(s.players) || !isPlainObject(s.scores)) return false;
+    const playersObj = s.players;
+    const scoresObj = s.scores;
+    for (const k of Object.keys(playersObj)) if (typeof playersObj[k] !== 'string') return false;
+    for (const k of Object.keys(scoresObj)) if (typeof scoresObj[k] !== 'number') return false;
+    return true;
   }
   function isValidEvent(e: unknown): e is AppEvent {
-    return isPlainObject(e) && typeof e.type === 'string' && typeof e.eventId === 'string' && typeof e.ts === 'number'
+    return (
+      isPlainObject(e) &&
+      typeof e.type === 'string' &&
+      typeof e.eventId === 'string' &&
+      typeof e.ts === 'number'
+    );
   }
 
   async function loadCurrent() {
     // Try fast path: current record
-    const t1 = tx(db, 'readonly', [storeNames.STATE])
-    const req = t1.objectStore(storeNames.STATE).get('current')
+    const t1 = tx(db, 'readonly', [storeNames.STATE]);
+    const req = t1.objectStore(storeNames.STATE).get('current');
     const rec = await new Promise<CurrentStateRecord | undefined>((res, rej) => {
-      req.onsuccess = () => res(req.result as unknown as CurrentStateRecord | undefined)
-      req.onerror = () => rej(req.error)
-    })
+      req.onsuccess = () => res(req.result as unknown as CurrentStateRecord | undefined);
+      req.onerror = () => rej(req.error);
+    });
     if (isValidStateRecord(rec)) {
-      memoryState = rec.state
-      height = rec.height
-      return
+      memoryState = rec.state;
+      height = rec.height;
+      return;
     }
     if (rec) {
-      warn('state.invalid_current')
+      warn('state.invalid_current');
     }
     // Fallback: use the last valid snapshot not ahead of events
     try {
       // Determine latest event seq for sanity checks
-      let latestSeq = 0
+      let latestSeq = 0;
       try {
-        const tEv = tx(db, 'readonly', [storeNames.EVENTS])
-        const curEv = tEv.objectStore(storeNames.EVENTS).openCursor(null, 'prev')
+        const tEv = tx(db, 'readonly', [storeNames.EVENTS]);
+        const curEv = tEv.objectStore(storeNames.EVENTS).openCursor(null, 'prev');
         latestSeq = await new Promise<number>((res, rej) => {
           curEv.onsuccess = () => {
-            const c = curEv.result as IDBCursorWithValue | null
-            if (!c) return res(0)
-            const k = Number((c as any).primaryKey ?? c.key)
-            res(Number.isFinite(k) ? k : 0)
-          }
-          curEv.onerror = () => rej(curEv.error)
-        })
+            const c = curEv.result;
+            if (!c) return res(0);
+            const k = Number((c as any).primaryKey ?? c.key);
+            res(Number.isFinite(k) ? k : 0);
+          };
+          curEv.onerror = () => rej(curEv.error);
+        });
       } catch {
-        latestSeq = 0
+        latestSeq = 0;
       }
-      const t2 = tx(db, 'readonly', [storeNames.SNAPSHOTS])
-      const curReq = t2.objectStore(storeNames.SNAPSHOTS).openCursor(null, 'prev')
-      let tried = 0
-      let invalid = 0
-      let ahead = 0
-      const chosen = await new Promise<{ height: number; state: AppState } | undefined>((res, rej) => {
-        curReq.onsuccess = () => {
-          const c = curReq.result as IDBCursorWithValue | null
-          if (!c) return res(undefined)
-          tried++
-          const v = c.value
-          if (!isValidSnapshot(v)) {
-            invalid++
-            warn('rehydrate.snapshot_invalid_record')
-            return c.continue()
-          }
-          if (v.height > latestSeq) {
-            ahead++
-            warn('rehydrate.snapshot_ahead_of_events', { snapshotHeight: v.height, latestSeq })
-            return c.continue()
-          }
-          return res(v)
-        }
-        curReq.onerror = () => rej(curReq.error)
-      })
+      const t2 = tx(db, 'readonly', [storeNames.SNAPSHOTS]);
+      const curReq = t2.objectStore(storeNames.SNAPSHOTS).openCursor(null, 'prev');
+      let tried = 0;
+      let invalid = 0;
+      let ahead = 0;
+      const chosen = await new Promise<{ height: number; state: AppState } | undefined>(
+        (res, rej) => {
+          curReq.onsuccess = () => {
+            const c = curReq.result;
+            if (!c) return res(undefined);
+            tried++;
+            const v = c.value;
+            if (!isValidSnapshot(v)) {
+              invalid++;
+              warn('rehydrate.snapshot_invalid_record');
+              return c.continue();
+            }
+            if (v.height > latestSeq) {
+              ahead++;
+              warn('rehydrate.snapshot_ahead_of_events', { snapshotHeight: v.height, latestSeq });
+              return c.continue();
+            }
+            return res(v);
+          };
+          curReq.onerror = () => rej(curReq.error);
+        },
+      );
       if (chosen) {
-        devLog('rehydrate.snapshot_chosen', { height: chosen.height, latestSeq })
-        memoryState = chosen.state
-        height = chosen.height
-        return
+        devLog('rehydrate.snapshot_chosen', { height: chosen.height, latestSeq });
+        memoryState = chosen.state;
+        height = chosen.height;
+        return;
       }
       if (tried > 0) {
-        warn('rehydrate.no_valid_snapshot', { tried, invalid, ahead })
+        warn('rehydrate.no_valid_snapshot', { tried, invalid, ahead });
       }
     } catch {
       // ignore snapshot failures; continue with initial
     }
-    memoryState = INITIAL_STATE
-    height = 0
-    devLog('rehydrate.fallback_initial')
+    memoryState = INITIAL_STATE;
+    height = 0;
+    devLog('rehydrate.fallback_initial');
   }
 
   async function applyTail(fromExclusive: number) {
-    if (isClosed) return
-    const t = tx(db, 'readonly', [storeNames.EVENTS])
-    const range = IDBKeyRange.lowerBound(fromExclusive + 1)
-    const cursorReq = t.objectStore(storeNames.EVENTS).openCursor(range)
+    if (isClosed) return;
+    const t = tx(db, 'readonly', [storeNames.EVENTS]);
+    const range = IDBKeyRange.lowerBound(fromExclusive + 1);
+    const cursorReq = t.objectStore(storeNames.EVENTS).openCursor(range);
     await new Promise<void>((res, rej) => {
       cursorReq.onsuccess = () => {
-        const cur = cursorReq.result
-        if (!cur) return res()
-        const ev = cur.value as unknown
+        const cur = cursorReq.result;
+        if (!cur) return res();
+        const ev = cur.value as unknown;
         if (isValidEvent(ev)) {
-          memoryState = reduce(memoryState, ev)
+          memoryState = reduce(memoryState, ev);
         } else {
-          warn('rehydrate.malformed_event')
+          warn('rehydrate.malformed_event');
         }
-        height = Number(cur.primaryKey ?? cur.key)
-        cur.continue()
-      }
-      cursorReq.onerror = () => rej(cursorReq.error)
-    })
+        height = Number(cur.primaryKey ?? cur.key);
+        cur.continue();
+      };
+      cursorReq.onerror = () => rej(cursorReq.error);
+    });
   }
 
   async function persistCurrent() {
-    if (isClosed) return
-    const t = tx(db, 'readwrite', [storeNames.STATE])
-    const req = t.objectStore(storeNames.STATE).put({ id: 'current', height, state: memoryState } as CurrentStateRecord)
+    if (isClosed) return;
+    const t = tx(db, 'readwrite', [storeNames.STATE]);
+    const req = t
+      .objectStore(storeNames.STATE)
+      .put({ id: 'current', height, state: memoryState } as CurrentStateRecord);
     await new Promise<void>((res, rej) => {
-      req.onsuccess = () => res()
-      req.onerror = () => rej(req.error)
-      t.onabort = () => rej(t.error)
-      t.onerror = () => rej(t.error)
-    })
+      req.onsuccess = () => res();
+      req.onerror = () => rej(req.error);
+      t.onabort = () => rej(t.error);
+      t.onerror = () => rej(t.error);
+    });
   }
 
   if (chan) {
     chan.addEventListener('message', async (ev: MessageEvent) => {
-      const data: unknown = ev?.data
+      const data: unknown = ev?.data;
       if (isPlainObject(data) && data.type === 'reset') {
         await enqueueCatchUp(async () => {
-          await replaceDB()
-          await rehydrate()
-          notify()
-        })
-        return
+          await replaceDB();
+          await rehydrate();
+          notify();
+        });
+        return;
       }
-      const seq = Number((isPlainObject(data) ? data.seq : undefined))
-      if (!Number.isFinite(seq)) return
+      const seq = Number(isPlainObject(data) ? data.seq : undefined);
+      if (!Number.isFinite(seq)) return;
       await enqueueCatchUp(async () => {
-        await applyTail(height)
-        await persistCurrent()
-        notify()
-      })
-    })
+        await applyTail(height);
+        await persistCurrent();
+        notify();
+      });
+    });
   } else if (typeof addEventListener === 'function') {
     addEventListener('storage', async (ev: any) => {
-      if (!ev) return
+      if (!ev) return;
       if (ev.key === `app-events:signal:${dbName}` && ev.newValue === 'reset') {
         await enqueueCatchUp(async () => {
-          await replaceDB()
-          await rehydrate()
-          notify()
-        })
-        return
+          await replaceDB();
+          await rehydrate();
+          notify();
+        });
+        return;
       }
-      if (ev.key !== `app-events:lastSeq:${dbName}`) return
-      const seq = Number(ev.newValue)
-      if (!Number.isFinite(seq)) return
+      if (ev.key !== `app-events:lastSeq:${dbName}`) return;
+      const seq = Number(ev.newValue);
+      if (!Number.isFinite(seq)) return;
       await enqueueCatchUp(async () => {
-        await applyTail(height)
-        await persistCurrent()
-        notify()
-      })
-    })
+        await applyTail(height);
+        await persistCurrent();
+        notify();
+      });
+    });
   }
 
   async function rehydrate() {
-    await initSnapshotStrategy()
-    await loadCurrent()
-    await applyTail(height)
-    await persistCurrent()
-    notify()
+    await initSnapshotStrategy();
+    await loadCurrent();
+    await applyTail(height);
+    await persistCurrent();
+    notify();
   }
 
-  await rehydrate()
+  await rehydrate();
 
-  let testFailMode: 'quota' | 'generic' | null = null
-  let testAbortAfterAdd = false
+  let testFailMode: 'quota' | 'generic' | null = null;
+  let testAbortAfterAdd = false;
 
   async function append(event: AppEvent): Promise<number> {
     // Validate event shape and payload before attempting to write
     try {
       // Ensure strict KnownAppEvent
-      event = validateEventStrict(event)
+      event = validateEventStrict(event);
     } catch (err: any) {
-      const info = (err && err.info) || undefined
-      const code = (info && (info.code as string)) || 'append.invalid_event_shape'
-      warn(code, info)
-      const ex = new Error('InvalidEvent')
-      ;(ex as any).name = 'InvalidEvent'
-      ;(ex as any).code = code
-      ;(ex as any).info = info
-      throw ex
+      const info = (err && err.info) || undefined;
+      const code = (info && (info.code as string)) || 'append.invalid_event_shape';
+      warn(code, info);
+      const ex = new Error('InvalidEvent');
+      (ex as any).name = 'InvalidEvent';
+      (ex as any).code = code;
+      (ex as any).info = info;
+      throw ex;
     }
     if (testFailMode) {
-      const name = testFailMode === 'quota' ? 'QuotaExceededError' : 'TestAppendError'
-      testFailMode = null
-      const err = Object.assign(new Error(name), { name })
-      throw err
+      const name = testFailMode === 'quota' ? 'QuotaExceededError' : 'TestAppendError';
+      testFailMode = null;
+      const err = Object.assign(new Error(name), { name });
+      throw err;
     }
     // Special test hook: add and then abort single transaction to ensure atomic rollback
     if (testAbortAfterAdd) {
-      testAbortAfterAdd = false
-      const t = tx(db, 'readwrite', [storeNames.EVENTS, storeNames.STATE])
-      const addReq = t.objectStore(storeNames.EVENTS).add(event)
+      testAbortAfterAdd = false;
+      const t = tx(db, 'readwrite', [storeNames.EVENTS, storeNames.STATE]);
+      const addReq = t.objectStore(storeNames.EVENTS).add(event);
       await new Promise<void>((res, rej) => {
-        addReq.onsuccess = () => res()
-        addReq.onerror = () => rej(addReq.error)
-      })
-      try { t.abort() } catch {}
-      const err = Object.assign(new Error('AbortedAfterAdd'), { name: 'AbortedAfterAdd' })
-      throw err
+        addReq.onsuccess = () => res();
+        addReq.onerror = () => rej(addReq.error);
+      });
+      try {
+        t.abort();
+      } catch {}
+      const err = Object.assign(new Error('AbortedAfterAdd'), { name: 'AbortedAfterAdd' });
+      throw err;
     }
     // Phase 1: attempt to add the event in its own transaction
-    let seq: number | undefined
-    let duplicate = false
+    let seq: number | undefined;
+    let duplicate = false;
     try {
-      const tAdd = tx(db, 'readwrite', [storeNames.EVENTS])
-      const addReq = tAdd.objectStore(storeNames.EVENTS).add(event)
+      const tAdd = tx(db, 'readwrite', [storeNames.EVENTS]);
+      const addReq = tAdd.objectStore(storeNames.EVENTS).add(event);
       seq = await new Promise<number>((res, rej) => {
-        addReq.onsuccess = () => res(addReq.result as number)
-        addReq.onerror = () => rej(addReq.error)
-        tAdd.onabort = () => rej(tAdd.error)
-        tAdd.onerror = () => rej(tAdd.error)
-      })
+        addReq.onsuccess = () => res(addReq.result as number);
+        addReq.onerror = () => rej(addReq.error);
+        tAdd.onabort = () => rej(tAdd.error);
+        tAdd.onerror = () => rej(tAdd.error);
+      });
     } catch (err: unknown) {
       // Treat duplicate eventId as idempotent success; look up existing seq
-      const name = (err as { name?: string } | null)?.name
+      const name = (err as { name?: string } | null)?.name;
       if (err && (name === 'ConstraintError' || String(err).includes('Constraint'))) {
-        duplicate = true
-        const tFind = tx(db, 'readonly', [storeNames.EVENTS])
-        const idx = tFind.objectStore(storeNames.EVENTS).index('eventId')
-        const getReq = idx.getKey(event.eventId)
+        duplicate = true;
+        const tFind = tx(db, 'readonly', [storeNames.EVENTS]);
+        const idx = tFind.objectStore(storeNames.EVENTS).index('eventId');
+        const getReq = idx.getKey(event.eventId);
         seq = await new Promise<number>((res, rej) => {
-          getReq.onsuccess = () => res((getReq.result as number) ?? height)
-          getReq.onerror = () => rej(getReq.error)
-        })
+          getReq.onsuccess = () => res((getReq.result as number) ?? height);
+          getReq.onerror = () => rej(getReq.error);
+        });
       } else {
-        throw err
+        throw err;
       }
     }
     // Optional test hook: abort after add but before state put
     if (testAbortAfterAdd) {
-      testAbortAfterAdd = false
-      const err = Object.assign(new Error('AbortedAfterAdd'), { name: 'AbortedAfterAdd' })
-      throw err
+      testAbortAfterAdd = false;
+      const err = Object.assign(new Error('AbortedAfterAdd'), { name: 'AbortedAfterAdd' });
+      throw err;
     }
     // apply/persist: always catch up by applying tail from current height
     // This ensures we process any missing earlier events before (and including) this one
     await enqueueCatchUp(async () => {
-      await applyTail(height)
+      await applyTail(height);
       // Phase 2: persist current state and optional snapshot in a separate transaction
-      const tPersist = tx(db, 'readwrite', [storeNames.STATE, storeNames.SNAPSHOTS])
-      const putReq = tPersist.objectStore(storeNames.STATE).put({ id: 'current', height, state: memoryState } as CurrentStateRecord)
+      const tPersist = tx(db, 'readwrite', [storeNames.STATE, storeNames.SNAPSHOTS]);
+      const putReq = tPersist
+        .objectStore(storeNames.STATE)
+        .put({ id: 'current', height, state: memoryState } as CurrentStateRecord);
       await new Promise<void>((res, rej) => {
-        putReq.onsuccess = () => res()
-        putReq.onerror = () => rej(putReq.error)
-        tPersist.onabort = () => rej(tPersist.error)
-        tPersist.onerror = () => rej(tPersist.error)
-      })
+        putReq.onsuccess = () => res();
+        putReq.onerror = () => rej(putReq.error);
+        tPersist.onabort = () => rej(tPersist.error);
+        tPersist.onerror = () => rej(tPersist.error);
+      });
       if (height % snapshotEvery === 0) {
-        const snapPut = tPersist.objectStore(storeNames.SNAPSHOTS).put({ height, state: memoryState })
+        const snapPut = tPersist
+          .objectStore(storeNames.SNAPSHOTS)
+          .put({ height, state: memoryState });
         await new Promise<void>((res, rej) => {
-          snapPut.onsuccess = () => res()
-          snapPut.onerror = () => rej(snapPut.error)
-        })
+          snapPut.onsuccess = () => res();
+          snapPut.onerror = () => rej(snapPut.error);
+        });
         // Opportunistic background compaction (non-blocking)
-        try { setTimeout(() => { compactSnapshots().catch(() => {}) }, 0) } catch {}
+        try {
+          setTimeout(() => {
+            compactSnapshots().catch(() => {});
+          }, 0);
+        } catch {}
       }
-    })
+    });
     if (chan) {
-      chan.postMessage({ type: 'append', seq })
+      chan.postMessage({ type: 'append', seq });
     } else if (typeof localStorage !== 'undefined') {
       try {
-        const key = `app-events:lastSeq:${dbName}`
-        const val = String(seq)
-        localStorage.setItem(key, val)
+        const key = `app-events:lastSeq:${dbName}`;
+        const val = String(seq);
+        localStorage.setItem(key, val);
         // In some environments, 'storage' may not fire across contexts. Best-effort dispatch.
         try {
           // @ts-ignore - StorageEvent may not be fully typed in Node
-          const ev = new StorageEvent('storage', { key, newValue: val, storageArea: localStorage })
-          dispatchEvent(ev)
+          const ev = new StorageEvent('storage', { key, newValue: val, storageArea: localStorage });
+          dispatchEvent(ev);
         } catch {}
       } catch {}
     }
-    notify()
-    return seq!
+    notify();
+    return seq;
   }
 
-  function getState() { return memoryState }
-  function getHeight() { return height }
-  function close() { isClosed = true; try { chan?.close() } catch {}; try { db.close() } catch {} }
-  function subscribe(cb: (s: AppState, h: number) => void) { listeners.add(cb); return () => { listeners.delete(cb) } }
-  function setTestAppendFailure(mode: 'quota' | 'generic' | null) { testFailMode = mode }
-  function setTestAbortAfterAddOnce() { testAbortAfterAdd = true }
+  function getState() {
+    return memoryState;
+  }
+  function getHeight() {
+    return height;
+  }
+  function close() {
+    isClosed = true;
+    try {
+      chan?.close();
+    } catch {}
+    try {
+      db.close();
+    } catch {}
+  }
+  function subscribe(cb: (s: AppState, h: number) => void) {
+    listeners.add(cb);
+    return () => {
+      listeners.delete(cb);
+    };
+  }
+  function setTestAppendFailure(mode: 'quota' | 'generic' | null) {
+    testFailMode = mode;
+  }
+  function setTestAbortAfterAddOnce() {
+    testAbortAfterAdd = true;
+  }
 
-  return { append, getState, getHeight, rehydrate, close, subscribe, setTestAppendFailure, setTestAbortAfterAddOnce } as Instance & { setTestAppendFailure: typeof setTestAppendFailure; setTestAbortAfterAddOnce: typeof setTestAbortAfterAddOnce }
+  return {
+    append,
+    getState,
+    getHeight,
+    rehydrate,
+    close,
+    subscribe,
+    setTestAppendFailure,
+    setTestAbortAfterAddOnce,
+  } as Instance & {
+    setTestAppendFailure: typeof setTestAppendFailure;
+    setTestAbortAfterAddOnce: typeof setTestAbortAfterAddOnce;
+  };
 }

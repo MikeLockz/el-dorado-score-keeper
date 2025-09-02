@@ -24,10 +24,10 @@ This is a simpler plan that still delivers: durability, replay/time‑travel, re
 
 \`\`\`ts
 type AppEvent<T = any> = {
-  eventId: string;      // uuid v4
-  type: string;         // e.g., 'player/added'
-  payload: T;           // minimal intent
-  ts: number;           // Date.now()
+eventId: string; // uuid v4
+type: string; // e.g., 'player/added'
+payload: T; // minimal intent
+ts: number; // Date.now()
 };
 \`\`\`
 
@@ -41,6 +41,7 @@ type AppEvent<T = any> = {
 6. Commit, then `BroadcastChannel.postMessage({ type: 'append', seq })`.
 
 Notes:
+
 - If a duplicate `eventId` is retried, the unique index rejects it; we catch and treat as success (idempotency).
 - UI considers the action “done” after the transaction completes.
 
@@ -88,7 +89,7 @@ Notes:
 \`\`\`ts
 // append
 tx = db.transaction(['events','state'], 'readwrite')
-seq = await tx.events.add(event)          // ordered across tabs
+seq = await tx.events.add(event) // ordered across tabs
 next = reduce(memoryState, event)
 await tx.state.put({ id: 'current', height: seq, state: next })
 tx.commit()
@@ -97,8 +98,8 @@ broadcast.postMessage({ type: 'append', seq })
 // rehydrate
 let { height, state } = (await db.state.get('current')) ?? { height: 0, state: INITIAL }
 for await (const e of db.events.range(height + 1, Infinity)) {
-  state = reduce(state, e)
-  height = e.seq
+state = reduce(state, e)
+height = e.seq
 }
 memoryState = state
 \`\`\`

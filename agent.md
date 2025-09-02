@@ -27,4 +27,3 @@ Scope of “safe without asking”:
 - Updating `package.json`, config files, and CI scripts to support the requested work.
 
 If ambiguity exists about intent or scope, ask one clarifying question, but default to making the smallest reasonable change without blocking on approval.
-

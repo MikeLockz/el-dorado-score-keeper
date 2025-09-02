@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card"
+import { Card } from '@/components/ui/card';
 
 export default function RulesPage() {
   return (
@@ -8,18 +8,31 @@ export default function RulesPage() {
         <Card className="p-3">
           <h2 className="font-semibold mb-2">Overview</h2>
           <p>
-            The app tracks a 10‑round session. Each round has a target number of tricks that decreases from 10 to 1. Players bid during
-            the bidding phase, then you mark whether they made or missed during completion. Finalizing a round applies points based on
-            the bid and outcome.
+            The app tracks a 10‑round session. Each round has a target number of tricks that
+            decreases from 10 to 1. Players bid during the bidding phase, then you mark whether they
+            made or missed during completion. Finalizing a round applies points based on the bid and
+            outcome.
           </p>
         </Card>
         <Card className="p-3">
           <h2 className="font-semibold mb-2">Round Flow</h2>
           <ol className="list-decimal pl-5 space-y-1">
-            <li><span className="font-medium">Bidding</span>: Each player sets a bid from 0 up to the round’s trick count.</li>
-            <li><span className="font-medium">Complete</span>: After play, mark for each player whether they made or missed.</li>
-            <li><span className="font-medium">Finalize</span>: When all players are marked, click the round tile to finalize.</li>
-            <li><span className="font-medium">Next Round</span>: The next locked round automatically unlocks into bidding.</li>
+            <li>
+              <span className="font-medium">Bidding</span>: Each player sets a bid from 0 up to the
+              round’s trick count.
+            </li>
+            <li>
+              <span className="font-medium">Complete</span>: After play, mark for each player
+              whether they made or missed.
+            </li>
+            <li>
+              <span className="font-medium">Finalize</span>: When all players are marked, click the
+              round tile to finalize.
+            </li>
+            <li>
+              <span className="font-medium">Next Round</span>: The next locked round automatically
+              unlocks into bidding.
+            </li>
           </ol>
         </Card>
         <Card className="p-3">
@@ -48,5 +61,5 @@ export default function RulesPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

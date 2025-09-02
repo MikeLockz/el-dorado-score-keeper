@@ -1,15 +1,15 @@
 /** @type {import('next').NextConfig} */
-const isGithubActions = process.env.GITHUB_ACTIONS === 'true'
+const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
 
 // Derive basePath/assetPrefix for project pages (not user/org sites)
-let basePath = ''
-let assetPrefix
+let basePath = '';
+let assetPrefix;
 if (isGithubActions) {
-  const repo = process.env.GITHUB_REPOSITORY?.split('/')[1] ?? ''
+  const repo = process.env.GITHUB_REPOSITORY?.split('/')[1] ?? '';
   // If deploying to <user>.github.io, keep basePath empty
   if (repo && !repo.endsWith('.github.io')) {
-    basePath = `/${repo}`
-    assetPrefix = `/${repo}/`
+    basePath = `/${repo}`;
+    assetPrefix = `/${repo}/`;
   }
 }
 
@@ -35,6 +35,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;
