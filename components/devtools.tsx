@@ -1,27 +1,30 @@
 'use client';
 import React from 'react';
 import { useAppState } from '@/components/state-provider';
+import type { AppState } from '@/lib/state/types';
 import { formatTime } from '@/lib/format';
 
 export default function Devtools() {
   const { height, state, previewAt, warnings, clearWarnings } = useAppState();
   const [cursor, setCursor] = React.useState<number>(height);
-  const [preview, setPreview] = React.useState<any | null>(null);
+  const [preview, setPreview] = React.useState<AppState | null>(null);
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
     setCursor(height);
   }, [height]);
 
-  const onChange = async (h: number) => {
+  const onChange = (h: number) => {
     setCursor(h);
     setLoading(true);
-    try {
-      const s = await previewAt(h);
-      setPreview(s);
-    } finally {
-      setLoading(false);
-    }
+    void (async () => {
+      try {
+        const s = await previewAt(h);
+        setPreview(s);
+      } finally {
+        setLoading(false);
+      }
+    })();
   };
 
   const players = Object.keys(state.players).length;
