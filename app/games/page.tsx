@@ -25,7 +25,7 @@ export default function GamesPage() {
   }, []);
 
   React.useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   // Manage mobile action menu visibility and anchor position
@@ -64,7 +64,7 @@ export default function GamesPage() {
     <div className="p-3 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-3">
         <h1 className="text-lg font-bold">Games</h1>
-        <Button onClick={onNewGame} disabled={loading}>
+        <Button onClick={() => void onNewGame()} disabled={loading}>
           {loading ? 'Working…' : 'New Game'}
         </Button>
       </div>
@@ -139,10 +139,18 @@ export default function GamesPage() {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="hidden sm:flex items-center gap-2">
-                          <Button size="sm" variant="outline" onClick={() => onRestore(g.id)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void onRestore(g.id)}
+                          >
                             Restore
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => onDelete(g.id)}>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => void onDelete(g.id)}
+                          >
                             Delete
                           </Button>
                         </div>
@@ -195,7 +203,7 @@ export default function GamesPage() {
                 className="block w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
                 onClick={() => {
                   setMenuOpen(null);
-                  onRestore(menuOpen.id);
+                  void onRestore(menuOpen.id);
                 }}
               >
                 Restore
@@ -204,7 +212,7 @@ export default function GamesPage() {
                 className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
                 onClick={() => {
                   setMenuOpen(null);
-                  onDelete(menuOpen.id);
+                  void onDelete(menuOpen.id);
                 }}
               >
                 Delete
