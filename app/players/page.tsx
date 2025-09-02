@@ -29,7 +29,11 @@ export default function PlayersPage() {
           <div className="font-semibold">Reset Players</div>
           <div className="text-sm text-slate-600">Remove all players from the current game.</div>
         </div>
-        <Button variant="destructive" onClick={resetPlayers} disabled={!ready || !hasPlayers}>
+        <Button
+          variant="destructive"
+          onClick={() => void resetPlayers()}
+          disabled={!ready || !hasPlayers}
+        >
           Reset Players
         </Button>
       </Card>
