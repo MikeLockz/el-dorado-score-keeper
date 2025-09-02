@@ -41,7 +41,7 @@ export default function PlayerList() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => renamePlayer(p.id, p.name)}
+                    onClick={() => void renamePlayer(p.id, p.name)}
                     className="h-7 px-2"
                   >
                     <Edit className="h-4 w-4" />
@@ -49,7 +49,7 @@ export default function PlayerList() {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => removePlayer(p.id, p.name)}
+                    onClick={() => void removePlayer(p.id, p.name)}
                     className="h-7 px-2"
                     disabled={minReached}
                   >

@@ -34,7 +34,7 @@ export default function CreatePlayer() {
           className="h-9"
           disabled={maxReached}
         />
-        <Button onClick={onAdd} disabled={!name.trim() || maxReached} className="h-9">
+        <Button onClick={() => void onAdd()} disabled={!name.trim() || maxReached} className="h-9">
           <Plus className="h-4 w-4 mr-1" /> Add
         </Button>
       </div>
