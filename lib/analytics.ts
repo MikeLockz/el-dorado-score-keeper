@@ -141,9 +141,7 @@ export function analyzeGame(rec: GameRecord): GameStats {
     return acc;
   }, null);
 
-  const startedAt = rec.bundle.events.length
-    ? Number((rec.bundle.events[0] as any).ts)
-    : rec.createdAt;
+  const startedAt = rec.bundle.events.length ? rec.bundle.events[0]!.ts : rec.createdAt;
   const finishedAt = rec.finishedAt;
   return {
     players: playerAggs,
