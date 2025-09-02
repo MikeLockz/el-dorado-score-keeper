@@ -27,6 +27,21 @@ export type GameRecord = {
   bundle: ExportBundle;
 };
 
+function asError(e: unknown, fallbackMessage: string): Error {
+  if (e instanceof Error) return e;
+  const message =
+    typeof e === 'string'
+      ? e
+      : (e && typeof (e as { message?: unknown }).message === 'string'
+          ? String((e as { message?: unknown }).message)
+          : fallbackMessage);
+  const err = new Error(message);
+  try {
+    (err as { cause?: unknown }).cause = e;
+  } catch {}
+  return err;
+}
+
 // Default database names
 export const DEFAULT_DB_NAME = 'app-db';
 export const GAMES_DB_NAME = 'app-games-db';
@@ -46,7 +61,7 @@ export async function exportBundle(dbName: string): Promise<ExportBundle> {
       lastSeq = Number(cur.primaryKey ?? cur.key ?? lastSeq);
       cur.continue();
     };
-    cursorReq.onerror = () => rej(cursorReq.error);
+    cursorReq.onerror = () => rej(asError(cursorReq.error, 'Failed reading events during export'));
   });
   db.close();
   return { latestSeq: lastSeq, events };
@@ -82,8 +97,8 @@ export async function importBundle(dbName: string, bundle: ExportBundle): Promis
   }
   await new Promise<void>((res, rej) => {
     t.oncomplete = () => res();
-    t.onerror = () => rej(t.error);
-    t.onabort = () => rej(t.error);
+    t.onerror = () => rej(asError(t.error, 'Transaction error importing bundle'));
+    t.onabort = () => rej(asError(t.error, 'Transaction aborted importing bundle'));
   });
   db.close();
 }
@@ -99,17 +114,17 @@ export async function importBundleSoft(dbName: string, bundle: ExportBundle): Pr
   await new Promise<void>((res, rej) => {
     const r = eventsStore.clear();
     r.onsuccess = () => res();
-    r.onerror = () => rej(r.error);
+    r.onerror = () => rej(asError(r.error, 'Failed clearing events'));
   });
   await new Promise<void>((res, rej) => {
     const r = stateStore.clear();
     r.onsuccess = () => res();
-    r.onerror = () => rej(r.error);
+    r.onerror = () => rej(asError(r.error, 'Failed clearing state'));
   });
   await new Promise<void>((res, rej) => {
     const r = snapsStore.clear();
     r.onsuccess = () => res();
-    r.onerror = () => rej(r.error);
+    r.onerror = () => rej(asError(r.error, 'Failed clearing snapshots'));
   });
   // Add events
   for (const e of bundle.events) {
@@ -125,12 +140,12 @@ export async function importBundleSoft(dbName: string, bundle: ExportBundle): Pr
   await new Promise<void>((res, rej) => {
     const r = stateStore.put({ id: 'current', height: h, state: finalState });
     r.onsuccess = () => res();
-    r.onerror = () => rej(r.error);
+    r.onerror = () => rej(asError(r.error, 'Failed writing current state'));
   });
   await new Promise<void>((res, rej) => {
     t.oncomplete = () => res();
-    t.onerror = () => rej(t.error);
-    t.onabort = () => rej(t.error);
+    t.onerror = () => rej(asError(t.error, 'Transaction error importing bundle (soft)'));
+    t.onabort = () => rej(asError(t.error, 'Transaction aborted importing bundle (soft)'));
   });
   db.close();
 }
@@ -151,7 +166,7 @@ export async function previewAt(dbName: string, h: number): Promise<AppState> {
         if (!c) return res(undefined);
         res(c.value as { height: number; state: AppState });
       };
-      curReq.onerror = () => rej(curReq.error);
+      curReq.onerror = () => rej(asError(curReq.error, 'Failed reading snapshot for preview'));
     });
     if (snap && typeof snap.height === 'number' && snap.state) {
       base = snap.state;
@@ -173,7 +188,7 @@ export async function previewAt(dbName: string, h: number): Promise<AppState> {
         res();
       }
     };
-    req.onerror = () => rej(req.error);
+    req.onerror = () => rej(asError(req.error, 'Failed iterating events for preview'));
   });
   db.close();
   return s;
@@ -255,7 +270,7 @@ export async function getGame(
   const req = t.objectStore(storeNames.GAMES).get(id);
   const rec = await new Promise<GameRecord | null>((res, rej) => {
     req.onsuccess = () => res((req.result as GameRecord | null) ?? null);
-    req.onerror = () => rej(req.error);
+    req.onerror = () => rej(asError(req.error, 'Failed to get game record'));
   });
   db.close();
   return rec;
@@ -267,7 +282,7 @@ export async function deleteGame(gamesDbName: string = GAMES_DB_NAME, id: string
   const req = t.objectStore(storeNames.GAMES).delete(id);
   await new Promise<void>((res, rej) => {
     req.onsuccess = () => res();
-    req.onerror = () => rej(req.error);
+    req.onerror = () => rej(asError(req.error, 'Failed to delete game record'));
   });
   db.close();
 }
@@ -310,10 +325,12 @@ export async function archiveCurrentGameAndReset(
 
   // Error helpers with surface codes
   function fail(code: string, info?: unknown): never {
-    const err = new Error(code);
-    (err as any).code = code;
-    if (info !== undefined) (err as any).info = info;
-    throw err;
+    const ex: Error & { code: string; info?: unknown } = Object.assign(new Error(code), {
+      name: code,
+      code,
+      info,
+    });
+    throw ex;
   }
 
   // Step 1: write archive record
@@ -341,7 +358,7 @@ export async function archiveCurrentGameAndReset(
       const del = t.objectStore(storeNames.GAMES).delete(id);
       await new Promise<void>((res, rej) => {
         del.onsuccess = () => res();
-        del.onerror = () => rej(del.error);
+        del.onerror = () => rej(asError(del.error, 'Failed to rollback archived record'));
       });
       try {
         db.close();
@@ -362,7 +379,7 @@ export async function archiveCurrentGameAndReset(
     localStorage.setItem(`app-events:signal:${dbName}`, 'reset');
     try {
       // best-effort self-dispatch for same-tab listeners
-      // @ts-ignore
+      // @ts-expect-error - StorageEvent may not be fully available in all environments
       const ev = new StorageEvent('storage', {
         key: `app-events:signal:${dbName}`,
         newValue: 'reset',
@@ -388,7 +405,7 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
     localStorage.setItem(`app-events:signal:${dbName}`, 'reset');
     try {
       // best-effort self-dispatch for same-tab listeners
-      // @ts-ignore
+      // @ts-expect-error - StorageEvent may not be fully available in all environments
       const ev = new StorageEvent('storage', {
         key: `app-events:signal:${dbName}`,
         newValue: 'reset',
