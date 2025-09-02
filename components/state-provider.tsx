@@ -6,7 +6,7 @@ import { INITIAL_STATE } from '@/lib/state/types';
 import { previewAt as previewFromDB } from '@/lib/state/io';
 import { events } from '@/lib/state/events';
 
-type Warning = { code: string; info?: any; at: number };
+type Warning = { code: string; info?: unknown; at: number };
 
 type Ctx = {
   state: AppState;
@@ -25,7 +25,7 @@ export function StateProvider({
   onWarn,
 }: {
   children: React.ReactNode;
-  onWarn?: (code: string, info?: any) => void;
+  onWarn?: (code: string, info?: unknown) => void;
 }) {
   const [state, setState] = React.useState<AppState>(INITIAL_STATE);
   const [height, setHeight] = React.useState(0);
@@ -34,10 +34,16 @@ export function StateProvider({
   const instRef = React.useRef<Awaited<ReturnType<typeof createInstance>> | null>(null);
   const dbNameRef = React.useRef<string>('app-db');
 
+  // Keep a ref to onWarn to avoid re-creating the instance on prop changes
+  const onWarnRef = React.useRef<typeof onWarn>(onWarn);
+  React.useEffect(() => {
+    onWarnRef.current = onWarn;
+  }, [onWarn]);
+
   React.useEffect(() => {
     let unsubs: (() => void) | null = null;
     let closed = false;
-    (async () => {
+    void (async () => {
       const inst = await createInstance({
         dbName: dbNameRef.current,
         channelName: 'app-events',
@@ -45,7 +51,7 @@ export function StateProvider({
           const w: Warning = { code, info, at: Date.now() };
           setWarnings((prev) => [w, ...prev].slice(0, 20));
           try {
-            onWarn?.(code, info);
+            onWarnRef.current?.(code, info);
           } catch {}
         },
       });
@@ -97,7 +103,7 @@ export function StateProvider({
     if (height !== 0) return;
     if (Object.keys(state.players || {}).length > 0) return;
     seedingRef.current = true;
-    (async () => {
+    void (async () => {
       const inst = instRef.current;
       if (!inst) {
         seedingRef.current = false;
