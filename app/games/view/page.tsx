@@ -18,7 +18,7 @@ function GameDetailPageInner() {
 
   React.useEffect(() => {
     let on = true;
-    (async () => {
+    void (async () => {
       try {
         const rec = id ? await getGame(undefined, id) : null;
         if (on) setGame(rec);
@@ -36,13 +36,8 @@ function GameDetailPageInner() {
     if (!game) return;
     if (!confirm('Restore this game as current? Current progress will be replaced.')) return;
     await restoreGame(undefined, game.id);
-    router.push('/');
-    // Ensure same-tab state picks up restored DB
-    setTimeout(() => {
-      try {
-        location.reload();
-      } catch {}
-    }, 0);
+    // Navigate to current game view; avoid reload which may cancel navigation
+    router.replace('/');
   };
 
   // Always call hooks unconditionally; compute stats only when game is present.
@@ -70,7 +65,7 @@ function GameDetailPageInner() {
             Finished {formatDateTime(game.finishedAt)}
           </div>
         </div>
-        <Button onClick={onRestore}>Restore</Button>
+        <Button onClick={() => void onRestore()}>Restore</Button>
       </div>
 
       <Card className="p-2 mb-3">
