@@ -8,8 +8,10 @@ export function cn(...inputs: ClassValue[]) {
 // UUID utility used across the app and tests
 export function uuid(): string {
   try {
-    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-      return (crypto as any).randomUUID();
+    const c = globalThis.crypto as Crypto | undefined;
+    if (c && typeof c.randomUUID === 'function') {
+      return c.randomUUID();
+    }
   } catch {
     // ignore
   }
