@@ -4,8 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Card } from '@/components/ui';
 import { MoreHorizontal } from 'lucide-react';
-import type { GameRecord } from '@/lib/state/io';
-import { listGames, archiveCurrentGameAndReset, deleteGame, restoreGame } from '@/lib/state/io';
+import { type GameRecord, listGames, archiveCurrentGameAndReset, deleteGame, restoreGame } from '@/lib/state';
 import { formatDateTime } from '@/lib/format';
 
 export default function GamesPage() {

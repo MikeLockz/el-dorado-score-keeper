@@ -1,10 +1,13 @@
 'use client';
 import React from 'react';
-import { createInstance } from '@/lib/state/instance';
-import type { AppEvent, AppState } from '@/lib/state/types';
-import { INITIAL_STATE } from '@/lib/state/types';
-import { previewAt as previewFromDB } from '@/lib/state/io';
-import { events } from '@/lib/state/events';
+import {
+  createInstance,
+  type AppEvent,
+  type AppState,
+  INITIAL_STATE,
+  previewAt as previewFromDB,
+  events,
+} from '@/lib/state';
 
 type Warning = { code: string; info?: unknown; at: number };
 

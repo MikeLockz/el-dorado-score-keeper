@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { useAppState } from '@/components/state-provider';
-import type { AppState } from '@/lib/state/types';
+import type { AppState } from '@/lib/state';
 import { formatTime } from '@/lib/format';
 
 export default function Devtools() {

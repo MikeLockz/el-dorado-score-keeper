@@ -5,7 +5,7 @@ import { Button, Input } from '@/components/ui';
 import { Plus } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
 import { uuid } from '@/lib/utils';
-import type { UUID } from '@/lib/state/types';
+import type { UUID } from '@/lib/state';
 import { events } from '@/lib/state';
 
 export default function CreatePlayer() {

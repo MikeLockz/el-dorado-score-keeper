@@ -3,8 +3,7 @@
 import React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card } from '@/components/ui';
-import type { GameRecord } from '@/lib/state/io';
-import { getGame, restoreGame } from '@/lib/state/io';
+import { type GameRecord, getGame, restoreGame } from '@/lib/state';
 import { analyzeGame } from '@/lib/analytics';
 import { formatDuration } from '@/lib/utils';
 import { formatDateTime } from '@/lib/format';
