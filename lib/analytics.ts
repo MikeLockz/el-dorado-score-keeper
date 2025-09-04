@@ -1,10 +1,4 @@
-import {
-  type GameRecord,
-  INITIAL_STATE,
-  reduce,
-  ROUNDS_TOTAL,
-  tricksForRound,
-} from '@/lib/state';
+import { type GameRecord, INITIAL_STATE, reduce, ROUNDS_TOTAL, tricksForRound } from '@/lib/state';
 
 export type PlayerAgg = {
   playerId: string;

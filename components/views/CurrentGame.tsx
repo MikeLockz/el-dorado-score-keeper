@@ -220,7 +220,12 @@ export default function CurrentGame() {
             round: i + 1,
             tricks: tricksForRound(i + 1),
           })).map((round) => (
-            <div role="row" aria-rowindex={round.round + 1} className="contents" key={`row-${round.round}`}>
+            <div
+              role="row"
+              aria-rowindex={round.round + 1}
+              className="contents"
+              key={`row-${round.round}`}
+            >
               <div
                 role="rowheader"
                 aria-colindex={1}
@@ -233,7 +238,10 @@ export default function CurrentGame() {
                   aria-label={`Round ${round.round}. ${(() => {
                     const rState = state.rounds[round.round]?.state ?? 'locked';
                     const showBid = rState === 'bidding' || rState === 'scored';
-                    const info = roundInfoByRound[round.round] ?? { sumBids: 0, tricks: round.tricks };
+                    const info = roundInfoByRound[round.round] ?? {
+                      sumBids: 0,
+                      tricks: round.tricks,
+                    };
                     const total = showBid ? info.sumBids : 0;
                     const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
                     return `Current: ${label}. Activate to advance state.`;
@@ -243,7 +251,10 @@ export default function CurrentGame() {
                   {(() => {
                     const rState = state.rounds[round.round]?.state ?? 'locked';
                     const showBid = rState === 'bidding' || rState === 'scored';
-                    const info = roundInfoByRound[round.round] ?? { sumBids: 0, tricks: round.tricks };
+                    const info = roundInfoByRound[round.round] ?? {
+                      sumBids: 0,
+                      tricks: round.tricks,
+                    };
                     const total = showBid ? info.sumBids : 0;
                     const mismatch = showBid && total !== info.tricks;
                     const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
@@ -448,7 +459,10 @@ export default function CurrentGame() {
                             />
                           </>
                         ) : (
-                          <div id={cellKeyId} className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none">
+                          <div
+                            id={cellKeyId}
+                            className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none"
+                          >
                             <span className="w-full text-right font-extrabold text-xl text-foreground">
                               {bid}
                             </span>

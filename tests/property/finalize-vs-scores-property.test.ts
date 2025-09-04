@@ -34,7 +34,10 @@ describe('property: finalize events drive scores equal to derived cumulative tot
       const playerCount = 2 + Math.floor(rnd() * 4); // 2..5 players
       const players = Array.from({ length: playerCount }, (_, i) => `p${i + 1}`);
       let s = INITIAL_STATE;
-      s = replay(players.map((id, i) => ev('player/added', { id, name: `P${i + 1}` }, `pl-${seed}-${i}`)), s);
+      s = replay(
+        players.map((id, i) => ev('player/added', { id, name: `P${i + 1}` }, `pl-${seed}-${i}`)),
+        s,
+      );
 
       const finalized = new Set<number>();
       for (let r = 1; r <= 10; r++) {
@@ -42,12 +45,18 @@ describe('property: finalize events drive scores equal to derived cumulative tot
           // 80% chance to set a bid (some out-of-range to exercise clamp); 20% missing
           if (rnd() < 0.8) {
             const rawBid = Math.floor(rnd() * 16) - 3; // -3..12
-            s = replay([ev('bid/set', { round: r, playerId: id, bid: rawBid }, `b-${seed}-${r}-${id}`)], s);
+            s = replay(
+              [ev('bid/set', { round: r, playerId: id, bid: rawBid }, `b-${seed}-${r}-${id}`)],
+              s,
+            );
           }
           // 70% chance to set made; 30% missing -> defaults to false in finalize
           if (rnd() < 0.7) {
             const made = rnd() < 0.5;
-            s = replay([ev('made/set', { round: r, playerId: id, made }, `m-${seed}-${r}-${id}`)], s);
+            s = replay(
+              [ev('made/set', { round: r, playerId: id, made }, `m-${seed}-${r}-${id}`)],
+              s,
+            );
           }
         }
         // 60% chance to finalize this round; ensure only once per round
@@ -81,4 +90,3 @@ describe('property: finalize events drive scores equal to derived cumulative tot
     }
   });
 });
-

@@ -107,4 +107,3 @@ describe('selectors edge cases', () => {
     expect(Object.keys(totals)).toEqual(['p1']);
   });
 });
-

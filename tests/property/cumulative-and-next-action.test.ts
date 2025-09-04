@@ -36,23 +36,33 @@ describe('property: cumulative vs scored-only folding; next actionable under ran
       const players = Array.from({ length: playerCount }, (_, i) => `p${i + 1}`);
       let s = INITIAL_STATE;
       // add players
-      s = replay(players.map((id, i) => ev('player/added', { id, name: `P${i + 1}` }, `pl-${seed}-${id}`)), s);
+      s = replay(
+        players.map((id, i) => ev('player/added', { id, name: `P${i + 1}` }, `pl-${seed}-${id}`)),
+        s,
+      );
       // randomize bids/made across rounds; mark some rounds as scored
       for (let r = 1; r <= ROUNDS_TOTAL; r++) {
         for (const id of players) {
           // 70% chance we set a bid; values may exceed clamp range
           if (rnd() < 0.7) {
             const rawBid = Math.floor(rnd() * 14) - 2; // -2..11
-            s = replay([ev('bid/set', { round: r, playerId: id, bid: rawBid }, `b-${seed}-${r}-${id}`)], s);
+            s = replay(
+              [ev('bid/set', { round: r, playerId: id, bid: rawBid }, `b-${seed}-${r}-${id}`)],
+              s,
+            );
           }
           // 60% chance we set made; otherwise missing leaves default false in cumulative
           if (rnd() < 0.6) {
             const made = rnd() < 0.5;
-            s = replay([ev('made/set', { round: r, playerId: id, made }, `m-${seed}-${r}-${id}`)], s);
+            s = replay(
+              [ev('made/set', { round: r, playerId: id, made }, `m-${seed}-${r}-${id}`)],
+              s,
+            );
           }
         }
         // 55% chance to mark round scored via state-set to avoid touching scores object
-        if (rnd() < 0.55) s = replay([ev('round/state-set', { round: r, state: 'scored' }, `rs-${seed}-${r}`)], s);
+        if (rnd() < 0.55)
+          s = replay([ev('round/state-set', { round: r, state: 'scored' }, `rs-${seed}-${r}`)], s);
       }
 
       const cum = selectCumulativeScoresAllRounds(s);
@@ -137,4 +147,3 @@ describe('property: cumulative vs scored-only folding; next actionable under ran
     }
   });
 });
-

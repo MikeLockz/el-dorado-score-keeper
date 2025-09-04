@@ -16,10 +16,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="w-full px-3 h-12 flex items-center justify-between">
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-sm font-semibold tracking-wide"
-        >
+        <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-wide">
           <Image
             src="/el-dorado-card-game-logo.png"
             alt="El Dorado logo"

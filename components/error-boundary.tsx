@@ -159,7 +159,14 @@ export function AppErrorBoundary({ children }: { children: React.ReactNode }) {
   return (
     <ErrorBoundary
       onError={(error, info) => {
-        const base: { errorId: string; message: string; stack?: string; path?: string; ua?: string; componentStack?: string } = {
+        const base: {
+          errorId: string;
+          message: string;
+          stack?: string;
+          path?: string;
+          ua?: string;
+          componentStack?: string;
+        } = {
           errorId: info.errorId,
           message: String(error?.message || error),
           stack: typeof (error as any)?.stack === 'string' ? (error as any).stack : undefined,

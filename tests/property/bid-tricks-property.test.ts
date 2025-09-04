@@ -78,4 +78,3 @@ describe('bid sums vs tricks (under/match/over)', () => {
     }
   });
 });
-

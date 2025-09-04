@@ -26,4 +26,3 @@ describe('tricksForRound beyond normal range', () => {
     expect(tricksForRound(10.9)).toBe(1); // floor(10.9)=10 -> 1
   });
 });
-
