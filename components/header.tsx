@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -15,8 +16,19 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="w-full px-3 h-12 flex items-center justify-between">
-        <Link href="/" className="text-sm font-semibold tracking-wide">
-          El Dorado
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-sm font-semibold tracking-wide"
+        >
+          <Image
+            src="/el-dorado-card-game-logo.png"
+            alt="El Dorado logo"
+            width={24}
+            height={24}
+            className="h-5 w-5 object-contain"
+            priority
+          />
+          <span>El Dorado</span>
         </Link>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
