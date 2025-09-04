@@ -33,16 +33,16 @@ export async function createInstance(opts?: {
     } catch {}
     db = await openDB(dbName);
   }
-  const chan = useChannel ? (new BroadcastChannel(chanName)) : null;
+  const chan = useChannel ? new BroadcastChannel(chanName) : null;
   const DEV = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
   function asError(e: unknown, fallbackMessage: string): Error {
     if (e instanceof Error) return e;
     const message =
       typeof e === 'string'
         ? e
-        : (e && typeof (e as { message?: unknown }).message === 'string'
-            ? String((e as { message?: unknown }).message)
-            : fallbackMessage);
+        : e && typeof (e as { message?: unknown }).message === 'string'
+          ? String((e as { message?: unknown }).message)
+          : fallbackMessage;
     const err = new Error(message);
     try {
       (err as { cause?: unknown }).cause = e;
@@ -132,7 +132,8 @@ export async function createInstance(opts?: {
           }
           c.continue();
         };
-        curReq.onerror = () => rej(asError(curReq.error, 'Failed reading snapshots for compaction'));
+        curReq.onerror = () =>
+          rej(asError(curReq.error, 'Failed reading snapshots for compaction'));
       });
     } catch {
       return;
@@ -231,7 +232,9 @@ export async function createInstance(opts?: {
           curEv.onsuccess = () => {
             const c = curEv.result;
             if (!c) return res(0);
-            const k = Number((c as IDBCursorWithValue & { primaryKey?: IDBValidKey }).primaryKey ?? c.key);
+            const k = Number(
+              (c as IDBCursorWithValue & { primaryKey?: IDBValidKey }).primaryKey ?? c.key,
+            );
             res(Number.isFinite(k) ? k : 0);
           };
           curEv.onerror = () => rej(asError(curEv.error, 'Failed reading latest event seq'));
@@ -455,7 +458,8 @@ export async function createInstance(opts?: {
       await new Promise<void>((res, rej) => {
         putReq.onsuccess = () => res();
         putReq.onerror = () => rej(asError(putReq.error, 'Failed to persist state during append'));
-        tPersist.onabort = () => rej(asError(tPersist.error, 'Transaction aborted persisting state'));
+        tPersist.onabort = () =>
+          rej(asError(tPersist.error, 'Transaction aborted persisting state'));
         tPersist.onerror = () => rej(asError(tPersist.error, 'Transaction error persisting state'));
       });
       if (height % snapshotEvery === 0) {

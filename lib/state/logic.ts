@@ -30,7 +30,7 @@ export function finalizeRound(prev: AppState, round: number): AppState {
   const scores = { ...prev.scores };
   for (const pid of Object.keys(prev.players)) {
     const bid = r.bids[pid] ?? 0;
-    const made = (r.made[pid] ?? false);
+    const made = r.made[pid] ?? false;
     scores[pid] = (scores[pid] ?? 0) + roundDelta(bid, made);
   }
   const rounds = { ...prev.rounds, [round]: { ...r, state: 'scored' as RoundState } };

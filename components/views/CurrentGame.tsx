@@ -199,12 +199,12 @@ export default function CurrentGame() {
           })).map((round) => (
             <React.Fragment key={`row-${round.round}`}>
               <div
-                className={`p-1 text-center border-b border-r flex flex-col justify-center transition-all duration-200 ${getRoundStateStyles((state.rounds[round.round]?.state ?? 'locked'))}`}
+                className={`p-1 text-center border-b border-r flex flex-col justify-center transition-all duration-200 ${getRoundStateStyles(state.rounds[round.round]?.state ?? 'locked')}`}
                 onClick={() => void cycleRoundState(round.round)}
               >
                 <div className="font-bold text-sm text-foreground">{round.tricks}</div>
                 {(() => {
-                  const rState = (state.rounds[round.round]?.state ?? 'locked');
+                  const rState = state.rounds[round.round]?.state ?? 'locked';
                   const showBid = rState === 'bidding' || rState === 'scored';
                   const info = roundInfoByRound[round.round];
                   const total = showBid ? info.sumBids : 0;
@@ -221,7 +221,7 @@ export default function CurrentGame() {
               </div>
 
               {columns.map((c) => {
-                const rState = (state.rounds[round.round]?.state ?? 'locked');
+                const rState = state.rounds[round.round]?.state ?? 'locked';
                 const bid = c.placeholder ? 0 : (state.rounds[round.round]?.bids[c.id] ?? 0);
                 const made = c.placeholder ? null : (state.rounds[round.round]?.made[c.id] ?? null);
                 const max = tricksForRound(round.round);
@@ -309,7 +309,9 @@ export default function CurrentGame() {
                                   <span className="text-foreground">Bid: {bid}</span>
                                   <span>
                                     <span className="text-foreground mr-1">Round:</span>
-                                    <span className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                                    <span
+                                      className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
+                                    >
                                       {roundDelta(bid, made)}
                                     </span>
                                   </span>
@@ -323,7 +325,9 @@ export default function CurrentGame() {
                               abbrevAtRem={0.55}
                               full={
                                 <>
-                                  <span className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                                  <span
+                                    className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
+                                  >
                                     {made ? 'Made' : 'Missed'}
                                   </span>
                                   {(() => {
@@ -348,7 +352,9 @@ export default function CurrentGame() {
                               }
                               abbrev={
                                 <>
-                                  <span className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                                  <span
+                                    className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
+                                  >
                                     {made ? 'Made' : 'Missed'}
                                   </span>
                                   {(() => {
@@ -391,7 +397,9 @@ export default function CurrentGame() {
                                       </span>
                                     </span>
                                   ) : (
-                                    <span className="font-extrabold text-xl text-foreground">{cum}</span>
+                                    <span className="font-extrabold text-xl text-foreground">
+                                      {cum}
+                                    </span>
                                   )}
                                 </div>
                               );

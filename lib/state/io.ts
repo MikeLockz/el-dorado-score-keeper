@@ -32,9 +32,9 @@ function asError(e: unknown, fallbackMessage: string): Error {
   const message =
     typeof e === 'string'
       ? e
-      : (e && typeof (e as { message?: unknown }).message === 'string'
-          ? String((e as { message?: unknown }).message)
-          : fallbackMessage);
+      : e && typeof (e as { message?: unknown }).message === 'string'
+        ? String((e as { message?: unknown }).message)
+        : fallbackMessage;
   const err = new Error(message);
   try {
     (err as { cause?: unknown }).cause = e;
@@ -241,7 +241,7 @@ export async function listGames(gamesDbName: string = GAMES_DB_NAME): Promise<Ga
   // Read all records via index if present; fallback to cursor
   const t = tx(db, 'readonly', [storeNames.GAMES]);
   const store = t.objectStore(storeNames.GAMES);
-  const useIndex = (store.indexNames).contains?.('createdAt') ?? false;
+  const useIndex = store.indexNames.contains?.('createdAt') ?? false;
   const cursorReq = useIndex
     ? store.index('createdAt').openCursor(null, 'prev')
     : store.openCursor();

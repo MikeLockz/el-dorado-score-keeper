@@ -56,7 +56,7 @@ export const selectRoundSummary = memo2((s: AppState, round: number): RoundSumma
   const r: RoundData | undefined = s.rounds[round];
   const rows: RoundRow[] = Object.keys(s.players).map((id) => {
     const bid = r?.bids[id] ?? 0;
-    const made = (r?.made[id] ?? null);
+    const made = r?.made[id] ?? null;
     const delta = roundDelta(bid, made);
     return { id, name: s.players[id]!, bid, made, delta };
   });
@@ -90,7 +90,7 @@ export const selectCumulativeScoresThrough = memo2(
       if (!rd || rd.state !== 'scored') continue;
       for (const id of Object.keys(s.players)) {
         const bid = rd.bids[id] ?? 0;
-        const made = (rd.made[id] ?? false);
+        const made = rd.made[id] ?? false;
         totals[id] = (totals[id] ?? 0) + roundDelta(bid, made);
       }
     }
@@ -114,7 +114,7 @@ export const selectCumulativeScoresAllRounds = memo1((s: AppState): CumulativeBy
     if (rd && rd.state === 'scored') {
       for (const id of ids) {
         const bid = rd.bids[id] ?? 0;
-        const made = (rd.made[id] ?? false);
+        const made = rd.made[id] ?? false;
         next[id] = (next[id] ?? 0) + roundDelta(bid, made);
       }
     }

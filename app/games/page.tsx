@@ -139,11 +139,7 @@ export default function GamesPage() {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="hidden sm:flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void onRestore(g.id)}
-                          >
+                          <Button size="sm" variant="outline" onClick={() => void onRestore(g.id)}>
                             Restore
                           </Button>
                           <Button

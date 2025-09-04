@@ -23,7 +23,7 @@ export async function openDB(name: string): Promise<IDBDatabase> {
   const req = indexedDB.open(name, SCHEMA_VERSION);
   req.onupgradeneeded = (ev) => {
     const db = req.result;
-    const oldVersion = (ev).oldVersion || 0;
+    const oldVersion = ev.oldVersion || 0;
     // Fresh DB or upgrade from < v1: create base stores and indexes
     if (oldVersion < SCHEMA_V1) {
       const events = db.createObjectStore(storeNames.EVENTS, {

@@ -10,7 +10,11 @@ export default function SettingsPage() {
 
   useEffect(() => setMounted(true), []);
 
-  const current = mounted ? (theme === 'system' ? systemTheme ?? resolvedTheme : theme) : 'system';
+  const current = mounted
+    ? theme === 'system'
+      ? (systemTheme ?? resolvedTheme)
+      : theme
+    : 'system';
 
   return (
     <div className="mx-auto max-w-4xl px-3 py-6">
@@ -52,4 +56,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
