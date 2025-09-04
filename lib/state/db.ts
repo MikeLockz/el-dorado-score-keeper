@@ -42,6 +42,11 @@ export async function openDB(name: string): Promise<IDBDatabase> {
   };
   return new Promise((res, rej) => {
     req.onsuccess = () => res(req.result);
-    req.onerror = () => rej(req.error);
+    req.onerror = () =>
+      rej(
+        req.error instanceof Error
+          ? req.error
+          : new Error((req.error as DOMException | null)?.message ?? 'IndexedDB open failed'),
+      );
   });
 }

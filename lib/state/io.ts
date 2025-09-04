@@ -230,9 +230,9 @@ async function putGameRecord(db: IDBDatabase, rec: GameRecord): Promise<void> {
   const r = t.objectStore(storeNames.GAMES).put(rec);
   await new Promise<void>((res, rej) => {
     r.onsuccess = () => res();
-    r.onerror = () => rej(r.error);
-    t.onabort = () => rej(t.error);
-    t.onerror = () => rej(t.error);
+    r.onerror = () => rej(asError(r.error, 'Failed writing game record'));
+    t.onabort = () => rej(asError(t.error, 'Transaction aborted writing game record'));
+    t.onerror = () => rej(asError(t.error, 'Transaction error writing game record'));
   });
 }
 
@@ -253,7 +253,7 @@ export async function listGames(gamesDbName: string = GAMES_DB_NAME): Promise<Ga
       out.push(c.value as GameRecord);
       c.continue();
     };
-    cursorReq.onerror = () => rej(cursorReq.error);
+    cursorReq.onerror = () => rej(asError(cursorReq.error, 'Failed listing games'));
   });
   db.close();
   // If no index sort, sort desc by createdAt
