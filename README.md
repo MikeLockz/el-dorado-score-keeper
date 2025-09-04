@@ -34,6 +34,21 @@ npm run dev
 
 Open http://localhost:3000 in your browser.
 
+## Local Dev Commands
+
+```bash
+# Start the dev server
+pnpm dev
+
+# Run tests in watch mode
+pnpm test:watch
+
+# Lint the codebase
+pnpm lint
+```
+
+Note: Storybook is not set up in this repo. If you add Storybook later, the standard command will be `pnpm storybook`.
+
 Production build and run:
 
 ```bash
