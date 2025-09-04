@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import '@/app/globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import StateRoot from '@/components/state-root';
+import { AppErrorBoundary } from '@/components/error-boundary';
 import Devtools from '@/components/devtools';
 import Header from '@/components/header';
 
@@ -50,11 +51,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           enableSystem
           disableTransitionOnChange
         >
-          <StateRoot>
-            <Header />
-            <main className="min-h-screen bg-background">{children}</main>
-            {process.env.NODE_ENV !== 'production' ? <Devtools /> : null}
-          </StateRoot>
+          <AppErrorBoundary>
+            <StateRoot>
+              <Header />
+              <main className="min-h-screen bg-background">{children}</main>
+              {process.env.NODE_ENV !== 'production' ? <Devtools /> : null}
+            </StateRoot>
+          </AppErrorBoundary>
         </ThemeProvider>
       </body>
     </html>
