@@ -52,6 +52,7 @@ function FitRow({
   full,
   abbrev,
   className,
+  id,
   maxRem = 0.65,
   minRem = 0.5,
   step = 0.02,
@@ -60,6 +61,7 @@ function FitRow({
   full: React.ReactNode;
   abbrev?: React.ReactNode;
   className?: string;
+  id?: string;
   maxRem?: number;
   minRem?: number;
   step?: number;
@@ -106,6 +108,7 @@ function FitRow({
 
   return (
     <div
+      id={id}
       ref={ref}
       className={`whitespace-nowrap overflow-hidden ${className ?? ''}`}
       style={{ fontSize: `${size}rem` }}
@@ -178,62 +181,116 @@ export default function CurrentGame() {
     <div className="p-2 mx-auto">
       <Card className="overflow-hidden shadow-none">
         <div
+          role="grid"
+          aria-label="Score grid"
+          aria-rowcount={ROUNDS_TOTAL + 1}
+          aria-colcount={columnCount + 1}
           className="grid text-[0.65rem] sm:text-xs"
           style={{ gridTemplateColumns: `3rem repeat(${columnCount}, 1fr)` }}
         >
-          <div className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b border-r">
-            Rd
-          </div>
-          {columns.map((c) => (
+          <div role="row" aria-rowindex={1} className="contents">
             <div
-              key={`hdr-${c.id}`}
-              className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b"
+              role="columnheader"
+              aria-colindex={1}
+              className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b border-r outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              tabIndex={0}
             >
-              {c.placeholder ? '-' : (abbr[c.id] ?? c.name.substring(0, 2))}
+              Rd
             </div>
-          ))}
+            {columns.map((c, idx) => (
+              <div
+                key={`hdr-${c.id}`}
+                role="columnheader"
+                aria-colindex={idx + 2}
+                className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                tabIndex={0}
+                title={c.placeholder ? undefined : c.name}
+                aria-label={c.placeholder ? undefined : `Player ${c.name}`}
+              >
+                {c.placeholder ? '-' : (abbr[c.id] ?? c.name.substring(0, 2))}
+              </div>
+            ))}
+          </div>
 
           {Array.from({ length: ROUNDS_TOTAL }, (_, i) => ({
             round: i + 1,
             tricks: tricksForRound(i + 1),
           })).map((round) => (
-            <React.Fragment key={`row-${round.round}`}>
+            <div role="row" aria-rowindex={round.round + 1} className="contents" key={`row-${round.round}`}>
               <div
-                className={`p-1 text-center border-b border-r flex flex-col justify-center transition-all duration-200 ${getRoundStateStyles(state.rounds[round.round]?.state ?? 'locked')}`}
-                onClick={() => void cycleRoundState(round.round)}
+                role="rowheader"
+                aria-colindex={1}
+                className={`border-b border-r transition-all duration-200 cursor-pointer ${getRoundStateStyles(state.rounds[round.round]?.state ?? 'locked')}`}
               >
-                <div className="font-bold text-sm text-foreground">{round.tricks}</div>
-                {(() => {
-                  const rState = state.rounds[round.round]?.state ?? 'locked';
-                  const showBid = rState === 'bidding' || rState === 'scored';
-                  const info = roundInfoByRound[round.round];
-                  const total = showBid ? info.sumBids : 0;
-                  const mismatch = showBid && total !== info.tricks;
-                  const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
-                  return (
-                    <div
-                      className={`text-[0.55rem] mt-0.5 font-semibold ${mismatch ? 'text-red-700 dark:text-red-300' : ''}`}
-                    >
-                      {label}
-                    </div>
-                  );
-                })()}
+                <button
+                  type="button"
+                  className={`w-full h-full p-1 text-center flex flex-col justify-center outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer`}
+                  onClick={() => void cycleRoundState(round.round)}
+                  aria-label={`Round ${round.round}. ${(() => {
+                    const rState = state.rounds[round.round]?.state ?? 'locked';
+                    const showBid = rState === 'bidding' || rState === 'scored';
+                    const info = roundInfoByRound[round.round] ?? { sumBids: 0, tricks: round.tricks };
+                    const total = showBid ? info.sumBids : 0;
+                    const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
+                    return `Current: ${label}. Activate to advance state.`;
+                  })()}`}
+                >
+                  <div className="font-bold text-sm text-foreground">{round.tricks}</div>
+                  {(() => {
+                    const rState = state.rounds[round.round]?.state ?? 'locked';
+                    const showBid = rState === 'bidding' || rState === 'scored';
+                    const info = roundInfoByRound[round.round] ?? { sumBids: 0, tricks: round.tricks };
+                    const total = showBid ? info.sumBids : 0;
+                    const mismatch = showBid && total !== info.tricks;
+                    const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
+                    return (
+                      <div
+                        className={`text-[0.55rem] mt-0.5 font-semibold ${mismatch ? 'text-red-700 dark:text-red-300' : ''}`}
+                      >
+                        {label}
+                      </div>
+                    );
+                  })()}
+                </button>
               </div>
 
-              {columns.map((c) => {
+              {columns.map((c, colIdx) => {
                 const rState = state.rounds[round.round]?.state ?? 'locked';
                 const bid = c.placeholder ? 0 : (state.rounds[round.round]?.bids[c.id] ?? 0);
                 const made = c.placeholder ? null : (state.rounds[round.round]?.made[c.id] ?? null);
                 const max = tricksForRound(round.round);
                 const cellKey = `${round.round}-${c.id}`;
                 const showDetails = rState !== 'scored' ? true : !!detailCells[cellKey];
+                const cellKeyId = `cell-details-${round.round}-${c.id}`;
+                const isScored = rState === 'scored';
                 return (
                   <div
                     key={`${round.round}-${c.id}`}
-                    className={`border-b grid grid-cols-1 ${rState === 'bidding' || rState === 'complete' ? 'grid-rows-1' : showDetails ? 'grid-rows-2' : 'grid-rows-1'} transition-all duration-200 ${getPlayerCellBackgroundStyles(rState)}`}
+                    role="gridcell"
+                    aria-colindex={colIdx + 2}
+                    className={`border-b grid grid-cols-1 ${rState === 'bidding' || rState === 'complete' ? 'grid-rows-1' : showDetails ? 'grid-rows-2' : 'grid-rows-1'} transition-all duration-200 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${getPlayerCellBackgroundStyles(rState)}`}
+                    tabIndex={0}
                     onClick={() => {
-                      if (rState === 'scored') toggleCellDetails(round.round, c.id);
+                      if (isScored) toggleCellDetails(round.round, c.id);
                     }}
+                    {...(isScored
+                      ? {
+                          onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggleCellDetails(round.round, c.id);
+                            }
+                          },
+                          'aria-expanded': showDetails,
+                          'aria-controls': cellKeyId,
+                          'aria-label': `Toggle score details for ${c.placeholder ? 'player' : c.name} in round ${round.round}`,
+                        }
+                      : {})}
+                    {...(!isScored
+                      ? {
+                          'aria-label': `Scores for ${c.placeholder ? 'player' : c.name} in round ${round.round}`,
+                        }
+                      : {})}
                   >
                     {c.placeholder ? (
                       <>
@@ -260,6 +317,7 @@ export default function CurrentGame() {
                           variant="outline"
                           className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
                           onClick={() => void decrementBid(round.round, c.id)}
+                          aria-label={`Decrease bid for ${c.name} in round ${round.round}`}
                           disabled={bid <= 0}
                         >
                           <Minus className="h-3 w-3" />
@@ -272,6 +330,7 @@ export default function CurrentGame() {
                           variant="outline"
                           className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
                           onClick={() => void incrementBid(round.round, c.id, max)}
+                          aria-label={`Increase bid for ${c.name} in round ${round.round}`}
                           disabled={bid >= max}
                         >
                           <Plus className="h-3 w-3" />
@@ -284,6 +343,8 @@ export default function CurrentGame() {
                           variant={made === true ? 'default' : 'outline'}
                           className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
                           onClick={() => void toggleMade(round.round, c.id, true)}
+                          aria-pressed={made === true}
+                          aria-label={`Mark made for ${c.name} in round ${round.round}`}
                         >
                           <Check className="h-3 w-3" />
                         </Button>
@@ -292,6 +353,8 @@ export default function CurrentGame() {
                           variant={made === false ? 'destructive' : 'outline'}
                           className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
                           onClick={() => void toggleMade(round.round, c.id, false)}
+                          aria-pressed={made === false}
+                          aria-label={`Mark missed for ${c.name} in round ${round.round}`}
                         >
                           <X className="h-3 w-3" />
                         </Button>
@@ -301,6 +364,7 @@ export default function CurrentGame() {
                         {showDetails ? (
                           <>
                             <FitRow
+                              id={cellKeyId}
                               className="flex items-center justify-between px-1 py-0.5"
                               maxRem={0.65}
                               minRem={0.5}
@@ -380,7 +444,7 @@ export default function CurrentGame() {
                             />
                           </>
                         ) : (
-                          <div className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none">
+                          <div id={cellKeyId} className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none">
                             <span className="w-full text-right font-extrabold text-xl text-foreground">
                               {bid}
                             </span>
@@ -411,7 +475,7 @@ export default function CurrentGame() {
                   </div>
                 );
               })}
-            </React.Fragment>
+            </div>
           ))}
         </div>
       </Card>
