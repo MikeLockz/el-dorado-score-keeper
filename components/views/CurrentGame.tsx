@@ -24,26 +24,26 @@ function labelForRoundState(s: RoundState) {
 function getRoundStateStyles(state: RoundState) {
   switch (state) {
     case 'locked':
-      return 'bg-gray-900 text-gray-400';
+      return 'bg-muted text-muted-foreground';
     case 'bidding':
-      return 'bg-sky-300 text-sky-900 shadow-sm';
+      return 'bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-200';
     case 'complete':
-      return 'bg-orange-300 text-orange-900';
+      return 'bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-200';
     case 'scored':
-      return 'bg-emerald-300 text-emerald-900';
+      return 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200';
   }
 }
 
 function getPlayerCellBackgroundStyles(state: RoundState) {
   switch (state) {
     case 'locked':
-      return 'bg-gray-900';
+      return 'bg-muted';
     case 'bidding':
-      return 'bg-sky-50';
+      return 'bg-sky-50 dark:bg-sky-900/30';
     case 'complete':
-      return 'bg-orange-50';
+      return 'bg-orange-50 dark:bg-orange-900/30';
     case 'scored':
-      return 'bg-emerald-50';
+      return 'bg-emerald-50 dark:bg-emerald-900/30';
   }
 }
 
@@ -176,18 +176,18 @@ export default function CurrentGame() {
 
   return (
     <div className="p-2 mx-auto">
-      <Card className="overflow-hidden shadow-lg">
+      <Card className="overflow-hidden shadow-none">
         <div
           className="grid text-[0.65rem] sm:text-xs"
           style={{ gridTemplateColumns: `3rem repeat(${columnCount}, 1fr)` }}
         >
-          <div className="bg-slate-700 text-white p-1 font-bold text-center border-b border-r">
+          <div className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b border-r">
             Rd
           </div>
           {columns.map((c) => (
             <div
               key={`hdr-${c.id}`}
-              className="bg-slate-700 text-white p-1 font-bold text-center border-b"
+              className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b"
             >
               {c.placeholder ? '-' : (abbr[c.id] ?? c.name.substring(0, 2))}
             </div>
@@ -202,7 +202,7 @@ export default function CurrentGame() {
                 className={`p-1 text-center border-b border-r flex flex-col justify-center transition-all duration-200 ${getRoundStateStyles((state.rounds[round.round]?.state ?? 'locked'))}`}
                 onClick={() => void cycleRoundState(round.round)}
               >
-                <div className="font-bold text-sm text-black">{round.tricks}</div>
+                <div className="font-bold text-sm text-foreground">{round.tricks}</div>
                 {(() => {
                   const rState = (state.rounds[round.round]?.state ?? 'locked');
                   const showBid = rState === 'bidding' || rState === 'scored';
@@ -212,7 +212,7 @@ export default function CurrentGame() {
                   const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
                   return (
                     <div
-                      className={`text-[0.55rem] mt-0.5 font-semibold ${mismatch ? 'text-red-700' : ''}`}
+                      className={`text-[0.55rem] mt-0.5 font-semibold ${mismatch ? 'text-red-700 dark:text-red-300' : ''}`}
                     >
                       {label}
                     </div>
@@ -258,19 +258,19 @@ export default function CurrentGame() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 border-sky-700 text-white"
+                          className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
                           onClick={() => void decrementBid(round.round, c.id)}
                           disabled={bid <= 0}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
-                        <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-black bg-white/60 px-1.5 rounded">
+                        <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-foreground bg-secondary/70 dark:bg-secondary/30 px-1.5 rounded">
                           {bid}
                         </span>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 border-sky-700 text-white"
+                          className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
                           onClick={() => void incrementBid(round.round, c.id, max)}
                           disabled={bid >= max}
                         >
@@ -306,10 +306,10 @@ export default function CurrentGame() {
                               minRem={0.5}
                               full={
                                 <>
-                                  <span className="text-black">Bid: {bid}</span>
+                                  <span className="text-foreground">Bid: {bid}</span>
                                   <span>
-                                    <span className="text-black mr-1">Round:</span>
-                                    <span className={`${made ? 'text-green-700' : 'text-red-700'}`}>
+                                    <span className="text-foreground mr-1">Round:</span>
+                                    <span className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
                                       {roundDelta(bid, made)}
                                     </span>
                                   </span>
@@ -323,7 +323,7 @@ export default function CurrentGame() {
                               abbrevAtRem={0.55}
                               full={
                                 <>
-                                  <span className={`${made ? 'text-emerald-800' : 'text-red-700'}`}>
+                                  <span className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
                                     {made ? 'Made' : 'Missed'}
                                   </span>
                                   {(() => {
@@ -331,15 +331,15 @@ export default function CurrentGame() {
                                     const isNeg = cum < 0;
                                     return (
                                       <span>
-                                        <span className="text-black mr-1">Total:</span>
+                                        <span className="text-foreground mr-1">Total:</span>
                                         {isNeg ? (
                                           <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
-                                            <span className="text-red-700 leading-none">
+                                            <span className="text-red-700 dark:text-red-300 leading-none">
                                               {Math.abs(cum)}
                                             </span>
                                           </span>
                                         ) : (
-                                          <span className="text-black">{cum}</span>
+                                          <span className="text-foreground">{cum}</span>
                                         )}
                                       </span>
                                     );
@@ -348,7 +348,7 @@ export default function CurrentGame() {
                               }
                               abbrev={
                                 <>
-                                  <span className={`${made ? 'text-emerald-800' : 'text-red-700'}`}>
+                                  <span className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
                                     {made ? 'Made' : 'Missed'}
                                   </span>
                                   {(() => {
@@ -356,15 +356,15 @@ export default function CurrentGame() {
                                     const isNeg = cum < 0;
                                     return (
                                       <span>
-                                        <span className="text-black mr-1">Tot:</span>
+                                        <span className="text-foreground mr-1">Tot:</span>
                                         {isNeg ? (
                                           <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
-                                            <span className="text-red-700 leading-none">
+                                            <span className="text-red-700 dark:text-red-300 leading-none">
                                               {Math.abs(cum)}
                                             </span>
                                           </span>
                                         ) : (
-                                          <span className="text-black">{cum}</span>
+                                          <span className="text-foreground">{cum}</span>
                                         )}
                                       </span>
                                     );
@@ -375,23 +375,23 @@ export default function CurrentGame() {
                           </>
                         ) : (
                           <div className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none">
-                            <span className="w-full text-right font-extrabold text-xl text-black">
+                            <span className="w-full text-right font-extrabold text-xl text-foreground">
                               {bid}
                             </span>
-                            <span className="px-1 font-extrabold text-xl text-black">-</span>
+                            <span className="px-1 font-extrabold text-xl text-foreground">-</span>
                             {(() => {
                               const cum = totalsByRound[round.round]?.[c.id] ?? 0;
                               const isNeg = cum < 0;
                               return (
                                 <div className="w-full text-left">
                                   {isNeg ? (
-                                    <span className="relative inline-flex items-center justify-center align-middle w-[5ch] h-[5ch] rounded-full border-2 border-red-500">
-                                      <span className="font-extrabold text-xl text-red-700 leading-none">
+                                    <span className="relative inline-flex items-center justify-center align-middle w-[4ch] h-[4ch] rounded-full border-2 border-red-500">
+                                      <span className="font-extrabold text-lg text-red-700 dark:text-red-300 leading-none">
                                         {Math.abs(cum)}
                                       </span>
                                     </span>
                                   ) : (
-                                    <span className="font-extrabold text-xl text-black">{cum}</span>
+                                    <span className="font-extrabold text-xl text-foreground">{cum}</span>
                                   )}
                                 </div>
                               );

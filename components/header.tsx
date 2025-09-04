@@ -14,7 +14,7 @@ export default function Header() {
     'block w-full text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer px-2 py-1.5';
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto max-w-4xl px-3 h-12 flex items-center justify-between">
+      <div className="w-full px-3 h-12 flex items-center justify-between">
         <Link href="/" className="text-sm font-semibold tracking-wide">
           El Dorado
         </Link>
@@ -60,6 +60,16 @@ export default function Header() {
               <Link href="/players">Players</Link>
             </DropdownMenu.Item>
             <DropdownMenu.Separator className="h-px bg-border" />
+            <DropdownMenu.Item
+              asChild
+              className={cn(
+                itemBase,
+                isActive('/settings') &&
+                  'bg-accent text-accent-foreground font-semibold -mt-px relative z-10',
+              )}
+            >
+              <Link href="/settings">Settings</Link>
+            </DropdownMenu.Item>
             <DropdownMenu.Item
               asChild
               className={cn(
