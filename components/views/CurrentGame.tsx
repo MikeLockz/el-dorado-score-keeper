@@ -1,15 +1,19 @@
 'use client';
 
 import React from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, Button } from '@/components/ui';
 import { Check, X, Plus, Minus } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
 import { twoCharAbbrs } from '@/lib/utils';
-import { roundDelta, ROUNDS_TOTAL, tricksForRound } from '@/lib/state/logic';
-import { selectCumulativeScoresAllRounds, selectRoundInfosAll } from '@/lib/state/selectors';
-import type { RoundState } from '@/lib/state/types';
-import { events } from '@/lib/state/events';
+import {
+  roundDelta,
+  ROUNDS_TOTAL,
+  tricksForRound,
+  selectCumulativeScoresAllRounds,
+  selectRoundInfosAll,
+  type RoundState,
+  events,
+} from '@/lib/state';
 
 function labelForRoundState(s: RoundState) {
   return s === 'locked'

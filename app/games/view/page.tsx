@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button, Card } from '@/components/ui';
 import type { GameRecord } from '@/lib/state/io';
 import { getGame, restoreGame } from '@/lib/state/io';
 import { analyzeGame } from '@/lib/analytics';

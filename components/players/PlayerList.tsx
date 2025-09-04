@@ -1,11 +1,10 @@
 'use client';
 
 import React, { Fragment } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button, Card } from '@/components/ui';
 import { Edit, Trash } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
-import { events } from '@/lib/state/events';
+import { events } from '@/lib/state';
 
 export default function PlayerList() {
   const { state, append, ready } = useAppState();

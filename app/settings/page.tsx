@@ -2,7 +2,7 @@
 
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui';
 
 export default function SettingsPage() {
   const { theme, setTheme, systemTheme, resolvedTheme } = useTheme();

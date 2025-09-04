@@ -1,8 +1,8 @@
 'use client';
 import React from 'react';
 import { useAppState } from '@/components/state-provider';
-import { selectLeaders } from '@/lib/state/selectors';
-import { Card } from '@/components/ui/card';
+import { selectLeaders } from '@/lib/state';
+import { Card } from '@/components/ui';
 
 export default function Leaderboard({ limit = 5 }: { limit?: number }) {
   const { state } = useAppState();

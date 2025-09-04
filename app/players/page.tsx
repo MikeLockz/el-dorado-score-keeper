@@ -2,10 +2,9 @@
 
 import React from 'react';
 import { useAppState } from '@/components/state-provider';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, Button } from '@/components/ui';
 import PlayerManagement from '@/components/players/PlayerManagement';
-import { events } from '@/lib/state/events';
+import { events } from '@/lib/state';
 
 export default function PlayersPage() {
   const { state, append, ready } = useAppState();

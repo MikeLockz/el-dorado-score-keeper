@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button, Card } from '@/components/ui';
 import { MoreHorizontal } from 'lucide-react';
 import type { GameRecord } from '@/lib/state/io';
 import { listGames, archiveCurrentGameAndReset, deleteGame, restoreGame } from '@/lib/state/io';

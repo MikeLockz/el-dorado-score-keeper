@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui';
 import { Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

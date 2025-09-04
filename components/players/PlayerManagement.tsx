@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/ui';
 import CreatePlayer from './CreatePlayer';
 import PlayerList from './PlayerList';
 
