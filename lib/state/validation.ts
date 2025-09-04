@@ -10,7 +10,7 @@ const ts = z.number().finite();
 
 const roundState: z.ZodType<RoundState> = z.enum(['locked', 'bidding', 'complete', 'scored']);
 
-export const payloadSchemas: Record<AppEventType, z.ZodType<any>> = {
+export const payloadSchemas: Record<AppEventType, z.ZodType<unknown>> = {
   'player/added': z.object({ id, name: nonEmpty }),
   'player/renamed': z.object({ id, name: nonEmpty }),
   'player/removed': z.object({ id }),
@@ -40,17 +40,17 @@ export function validateEventStrict(e: AppEvent): KnownAppEvent {
       code: 'append.invalid_event_shape',
       details: base.error.flatten(),
     };
-    const ex = new Error('InvalidEventShape');
-    (ex as any).name = 'InvalidEventShape';
-    (ex as any).info = err;
+    const ex: Error & { info: ValidationFailure } = new Error('InvalidEventShape');
+    ex.name = 'InvalidEventShape';
+    ex.info = err;
     throw ex;
   }
   const t = base.data.type;
   if (!(t in payloadSchemas)) {
     const err: ValidationFailure = { code: 'append.unknown_event_type', details: { type: t } };
-    const ex = new Error('UnknownEventType');
-    (ex as any).name = 'UnknownEventType';
-    (ex as any).info = err;
+    const ex: Error & { info: ValidationFailure } = new Error('UnknownEventType');
+    ex.name = 'UnknownEventType';
+    ex.info = err;
     throw ex;
   }
   const schema = payloadSchemas[t as AppEventType];
@@ -60,9 +60,9 @@ export function validateEventStrict(e: AppEvent): KnownAppEvent {
       code: 'append.invalid_payload',
       details: payload.error.flatten(),
     };
-    const ex = new Error('InvalidEventPayload');
-    (ex as any).name = 'InvalidEventPayload';
-    (ex as any).info = err;
+    const ex: Error & { info: ValidationFailure } = new Error('InvalidEventPayload');
+    ex.name = 'InvalidEventPayload';
+    ex.info = err;
     throw ex;
   }
   return { ...base.data, payload: payload.data, type: t as AppEventType } as KnownAppEvent;

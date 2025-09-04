@@ -69,7 +69,7 @@ export async function exportBundle(dbName: string): Promise<ExportBundle> {
 
 export async function importBundle(dbName: string, bundle: ExportBundle): Promise<void> {
   // Recreate DB to ensure clean state
-  await new Promise<void>((res, rej) => {
+  await new Promise<void>((res, _rej) => {
     const del = indexedDB.deleteDatabase(dbName);
     del.onsuccess = () => res();
     del.onerror = () => {

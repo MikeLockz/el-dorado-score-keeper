@@ -26,7 +26,9 @@ export type KnownAppEvent = {
 }[AppEventType];
 
 // Backward-compatible input event type (accept unknown custom events too)
-export type AppEvent = KnownAppEvent | { eventId: UUID; type: string; payload: any; ts: number };
+export type AppEvent =
+  | KnownAppEvent
+  | { eventId: UUID; type: string; payload: unknown; ts: number };
 
 export type RoundState = 'locked' | 'bidding' | 'complete' | 'scored';
 
@@ -64,12 +66,16 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'player/removed': {
       const { id } = event.payload as EventMap['player/removed'];
       if (!state.players[id]) return state;
-      const { [id]: _, ...restPlayers } = state.players as any;
-      const { [id]: __, ...restScores } = state.scores as any;
+      const restPlayers: Record<string, string> = { ...state.players };
+      delete restPlayers[id];
+      const restScores: Record<string, number> = { ...state.scores };
+      delete restScores[id];
       const rounds: Record<number, RoundData> = {};
       for (const [k, r] of Object.entries(state.rounds)) {
-        const { [id]: _b, ...bids } = (r.bids as any) ?? {};
-        const { [id]: _m, ...made } = (r.made as any) ?? {};
+        const bids: Record<string, number> = { ...r.bids };
+        delete bids[id];
+        const made: Record<string, boolean | null> = { ...r.made };
+        delete made[id];
         rounds[Number(k)] = { ...r, bids, made };
       }
       return { ...state, players: restPlayers, scores: restScores, rounds };
