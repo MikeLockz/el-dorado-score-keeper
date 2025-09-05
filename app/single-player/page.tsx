@@ -3,12 +3,11 @@ import React from 'react';
 import { startRound, bots, winnerOfTrick } from '@/lib/single-player';
 import type { PlayerId, RoundStart, Card } from '@/lib/single-player';
 import { tricksForRound } from '@/lib/state/logic';
-
-function makePlayers(n: number): PlayerId[] {
-  return Array.from({ length: n }, (_, i) => `P${i + 1}`);
-}
+import { useAppState } from '@/components/state-provider';
+import { selectPlayersOrdered, events } from '@/lib/state';
 
 export default function SinglePlayerPage() {
+  const { state, append, ready } = useAppState();
   const [playersCount, setPlayersCount] = React.useState(4);
   const [dealerIdx, setDealerIdx] = React.useState(0);
   const [humanIdx, setHumanIdx] = React.useState(0);
@@ -24,7 +23,9 @@ export default function SinglePlayerPage() {
   const [completedTricks, setCompletedTricks] = React.useState(0);
   const [hands, setHands] = React.useState<Record<PlayerId, Card[]>>({});
 
-  const players = React.useMemo(() => makePlayers(playersCount), [playersCount]);
+  const appPlayers = React.useMemo(() => selectPlayersOrdered(state), [state]);
+  const activePlayers = React.useMemo(() => appPlayers.slice(0, playersCount), [appPlayers, playersCount]);
+  const players = React.useMemo(() => activePlayers.map((p) => p.id), [activePlayers]);
   const dealer = players[dealerIdx] ?? players[0]!;
   const human = players[humanIdx] ?? players[0]!;
   const tricks = tricksForRound(roundNo);
@@ -131,6 +132,10 @@ export default function SinglePlayerPage() {
             onChange={(e) => setPlayersCount(Math.max(2, Math.min(10, Number(e.target.value) || 0)))}
           />
           <div className="text-xs text-muted-foreground">{useTwoDecks ? 'Using two decks' : 'Using one deck'}</div>
+          <div className="text-xs text-muted-foreground">Available players in scorekeeper: {appPlayers.length}</div>
+          {appPlayers.length < playersCount && (
+            <div className="text-xs text-red-600">Add more players on Players page to reach {playersCount}.</div>
+          )}
         </div>
         <div className="space-y-2">
           <label className="block text-sm font-medium">Round</label>
@@ -151,8 +156,8 @@ export default function SinglePlayerPage() {
             value={dealerIdx}
             onChange={(e) => setDealerIdx(Number(e.target.value))}
           >
-            {players.map((p, i) => (
-              <option key={p} value={i}>{`${p}`}</option>
+            {activePlayers.map((p, i) => (
+              <option key={p.id} value={i}>{`${p.name}`}</option>
             ))}
           </select>
         </div>
@@ -163,8 +168,8 @@ export default function SinglePlayerPage() {
             value={humanIdx}
             onChange={(e) => setHumanIdx(Number(e.target.value))}
           >
-            {players.map((p, i) => (
-              <option key={p} value={i}>{`${p}`}</option>
+            {activePlayers.map((p, i) => (
+              <option key={p.id} value={i}>{`${p.name}`}</option>
             ))}
           </select>
         </div>
@@ -257,9 +262,9 @@ export default function SinglePlayerPage() {
                 return rotated.join(' → ');
               })()}</div>
               <div className="text-sm">Current trick: {trickPlays.map((p) => `${p.player}(${p.card.rank}${p.card.suit[0]})`).join(', ') || '-'}</div>
-              <div className="text-sm">Tricks won: {turnOrder.map((p) => `${p}:${trickCounts[p] ?? 0}`).join('  ')}</div>
+              <div className="text-sm">Tricks won: {turnOrder.map((p) => `${activePlayers.find(ap => ap.id===p)?.name ?? p}:${trickCounts[p] ?? 0}`).join('  ')}</div>
               <div>
-                <div className="font-semibold">Your Hand ({human}):</div>
+                <div className="font-semibold">Your Hand ({activePlayers.find(ap => ap.id===human)?.name ?? human}):</div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {hands[human]?.slice()
                     .sort((a, b) => (a.suit === b.suit ? b.rank - a.rank : a.suit.localeCompare(b.suit)))
@@ -313,11 +318,28 @@ export default function SinglePlayerPage() {
                   const made = won === bid;
                   return (
                     <li key={`res-${p}`}>
-                      {p}: bid {bid}, won {won} — {made ? 'Made' : 'Missed'}
+                      {(activePlayers.find((ap) => ap.id === p)?.name ?? p)}: bid {bid}, won {won} — {made ? 'Made' : 'Missed'}
                     </li>
                   );
                 })}
               </ul>
+              <button
+                className="inline-flex items-center rounded border px-3 py-1 text-sm"
+                onClick={async () => {
+                  for (const pid of players) {
+                    const bid = Math.max(0, Math.min(tricks, Math.round(bids[pid] ?? 0)));
+                    await append(events.bidSet({ round: roundNo, playerId: pid, bid }));
+                  }
+                  for (const pid of players) {
+                    const won = trickCounts[pid] ?? 0;
+                    const made = won === (bids[pid] ?? 0);
+                    await append(events.madeSet({ round: roundNo, playerId: pid, made }));
+                  }
+                  await append(events.roundFinalize({ round: roundNo }));
+                }}
+              >
+                Save to Scorekeeper
+              </button>
             </div>
           )}
         </div>
