@@ -23,6 +23,7 @@ export default function SinglePlayerPage() {
   const [completedTricks, setCompletedTricks] = React.useState(0);
   const [hands, setHands] = React.useState<Record<PlayerId, Card[]>>({});
   const [saved, setSaved] = React.useState(false);
+  const [selectedCard, setSelectedCard] = React.useState<Card | null>(null);
 
   const appPlayers = React.useMemo(() => selectPlayersOrdered(state), [state]);
   const activePlayers = React.useMemo(() => appPlayers.slice(0, playersCount), [appPlayers, playersCount]);
@@ -34,6 +35,7 @@ export default function SinglePlayerPage() {
 
   const onDeal = () => {
     setSaved(false);
+    setSelectedCard(null);
     const deal = startRound(
       {
         round: roundNo,
@@ -133,7 +135,7 @@ export default function SinglePlayerPage() {
         if (next >= tricks) setPhase('done');
         return next;
       });
-    }, 300);
+    }, 800); // leave the full trick visible a bit longer
     return () => clearTimeout(t);
   }, [trickPlays, turnOrder.length, lastDeal, phase, trickLeader, tricks]);
 
@@ -301,7 +303,21 @@ export default function SinglePlayerPage() {
                 const rotated = [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
                 return rotated.join(' → ');
               })()}</div>
-              <div className="text-sm">Current trick: {trickPlays.map((p) => `${p.player}(${p.card.rank}${p.card.suit[0]})`).join(', ') || '-'}</div>
+              {/* Show current trick with card tiles */}
+              <div className="space-y-1">
+                <div className="font-medium text-sm">Current trick:</div>
+                <ul className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {trickPlays.map((p, i) => (
+                    <li key={`tp-${p.player}-${i}`} className="border rounded px-2 py-1 flex items-center justify-between">
+                      <span className="text-xs mr-2">{activePlayers.find(ap => ap.id===p.player)?.name ?? p.player}</span>
+                      <span className={`font-mono inline-flex items-center gap-1 ${suitColorClass(p.card.suit)}`} title={`${rankLabel(p.card.rank)} of ${p.card.suit}`}>
+                        <span className="font-bold text-sm text-foreground">{rankLabel(p.card.rank)}</span>
+                        <span>{suitSymbol(p.card.suit)}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
               <div className="text-sm">Tricks won: {turnOrder.map((p) => `${activePlayers.find(ap => ap.id===p)?.name ?? p}:${trickCounts[p] ?? 0}`).join('  ')}</div>
               <div>
                 <div className="font-semibold">Your Hand ({activePlayers.find(ap => ap.id===human)?.name ?? human}):</div>
@@ -326,15 +342,15 @@ export default function SinglePlayerPage() {
                       const rotated = leaderIdx < 0 ? turnOrder : [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
                       const nextToPlay = rotated[trickPlays.length];
                       const isHumansTurn = nextToPlay === human;
+                      const isSelected = selectedCard === c;
                       return (
                         <button
                           key={`${c.suit}-${c.rank}-${idx}`}
-                          className={`border rounded px-2 py-1 text-sm font-mono inline-flex items-center justify-center gap-1 ${legal && isHumansTurn ? '' : 'opacity-40 cursor-not-allowed'}`}
+                          className={`border rounded px-2 py-1 text-sm font-mono inline-flex items-center justify-center gap-1 ${legal && isHumansTurn ? '' : 'opacity-40'} ${isSelected ? 'ring-2 ring-sky-500' : ''}`}
                           disabled={!legal || !isHumansTurn}
                           onClick={() => {
-                            if (!legal) return;
-                            setTrickPlays((tp) => [...tp, { player: human, card: c, order: tp.length }]);
-                            setHands((h) => ({ ...h, [human]: (h[human] ?? []).filter((hc, i) => !(hc === c && i === idx)) }));
+                            if (!legal || !isHumansTurn) return;
+                            setSelectedCard((prev) => (prev === c ? null : c));
                           }}
                           title={`${rankLabel(c.rank)} of ${c.suit}`}
                         >
@@ -343,6 +359,45 @@ export default function SinglePlayerPage() {
                         </button>
                       );
                     })}
+                </div>
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center rounded border px-3 py-1 text-sm"
+                    disabled={!selectedCard}
+                    onClick={() => {
+                      if (!selectedCard) return;
+                      // Verify still legal and it's still human's turn
+                      const ledSuit = trickPlays[0]?.card.suit;
+                      const trickTrumped = trickPlays.some((p) => p.card.suit === lastDeal!.trump);
+                      const canFollow = (hands[human] ?? []).some((h) => h.suit === ledSuit);
+                      let legal = true;
+                      if (!ledSuit) {
+                        const hasNonTrump = (hands[human] ?? []).some((h) => h.suit !== lastDeal!.trump);
+                        if (hasNonTrump && selectedCard.suit === lastDeal!.trump) legal = false;
+                      } else if (canFollow) {
+                        legal = selectedCard.suit === ledSuit;
+                      } else if (trickTrumped) {
+                        const hasTrump = (hands[human] ?? []).some((h) => h.suit === lastDeal!.trump);
+                        if (hasTrump) legal = selectedCard.suit === lastDeal!.trump;
+                      }
+                      const leaderIdx = turnOrder.findIndex((p) => p === trickLeader);
+                      const rotated = leaderIdx < 0 ? turnOrder : [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
+                      const nextToPlay = rotated[trickPlays.length];
+                      if (!legal || nextToPlay !== human) return;
+                      // Play selected card
+                      setTrickPlays((tp) => [...tp, { player: human, card: selectedCard, order: tp.length }]);
+                      setHands((h) => {
+                        const arr = (h[human] ?? []);
+                        const idx = arr.findIndex((hc) => hc === selectedCard);
+                        const next = idx >= 0 ? [...arr.slice(0, idx), ...arr.slice(idx + 1)] : arr.slice();
+                        return { ...h, [human]: next };
+                      });
+                      setSelectedCard(null);
+                    }}
+                  >
+                    Play Selected
+                  </button>
                 </div>
               </div>
             </div>
