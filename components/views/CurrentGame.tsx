@@ -171,7 +171,8 @@ export default function CurrentGame() {
       return;
     }
     if (current === 'complete') {
-      const allMarked = players.every((p) => (state.rounds[round]?.made[p.id] ?? null) !== null);
+      const rd = state.rounds[round];
+      const allMarked = players.every((p) => (rd?.present?.[p.id] === false) || ((rd?.made[p.id] ?? null) !== null));
       if (allMarked) {
         await append(events.roundFinalize({ round }));
       }
@@ -355,8 +356,9 @@ export default function CurrentGame() {
 
               {columns.map((c, colIdx) => {
                 const rState = state.rounds[round.round]?.state ?? 'locked';
-                const bid = c.placeholder ? 0 : (state.rounds[round.round]?.bids[c.id] ?? 0);
-                const made = c.placeholder ? null : (state.rounds[round.round]?.made[c.id] ?? null);
+                const isAbsent = !c.placeholder && (state.rounds[round.round]?.present?.[c.id] === false);
+                const bid = c.placeholder || isAbsent ? 0 : (state.rounds[round.round]?.bids[c.id] ?? 0);
+                const made = c.placeholder || isAbsent ? null : (state.rounds[round.round]?.made[c.id] ?? null);
                 const max = tricksForRound(round.round);
                 const cellKey = `${round.round}-${c.id}`;
                 const showDetails = rState !== 'scored' ? true : !!detailCells[cellKey];
@@ -391,7 +393,7 @@ export default function CurrentGame() {
                         }
                       : {})}
                   >
-                    {c.placeholder ? (
+                    {c.placeholder || isAbsent ? (
                       <>
                         <div className="border-b flex items-center justify-center px-1 py-0.5">
                           <span className="text-[0.6rem] text-gray-500">-</span>

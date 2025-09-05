@@ -6,6 +6,8 @@ export type EventMap = {
   'player/renamed': { id: string; name: string };
   'player/removed': { id: string };
   'players/reordered': { order: string[] };
+  'player/dropped': { id: string; fromRound: number };
+  'player/resumed': { id: string; fromRound: number };
   'score/added': { playerId: string; delta: number };
   'round/state-set': { round: number; state: RoundState };
   'bid/set': { round: number; playerId: string; bid: number };
@@ -34,10 +36,12 @@ export type AppEvent =
 export type RoundState = 'locked' | 'bidding' | 'complete' | 'scored';
 
 export type RoundData = Readonly<{
-  state: RoundState;
-  bids: Record<string, number>;
-  made: Record<string, boolean | null>;
-}>;
+	  state: RoundState;
+	  bids: Record<string, number>;
+	  made: Record<string, boolean | null>;
+	  // If present[pid] === false, player is absent for the round. Missing implies present.
+	  present?: Record<string, boolean>;
+	}>;
 
 export type AppState = Readonly<{
   players: Record<string, string>;
@@ -71,7 +75,14 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const display_order = hasAnyOrder
         ? { ...(state.display_order ?? {}), [id]: nextIdx }
         : { ...(state.display_order ?? {}) };
-      return { ...state, players: { ...state.players, [id]: name }, display_order };
+      // Initialize per-round presence: absent for already-scored rounds; present otherwise
+      const rounds: Record<number, RoundData> = {};
+      for (const [k, r] of Object.entries(state.rounds)) {
+        const present = { ...(r.present ?? {}) } as Record<string, boolean>;
+        present[id] = r.state === 'scored' ? false : true;
+        rounds[Number(k)] = { ...r, present } as RoundData;
+      }
+      return { ...state, players: { ...state.players, [id]: name }, display_order, rounds };
     }
     case 'player/renamed': {
       const { id, name } = event.payload as EventMap['player/renamed'];
@@ -91,7 +102,9 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         delete bids[id];
         const made: Record<string, boolean | null> = { ...r.made };
         delete made[id];
-        rounds[Number(k)] = { ...r, bids, made };
+        const present = { ...(r.present ?? {}) } as Record<string, boolean>;
+        delete present[id];
+        rounds[Number(k)] = { ...r, bids, made, present } as RoundData;
       }
       // Remove from display_order and reindex remaining densely 0..N-1 preserving relative order
       const entries = Object.entries(state.display_order ?? {}).filter(([pid]) => pid !== id);
@@ -114,6 +127,42 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       for (let i = 0; i < filtered.length; i++) display_order[filtered[i]!] = i;
       return { ...state, display_order };
     }
+    case 'player/dropped': {
+      const { id, fromRound } = event.payload as EventMap['player/dropped'];
+      if (!state.players[id]) return state;
+      const rounds: Record<number, RoundData> = {};
+      for (const [k, r] of Object.entries(state.rounds)) {
+        const roundNo = Number(k);
+        if (roundNo >= fromRound && r.state !== 'scored') {
+          const bids = { ...(r.bids ?? {}) } as Record<string, number>;
+          const made = { ...(r.made ?? {}) } as Record<string, boolean | null>;
+          delete bids[id];
+          delete made[id];
+          const present = { ...(r.present ?? {}) } as Record<string, boolean>;
+          present[id] = false;
+          rounds[roundNo] = { ...r, bids, made, present } as RoundData;
+        } else {
+          rounds[roundNo] = r;
+        }
+      }
+      return { ...state, rounds };
+    }
+    case 'player/resumed': {
+      const { id, fromRound } = event.payload as EventMap['player/resumed'];
+      if (!state.players[id]) return state;
+      const rounds: Record<number, RoundData> = {};
+      for (const [k, r] of Object.entries(state.rounds)) {
+        const roundNo = Number(k);
+        if (roundNo >= fromRound && r.state !== 'scored') {
+          const present = { ...(r.present ?? {}) } as Record<string, boolean>;
+          present[id] = true;
+          rounds[roundNo] = { ...r, present } as RoundData;
+        } else {
+          rounds[roundNo] = r;
+        }
+      }
+      return { ...state, rounds };
+    }
     case 'score/added': {
       const { playerId, delta } = event.payload as EventMap['score/added'];
       const next = (state.scores[playerId] ?? 0) + delta;
@@ -127,6 +176,7 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'bid/set': {
       const { round, playerId, bid } = event.payload as EventMap['bid/set'];
       const r = state.rounds[round] ?? { state: 'locked', bids: {}, made: {} };
+      if (r.present?.[playerId] === false) return state;
       const clamped = clampBid(round, bid);
       return {
         ...state,
@@ -136,6 +186,7 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'made/set': {
       const { round, playerId, made } = event.payload as EventMap['made/set'];
       const r = state.rounds[round] ?? { state: 'locked', bids: {}, made: {} };
+      if (r.present?.[playerId] === false) return state;
       return {
         ...state,
         rounds: { ...state.rounds, [round]: { ...r, made: { ...r.made, [playerId]: !!made } } },

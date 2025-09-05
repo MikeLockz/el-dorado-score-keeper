@@ -15,6 +15,8 @@ export const payloadSchemas: Record<AppEventType, z.ZodType<unknown>> = {
   'player/renamed': z.object({ id, name: nonEmpty }),
   'player/removed': z.object({ id }),
   'players/reordered': z.object({ order: z.array(id) }),
+  'player/dropped': z.object({ id, fromRound: round }),
+  'player/resumed': z.object({ id, fromRound: round }),
   'score/added': z.object({ playerId, delta: z.number().finite() }),
   'round/state-set': z.object({ round, state: roundState }),
   'bid/set': z.object({ round, playerId, bid: z.number().int().nonnegative() }),

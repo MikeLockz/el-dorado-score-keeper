@@ -4,7 +4,7 @@ import React, { Fragment } from 'react';
 import { Button, Card } from '@/components/ui';
 import { Edit, Trash } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
-import { events, selectPlayersOrdered } from '@/lib/state';
+import { events, selectPlayersOrdered, selectNextActionableRound } from '@/lib/state';
 
 export default function PlayerList() {
   const { state, append, ready } = useAppState();
@@ -30,6 +30,14 @@ export default function PlayerList() {
     }
     if (!confirm(`Remove player ${currentName}?`)) return;
     await append(events.playerRemoved({ id: playerId }));
+  };
+
+  const nextRound = selectNextActionableRound(state) ?? 1;
+  const dropPlayer = async (playerId: string) => {
+    await append(events.playerDropped({ id: playerId, fromRound: nextRound }));
+  };
+  const resumePlayer = async (playerId: string) => {
+    await append(events.playerResumed({ id: playerId, fromRound: nextRound }));
   };
 
   return (
@@ -90,6 +98,30 @@ export default function PlayerList() {
                   {p.name}
                 </div>
                 <div className="p-2 border-b text-center flex items-center justify-center gap-2">
+                  {(() => {
+                    const isDropped = (state.rounds[nextRound]?.present?.[p.id] === false);
+                    return isDropped ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void resumePlayer(p.id)}
+                        className="h-7 px-2"
+                        title="Re-add from next round"
+                      >
+                        +
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void dropPlayer(p.id)}
+                        className="h-7 px-2"
+                        title="Drop from next round"
+                      >
+                        -
+                      </Button>
+                    );
+                  })()}
                   <Button
                     size="sm"
                     variant="outline"
