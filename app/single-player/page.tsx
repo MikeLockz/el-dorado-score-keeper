@@ -178,9 +178,11 @@ export default function SinglePlayerPage() {
     );
     const t = setTimeout(() => {
       setBids((m) => ({ ...m, [pid]: amount }));
+      void append(events.bidSet({ round: roundNo, playerId: pid, bid: amount }));
       const nextIdx = currentBidderIdx + 1;
       if (nextIdx >= turnOrder.length) {
         setPhase('playing');
+        void append(events.roundStateSet({ round: roundNo, state: 'complete' }));
       }
       setCurrentBidderIdx(nextIdx);
     }, 300);
@@ -212,6 +214,25 @@ export default function SinglePlayerPage() {
     }, 800); // leave the full trick visible a bit longer
     return () => clearTimeout(t);
   }, [trickPlays, turnOrder.length, lastDeal, phase, trickLeader, tricks]);
+
+  // Auto-sync results to scorekeeper when round ends
+  React.useEffect(() => {
+    if (phase !== 'done' || !lastDeal) return;
+    if (saved) return; // already synced
+    (async () => {
+      try {
+        for (const pid of players) {
+          const won = trickCounts[pid] ?? 0;
+          const made = won === (bids[pid] ?? 0);
+          await append(events.madeSet({ round: roundNo, playerId: pid, made }));
+        }
+        await append(events.roundFinalize({ round: roundNo }));
+        setSaved(true);
+      } catch (e) {
+        console.warn('Failed to auto-sync results', e);
+      }
+    })();
+  }, [phase, lastDeal, bids, trickCounts, players, roundNo, append, saved]);
 
   return (
     <main className="p-4 space-y-6">
@@ -340,9 +361,11 @@ export default function SinglePlayerPage() {
                     onClick={() => {
                       const amount = Math.max(0, Math.min(tricks, Math.round(bids[human] ?? 0)));
                       setBids((m) => ({ ...m, [human]: amount }));
+                      void append(events.bidSet({ round: roundNo, playerId: human, bid: amount }));
                       const nextIdx = currentBidderIdx + 1;
                       if (nextIdx >= turnOrder.length) {
                         setPhase('playing');
+                        void append(events.roundStateSet({ round: roundNo, state: 'complete' }));
                       }
                       setCurrentBidderIdx(nextIdx);
                     }}

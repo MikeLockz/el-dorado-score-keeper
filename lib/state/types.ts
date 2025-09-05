@@ -33,7 +33,7 @@ export type AppEvent =
   | KnownAppEvent
   | { eventId: UUID; type: string; payload: unknown; ts: number };
 
-export type RoundState = 'locked' | 'bidding' | 'complete' | 'scored';
+export type RoundState = 'locked' | 'bidding' | 'playing' | 'complete' | 'scored';
 
 export type RoundData = Readonly<{
 	  state: RoundState;

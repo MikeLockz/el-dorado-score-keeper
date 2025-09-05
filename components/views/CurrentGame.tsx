@@ -16,14 +16,22 @@ import {
   events,
 } from '@/lib/state';
 
+type LiveOverlay = {
+  round: number;
+  currentPlayerId?: string | null;
+  cards: Record<string, { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null | undefined>;
+};
+
 function labelForRoundState(s: RoundState) {
   return s === 'locked'
     ? 'Locked'
     : s === 'bidding'
       ? 'Active'
-      : s === 'complete'
-        ? 'Complete'
-        : 'Scored';
+      : s === 'playing'
+        ? 'Playing'
+        : s === 'complete'
+          ? 'Complete'
+          : 'Scored';
 }
 
 function getRoundStateStyles(state: RoundState) {
@@ -32,6 +40,8 @@ function getRoundStateStyles(state: RoundState) {
       return 'bg-muted text-muted-foreground';
     case 'bidding':
       return 'bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-200';
+    case 'playing':
+      return 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-200';
     case 'complete':
       return 'bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-200';
     case 'scored':
@@ -45,11 +55,25 @@ function getPlayerCellBackgroundStyles(state: RoundState) {
       return 'bg-muted';
     case 'bidding':
       return 'bg-sky-50 dark:bg-sky-900/30';
+    case 'playing':
+      return 'bg-indigo-50 dark:bg-indigo-900/30';
     case 'complete':
       return 'bg-orange-50 dark:bg-orange-900/30';
     case 'scored':
       return 'bg-emerald-50 dark:bg-emerald-900/30';
   }
+}
+
+function suitSymbol(suit: string): string {
+  return suit === 'spades' ? '♠' : suit === 'hearts' ? '♥' : suit === 'diamonds' ? '♦' : '♣';
+}
+function suitColorClass(suit: string): string {
+  return suit === 'hearts' || suit === 'diamonds'
+    ? 'text-red-700 dark:text-red-300'
+    : 'text-foreground';
+}
+function rankLabel(rank: number): string {
+  return rank === 14 ? 'A' : rank === 13 ? 'K' : rank === 12 ? 'Q' : rank === 11 ? 'J' : String(rank);
 }
 
 // Shrinks row text to keep everything on a single line without wrapping
@@ -123,7 +147,7 @@ function FitRow({
   );
 }
 
-export default function CurrentGame() {
+export default function CurrentGame({ live }: { live?: LiveOverlay } = {}) {
   const { state, append, ready } = useAppState();
   const players = selectPlayersOrdered(state);
   const abbr = twoCharAbbrs(players);
@@ -364,12 +388,15 @@ export default function CurrentGame() {
                 const showDetails = rState !== 'scored' ? true : !!detailCells[cellKey];
                 const cellKeyId = `cell-details-${round.round}-${c.id}`;
                 const isScored = rState === 'scored';
+                const isLive = (rState === 'playing') && live && live.round === round.round;
+                const liveCard = isLive ? live!.cards[c.id] : null;
+                const isCurrent = isLive && live!.currentPlayerId === c.id;
                 return (
                   <div
                     key={`${round.round}-${c.id}`}
                     role="gridcell"
                     aria-colindex={colIdx + 2}
-                    className={`border-b grid grid-cols-1 ${rState === 'bidding' || rState === 'complete' ? 'grid-rows-1' : showDetails ? 'grid-rows-2' : 'grid-rows-1'} transition-all duration-200 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${getPlayerCellBackgroundStyles(rState)}`}
+                    className={`border-b grid grid-cols-1 ${rState === 'bidding' || rState === 'complete' || rState === 'playing' ? 'grid-rows-1' : showDetails ? 'grid-rows-2' : 'grid-rows-1'} transition-all duration-200 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${getPlayerCellBackgroundStyles(rState)} ${isCurrent ? 'ring-2 ring-indigo-500' : ''}`}
                     tabIndex={0}
                     onClick={() => {
                       if (isScored) toggleCellDetails(round.round, c.id);
@@ -436,6 +463,20 @@ export default function CurrentGame() {
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
+                      </div>
+                    ) : rState === 'playing' ? (
+                      <div className="flex items-center justify-between w-full px-1 py-0.5">
+                        <span className="text-foreground text-sm">Bid: {bid}</span>
+                        <span className={`font-mono inline-flex items-center gap-1 ${liveCard ? suitColorClass(liveCard.suit) : 'text-muted-foreground'}`}>
+                          {liveCard ? (
+                            <>
+                              <span className="font-bold text-sm text-foreground">{rankLabel(liveCard.rank)}</span>
+                              <span>{suitSymbol(liveCard.suit)}</span>
+                            </>
+                          ) : (
+                            <span className="text-[0.7rem]">—</span>
+                          )}
+                        </span>
                       </div>
                     ) : rState === 'complete' ? (
                       <div className="flex items-center justify-center gap-4 w-full px-1 py-0.5">

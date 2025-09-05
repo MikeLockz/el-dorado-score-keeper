@@ -34,19 +34,19 @@ async function seedEvents(dbName: string, n: number) {
   const t = tx(db, 'readwrite', [storeNames.EVENTS]);
   const store = t.objectStore(storeNames.EVENTS);
   const baseTs = 1_700_000_000_000;
+  // Enqueue all adds within a single transaction; await only transaction completion
   for (let i = 1; i <= n; i++) {
     const ev = makeEvent('score/added', { playerId: 'p1', delta: 1 }, {
       eventId: `seed-${i}`,
       ts: baseTs + i,
     });
-    // Add without caring about seq key (autoIncrement)
-    const req = store.add(ev);
-    // eslint-disable-next-line no-await-in-loop
-    await new Promise<void>((res, rej) => {
-      req.onsuccess = () => res();
-      req.onerror = () => rej(req.error);
-    });
+    store.add(ev);
   }
+  await new Promise<void>((res, rej) => {
+    t.oncomplete = () => res();
+    t.onerror = () => rej(t.error);
+    t.onabort = () => rej(t.error);
+  });
   db.close();
 }
 
