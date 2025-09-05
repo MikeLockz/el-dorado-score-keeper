@@ -55,6 +55,8 @@ export type RoundSummary = { round: number; state: RoundData['state']; rows: Rou
 export const selectRoundSummary = memo2((s: AppState, round: number): RoundSummary => {
   const r: RoundData | undefined = s.rounds[round];
   const rows: RoundRow[] = Object.keys(s.players).map((id) => {
+    const absent = r?.present?.[id] === false;
+    if (absent) return { id, name: s.players[id]!, bid: 0, made: null, delta: 0 };
     const bid = r?.bids[id] ?? 0;
     const made = r?.made[id] ?? null;
     const delta = roundDelta(bid, made);
@@ -75,7 +77,10 @@ export const selectRoundInfo = memo2((s: AppState, round: number): RoundInfo => 
   const r: RoundData | undefined = s.rounds[round];
   const tricks = tricksForRound(round);
   let sumBids = 0;
-  for (const id of Object.keys(s.players)) sumBids += r?.bids[id] ?? 0;
+  for (const id of Object.keys(s.players)) {
+    if (r?.present?.[id] === false) continue;
+    sumBids += r?.bids[id] ?? 0;
+  }
   const overUnder: RoundInfo['overUnder'] =
     sumBids === tricks ? 'match' : sumBids > tricks ? 'over' : 'under';
   return { round, state: r?.state ?? 'locked', tricks, sumBids, overUnder };
@@ -113,6 +118,7 @@ export const selectCumulativeScoresAllRounds = memo1((s: AppState): CumulativeBy
     const next: Record<string, number> = { ...running };
     if (rd && rd.state === 'scored') {
       for (const id of ids) {
+        if (rd.present?.[id] === false) continue;
         const bid = rd.bids[id] ?? 0;
         const made = rd.made[id] ?? false;
         next[id] = (next[id] ?? 0) + roundDelta(bid, made);
@@ -133,7 +139,10 @@ export const selectRoundInfosAll = memo1((s: AppState): RoundInfoMap => {
     const rd: RoundData | undefined = s.rounds[r];
     const tricks = tricksForRound(r);
     let sumBids = 0;
-    for (const id of ids) sumBids += rd?.bids[id] ?? 0;
+    for (const id of ids) {
+      if (rd?.present?.[id] === false) continue;
+      sumBids += rd?.bids[id] ?? 0;
+    }
     const overUnder: RoundInfo['overUnder'] =
       sumBids === tricks ? 'match' : sumBids > tricks ? 'over' : 'under';
     out[r] = { round: r, state: rd?.state ?? 'locked', tricks, sumBids, overUnder };

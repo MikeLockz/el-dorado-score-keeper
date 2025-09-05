@@ -29,6 +29,8 @@ export function finalizeRound(prev: AppState, round: number): AppState {
   const r = prev.rounds[round] ?? { state: 'locked', bids: {}, made: {} };
   const scores = { ...prev.scores };
   for (const pid of Object.keys(prev.players)) {
+    // Only count if player is present (treat missing as present for compatibility)
+    if (r.present?.[pid] === false) continue;
     const bid = r.bids[pid] ?? 0;
     const made = r.made[pid] ?? false;
     scores[pid] = (scores[pid] ?? 0) + roundDelta(bid, made);

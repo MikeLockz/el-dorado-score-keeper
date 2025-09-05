@@ -22,6 +22,10 @@ export const events = {
     makeEvent('player/renamed', p, m),
   playerRemoved: (p: EventPayloadByType<'player/removed'>, m?: Meta) =>
     makeEvent('player/removed', p, m),
+  playerDropped: (p: EventPayloadByType<'player/dropped'>, m?: Meta) =>
+    makeEvent('player/dropped', p, m),
+  playerResumed: (p: EventPayloadByType<'player/resumed'>, m?: Meta) =>
+    makeEvent('player/resumed', p, m),
   scoreAdded: (p: EventPayloadByType<'score/added'>, m?: Meta) => makeEvent('score/added', p, m),
   roundStateSet: (p: EventPayloadByType<'round/state-set'>, m?: Meta) =>
     makeEvent('round/state-set', p, m),
