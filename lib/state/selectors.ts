@@ -43,6 +43,29 @@ export const selectLeaders = memo1((s: AppState): Leader[] => {
   return leaders;
 });
 
+export type PlayerItem = { id: string; name: string };
+
+// Preferred ordering for display: `display_order` if present; otherwise insertion order.
+export const selectPlayersOrdered = memo1((s: AppState): PlayerItem[] => {
+  const ids = Object.keys(s.players);
+  const orderEntries = Object.entries(s.display_order ?? {});
+  const hasOrder = orderEntries.length > 0;
+  let sortedIds: string[];
+  if (hasOrder) {
+    const known = new Set(ids);
+    const ordered = orderEntries
+      .filter(([pid]) => known.has(pid))
+      .sort((a, b) => (a[1] ?? 0) - (b[1] ?? 0))
+      .map(([pid]) => pid);
+    // append any players that are missing from the mapping
+    for (const id of ids) if (!ordered.includes(id)) ordered.push(id);
+    sortedIds = ordered;
+  } else {
+    sortedIds = ids;
+  }
+  return sortedIds.map((id) => ({ id, name: s.players[id]! }));
+});
+
 export type RoundRow = {
   id: string;
   name: string;

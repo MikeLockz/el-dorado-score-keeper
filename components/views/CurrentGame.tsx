@@ -11,6 +11,7 @@ import {
   tricksForRound,
   selectCumulativeScoresAllRounds,
   selectRoundInfosAll,
+  selectPlayersOrdered,
   type RoundState,
   events,
 } from '@/lib/state';
@@ -124,7 +125,7 @@ function FitRow({
 
 export default function CurrentGame() {
   const { state, append, ready } = useAppState();
-  const players = Object.entries(state.players).map(([id, name]) => ({ id, name }));
+  const players = selectPlayersOrdered(state);
   const abbr = twoCharAbbrs(players);
   const [detailCells, setDetailCells] = React.useState<Record<string, boolean>>({});
   const toggleCellDetails = (round: number, playerId: string) => {

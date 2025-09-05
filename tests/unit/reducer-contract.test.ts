@@ -18,6 +18,7 @@ describe('reducer contract: payload schemas', () => {
         'player/added',
         'player/removed',
         'player/renamed',
+        'players/reordered',
         'round/finalize',
         'round/state-set',
         'score/added',

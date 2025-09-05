@@ -5,6 +5,7 @@ export type EventMap = {
   'player/added': { id: string; name: string };
   'player/renamed': { id: string; name: string };
   'player/removed': { id: string };
+  'players/reordered': { order: string[] };
   'score/added': { playerId: string; delta: number };
   'round/state-set': { round: number; state: RoundState };
   'bid/set': { round: number; playerId: string; bid: number };
@@ -42,6 +43,8 @@ export type AppState = Readonly<{
   players: Record<string, string>;
   scores: Record<string, number>;
   rounds: Record<number, RoundData>;
+  // Optional dense display order per player ID. Missing entries are handled by selectors.
+  display_order: Record<string, number>;
 }>;
 import { initialRounds, clampBid, finalizeRound } from './logic';
 
@@ -49,6 +52,7 @@ export const INITIAL_STATE: AppState = {
   players: {},
   scores: {},
   rounds: initialRounds(),
+  display_order: {},
 } as const;
 
 export function reduce(state: AppState, event: AppEvent): AppState {
@@ -56,7 +60,18 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'player/added': {
       const { id, name } = event.payload as EventMap['player/added'];
       if (state.players[id]) return state;
-      return { ...state, players: { ...state.players, [id]: name } };
+      // Assign next order index if any ordering exists; else leave mapping untouched (selector will fallback)
+      const hasAnyOrder = Object.keys(state.display_order ?? {}).length > 0;
+      const nextIdx = hasAnyOrder
+        ? Math.max(
+            -1,
+            ...Object.values(state.display_order ?? {}).map((n) => (Number.isFinite(n) ? n : -1)),
+          ) + 1
+        : 0;
+      const display_order = hasAnyOrder
+        ? { ...(state.display_order ?? {}), [id]: nextIdx }
+        : { ...(state.display_order ?? {}) };
+      return { ...state, players: { ...state.players, [id]: name }, display_order };
     }
     case 'player/renamed': {
       const { id, name } = event.payload as EventMap['player/renamed'];
@@ -78,7 +93,26 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         delete made[id];
         rounds[Number(k)] = { ...r, bids, made };
       }
-      return { ...state, players: restPlayers, scores: restScores, rounds };
+      // Remove from display_order and reindex remaining densely 0..N-1 preserving relative order
+      const entries = Object.entries(state.display_order ?? {}).filter(([pid]) => pid !== id);
+      entries.sort((a, b) => (a[1] ?? 0) - (b[1] ?? 0));
+      const display_order: Record<string, number> = {};
+      for (let i = 0; i < entries.length; i++) display_order[entries[i]![0]] = i;
+      return { ...state, players: restPlayers, scores: restScores, rounds, display_order };
+    }
+    case 'players/reordered': {
+      // Build dense mapping from provided order, ignoring unknown IDs, appending any missing known players
+      const { order } = event.payload as EventMap['players/reordered'];
+      const knownIds = new Set(Object.keys(state.players));
+      const filtered = order.filter((id) => knownIds.has(id));
+      // Append any players not present in payload in their previous relative order
+      const prevOrderEntries = Object.entries(state.display_order ?? {}).sort((a, b) => a[1] - b[1]);
+      const prevOrder = prevOrderEntries.map(([pid]) => pid).filter((pid) => knownIds.has(pid));
+      for (const pid of prevOrder) if (!filtered.includes(pid)) filtered.push(pid);
+      for (const pid of Object.keys(state.players)) if (!filtered.includes(pid)) filtered.push(pid);
+      const display_order: Record<string, number> = {};
+      for (let i = 0; i < filtered.length; i++) display_order[filtered[i]!] = i;
+      return { ...state, display_order };
     }
     case 'score/added': {
       const { playerId, delta } = event.payload as EventMap['score/added'];
