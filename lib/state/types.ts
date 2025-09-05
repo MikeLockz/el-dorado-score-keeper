@@ -75,12 +75,26 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const display_order = hasAnyOrder
         ? { ...(state.display_order ?? {}), [id]: nextIdx }
         : { ...(state.display_order ?? {}) };
-      // Initialize per-round presence: absent for already-scored rounds; present otherwise
+      // Initialize per-round presence using a stable join index:
+      // joinIndex = 1 + max(roundIndex where state === 'scored') at the time of adding.
+      // This ensures late joiners remain absent for previously scored rounds
+      // even if a past round is temporarily toggled back to bidding/complete.
+      let maxScored = 0;
+      const biddingRounds: number[] = [];
+      for (const [rk, rr] of Object.entries(state.rounds)) {
+        const rn = Number(rk);
+        const st = rr?.state ?? 'locked';
+        if (st === 'scored') maxScored = Math.max(maxScored, rn);
+        if (st === 'bidding') biddingRounds.push(rn);
+      }
+      biddingRounds.sort((a, b) => a - b);
+      const joinIndex = biddingRounds.length > 0 ? biddingRounds[0]! : maxScored + 1;
       const rounds: Record<number, RoundData> = {};
       for (const [k, r] of Object.entries(state.rounds)) {
+        const rn = Number(k);
         const present = { ...(r.present ?? {}) } as Record<string, boolean>;
-        present[id] = r.state === 'scored' ? false : true;
-        rounds[Number(k)] = { ...r, present } as RoundData;
+        present[id] = rn >= joinIndex;
+        rounds[rn] = { ...r, present } as RoundData;
       }
       return { ...state, players: { ...state.players, [id]: name }, display_order, rounds };
     }

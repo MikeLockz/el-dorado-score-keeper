@@ -2,7 +2,7 @@
 
 import React, { Fragment } from 'react';
 import { Button, Card } from '@/components/ui';
-import { Edit, Trash } from 'lucide-react';
+import { Edit, Trash, Plus } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
 import { events, selectPlayersOrdered, selectNextActionableRound } from '@/lib/state';
 
@@ -24,12 +24,13 @@ export default function PlayerList() {
   };
 
   const removePlayer = async (playerId: string, currentName: string) => {
+    // Soft-delete: drop from the next actionable round instead of hard removal
     if (players.length <= 2) {
       alert('At least 2 players are required.');
       return;
     }
     if (!confirm(`Remove player ${currentName}?`)) return;
-    await append(events.playerRemoved({ id: playerId }));
+    await append(events.playerDropped({ id: playerId, fromRound: nextRound }));
   };
 
   const nextRound = selectNextActionableRound(state) ?? 1;
@@ -99,26 +100,31 @@ export default function PlayerList() {
                 </div>
                 <div className="p-2 border-b text-center flex items-center justify-center gap-2">
                   {(() => {
-                    const isDropped = (state.rounds[nextRound]?.present?.[p.id] === false);
-                    return isDropped ? (
+                    const isDropped = state.rounds[nextRound]?.present?.[p.id] === false;
+                    if (isDropped) {
+                      return (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void resumePlayer(p.id)}
+                          className="h-7 px-2"
+                          title="Re-add from next round"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      );
+                    }
+                    // When not dropped, show trash which performs a soft drop
+                    return (
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => void resumePlayer(p.id)}
+                        variant="destructive"
+                        onClick={() => void removePlayer(p.id, p.name)}
                         className="h-7 px-2"
-                        title="Re-add from next round"
+                        disabled={minReached}
+                        title="Remove (soft drop) from next round"
                       >
-                        +
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => void dropPlayer(p.id)}
-                        className="h-7 px-2"
-                        title="Drop from next round"
-                      >
-                        -
+                        <Trash className="h-4 w-4" />
                       </Button>
                     );
                   })()}
@@ -129,15 +135,6 @@ export default function PlayerList() {
                     className="h-7 px-2"
                   >
                     <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => void removePlayer(p.id, p.name)}
-                    className="h-7 px-2"
-                    disabled={minReached}
-                  >
-                    <Trash className="h-4 w-4" />
                   </Button>
                 </div>
               </Fragment>
