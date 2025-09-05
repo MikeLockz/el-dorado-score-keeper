@@ -20,6 +20,7 @@ type LiveOverlay = {
   round: number;
   currentPlayerId?: string | null;
   cards: Record<string, { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null | undefined>;
+  counts?: Record<string, number>;
 };
 
 function labelForRoundState(s: RoundState) {
@@ -147,7 +148,13 @@ function FitRow({
   );
 }
 
-export default function CurrentGame({ live }: { live?: LiveOverlay } = {}) {
+export default function CurrentGame(
+  {
+    live,
+    biddingInteractiveIds,
+    onConfirmBid,
+  }: { live?: LiveOverlay; biddingInteractiveIds?: string[]; onConfirmBid?: (round: number, playerId: string, bid: number) => void } = {},
+) {
   const { state, append, ready } = useAppState();
   const players = selectPlayersOrdered(state);
   const abbr = twoCharAbbrs(players);
@@ -391,12 +398,13 @@ export default function CurrentGame({ live }: { live?: LiveOverlay } = {}) {
                 const isLive = (rState === 'playing') && live && live.round === round.round;
                 const liveCard = isLive ? live!.cards[c.id] : null;
                 const isCurrent = isLive && live!.currentPlayerId === c.id;
+                const cellBorder = isCurrent ? 'border-2 border-indigo-500' : 'border-b';
                 return (
                   <div
                     key={`${round.round}-${c.id}`}
                     role="gridcell"
                     aria-colindex={colIdx + 2}
-                    className={`border-b grid grid-cols-1 ${rState === 'bidding' || rState === 'complete' || rState === 'playing' ? 'grid-rows-1' : showDetails ? 'grid-rows-2' : 'grid-rows-1'} transition-all duration-200 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${getPlayerCellBackgroundStyles(rState)} ${isCurrent ? 'ring-2 ring-indigo-500' : ''}`}
+                    className={`${cellBorder} grid grid-cols-1 ${rState === 'bidding' || rState === 'complete' || rState === 'playing' ? 'grid-rows-1' : showDetails ? 'grid-rows-2' : 'grid-rows-1'} transition-all duration-200 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${getPlayerCellBackgroundStyles(rState)}`}
                     tabIndex={0}
                     onClick={() => {
                       if (isScored) toggleCellDetails(round.round, c.id);
@@ -439,42 +447,78 @@ export default function CurrentGame({ live }: { live?: LiveOverlay } = {}) {
                         </div>
                       </>
                     ) : rState === 'bidding' ? (
-                      <div className="flex items-center justify-center px-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
-                          onClick={() => void decrementBid(round.round, c.id)}
-                          aria-label={`Decrease bid for ${c.name} in round ${round.round}`}
-                          disabled={bid <= 0}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-foreground bg-secondary/70 dark:bg-secondary/30 px-1.5 rounded">
-                          {bid}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
-                          onClick={() => void incrementBid(round.round, c.id, max)}
-                          aria-label={`Increase bid for ${c.name} in round ${round.round}`}
-                          disabled={bid >= max}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      (() => {
+                        const canBid = !biddingInteractiveIds || biddingInteractiveIds.includes(c.id);
+                        if (!canBid) {
+                          return (
+                            <div className="flex items-center justify-center px-1">
+                              <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-foreground bg-secondary/50 dark:bg-secondary/20 px-1.5 rounded">
+                                {bid}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="flex items-center justify-center px-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
+                              onClick={() => void decrementBid(round.round, c.id)}
+                              aria-label={`Decrease bid for ${c.name} in round ${round.round}`}
+                              disabled={bid <= 0}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-foreground bg-secondary/70 dark:bg-secondary/30 px-1.5 rounded">
+                              {bid}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
+                              onClick={() => void incrementBid(round.round, c.id, max)}
+                              aria-label={`Increase bid for ${c.name} in round ${round.round}`}
+                              disabled={bid >= max}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                            {onConfirmBid ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 w-6 p-0 ml-1 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 border-emerald-700 dark:border-emerald-600 text-white"
+                                onClick={() => onConfirmBid(round.round, c.id, bid)}
+                                aria-label={`Confirm bid for ${c.name} and start round`}
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                            ) : null}
+                          </div>
+                        );
+                      })()
                     ) : rState === 'playing' ? (
-                      <div className="flex items-center justify-between w-full px-1 py-0.5">
-                        <span className="text-foreground text-sm">Bid: {bid}</span>
-                        <span className={`font-mono inline-flex items-center gap-1 ${liveCard ? suitColorClass(liveCard.suit) : 'text-muted-foreground'}`}>
+                      <div
+                        id={cellKeyId}
+                        className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none"
+                      >
+                        {(() => {
+                          const taken = live?.counts?.[c.id] ?? 0;
+                          return (
+                            <span className="w-full text-right font-extrabold text-xl text-foreground">
+                              {taken}/{bid}
+                            </span>
+                          );
+                        })()}
+                        <span className="px-1 font-extrabold text-xl text-foreground">-</span>
+                        <span className={`w-full text-left font-mono inline-flex items-center gap-1 ${liveCard ? suitColorClass(liveCard?.suit || '') : 'text-muted-foreground'}`}>
                           {liveCard ? (
                             <>
-                              <span className="font-bold text-sm text-foreground">{rankLabel(liveCard.rank)}</span>
-                              <span>{suitSymbol(liveCard.suit)}</span>
+                              <span className="font-bold text-lg text-foreground">{rankLabel(liveCard.rank)}</span>
+                              <span className="text-lg">{suitSymbol(liveCard.suit)}</span>
                             </>
                           ) : (
-                            <span className="text-[0.7rem]">—</span>
+                            <span className="text-[0.9rem]">—</span>
                           )}
                         </span>
                       </div>

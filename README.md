@@ -146,13 +146,13 @@ This repo includes a lightweight analytics relay that forwards pageview details 
 - CI deploy: `.github/workflows/deploy-cloudflare-worker.yml`
 
 Setup (local quick test)
-- Install Wrangler: `npm i -g wrangler@3`
+- Install Wrangler v4: `npm i -g wrangler@4`
 - Login: `wrangler login`
 - Set secrets (replace paths as needed):
   - `wrangler --config cloudflare/analytics-worker/wrangler.toml secret put SLACK_WEBHOOK_URL`
   - Optional: `wrangler ... secret put ANALYTICS_TOKEN`
   - Optional: `wrangler ... secret put ALLOWED_ORIGIN` (e.g., `https://yourdomain.com`)
-- Publish: `wrangler publish --config cloudflare/analytics-worker/wrangler.toml`
+- Deploy: `wrangler deploy --config cloudflare/analytics-worker/wrangler.toml`
 - Note your URL: `https://analytics-relay.<account>.workers.dev`
 
 GitHub Actions deploy

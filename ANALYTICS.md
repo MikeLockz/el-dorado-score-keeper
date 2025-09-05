@@ -265,14 +265,14 @@ Prereqs
 - Slack Incoming Webhook URL (store as a secret).
 
 Local quick test
-1. Install Wrangler: `npm i -g wrangler@3`
+1. Install Wrangler v4: `npm i -g wrangler@4`
 2. Authenticate: `wrangler login`
 3. Set secrets:
    - `wrangler --config cloudflare/analytics-worker/wrangler.toml secret put SLACK_WEBHOOK_URL`
    - Optional: `wrangler ... secret put ANALYTICS_TOKEN`
    - Optional: `wrangler ... secret put ALLOWED_ORIGIN` (e.g., `https://yourdomain.com`)
-4. Publish:
-   - `wrangler publish --config cloudflare/analytics-worker/wrangler.toml`
+4. Deploy:
+   - `wrangler deploy --config cloudflare/analytics-worker/wrangler.toml`
 5. Note the deployed URL (e.g., `https://analytics-relay.<acct>.workers.dev`).
 
 GitHub Actions (CI/CD)
