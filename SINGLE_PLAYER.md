@@ -25,7 +25,8 @@ This document is the implementation plan to add a single‑player, interactive m
   - No additional sum‑of‑bids restriction.
 - Trick Play:
   - The player who made the first bid leads the first trick; trick winners lead subsequent tricks.
-  - Leading restriction: a player may lead any suit except trump if they hold at least one non‑trump card.
+  - Leading restriction: a player may lead any suit except trump if they hold at least one non-trump card.
+  - Breaking trump: once a trump card has been played off-suit (i.e., not led) because a player could not follow the led suit (or only had trump remaining), trump is considered "broken" and may be led on subsequent tricks of the same round.
   - Following:
     - Players must follow the led suit if able.
     - If unable to follow the led suit, they may play any card.
@@ -123,4 +124,3 @@ This document is the implementation plan to add a single‑player, interactive m
 ---
 
 Implementation will keep the scorekeeper stable while adding a new, optional single‑player path with clear boundaries between runtime game logic and persisted scoring data.
-

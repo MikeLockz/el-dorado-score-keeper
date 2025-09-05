@@ -12,6 +12,7 @@ export type BotContext = Readonly<{
   bidsSoFar: Readonly<Record<PlayerId, number>>;
   tricksWonSoFar: Readonly<Record<PlayerId, number>>;
   selfId: PlayerId;
+  trumpBroken?: boolean;
 }>;
 
 function handStats(hand: readonly Card[], trump: Suit) {
@@ -50,7 +51,7 @@ export function botBid(ctx: Omit<BotContext, 'trickPlays' | 'tricksWonSoFar'>, d
 }
 
 export function botPlay(ctx: BotContext, diff: BotDifficulty): Card {
-  const { hand, trump, trickPlays, selfId } = ctx;
+  const { hand, trump, trickPlays, trumpBroken } = ctx;
   const led = ledSuitOf(trickPlays as any);
   const hasTrump = hand.some((c) => c.suit === trump);
   const hasNonTrump = hand.some((c) => c.suit !== trump);
@@ -64,11 +65,15 @@ export function botPlay(ctx: BotContext, diff: BotDifficulty): Card {
 
   // Leading
   if (!led) {
-    // Cannot lead trump if any non-trump present
+    // If trump not yet broken, avoid leading trump when we still have non-trump
+    if (!trumpBroken && hasNonTrump) {
+      const nonTrump = hand.filter((c) => c.suit !== trump);
+      return highest(nonTrump);
+    }
     if (hasNonTrump) {
       const nonTrump = hand.filter((c) => c.suit !== trump);
-      // Prefer leading a high card in longest non-trump suit would be better; keep simple: highest non-trump
-      return highest(nonTrump);
+      // With trump broken we may still prefer a strong non-trump
+      return diff === 'easy' ? lowest(nonTrump) : highest(nonTrump);
     }
     // All trump: lead lowest trump to conserve winners
     const tr = hand.filter((c) => c.suit === trump);
@@ -104,4 +109,3 @@ export function botPlay(ctx: BotContext, diff: BotDifficulty): Card {
   // No trump, cannot follow: slough lowest
   return lowest(hand.slice());
 }
-

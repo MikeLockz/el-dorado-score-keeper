@@ -24,6 +24,7 @@ export default function SinglePlayerPage() {
   const [hands, setHands] = React.useState<Record<PlayerId, Card[]>>({});
   const [saved, setSaved] = React.useState(false);
   const [selectedCard, setSelectedCard] = React.useState<Card | null>(null);
+  const [trumpBroken, setTrumpBroken] = React.useState(false);
 
   const appPlayers = React.useMemo(() => selectPlayersOrdered(state), [state]);
   const activePlayers = React.useMemo(() => appPlayers.slice(0, playersCount), [appPlayers, playersCount]);
@@ -36,6 +37,7 @@ export default function SinglePlayerPage() {
   const onDeal = () => {
     setSaved(false);
     setSelectedCard(null);
+    setTrumpBroken(false);
     const deal = startRound(
       {
         round: roundNo,
@@ -79,6 +81,14 @@ export default function SinglePlayerPage() {
       ? 'text-red-700 dark:text-red-300'
       : 'text-foreground';
   }, []);
+  const suitOrder = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
+  const nameFor = React.useCallback(
+    (pid: string) => activePlayers.find((ap) => ap.id === pid)?.name ?? pid,
+    [activePlayers],
+  );
+  const BotBadge = () => (
+    <span className="ml-1 text-[10px] uppercase rounded px-1 border border-border text-muted-foreground">BOT</span>
+  );
 
   // Advance play: bot turns and trick resolution
   React.useEffect(() => {
@@ -105,6 +115,7 @@ export default function SinglePlayerPage() {
           bidsSoFar: bids,
           tricksWonSoFar: trickCounts,
           selfId: pid,
+          trumpBroken,
         },
         'normal',
       );
@@ -132,6 +143,7 @@ export default function SinglePlayerPage() {
         seatIndex: currentBidderIdx,
         bidsSoFar: bids,
         selfId: pid,
+        // trumpBroken not relevant during bidding; omit
       },
       'normal',
     );
@@ -154,6 +166,12 @@ export default function SinglePlayerPage() {
     const winner = winnerOfTrick(trickPlays as any, lastDeal.trump);
     if (!winner) return;
     const t = setTimeout(() => {
+      // If any off-suit trump was played this trick, mark trump as broken for future leads
+      const ledSuit = trickPlays[0]?.card.suit;
+      const anyTrump = trickPlays.some((p) => p.card.suit === lastDeal.trump);
+      if (!trumpBroken && anyTrump && ledSuit && ledSuit !== lastDeal.trump) {
+        setTrumpBroken(true);
+      }
       setTrickCounts((tc) => ({ ...tc, [winner]: (tc[winner] ?? 0) + 1 }));
       setTrickLeader(winner);
       setTrickPlays([]);
@@ -237,10 +255,11 @@ export default function SinglePlayerPage() {
           <div className="text-sm">
             Trump:{' '}
             <span
-              className={`font-mono text-lg ${suitColorClass(lastDeal.trump)}`}
+              className="font-mono text-lg inline-flex items-center gap-1"
               title={`Trump card: ${rankLabel(lastDeal.trumpCard.rank)} of ${lastDeal.trumpCard.suit}`}
             >
-              {suitSymbol(lastDeal.trump)}
+              <span className="font-bold text-foreground">{rankLabel(lastDeal.trumpCard.rank)}</span>
+              <span className={suitColorClass(lastDeal.trump)}>{suitSymbol(lastDeal.trump)}</span>
             </span>
           </div>
           <div className="text-sm">First to act: <span className="font-mono">{lastDeal.firstToAct}</span></div>
@@ -250,7 +269,32 @@ export default function SinglePlayerPage() {
           {phase === 'bidding' && (
             <div className="space-y-2">
               <div className="font-semibold">Bidding</div>
-              <div className="text-sm">Current bidder: {turnOrder[currentBidderIdx]}</div>
+              <div className="text-sm">
+                Current bidder:{' '}
+                <strong className="inline-flex items-center">
+                  {nameFor(turnOrder[currentBidderIdx])}
+                  {turnOrder[currentBidderIdx] !== human && <BotBadge />}
+                </strong>
+                <span className="ml-2 text-xs text-muted-foreground">
+                  ({currentBidderIdx + 1} of {turnOrder.length})
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1 text-xs">
+                {turnOrder.map((p, i) => (
+                  <span
+                    key={`bid-chip-${p}-${i}`}
+                    className={`px-2 py-0.5 rounded border ${
+                      i === currentBidderIdx ? 'bg-accent text-accent-foreground border-accent' : 'border-border'
+                    }`}
+                    title={`Seat ${i + 1}`}
+                  >
+                    <span className="inline-flex items-center">
+                      {nameFor(p)}
+                      {p !== human && <BotBadge />}
+                    </span>
+                  </span>
+                ))}
+              </div>
               {turnOrder[currentBidderIdx] === human ? (
                 <div className="flex items-center gap-2">
                   <label className="text-sm">Your bid:</label>
@@ -285,20 +329,28 @@ export default function SinglePlayerPage() {
               {/* Show the human player's hand during bidding for informed decisions */}
               <div>
                 <div className="font-semibold">Your Hand ({activePlayers.find(ap => ap.id===human)?.name ?? human}):</div>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {humanHand
-                    .slice()
-                    .sort((a, b) => (a.suit === b.suit ? b.rank - a.rank : a.suit.localeCompare(b.suit)))
-                    .map((c, idx) => (
-                      <div
-                        key={`bid-${c.suit}-${c.rank}-${idx}`}
-                        className="border rounded px-2 py-1 text-sm font-mono inline-flex items-center justify-center gap-1 bg-background"
-                        title={`${rankLabel(c.rank)} of ${c.suit}`}
-                      >
-                        <span className="font-bold">{rankLabel(c.rank)}</span>
-                        <span className={suitColorClass(c.suit)}>{suitSymbol(c.suit)}</span>
+                <div className="space-y-1">
+                  {suitOrder.map((s) => {
+                    const row = humanHand.filter((c) => c.suit === s).sort((a,b)=> b.rank - a.rank);
+                    if (row.length === 0) return null;
+                    return (
+                      <div key={`bid-row-${s}`} className="flex items-center gap-2">
+                        <div className={`w-5 text-center ${suitColorClass(s)}`}>{suitSymbol(s)}</div>
+                        <div className="flex flex-wrap gap-1">
+                          {row.map((c, i) => (
+                            <div
+                              key={`bid-${s}-${c.rank}-${i}`}
+                              className="border rounded px-2 py-1 text-sm font-mono inline-flex items-center justify-center gap-1 bg-background"
+                              title={`${rankLabel(c.rank)} of ${c.suit}`}
+                            >
+                              <span className="font-bold">{rankLabel(c.rank)}</span>
+                              <span className={suitColorClass(c.suit)}>{suitSymbol(c.suit)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -308,19 +360,49 @@ export default function SinglePlayerPage() {
             <div className="space-y-3">
               <div className="font-semibold">Play</div>
               <div className="text-sm">Leader: {trickLeader}</div>
-              <div className="text-sm">Turn order: {(() => {
+              {(() => {
                 const leaderIdx = turnOrder.findIndex((p) => p === trickLeader);
-                if (leaderIdx < 0) return turnOrder.join(' → ');
-                const rotated = [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
-                return rotated.join(' → ');
-              })()}</div>
+                const rotated = leaderIdx < 0
+                  ? turnOrder
+                  : [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
+                const currentIdx = trickPlays.length; // next to play in this trick
+                return (
+                  <div className="space-y-1">
+                    <div className="text-sm">
+                      Playing order:
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        Position {Math.min(currentIdx + 1, rotated.length)} of {rotated.length}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1 text-xs">
+                      {rotated.map((p, i) => (
+                        <span
+                          key={`play-chip-${p}-${i}`}
+                          className={`px-2 py-0.5 rounded border ${
+                            i === currentIdx ? 'bg-accent text-accent-foreground border-accent' : 'border-border'
+                          }`}
+                          title={`Order ${i + 1}`}
+                        >
+                          <span className="inline-flex items-center">
+                            {nameFor(p)}
+                            {p !== human && <BotBadge />}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               {/* Show current trick with card tiles */}
               <div className="space-y-1">
                 <div className="font-medium text-sm">Current trick:</div>
                 <ul className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {trickPlays.map((p, i) => (
                     <li key={`tp-${p.player}-${i}`} className="border rounded px-2 py-1 flex items-center justify-between">
-                      <span className="text-xs mr-2">{activePlayers.find(ap => ap.id===p.player)?.name ?? p.player}</span>
+                      <span className="text-xs mr-2 inline-flex items-center">
+                        {nameFor(p.player)}
+                        {p.player !== human && <BotBadge />}
+                      </span>
                       <span className={`font-mono inline-flex items-center gap-1 ${suitColorClass(p.card.suit)}`} title={`${rankLabel(p.card.rank)} of ${p.card.suit}`}>
                         <span className="font-bold text-sm text-foreground">{rankLabel(p.card.rank)}</span>
                         <span>{suitSymbol(p.card.suit)}</span>
@@ -329,47 +411,69 @@ export default function SinglePlayerPage() {
                   ))}
                 </ul>
               </div>
-              <div className="text-sm">Tricks won: {turnOrder.map((p) => `${activePlayers.find(ap => ap.id===p)?.name ?? p}:${trickCounts[p] ?? 0}`).join('  ')}</div>
+              <div className="text-sm">
+                Tricks won:
+                <div className="mt-1 flex flex-wrap gap-1 text-xs">
+                  {turnOrder.map((p) => (
+                    <span key={`won-${p}`} className="px-2 py-0.5 rounded border border-border inline-flex items-center gap-1">
+                      <span className="inline-flex items-center">
+                        {nameFor(p)}
+                        {p !== human && <BotBadge />}
+                      </span>
+                      <span className="font-mono">{trickCounts[p] ?? 0}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
               <div>
                 <div className="font-semibold">Your Hand ({activePlayers.find(ap => ap.id===human)?.name ?? human}):</div>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {hands[human]?.slice()
-                    .sort((a, b) => (a.suit === b.suit ? b.rank - a.rank : a.suit.localeCompare(b.suit)))
-                    .map((c, idx) => {
-                      const ledSuit = trickPlays[0]?.card.suit;
-                      const trickTrumped = trickPlays.some((p) => p.card.suit === lastDeal.trump);
-                      const canFollow = (hands[human] ?? []).some((h) => h.suit === ledSuit);
-                      let legal = true;
+                <div className="space-y-1">
+                  {suitOrder.map((s) => {
+                    const row = (hands[human] ?? []).filter((c) => c.suit === s).sort((a,b)=> b.rank - a.rank);
+                    if (row.length === 0) return null;
+                    return (
+                      <div key={`play-row-${s}`} className="flex items-center gap-2">
+                        <div className={`w-5 text-center ${suitColorClass(s)}`}>{suitSymbol(s)}</div>
+                        <div className="flex flex-wrap gap-1">
+                          {row.map((c, idx) => {
+                            const ledSuit = trickPlays[0]?.card.suit;
+                            const trickTrumped = trickPlays.some((p) => p.card.suit === lastDeal.trump);
+                            const canFollow = (hands[human] ?? []).some((h) => h.suit === ledSuit);
+                            let legal = true;
                       if (!ledSuit) {
                         const hasNonTrump = (hands[human] ?? []).some((h) => h.suit !== lastDeal.trump);
-                        if (hasNonTrump && c.suit === lastDeal.trump) legal = false;
+                        if (!trumpBroken && hasNonTrump && c.suit === lastDeal.trump) legal = false;
                       } else if (canFollow) {
                         legal = c.suit === ledSuit;
                       } else if (trickTrumped) {
                         const hasTrump = (hands[human] ?? []).some((h) => h.suit === lastDeal.trump);
                         if (hasTrump) legal = c.suit === lastDeal.trump;
-                      }
-                      const leaderIdx = turnOrder.findIndex((p) => p === trickLeader);
-                      const rotated = leaderIdx < 0 ? turnOrder : [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
-                      const nextToPlay = rotated[trickPlays.length];
-                      const isHumansTurn = nextToPlay === human;
-                      const isSelected = selectedCard === c;
-                      return (
-                        <button
-                          key={`${c.suit}-${c.rank}-${idx}`}
-                          className={`border rounded px-2 py-1 text-sm font-mono inline-flex items-center justify-center gap-1 ${legal && isHumansTurn ? '' : 'opacity-40'} ${isSelected ? 'ring-2 ring-sky-500' : ''}`}
-                          disabled={!legal || !isHumansTurn}
-                          onClick={() => {
-                            if (!legal || !isHumansTurn) return;
-                            setSelectedCard((prev) => (prev === c ? null : c));
-                          }}
-                          title={`${rankLabel(c.rank)} of ${c.suit}`}
-                        >
-                          <span className="font-bold">{rankLabel(c.rank)}</span>
-                          <span className={suitColorClass(c.suit)}>{suitSymbol(c.suit)}</span>
-                        </button>
-                      );
-                    })}
+                            }
+                            const leaderIdx = turnOrder.findIndex((p) => p === trickLeader);
+                            const rotated = leaderIdx < 0 ? turnOrder : [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
+                            const nextToPlay = rotated[trickPlays.length];
+                            const isHumansTurn = nextToPlay === human;
+                            const isSelected = selectedCard === c;
+                            return (
+                              <button
+                                key={`play-${s}-${c.rank}-${idx}`}
+                                className={`border rounded px-2 py-1 text-sm font-mono inline-flex items-center justify-center gap-1 ${legal && isHumansTurn ? '' : 'opacity-40'} ${isSelected ? 'ring-2 ring-sky-500' : ''}`}
+                                disabled={!legal || !isHumansTurn}
+                                onClick={() => {
+                                  if (!legal || !isHumansTurn) return;
+                                  setSelectedCard((prev) => (prev === c ? null : c));
+                                }}
+                                title={`${rankLabel(c.rank)} of ${c.suit}`}
+                              >
+                                <span className="font-bold">{rankLabel(c.rank)}</span>
+                                <span className={suitColorClass(c.suit)}>{suitSymbol(c.suit)}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="mt-2">
                   <button
@@ -385,7 +489,7 @@ export default function SinglePlayerPage() {
                       let legal = true;
                       if (!ledSuit) {
                         const hasNonTrump = (hands[human] ?? []).some((h) => h.suit !== lastDeal!.trump);
-                        if (hasNonTrump && selectedCard.suit === lastDeal!.trump) legal = false;
+                        if (!trumpBroken && hasNonTrump && selectedCard.suit === lastDeal!.trump) legal = false;
                       } else if (canFollow) {
                         legal = selectedCard.suit === ledSuit;
                       } else if (trickTrumped) {
@@ -424,8 +528,12 @@ export default function SinglePlayerPage() {
                   const bid = bids[p] ?? 0;
                   const made = won === bid;
                   return (
-                    <li key={`res-${p}`}>
-                      {(activePlayers.find((ap) => ap.id === p)?.name ?? p)}: bid {bid}, won {won} — {made ? 'Made' : 'Missed'}
+                    <li key={`res-${p}`} className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center">
+                        {nameFor(p)}
+                        {p !== human && <BotBadge />}
+                      </span>
+                      : bid {bid}, won {won} — {made ? 'Made' : 'Missed'}
                     </li>
                   );
                 })}
