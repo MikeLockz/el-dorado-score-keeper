@@ -181,17 +181,100 @@ export default function CurrentGame() {
     }
   };
 
+  // Compact layout: scale the grid only when screen is too narrow
+  const isCompact = columnCount > 4;
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const gridRef = React.useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = React.useState(1);
+  const [applyScale, setApplyScale] = React.useState(false);
+
+  React.useLayoutEffect(() => {
+    const container = containerRef.current;
+    const content = contentRef.current;
+    const grid = gridRef.current;
+    if (!container || !grid) return;
+
+    const ROUND_REM = 3; // row header column
+    const COL_REM = 4.75; // each player column
+
+    let raf = 0;
+    const fit = () => {
+      if (!container) return;
+      const cw = container.clientWidth;
+      // Compute natural width in px using rem so we can decide without forcing fixed columns
+      const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const naturalPx = remPx * (ROUND_REM + COL_REM * columnCount);
+      const shouldScale = isCompact && cw < naturalPx;
+
+      if (!shouldScale) {
+        setApplyScale(false);
+        setScale(1);
+        container.style.height = '';
+        if (content) {
+          content.style.transform = '';
+          content.style.width = '';
+        }
+        return;
+      }
+
+      const next = Math.max(0.5, Math.min(1, cw / naturalPx));
+      setApplyScale(true);
+      setScale(next);
+      // Maintain correct outer height to avoid clipping when scaled
+      container.style.height = `${Math.ceil(grid.scrollHeight * next)}px`;
+      if (content) {
+        content.style.transform = `scale(${next})`;
+        content.style.transformOrigin = 'top left';
+        content.style.width = `${ROUND_REM + COL_REM * columnCount}rem`;
+      }
+    };
+    fit();
+
+    const roContainer = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(fit);
+    });
+    roContainer.observe(container);
+
+    const roGrid = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(fit);
+    });
+    roGrid.observe(grid);
+
+    const onOrient = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(fit);
+    };
+    window.addEventListener('orientationchange', onOrient);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      roContainer.disconnect();
+      roGrid.disconnect();
+      window.removeEventListener('orientationchange', onOrient);
+    };
+  }, [isCompact, columnCount]);
+
   return (
     <div className="p-2 mx-auto">
       <Card className="overflow-hidden shadow-none">
-        <div
-          role="grid"
-          aria-label="Score grid"
-          aria-rowcount={ROUNDS_TOTAL + 1}
-          aria-colcount={columnCount + 1}
-          className="grid text-[0.65rem] sm:text-xs"
-          style={{ gridTemplateColumns: `3rem repeat(${columnCount}, 1fr)` }}
-        >
+        <div ref={containerRef} className="relative w-full overflow-hidden">
+          <div ref={contentRef}>
+            <div
+              ref={gridRef}
+              role="grid"
+              aria-label="Score grid"
+              aria-rowcount={ROUNDS_TOTAL + 1}
+              aria-colcount={columnCount + 1}
+              className="grid text-[0.65rem] sm:text-xs"
+              style={{
+                gridTemplateColumns: applyScale
+                  ? `3rem repeat(${columnCount}, 4.75rem)`
+                  : `3rem repeat(${columnCount}, 1fr)`,
+              }}
+            >
           <div role="row" aria-rowindex={1} className="contents">
             <div
               role="columnheader"
@@ -495,6 +578,8 @@ export default function CurrentGame() {
               })}
             </div>
           ))}
+            </div>
+          </div>
         </div>
       </Card>
     </div>

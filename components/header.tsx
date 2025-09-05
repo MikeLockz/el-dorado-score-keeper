@@ -23,7 +23,6 @@ export default function Header() {
             width={24}
             height={24}
             className="h-5 w-5 object-contain"
-            priority
           />
           <span>El Dorado</span>
         </Link>
