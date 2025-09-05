@@ -6,4 +6,4 @@ export * from './deal';
 export * from './rules';
 export * from './trick';
 export * from './round';
-
+export * as bots from './bots/simple';
