@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import { startRound, bots, winnerOfTrick } from '@/lib/single-player';
+import CurrentGame from '@/components/views/CurrentGame';
 import type { PlayerId, RoundStart, Card } from '@/lib/single-player';
 import { tricksForRound } from '@/lib/state/logic';
 import { useAppState } from '@/components/state-provider';
@@ -185,7 +186,7 @@ export default function SinglePlayerPage() {
   }, [trickPlays, turnOrder.length, lastDeal, phase, trickLeader, tricks]);
 
   return (
-    <main className="p-4 space-y-4">
+    <main className="p-4 space-y-6">
       <h1 className="text-xl font-bold">El Dorado — Single Player (Dev Harness)</h1>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
@@ -574,6 +575,13 @@ export default function SinglePlayerPage() {
           )}
         </div>
       )}
+
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">Scorecard</h2>
+        <div className="border rounded">
+          <CurrentGame />
+        </div>
+      </div>
     </main>
   );
 }
