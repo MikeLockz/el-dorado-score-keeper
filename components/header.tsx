@@ -67,6 +67,16 @@ export default function Header() {
             >
               <Link href="/players">Players</Link>
             </DropdownMenu.Item>
+            <DropdownMenu.Item
+              asChild
+              className={cn(
+                itemBase,
+                isActive('/single-player') &&
+                  'bg-accent text-accent-foreground font-semibold -mb-px relative z-10',
+              )}
+            >
+              <Link href="/single-player">Single Player</Link>
+            </DropdownMenu.Item>
             <DropdownMenu.Separator className="h-px bg-border" />
             <DropdownMenu.Item
               asChild
