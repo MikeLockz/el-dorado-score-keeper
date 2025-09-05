@@ -119,6 +119,33 @@ export default function SinglePlayerPage() {
     }
   }, [phase, trickPlays, trickLeader, hands, lastDeal, bids, trickCounts, human, tricks, turnOrder]);
 
+  // Auto-bid for bots during bidding phase
+  React.useEffect(() => {
+    if (!lastDeal || phase !== 'bidding') return;
+    const pid = turnOrder[currentBidderIdx];
+    if (!pid || pid === human) return;
+    const amount = bots.botBid(
+      {
+        trump: lastDeal.trump,
+        hand: hands[pid] ?? [],
+        tricksThisRound: tricks,
+        seatIndex: currentBidderIdx,
+        bidsSoFar: bids,
+        selfId: pid,
+      },
+      'normal',
+    );
+    const t = setTimeout(() => {
+      setBids((m) => ({ ...m, [pid]: amount }));
+      const nextIdx = currentBidderIdx + 1;
+      if (nextIdx >= turnOrder.length) {
+        setPhase('playing');
+      }
+      setCurrentBidderIdx(nextIdx);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [phase, currentBidderIdx, turnOrder, human, lastDeal, hands, bids, tricks]);
+
   // Resolve completed trick
   React.useEffect(() => {
     if (!lastDeal || phase !== 'playing' || !trickLeader) return;
