@@ -365,7 +365,7 @@ export default function SinglePlayerPage() {
                       const nextIdx = currentBidderIdx + 1;
                       if (nextIdx >= turnOrder.length) {
                         setPhase('playing');
-                        void append(events.roundStateSet({ round: roundNo, state: 'complete' }));
+                        void append(events.roundStateSet({ round: roundNo, state: 'playing' }));
                       }
                       setCurrentBidderIdx(nextIdx);
                     }}
@@ -630,7 +630,17 @@ export default function SinglePlayerPage() {
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">Scorecard</h2>
         <div className="border rounded">
-          <CurrentGame />
+          {(() => {
+            const leaderIdx = turnOrder.findIndex((p) => p === trickLeader);
+            const rotated = leaderIdx < 0 ? turnOrder : [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
+            const nextToPlay = phase === 'playing' ? rotated[trickPlays.length] : null;
+            const cards: Record<string, { suit: 'clubs'|'diamonds'|'hearts'|'spades'; rank: number } | null> = {} as any;
+            if (phase !== 'bidding') {
+              for (const p of turnOrder) (cards as any)[p] = null;
+              for (const tp of trickPlays) (cards as any)[tp.player] = { suit: tp.card.suit as any, rank: tp.card.rank };
+            }
+            return <CurrentGame live={phase === 'playing' ? { round: roundNo, currentPlayerId: nextToPlay, cards } : undefined} />;
+          })()}
         </div>
       </div>
     </main>
