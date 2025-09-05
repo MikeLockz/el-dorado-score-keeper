@@ -140,7 +140,6 @@ async function logClientError(payload: {
 }) {
   try {
     // Always mirror to console for local visibility
-    // eslint-disable-next-line no-console
     console.error('[ui error]', payload);
   } catch {}
   try {
@@ -169,7 +168,10 @@ export function AppErrorBoundary({ children }: { children: React.ReactNode }) {
         } = {
           errorId: info.errorId,
           message: String(error?.message || error),
-          stack: typeof (error as any)?.stack === 'string' ? (error as any).stack : undefined,
+          stack: (() => {
+            const maybeStack: unknown = (error as { stack?: unknown })?.stack;
+            return typeof maybeStack === 'string' ? maybeStack : undefined;
+          })(),
           path: typeof window !== 'undefined' ? window.location?.pathname : undefined,
           ua: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
         };
