@@ -182,7 +182,7 @@ export default function SinglePlayerPage() {
       const nextIdx = currentBidderIdx + 1;
       if (nextIdx >= turnOrder.length) {
         setPhase('playing');
-        void append(events.roundStateSet({ round: roundNo, state: 'complete' }));
+        void append(events.roundStateSet({ round: roundNo, state: 'playing' }));
       }
       setCurrentBidderIdx(nextIdx);
     }, 300);
