@@ -60,6 +60,24 @@ export default function SinglePlayerPage() {
 
   const humanHand = lastDeal?.hands[human] ?? [];
 
+  // Formatting helpers for card display
+  const rankLabel = React.useCallback((rank: number): string => {
+    if (rank === 14) return 'A';
+    if (rank === 13) return 'K';
+    if (rank === 12) return 'Q';
+    if (rank === 11) return 'J';
+    return String(rank);
+  }, []);
+  const suitSymbol = React.useCallback((suit: string): string => {
+    return suit === 'spades' ? '♠' : suit === 'hearts' ? '♥' : suit === 'diamonds' ? '♦' : '♣';
+  }, []);
+  const suitColorClass = React.useCallback((suit: string): string => {
+    // Hearts/Diamonds in red; Clubs/Spades default foreground
+    return suit === 'hearts' || suit === 'diamonds'
+      ? 'text-red-700 dark:text-red-300'
+      : 'text-foreground';
+  }, []);
+
   // Advance play: bot turns and trick resolution
   React.useEffect(() => {
     if (!lastDeal || phase !== 'playing' || !trickLeader) return;
@@ -250,6 +268,26 @@ export default function SinglePlayerPage() {
                 </button>
               )}
               <div className="text-xs text-muted-foreground">Bids: {turnOrder.map((p) => `${p}:${bids[p] ?? '-'}`).join('  ')}</div>
+
+              {/* Show the human player's hand during bidding for informed decisions */}
+              <div>
+                <div className="font-semibold">Your Hand ({activePlayers.find(ap => ap.id===human)?.name ?? human}):</div>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  {humanHand
+                    .slice()
+                    .sort((a, b) => (a.suit === b.suit ? b.rank - a.rank : a.suit.localeCompare(b.suit)))
+                    .map((c, idx) => (
+                      <div
+                        key={`bid-${c.suit}-${c.rank}-${idx}`}
+                        className="border rounded px-2 py-1 text-sm font-mono inline-flex items-center justify-center gap-1 bg-background"
+                        title={`${rankLabel(c.rank)} of ${c.suit}`}
+                      >
+                        <span className="font-bold">{rankLabel(c.rank)}</span>
+                        <span className={suitColorClass(c.suit)}>{suitSymbol(c.suit)}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -267,7 +305,7 @@ export default function SinglePlayerPage() {
               <div className="text-sm">Tricks won: {turnOrder.map((p) => `${activePlayers.find(ap => ap.id===p)?.name ?? p}:${trickCounts[p] ?? 0}`).join('  ')}</div>
               <div>
                 <div className="font-semibold">Your Hand ({activePlayers.find(ap => ap.id===human)?.name ?? human}):</div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {hands[human]?.slice()
                     .sort((a, b) => (a.suit === b.suit ? b.rank - a.rank : a.suit.localeCompare(b.suit)))
                     .map((c, idx) => {
@@ -291,16 +329,17 @@ export default function SinglePlayerPage() {
                       return (
                         <button
                           key={`${c.suit}-${c.rank}-${idx}`}
-                          className={`border rounded px-2 py-1 text-sm font-mono text-left ${legal && isHumansTurn ? '' : 'opacity-40 cursor-not-allowed'}`}
+                          className={`border rounded px-2 py-1 text-sm font-mono inline-flex items-center justify-center gap-1 ${legal && isHumansTurn ? '' : 'opacity-40 cursor-not-allowed'}`}
                           disabled={!legal || !isHumansTurn}
                           onClick={() => {
                             if (!legal) return;
                             setTrickPlays((tp) => [...tp, { player: human, card: c, order: tp.length }]);
                             setHands((h) => ({ ...h, [human]: (h[human] ?? []).filter((hc, i) => !(hc === c && i === idx)) }));
                           }}
-                          title={`${c.rank} of ${c.suit}`}
+                          title={`${rankLabel(c.rank)} of ${c.suit}`}
                         >
-                          {c.rank} of {c.suit}
+                          <span className="font-bold">{rankLabel(c.rank)}</span>
+                          <span className={suitColorClass(c.suit)}>{suitSymbol(c.suit)}</span>
                         </button>
                       );
                     })}
