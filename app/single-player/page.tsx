@@ -22,6 +22,7 @@ export default function SinglePlayerPage() {
   const [trickCounts, setTrickCounts] = React.useState<Record<PlayerId, number>>({});
   const [completedTricks, setCompletedTricks] = React.useState(0);
   const [hands, setHands] = React.useState<Record<PlayerId, Card[]>>({});
+  const [saved, setSaved] = React.useState(false);
 
   const appPlayers = React.useMemo(() => selectPlayersOrdered(state), [state]);
   const activePlayers = React.useMemo(() => appPlayers.slice(0, playersCount), [appPlayers, playersCount]);
@@ -32,6 +33,7 @@ export default function SinglePlayerPage() {
   const useTwoDecks = playersCount > 5;
 
   const onDeal = () => {
+    setSaved(false);
     const deal = startRound(
       {
         round: roundNo,
@@ -336,10 +338,25 @@ export default function SinglePlayerPage() {
                     await append(events.madeSet({ round: roundNo, playerId: pid, made }));
                   }
                   await append(events.roundFinalize({ round: roundNo }));
+                  setSaved(true);
                 }}
               >
                 Save to Scorekeeper
               </button>
+              <button
+                className="inline-flex items-center rounded border px-3 py-1 text-sm ml-2"
+                onClick={() => {
+                  // Rotate dealer and advance round; then auto-deal next round
+                  setDealerIdx((i) => (i + 1) % players.length);
+                  setRoundNo((r) => Math.min(10, r + 1));
+                  setTimeout(() => onDeal(), 0);
+                }}
+              >
+                Next Round
+              </button>
+              {!saved && (
+                <div className="text-xs text-muted-foreground">Tip: Save to scorekeeper before advancing.</div>
+              )}
             </div>
           )}
         </div>
