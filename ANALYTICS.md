@@ -53,16 +53,21 @@ Script responsibilities:
 - Send: `navigator.sendBeacon` when available; otherwise `fetch` with `keepalive: true`.
 - De‑dup: Use `sessionStorage` to avoid repeat sends on reloads.
 
-Suggested configuration hook (before the script runs):
+Suggested configuration hook (before the script runs). Use your deployed Cloudflare Worker URL and set your production origin for CORS on the Worker side:
 ```html
 <script>
   window.analyticsConfig = {
-    webhookUrl: "https://hooks.example.com/incoming/analytics",
+    // Point to your Cloudflare Worker relay
+    webhookUrl: "https://analytics-relay.YOUR_ACCOUNT.workers.dev",
     siteId: "el-dorado-score-keeper",
     env: "prod",
     includeIP: "server",  // 'server' | 'client' | 'none'
     emoji: true,
-    disabledInDev: true
+    disabledInDev: true,
+    // Optional: token to authenticate with the Worker
+    // Note: sendBeacon cannot set headers, so the token will be sent in the JSON body.
+    // The fetch fallback (when used) will send it as Authorization header.
+    authToken: undefined // e.g., "abc123" if you configured ANALYTICS_TOKEN
   };
 </script>
 ```
@@ -129,6 +134,8 @@ Implementation snippet:
         timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone) || null,
         screen: { w: screen.width, h: screen.height, dpr: window.devicePixelRatio || 1 },
         ip: decorate(cfg.emoji !== false, '🌐', ip || null), // Prefer server-derived IP; client IP optional
+        // For Cloudflare Worker auth support when using sendBeacon (no headers allowed)
+        authToken: cfg.authToken || undefined,
         sessionId: (function () {
           try {
             let id = sessionStorage.getItem('analytics.sid');
@@ -156,7 +163,10 @@ Implementation snippet:
             method: 'POST',
             mode: 'cors',
             credentials: 'omit',
-            headers: { 'Content-Type': 'application/json' },
+            headers: Object.assign(
+              { 'Content-Type': 'application/json' },
+              cfg.authToken ? { Authorization: `Bearer ${cfg.authToken}` } : {}
+            ),
             body: json,
             keepalive: true
           }).catch(function () {});
@@ -200,6 +210,11 @@ How to include:
   - Validate an auth token header (e.g., `Authorization: Bearer <token>`).
   - Optionally normalize emoji‑decorated strings into canonical fields for storage.
 
+Cloudflare Worker specifics for this repo:
+- Path: `cloudflare/analytics-worker/src/worker.ts`
+- Secrets: `SLACK_WEBHOOK_URL` (required), `ANALYTICS_TOKEN` (optional), `ALLOWED_ORIGIN` (comma‑separated list of allowed origins).
+- Auth: Worker accepts either `Authorization: Bearer <token>` or `authToken` in the JSON body (to support `sendBeacon`).
+
 Example normalization (pseudocode):
 ```js
 function stripEmoji(s) { return s ? s.replace(/^\p{Emoji_Presentation}\s+/u, '') : s; }
@@ -242,3 +257,49 @@ Suggested storage schema:
 - Geo IP lookup server‑side (avoid client calls to third parties).
 - Real‑time alerts (Slack/Discord) for specific UTM campaigns.
 - Dashboard or simple query endpoint for summaries.
+
+## Setup: Cloudflare Worker + Slack
+
+Prereqs
+- Cloudflare account with Workers enabled and an API token with Workers Writes.
+- Slack Incoming Webhook URL (store as a secret).
+
+Local quick test
+1. Install Wrangler: `npm i -g wrangler@3`
+2. Authenticate: `wrangler login`
+3. Set secrets:
+   - `wrangler --config cloudflare/analytics-worker/wrangler.toml secret put SLACK_WEBHOOK_URL`
+   - Optional: `wrangler ... secret put ANALYTICS_TOKEN`
+   - Optional: `wrangler ... secret put ALLOWED_ORIGIN` (e.g., `https://yourdomain.com`)
+4. Publish:
+   - `wrangler publish --config cloudflare/analytics-worker/wrangler.toml`
+5. Note the deployed URL (e.g., `https://analytics-relay.<acct>.workers.dev`).
+
+GitHub Actions (CI/CD)
+- Add repo secrets:
+  - `CLOUDFLARE_API_TOKEN` (Workers publish token)
+  - `CLOUDFLARE_ACCOUNT_ID` (from Cloudflare dashboard)
+  - `SLACK_WEBHOOK_URL`
+  - Optional: `ANALYTICS_TOKEN`, `ALLOWED_ORIGIN`
+- On push to `main` touching `cloudflare/analytics-worker/**`, the workflow publishes the Worker and updates secrets.
+
+Client config example
+```html
+<script>
+  window.analyticsConfig = {
+    webhookUrl: "https://analytics-relay.<acct>.workers.dev",
+    siteId: "el-dorado-score-keeper",
+    env: "prod",
+    includeIP: "server",
+    emoji: true,
+    disabledInDev: true,
+    authToken: "${ANALYTICS_TOKEN}" // if configured
+  };
+</script>
+```
+
+Verification steps
+- Open your site in a fresh session (not localhost if `disabledInDev` is true).
+- Check Slack for a message like:
+  - `📄 /  ·  🔗 https://google.com\n🧭 Chrome  ·  🌐 203.0.113.42\nhttps://...`
+- Confirm only one event on first navigation (reload should not resend).

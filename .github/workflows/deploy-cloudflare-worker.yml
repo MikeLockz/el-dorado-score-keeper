@@ -1,0 +1,70 @@
+name: Deploy Cloudflare Worker
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'cloudflare/analytics-worker/**'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Wrangler
+        run: npm i -g wrangler@3
+
+      - name: Configure secrets (SLACK_WEBHOOK_URL)
+        working-directory: cloudflare/analytics-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then \
+            echo -n "$SLACK_WEBHOOK_URL" | wrangler secret put SLACK_WEBHOOK_URL --config wrangler.toml --account-id "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" --quiet; \
+          else \
+            echo "SLACK_WEBHOOK_URL not set; skipping"; \
+          fi
+
+      - name: Configure secrets (ANALYTICS_TOKEN)
+        working-directory: cloudflare/analytics-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ANALYTICS_TOKEN: ${{ secrets.ANALYTICS_TOKEN }}
+        run: |
+          if [ -n "${ANALYTICS_TOKEN:-}" ]; then \
+            echo -n "$ANALYTICS_TOKEN" | wrangler secret put ANALYTICS_TOKEN --config wrangler.toml --account-id "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" --quiet; \
+          else \
+            echo "ANALYTICS_TOKEN not set; skipping"; \
+          fi
+
+      - name: Configure secrets (ALLOWED_ORIGIN)
+        working-directory: cloudflare/analytics-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ALLOWED_ORIGIN: ${{ secrets.ALLOWED_ORIGIN }}
+        run: |
+          if [ -n "${ALLOWED_ORIGIN:-}" ]; then \
+            echo -n "$ALLOWED_ORIGIN" | wrangler secret put ALLOWED_ORIGIN --config wrangler.toml --account-id "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" --quiet; \
+          else \
+            echo "ALLOWED_ORIGIN not set; skipping"; \
+          fi
+
+      - name: Publish Worker
+        working-directory: cloudflare/analytics-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          wrangler publish --config wrangler.toml --account-id "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+

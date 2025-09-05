@@ -243,31 +243,7 @@ export default function SinglePlayerPage() {
                   </button>
                 </div>
               ) : (
-                <button
-                  className="inline-flex items-center rounded border px-2 py-1 text-sm"
-                  onClick={() => {
-                    const pid = turnOrder[currentBidderIdx]!;
-                    const amount = bots.botBid(
-                      {
-                        trump: lastDeal.trump,
-                        hand: hands[pid] ?? [],
-                        tricksThisRound: tricks,
-                        seatIndex: currentBidderIdx,
-                        bidsSoFar: bids,
-                        selfId: pid,
-                      },
-                      'normal',
-                    );
-                    setBids((m) => ({ ...m, [pid]: amount }));
-                    const nextIdx = currentBidderIdx + 1;
-                    if (nextIdx >= turnOrder.length) {
-                      setPhase('playing');
-                    }
-                    setCurrentBidderIdx(nextIdx);
-                  }}
-                >
-                  Make Bot Bid
-                </button>
+                <span className="text-sm text-muted-foreground">Bot is bidding…</span>
               )}
               <div className="text-xs text-muted-foreground">Bids: {turnOrder.map((p) => `${p}:${bids[p] ?? '-'}`).join('  ')}</div>
 

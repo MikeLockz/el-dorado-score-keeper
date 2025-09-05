@@ -137,6 +137,45 @@ Deployed on Vercel: https://vercel.com/budgetflowr-4480s-projects/v0-mobile-frie
 
 You can also continue building from v0.app if you use it for deployments: https://v0.app/chat/projects/TyFuAeQ3Y59
 
+## Analytics Relay (Cloudflare Worker)
+
+This repo includes a lightweight analytics relay that forwards pageview details to Slack securely. Client code posts to a Cloudflare Worker you control; the Worker adds IP and sends a concise emoji‑rich Slack message.
+
+- Worker code: `cloudflare/analytics-worker/src/worker.ts`
+- Config: `cloudflare/analytics-worker/wrangler.toml`
+- CI deploy: `.github/workflows/deploy-cloudflare-worker.yml`
+
+Setup (local quick test)
+- Install Wrangler: `npm i -g wrangler@3`
+- Login: `wrangler login`
+- Set secrets (replace paths as needed):
+  - `wrangler --config cloudflare/analytics-worker/wrangler.toml secret put SLACK_WEBHOOK_URL`
+  - Optional: `wrangler ... secret put ANALYTICS_TOKEN`
+  - Optional: `wrangler ... secret put ALLOWED_ORIGIN` (e.g., `https://yourdomain.com`)
+- Publish: `wrangler publish --config cloudflare/analytics-worker/wrangler.toml`
+- Note your URL: `https://analytics-relay.<account>.workers.dev`
+
+GitHub Actions deploy
+- Add repo secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SLACK_WEBHOOK_URL`, optional `ANALYTICS_TOKEN`, `ALLOWED_ORIGIN`.
+- Push changes in `cloudflare/analytics-worker/**` (or run workflow manually) to deploy.
+
+Client configuration example
+```html
+<script>
+  window.analyticsConfig = {
+    webhookUrl: "https://analytics-relay.<account>.workers.dev",
+    siteId: "el-dorado-score-keeper",
+    env: "prod",
+    includeIP: "server",
+    emoji: true,
+    disabledInDev: true,
+    authToken: "${ANALYTICS_TOKEN}" // if configured
+  };
+</script>
+```
+
+More details and the full tracking snippet live in `ANALYTICS.md`.
+
 ## IndexedDB Schema
 
 - Version constants live in `lib/state/db.ts` (`SCHEMA_V1`, `SCHEMA_V2`, `SCHEMA_VERSION`).

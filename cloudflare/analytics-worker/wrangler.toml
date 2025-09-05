@@ -1,0 +1,10 @@
+name = "analytics-relay"
+main = "src/worker.ts"
+compatibility_date = "2024-09-01"
+workers_dev = true
+
+# Secrets to set via Wrangler or GitHub Actions:
+# - SLACK_WEBHOOK_URL: Slack Incoming Webhook URL (required)
+# - ANALYTICS_TOKEN: Optional bearer token to require from clients
+# - ALLOWED_ORIGIN: Optional allowed origin for CORS (single origin or comma-separated)
+
