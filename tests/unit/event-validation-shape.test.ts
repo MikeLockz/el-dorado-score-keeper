@@ -16,4 +16,3 @@ describe('event validation: invalid base shape', () => {
     a.close();
   });
 });
-

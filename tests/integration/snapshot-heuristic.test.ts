@@ -35,10 +35,14 @@ async function seedEvents(dbName: string, n: number) {
   const store = t.objectStore(storeNames.EVENTS);
   const baseTs = 1_700_000_000_000;
   for (let i = 1; i <= n; i++) {
-    const ev = makeEvent('score/added', { playerId: 'p1', delta: 1 }, {
-      eventId: `seed-${i}`,
-      ts: baseTs + i,
-    });
+    const ev = makeEvent(
+      'score/added',
+      { playerId: 'p1', delta: 1 },
+      {
+        eventId: `seed-${i}`,
+        ts: baseTs + i,
+      },
+    );
     // Add without caring about seq key (autoIncrement)
     const req = store.add(ev);
     // eslint-disable-next-line no-await-in-loop
