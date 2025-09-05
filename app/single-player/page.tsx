@@ -5,7 +5,7 @@ import CurrentGame from '@/components/views/CurrentGame';
 import type { PlayerId, RoundStart, Card } from '@/lib/single-player';
 import { tricksForRound } from '@/lib/state/logic';
 import { useAppState } from '@/components/state-provider';
-import { selectPlayersOrdered, events } from '@/lib/state';
+import { selectPlayersOrdered, events, archiveCurrentGameAndReset } from '@/lib/state';
 
 export default function SinglePlayerPage() {
   const { state, append, ready } = useAppState();
@@ -26,6 +26,7 @@ export default function SinglePlayerPage() {
   const [saved, setSaved] = React.useState(false);
   const [selectedCard, setSelectedCard] = React.useState<Card | null>(null);
   const [trumpBroken, setTrumpBroken] = React.useState(false);
+  const [initializedScoring, setInitializedScoring] = React.useState(false);
 
   const appPlayers = React.useMemo(() => selectPlayersOrdered(state), [state]);
   const activePlayers = React.useMemo(() => appPlayers.slice(0, playersCount), [appPlayers, playersCount]);
@@ -35,10 +36,37 @@ export default function SinglePlayerPage() {
   const tricks = tricksForRound(roundNo);
   const useTwoDecks = playersCount > 5;
 
-  const onDeal = () => {
+  const onDeal = async () => {
     setSaved(false);
     setSelectedCard(null);
     setTrumpBroken(false);
+    // On first deal for this session, archive current game and reset scoring roster
+    if (!initializedScoring) {
+      const desired = activePlayers.map((p) => ({ id: p.id, name: p.name }));
+      try {
+        await archiveCurrentGameAndReset();
+      } catch (e) {
+        console.warn('Failed to archive current game; continuing with reset roster step', e);
+      }
+      // Remove any existing players (best-effort; reducer ignores unknown IDs)
+      const existingIds = Object.keys(state.players || {});
+      for (const id of existingIds) {
+        try {
+          await append(events.playerRemoved({ id }));
+        } catch {}
+      }
+      // Add desired players in order, ensuring names match
+      for (const p of desired) {
+        try {
+          await append(events.playerAdded({ id: p.id, name: p.name }));
+        } catch {}
+      }
+      // Explicitly set display order to desired order
+      try {
+        await append(events.playersReordered({ order: desired.map((d) => d.id) }));
+      } catch {}
+      setInitializedScoring(true);
+    }
     const deal = startRound(
       {
         round: roundNo,
