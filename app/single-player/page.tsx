@@ -234,7 +234,15 @@ export default function SinglePlayerPage() {
 
       {lastDeal && (
         <div className="space-y-2">
-          <div className="text-sm">Trump: <span className="font-mono">{lastDeal.trump}</span></div>
+          <div className="text-sm">
+            Trump:{' '}
+            <span
+              className={`font-mono text-lg ${suitColorClass(lastDeal.trump)}`}
+              title={`Trump card: ${rankLabel(lastDeal.trumpCard.rank)} of ${lastDeal.trumpCard.suit}`}
+            >
+              {suitSymbol(lastDeal.trump)}
+            </span>
+          </div>
           <div className="text-sm">First to act: <span className="font-mono">{lastDeal.firstToAct}</span></div>
           <div className="text-sm">Deck remaining: <span className="font-mono">{lastDeal.deckRemaining}</span></div>
           <div className="text-sm">Phase: <span className="font-mono">{phase}</span></div>
