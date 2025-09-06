@@ -3,6 +3,7 @@
 This document is the implementation plan to add a single‑player, interactive mode (human vs. virtual players) while preserving the existing score‑keeping rules and UI. The current score system (±[5 + bid] based on whether the player exactly made their bid) remains the source of truth.
 
 ## Summary
+
 - Add a self‑contained single‑player engine (cards, dealing, bidding, trick play, scoring integration) and a minimal UI at `app/single-player/`.
 - Support 2–10 players; when players > 5, use two standard 52‑card decks shuffled together.
 - Play 10 rounds: tricks per round 10 → 1 (uses existing `tricksForRound`).
@@ -10,6 +11,7 @@ This document is the implementation plan to add a single‑player, interactive m
 - Integrate results with existing app state: record bids and whether each player “made” exactly; scoring stays unchanged.
 
 ## Rules To Implement
+
 - Players: 2–10. Hidden information: players never see others’ hands.
 - Rounds: 10 total; round r deals `tricksForRound(r)` cards to each player (10,9,...,1).
 - Deck(s):
@@ -43,6 +45,7 @@ This document is the implementation plan to add a single‑player, interactive m
 - Game End: After 10 rounds, highest score wins; ties allowed.
 
 ## Clarifications and Assumptions
+
 - Trump lead restriction applies only when leading a trick (not when following or sloughing).
 - “Must play trump if trump has been played” applies only when the player cannot follow the led suit.
 - Aces are high. No jokers. No special bonuses.
@@ -50,6 +53,7 @@ This document is the implementation plan to add a single‑player, interactive m
 - With two decks, suits/ranks duplicate; first‑played tie breaker decides trick winner.
 
 ## Architecture
+
 - Core engine lives under `lib/single-player/` (no changes to existing scorekeeper modules unless listed under Integration).
   - `types.ts`: Card, Suit, Rank, PlayerId, Trick, Bid, RoundConfig, RNG, etc.
   - `rng.ts`: Seedable PRNG (e.g., mulberry32/xoroshiro128+) to support replay/debug.
@@ -68,6 +72,7 @@ This document is the implementation plan to add a single‑player, interactive m
   - Minimal accessibility: clear turn prompts; keyboard play for hand; readable trick history.
 
 ## Integration with Existing State
+
 - Source of truth for scores remains `lib/state`:
   - For each round, write the players’ bids via `events.bidSet`.
   - After the round completes, compute whether the player exactly made their bid; write `events.madeSet` for each.
@@ -76,6 +81,7 @@ This document is the implementation plan to add a single‑player, interactive m
 - No breaking changes to existing selectors, reducers, or views.
 
 ## Virtual Players (Bots)
+
 - Bidding baseline:
   - Estimate trick potential from hand: count high cards in long suits; adjust for trump length/high ranks; reduce when seats earlier.
   - Clamp to [0..tricks] and add a small randomness based on difficulty and position.
@@ -88,10 +94,12 @@ This document is the implementation plan to add a single‑player, interactive m
   - Hard: improved suit inference from prior plays, trump management, endgame awareness.
 
 ## Persistence & Reproducibility
+
 - Seedable RNG in the engine; persist seed with game setup for reproducible runs.
 - Optionally log compact per‑trick history to a debug panel (not stored in scorekeeper state).
 
 ## Validation & Tests
+
 - Unit tests (Vitest) under `tests/single-player/`:
   - Dealing counts with 1 or 2 decks; trump flip present.
   - Legal move validator: follow suit; no leading trump when holding non‑trump; off‑suit trump requirement.
@@ -101,22 +109,26 @@ This document is the implementation plan to add a single‑player, interactive m
 - Property tests with fixed seeds to check invariants across random deals.
 
 ## Phased Delivery
+
 1. Engine core (types, deck, ordering, rules, trick, round) with CLI/dev harness.
 2. Bots (Normal difficulty) + made/bid extraction.
 3. UI scaffolding: lobby + in‑game view; wire to engine; event integration.
 4. Additional bot difficulties; polish UX; accessibility; tests.
 
 ## Open Questions (Proposed Defaults)
+
 - Simultaneous highest cards from two decks: first played wins (default).
 - Trump‑already‑played rule: only constrains players who cannot follow the led suit (default).
 - Mid‑hand saving/resume: out of scope initially.
 
 ## Non‑Goals (for this iteration)
+
 - Networked multiplayer.
 - Spectator view.
 - Advanced analytics beyond existing summaries.
 
 ## Risks & Mitigations
+
 - Rule ambiguities: capture in tests and document assumptions above.
 - Bot strength: start simple; expose difficulty; iterate based on playtesting.
 - Integration drift: isolate engine; persist only existing events to avoid reducer changes.

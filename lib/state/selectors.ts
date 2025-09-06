@@ -175,7 +175,10 @@ export const selectSpLiveOverlay = memo1((s: AppState): SpLiveOverlay | null => 
   const currentPlayerId = selectSpNextToPlay(s);
   const order: string[] = s.sp.order ?? [];
   const trickPlays = s.sp.trickPlays ?? [];
-  const cards: Record<string, { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null> = {};
+  const cards: Record<
+    string,
+    { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null
+  > = {};
   for (const pid of order) cards[pid] = null;
   for (const p of trickPlays) cards[p.playerId] = { suit: p.card.suit, rank: p.card.rank };
   const counts: Record<string, number> = s.sp.trickCounts ?? {};

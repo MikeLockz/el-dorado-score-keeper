@@ -549,7 +549,8 @@ export async function createInstance(opts?: {
         const getKeyReq = byEventId.getKey((ev as { eventId: string }).eventId);
         const existingKey = await new Promise<number | undefined>((res, rej) => {
           getKeyReq.onsuccess = () => res((getKeyReq.result as number | undefined) ?? undefined);
-          getKeyReq.onerror = () => rej(asError(getKeyReq.error, 'Failed to lookup duplicate (batch)'));
+          getKeyReq.onerror = () =>
+            rej(asError(getKeyReq.error, 'Failed to lookup duplicate (batch)'));
         });
         if (typeof existingKey === 'number') {
           // Skip duplicate
@@ -581,10 +582,12 @@ export async function createInstance(opts?: {
         .put({ id: 'current', height, state: memoryState } as CurrentStateRecord);
       await new Promise<void>((res, rej) => {
         putReq.onsuccess = () => res();
-        putReq.onerror = () => rej(asError(putReq.error, 'Failed to persist state during appendMany'));
+        putReq.onerror = () =>
+          rej(asError(putReq.error, 'Failed to persist state during appendMany'));
         tPersist.onabort = () =>
           rej(asError(tPersist.error, 'Transaction aborted persisting state (batch)'));
-        tPersist.onerror = () => rej(asError(tPersist.error, 'Transaction error persisting state (batch)'));
+        tPersist.onerror = () =>
+          rej(asError(tPersist.error, 'Transaction error persisting state (batch)'));
       });
       if (height % snapshotEvery === 0) {
         const snapPut = tPersist

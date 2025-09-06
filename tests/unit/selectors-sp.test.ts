@@ -8,7 +8,8 @@ import {
 } from '@/lib/state/selectors';
 
 const now = 1_700_000_000_000;
-const ev = (type: any, payload: any, id: string) => makeEvent(type, payload, { eventId: id, ts: now });
+const ev = (type: any, payload: any, id: string) =>
+  makeEvent(type, payload, { eventId: id, ts: now });
 
 function replay(list: any[], base: AppState = INITIAL_STATE): AppState {
   return list.reduce((s, e) => reduce(s, e), base);
@@ -75,19 +76,22 @@ describe('single-player selectors', () => {
       ev('player/added', { id: 'p2', name: 'B' }, 'c2'),
       ev('player/added', { id: 'p3', name: 'C' }, 'c3'),
       ev('player/added', { id: 'p4', name: 'D' }, 'c4'),
-      events.spDeal({
-        roundNo: 3, // 8 tricks total
-        dealerId: 'p1',
-        order: ['p1', 'p2', 'p3', 'p4'],
-        trump: 'clubs',
-        trumpCard: { suit: 'clubs', rank: 9 },
-        hands: { p1: [], p2: [], p3: [], p4: [] },
-      }, { eventId: 'd3', ts: now }),
+      events.spDeal(
+        {
+          roundNo: 3, // 8 tricks total
+          dealerId: 'p1',
+          order: ['p1', 'p2', 'p3', 'p4'],
+          trump: 'clubs',
+          trumpCard: { suit: 'clubs', rank: 9 },
+          hands: { p1: [], p2: [], p3: [], p4: [] },
+        },
+        { eventId: 'd3', ts: now },
+      ),
     ]);
     // Initially no tricks resolved
     expect(selectSpIsRoundDone(s)).toBe(false);
     // Award 7 tricks total so far, simulate plays before each clear
-    const winners = ['p1','p2','p3','p4','p1','p2','p3'];
+    const winners = ['p1', 'p2', 'p3', 'p4', 'p1', 'p2', 'p3'];
     for (let i = 0; i < winners.length; i++) {
       s = replay(
         [

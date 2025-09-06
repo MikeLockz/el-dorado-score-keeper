@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import React from 'react';
 import { startRound, bots, winnerOfTrick } from '@/lib/single-player';
 import CurrentGame from '@/components/views/CurrentGame';
@@ -31,7 +31,10 @@ export default function SinglePlayerPage() {
   const [autoDealt, setAutoDealt] = React.useState(false);
 
   const appPlayers = React.useMemo(() => selectPlayersOrdered(state), [state]);
-  const activePlayers = React.useMemo(() => appPlayers.slice(0, playersCount), [appPlayers, playersCount]);
+  const activePlayers = React.useMemo(
+    () => appPlayers.slice(0, playersCount),
+    [appPlayers, playersCount],
+  );
   const players = React.useMemo(() => activePlayers.map((p) => p.id), [activePlayers]);
   const dealer = players[dealerIdx] ?? players[0]!;
   const human = players[humanIdx] ?? players[0]!;
@@ -43,7 +46,11 @@ export default function SinglePlayerPage() {
   const spTrumpCard = sp.trumpCard;
   const spOrder = sp.order;
   const spHands = sp.hands as Record<PlayerId, Card[]>;
-  const spTrickPlays = (sp.trickPlays ?? []).map((p, i) => ({ player: p.playerId as PlayerId, card: p.card as any as Card, order: i }));
+  const spTrickPlays = (sp.trickPlays ?? []).map((p, i) => ({
+    player: p.playerId as PlayerId,
+    card: p.card as any as Card,
+    order: i,
+  }));
   const spTrickCounts = sp.trickCounts as Record<PlayerId, number>;
   const spTrumpBroken = sp.trumpBroken;
 
@@ -145,7 +152,9 @@ export default function SinglePlayerPage() {
     [activePlayers],
   );
   const BotBadge = () => (
-    <span className="ml-1 text-[10px] uppercase rounded px-1 border border-border text-muted-foreground">BOT</span>
+    <span className="ml-1 text-[10px] uppercase rounded px-1 border border-border text-muted-foreground">
+      BOT
+    </span>
   );
 
   // Advance play: bot turns and trick resolution
@@ -186,7 +195,20 @@ export default function SinglePlayerPage() {
       }, 250);
       return () => clearTimeout(t);
     }
-  }, [phase, spTrickPlays, trickLeader, spHands, human, tricks, spOrder, spTrump, spTrumpBroken, spTrickCounts, roundNo, state.rounds]);
+  }, [
+    phase,
+    spTrickPlays,
+    trickLeader,
+    spHands,
+    human,
+    tricks,
+    spOrder,
+    spTrump,
+    spTrumpBroken,
+    spTrickCounts,
+    roundNo,
+    state.rounds,
+  ]);
 
   // Auto-bid for bots during bidding phase (store-driven)
   React.useEffect(() => {
@@ -324,12 +346,20 @@ export default function SinglePlayerPage() {
             min={2}
             max={10}
             value={playersCount}
-            onChange={(e) => setPlayersCount(Math.max(2, Math.min(10, Number(e.target.value) || 0)))}
+            onChange={(e) =>
+              setPlayersCount(Math.max(2, Math.min(10, Number(e.target.value) || 0)))
+            }
           />
-          <div className="text-xs text-muted-foreground">{useTwoDecks ? 'Using two decks' : 'Using one deck'}</div>
-          <div className="text-xs text-muted-foreground">Available players in scorekeeper: {appPlayers.length}</div>
+          <div className="text-xs text-muted-foreground">
+            {useTwoDecks ? 'Using two decks' : 'Using one deck'}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Available players in scorekeeper: {appPlayers.length}
+          </div>
           {appPlayers.length < playersCount && (
-            <div className="text-xs text-red-600">Add more players on Players page to reach {playersCount}.</div>
+            <div className="text-xs text-red-600">
+              Add more players on Players page to reach {playersCount}.
+            </div>
           )}
         </div>
         <div className="space-y-2">
@@ -387,11 +417,17 @@ export default function SinglePlayerPage() {
                 Trump:{' '}
                 <span
                   className="font-mono text-lg inline-flex items-center gap-1"
-                  title={info.trumpCard ? `Trump card: ${rankLabel(info.trumpCard.rank)} of ${info.trumpCard.suit}` : undefined}
+                  title={
+                    info.trumpCard
+                      ? `Trump card: ${rankLabel(info.trumpCard.rank)} of ${info.trumpCard.suit}`
+                      : undefined
+                  }
                 >
                   {info.trump && info.trumpCard ? (
                     <>
-                      <span className="font-bold text-foreground">{rankLabel(info.trumpCard.rank)}</span>
+                      <span className="font-bold text-foreground">
+                        {rankLabel(info.trumpCard.rank)}
+                      </span>
                       <span className={suitColorClass(info.trump)}>{suitSymbol(info.trump)}</span>
                     </>
                   ) : (
@@ -404,11 +440,17 @@ export default function SinglePlayerPage() {
           {(() => {
             const dealerName = selectSpDealerName(state);
             return (
-              <div className="text-sm">Dealer: <span className="font-mono">{dealerName ?? '-'}</span></div>
+              <div className="text-sm">
+                Dealer: <span className="font-mono">{dealerName ?? '-'}</span>
+              </div>
             );
           })()}
-          <div className="text-sm">First to act: <span className="font-mono">{spOrder?.[0] ?? '-'}</span></div>
-          <div className="text-sm">Phase: <span className="font-mono">{phase}</span></div>
+          <div className="text-sm">
+            First to act: <span className="font-mono">{spOrder?.[0] ?? '-'}</span>
+          </div>
+          <div className="text-sm">
+            Phase: <span className="font-mono">{phase}</span>
+          </div>
 
           {phase !== 'bidding' && (
             <div className="space-y-3">
@@ -416,9 +458,10 @@ export default function SinglePlayerPage() {
               <div className="text-sm">Leader: {trickLeader}</div>
               {(() => {
                 const leaderIdx = spOrder.findIndex((p) => p === trickLeader);
-                const rotated = leaderIdx < 0
-                  ? spOrder
-                  : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
+                const rotated =
+                  leaderIdx < 0
+                    ? spOrder
+                    : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
                 const currentIdx = spTrickPlays.length; // next to play in this trick
                 return (
                   <div className="space-y-1">
@@ -433,7 +476,9 @@ export default function SinglePlayerPage() {
                         <span
                           key={`play-chip-${p}-${i}`}
                           className={`px-2 py-0.5 rounded border ${
-                            i === currentIdx ? 'bg-accent text-accent-foreground border-accent' : 'border-border'
+                            i === currentIdx
+                              ? 'bg-accent text-accent-foreground border-accent'
+                              : 'border-border'
                           }`}
                           title={`Order ${i + 1}`}
                         >
@@ -452,13 +497,21 @@ export default function SinglePlayerPage() {
                 <div className="font-medium text-sm">Current trick:</div>
                 <ul className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {spTrickPlays.map((p, i) => (
-                    <li key={`tp-${p.player}-${i}`} className="border rounded px-2 py-1 flex items-center justify-between">
+                    <li
+                      key={`tp-${p.player}-${i}`}
+                      className="border rounded px-2 py-1 flex items-center justify-between"
+                    >
                       <span className="text-xs mr-2 inline-flex items-center">
                         {nameFor(p.player)}
                         {p.player !== human && <BotBadge />}
                       </span>
-                      <span className={`font-mono inline-flex items-center gap-1 ${suitColorClass(p.card.suit)}`} title={`${rankLabel(p.card.rank)} of ${p.card.suit}`}>
-                        <span className="font-bold text-sm text-foreground">{rankLabel(p.card.rank)}</span>
+                      <span
+                        className={`font-mono inline-flex items-center gap-1 ${suitColorClass(p.card.suit)}`}
+                        title={`${rankLabel(p.card.rank)} of ${p.card.suit}`}
+                      >
+                        <span className="font-bold text-sm text-foreground">
+                          {rankLabel(p.card.rank)}
+                        </span>
                         <span>{suitSymbol(p.card.suit)}</span>
                       </span>
                     </li>
@@ -469,7 +522,10 @@ export default function SinglePlayerPage() {
                 Tricks won:
                 <div className="mt-1 flex flex-wrap gap-1 text-xs">
                   {spOrder.map((p) => (
-                    <span key={`won-${p}`} className="px-2 py-0.5 rounded border border-border inline-flex items-center gap-1">
+                    <span
+                      key={`won-${p}`}
+                      className="px-2 py-0.5 rounded border border-border inline-flex items-center gap-1"
+                    >
                       <span className="inline-flex items-center">
                         {nameFor(p)}
                         {p !== human && <BotBadge />}
@@ -507,7 +563,10 @@ export default function SinglePlayerPage() {
                 className="inline-flex items-center rounded border px-3 py-1 text-sm"
                 onClick={async () => {
                   const batch: any[] = [];
-                  const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<string, number | undefined>;
+                  const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<
+                    string,
+                    number | undefined
+                  >;
                   for (const pid of players) {
                     const won = spTrickCounts[pid] ?? 0;
                     const made = won === (bidsMap[pid] ?? 0);
@@ -532,7 +591,9 @@ export default function SinglePlayerPage() {
                 Next Round
               </button>
               {!saved && (
-                <div className="text-xs text-muted-foreground">Tip: Save to scorekeeper before advancing.</div>
+                <div className="text-xs text-muted-foreground">
+                  Tip: Save to scorekeeper before advancing.
+                </div>
               )}
             </div>
           )}
@@ -560,13 +621,21 @@ export default function SinglePlayerPage() {
                   return (
                     <div
                       className="text-sm font-mono inline-flex items-center gap-1"
-                      title={info.trumpCard ? `Trump card: ${rankLabel(info.trumpCard.rank)} of ${info.trumpCard.suit}` : undefined}
+                      title={
+                        info.trumpCard
+                          ? `Trump card: ${rankLabel(info.trumpCard.rank)} of ${info.trumpCard.suit}`
+                          : undefined
+                      }
                     >
                       <span className="text-xs text-muted-foreground mr-1">Trump:</span>
                       {info.trump && info.trumpCard ? (
                         <>
-                          <span className="font-bold text-foreground">{rankLabel(info.trumpCard.rank)}</span>
-                          <span className={suitColorClass(info.trump)}>{suitSymbol(info.trump)}</span>
+                          <span className="font-bold text-foreground">
+                            {rankLabel(info.trumpCard.rank)}
+                          </span>
+                          <span className={suitColorClass(info.trump)}>
+                            {suitSymbol(info.trump)}
+                          </span>
                         </>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
@@ -639,7 +708,9 @@ export default function SinglePlayerPage() {
 
       {spOrder.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-lg font-semibold">Your Hand ({activePlayers.find(ap => ap.id===human)?.name ?? human})</h2>
+          <h2 className="text-lg font-semibold">
+            Your Hand ({activePlayers.find((ap) => ap.id === human)?.name ?? human})
+          </h2>
           {phase === 'bidding' ? (
             <div className="space-y-1">
               {suitOrder.map((s) => {
@@ -676,11 +747,15 @@ export default function SinglePlayerPage() {
                       <div className="flex flex-wrap gap-1">
                         {row.map((c, idx) => {
                           const ledSuit = spTrickPlays[0]?.card.suit as any;
-                          const trickTrumped = spTrickPlays.some((p) => (p.card as any).suit === spTrump);
+                          const trickTrumped = spTrickPlays.some(
+                            (p) => (p.card as any).suit === spTrump,
+                          );
                           const canFollow = (spHands[human] ?? []).some((h) => h.suit === ledSuit);
                           let legal = true;
                           if (!ledSuit) {
-                            const hasNonTrump = (spHands[human] ?? []).some((h) => h.suit !== spTrump);
+                            const hasNonTrump = (spHands[human] ?? []).some(
+                              (h) => h.suit !== spTrump,
+                            );
                             if (!spTrumpBroken && hasNonTrump && c.suit === spTrump) legal = false;
                           } else if (canFollow) {
                             legal = c.suit === ledSuit;
@@ -689,7 +764,10 @@ export default function SinglePlayerPage() {
                             if (hasTrump) legal = c.suit === spTrump;
                           }
                           const leaderIdx = spOrder.findIndex((p) => p === trickLeader);
-                          const rotated = leaderIdx < 0 ? spOrder : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
+                          const rotated =
+                            leaderIdx < 0
+                              ? spOrder
+                              : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
                           const nextToPlay = rotated[spTrickPlays.length];
                           const isHumansTurn = nextToPlay === human;
                           const isSelected = selectedCard === c;
@@ -706,23 +784,43 @@ export default function SinglePlayerPage() {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 const ledSuitNow = spTrickPlays[0]?.card.suit as any;
-                                const trickTrumpedNow = spTrickPlays.some((p) => (p.card as any).suit === spTrump);
-                                const canFollowNow = (spHands[human] ?? []).some((h) => h.suit === ledSuitNow);
+                                const trickTrumpedNow = spTrickPlays.some(
+                                  (p) => (p.card as any).suit === spTrump,
+                                );
+                                const canFollowNow = (spHands[human] ?? []).some(
+                                  (h) => h.suit === ledSuitNow,
+                                );
                                 let legalNow = true;
                                 if (!ledSuitNow) {
-                                  const hasNonTrump = (spHands[human] ?? []).some((h) => h.suit !== spTrump);
-                                  if (!spTrumpBroken && hasNonTrump && c.suit === spTrump) legalNow = false;
+                                  const hasNonTrump = (spHands[human] ?? []).some(
+                                    (h) => h.suit !== spTrump,
+                                  );
+                                  if (!spTrumpBroken && hasNonTrump && c.suit === spTrump)
+                                    legalNow = false;
                                 } else if (canFollowNow) {
                                   legalNow = c.suit === ledSuitNow;
                                 } else if (trickTrumpedNow) {
-                                  const hasTrump = (spHands[human] ?? []).some((h) => h.suit === spTrump);
+                                  const hasTrump = (spHands[human] ?? []).some(
+                                    (h) => h.suit === spTrump,
+                                  );
                                   if (hasTrump) legalNow = c.suit === spTrump;
                                 }
                                 const leaderIdxNow = spOrder.findIndex((p) => p === trickLeader);
-                                const rotatedNow = leaderIdxNow < 0 ? spOrder : [...spOrder.slice(leaderIdxNow), ...spOrder.slice(0, leaderIdxNow)];
+                                const rotatedNow =
+                                  leaderIdxNow < 0
+                                    ? spOrder
+                                    : [
+                                        ...spOrder.slice(leaderIdxNow),
+                                        ...spOrder.slice(0, leaderIdxNow),
+                                      ];
                                 const nextToPlayNow = rotatedNow[spTrickPlays.length];
                                 if (!legalNow || nextToPlayNow !== human) return;
-                                void append(events.spTrickPlayed({ playerId: human, card: { suit: c.suit as any, rank: c.rank } }));
+                                void append(
+                                  events.spTrickPlayed({
+                                    playerId: human,
+                                    card: { suit: c.suit as any, rank: c.rank },
+                                  }),
+                                );
                                 setSelectedCard(null);
                               }}
                               title={`${rankLabel(c.rank)} of ${c.suit}`}
@@ -750,7 +848,8 @@ export default function SinglePlayerPage() {
                     let legal = true;
                     if (!ledSuit) {
                       const hasNonTrump = (spHands[human] ?? []).some((h) => h.suit !== spTrump);
-                      if (!spTrumpBroken && hasNonTrump && selectedCard.suit === spTrump) legal = false;
+                      if (!spTrumpBroken && hasNonTrump && selectedCard.suit === spTrump)
+                        legal = false;
                     } else if (canFollow) {
                       legal = selectedCard.suit === ledSuit;
                     } else if (trickTrumped) {
@@ -758,10 +857,18 @@ export default function SinglePlayerPage() {
                       if (hasTrump) legal = selectedCard.suit === spTrump;
                     }
                     const leaderIdx = spOrder.findIndex((p) => p === trickLeader);
-                    const rotated = leaderIdx < 0 ? spOrder : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
+                    const rotated =
+                      leaderIdx < 0
+                        ? spOrder
+                        : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
                     const nextToPlay = rotated[spTrickPlays.length];
                     if (!legal || nextToPlay !== human) return;
-                    void append(events.spTrickPlayed({ playerId: human, card: { suit: selectedCard.suit as any, rank: selectedCard.rank } }));
+                    void append(
+                      events.spTrickPlayed({
+                        playerId: human,
+                        card: { suit: selectedCard.suit as any, rank: selectedCard.rank },
+                      }),
+                    );
                     setSelectedCard(null);
                   }}
                 >

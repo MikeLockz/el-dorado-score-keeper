@@ -64,4 +64,3 @@ describe('SP finalize + next-round batch', () => {
     a.close();
   });
 });
-

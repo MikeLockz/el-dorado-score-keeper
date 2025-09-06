@@ -3,7 +3,8 @@ import { makeEvent } from '@/lib/state/events';
 import { INITIAL_STATE, reduce, type AppState } from '@/lib/state/types';
 
 const now = 1_700_000_000_000;
-const ev = (type: any, payload: any, id: string) => makeEvent(type, payload, { eventId: id, ts: now });
+const ev = (type: any, payload: any, id: string) =>
+  makeEvent(type, payload, { eventId: id, ts: now });
 
 function replay(list: any[], base: AppState = INITIAL_STATE): AppState {
   return list.reduce((s, e) => reduce(s, e), base);
@@ -14,14 +15,18 @@ describe('SP event idempotency semantics', () => {
     let s = replay([
       ev('player/added', { id: 'a', name: 'A' }, 'p1'),
       ev('player/added', { id: 'b', name: 'B' }, 'p2'),
-      ev('sp/deal', {
-        roundNo: 1,
-        dealerId: 'b',
-        order: ['b', 'a'],
-        trump: 'hearts',
-        trumpCard: { suit: 'hearts', rank: 12 },
-        hands: { a: [{ suit: 'clubs', rank: 2 }], b: [{ suit: 'diamonds', rank: 3 }] },
-      }, 'd1'),
+      ev(
+        'sp/deal',
+        {
+          roundNo: 1,
+          dealerId: 'b',
+          order: ['b', 'a'],
+          trump: 'hearts',
+          trumpCard: { suit: 'hearts', rank: 12 },
+          hands: { a: [{ suit: 'clubs', rank: 2 }], b: [{ suit: 'diamonds', rank: 3 }] },
+        },
+        'd1',
+      ),
       ev('sp/leader-set', { leaderId: 'b' }, 'l1'),
       ev('sp/phase-set', { phase: 'playing' }, 'ph'),
     ]);
@@ -39,14 +44,18 @@ describe('SP event idempotency semantics', () => {
     let s = replay([
       ev('player/added', { id: 'a', name: 'A' }, 'q1'),
       ev('player/added', { id: 'b', name: 'B' }, 'q2'),
-      ev('sp/deal', {
-        roundNo: 1,
-        dealerId: 'a',
-        order: ['a', 'b'],
-        trump: 'spades',
-        trumpCard: { suit: 'spades', rank: 11 },
-        hands: { a: [{ suit: 'clubs', rank: 2 }], b: [{ suit: 'clubs', rank: 3 }] },
-      }, 'qd'),
+      ev(
+        'sp/deal',
+        {
+          roundNo: 1,
+          dealerId: 'a',
+          order: ['a', 'b'],
+          trump: 'spades',
+          trumpCard: { suit: 'spades', rank: 11 },
+          hands: { a: [{ suit: 'clubs', rank: 2 }], b: [{ suit: 'clubs', rank: 3 }] },
+        },
+        'qd',
+      ),
       ev('sp/leader-set', { leaderId: 'a' }, 'ql'),
       ev('sp/phase-set', { phase: 'playing' }, 'qph'),
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 2 } }, 'qt1'),
@@ -63,14 +72,18 @@ describe('SP event idempotency semantics', () => {
     let s = replay([
       ev('player/added', { id: 'a', name: 'A' }, 'r1'),
       ev('player/added', { id: 'b', name: 'B' }, 'r2'),
-      ev('sp/deal', {
-        roundNo: 1,
-        dealerId: 'a',
-        order: ['a', 'b'],
-        trump: 'clubs',
-        trumpCard: { suit: 'clubs', rank: 10 },
-        hands: { a: [], b: [] },
-      }, 'rd'),
+      ev(
+        'sp/deal',
+        {
+          roundNo: 1,
+          dealerId: 'a',
+          order: ['a', 'b'],
+          trump: 'clubs',
+          trumpCard: { suit: 'clubs', rank: 10 },
+          hands: { a: [], b: [] },
+        },
+        'rd',
+      ),
       ev('sp/leader-set', { leaderId: 'a' }, 'rl'),
       ev('sp/phase-set', { phase: 'playing' }, 'rph'),
     ]);
@@ -79,4 +92,3 @@ describe('SP event idempotency semantics', () => {
     expect(s).toEqual(before);
   });
 });
-

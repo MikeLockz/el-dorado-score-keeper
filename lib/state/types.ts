@@ -18,7 +18,10 @@ export type EventMap = {
     order: string[];
     trump: 'clubs' | 'diamonds' | 'hearts' | 'spades';
     trumpCard: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number };
-    hands: Record<string, Array<{ suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number }>>;
+    hands: Record<
+      string,
+      Array<{ suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number }>
+    >;
   };
   'sp/phase-set': { phase: 'setup' | 'bidding' | 'playing' | 'done' };
   'sp/trick/played': {
@@ -67,8 +70,14 @@ export type AppState = Readonly<{
     order: string[];
     trump: 'clubs' | 'diamonds' | 'hearts' | 'spades' | null;
     trumpCard: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null;
-    hands: Record<string, Array<{ suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number }>>;
-    trickPlays: Array<{ playerId: string; card: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } }>;
+    hands: Record<
+      string,
+      Array<{ suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number }>
+    >;
+    trickPlays: Array<{
+      playerId: string;
+      card: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number };
+    }>;
     trickCounts: Record<string, number>;
     trumpBroken: boolean;
     leaderId: string | null;
@@ -198,7 +207,10 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const { winnerId } = event.payload as EventMap['sp/trick/cleared'];
       // Idempotency: only clear/increment if there were plays to clear
       if (!state.sp.trickPlays || state.sp.trickPlays.length === 0) return state;
-      const trickCounts = { ...state.sp.trickCounts, [winnerId]: (state.sp.trickCounts[winnerId] ?? 0) + 1 };
+      const trickCounts = {
+        ...state.sp.trickCounts,
+        [winnerId]: (state.sp.trickCounts[winnerId] ?? 0) + 1,
+      };
       return { ...state, sp: { ...state.sp, trickPlays: [], trickCounts } };
     }
     case 'sp/trump-broken-set': {
