@@ -16,6 +16,60 @@ Guiding principles
 - Late join and dropped player rules mirror the app’s existing behavior (see docs/LATE_AND_DROPPED_PLAYERS.md).
 - Resume/rejoin: a client can reconnect and catch up from peers without the server storing snapshots.
 
+## MVP Build Scope (What to Build Now)
+
+Deliverables
+- Lobby: create/join by ID; in-room roster with host badge; host can Start.
+- Host-authoritative play: host runs the game and emits authoritative events; others send inputs.
+- Stateless relay: in-memory rooms with ordered broadcast via `seq`, basic presence (ping/pong), no persistence.
+- Host disconnect handling: pause game and show “Waiting for host…”. No host migration.
+
+MVP Constraints
+- Join only before Start; no late joins after the game begins.
+- Auto rejoin/resync on refresh: client reconnects with the same `playerId` and attempts to resync; if unable (e.g., host unavailable), fall back to lobby gracefully.
+- No timers/penalties: manual pacing; host may choose neutral actions if needed.
+- No spectators, no chat, no anti-cheat, no snapshots.
+- Hidden info policy: simplest path for v0 — trust the host to send hands privately; alternatively disclose hands to all for early playtesting.
+
+Minimal Protocol (message types)
+- `join` (client→server): { roomId, name, playerId? }
+- `roster` (server→clients): { roomId, players: [{id,name,connected}], hostId }
+- `start` (host→server): { roomId, seed, order }
+- `input` (client→server → relayed to host): { turnId, kind, data }
+- `event` (host→server → broadcast): { event: KnownAppEvent }
+- `leave` (client→server)
+- `ping`/`pong` for presence
+- `snapshot_request` (client→server → relayed to host): { sinceSeq }
+- `snapshot` (host→server → relayed to client): { baseSeq, bundle }
+
+Client Tasks
+- Implement lobby UI (see MULTIPLAYER_LOBBY.md) to create/join and display roster; Start enabled for host when ≥ 2 players.
+- Networking: open WS, send `join`, handle `roster`, send/receive `ping`/`pong`.
+- Host path: map UI actions to `KnownAppEvent` and broadcast `event`; privately deliver hands when applicable.
+- Non-host path: map UI actions to `input`; apply incoming `event` via existing reducer and persist.
+- UX: show connection state; on host disconnect, block interactions and show “Waiting for host…”.
+- Auto rejoin/resync:
+  - Persist `playerId`, display name, and last seen `seq` locally.
+  - On reload/reconnect, send `join` with the same `playerId`, then `snapshot_request{ sinceSeq }`.
+  - On `snapshot`, import via `importBundleSoft`, then apply subsequent `event`s from `baseSeq+1`.
+  - If no `snapshot` arrives within a short timeout or host is absent, return to the lobby with a friendly message.
+
+Server Tasks (see MULTIPLAYER_SERVER.md)
+- One WS endpoint; in-memory `{ roomId → { clients, hostId, seq } }`.
+- On `join`: add client, assign first as host, broadcast `roster`.
+- On `start` (host only): broadcast.
+- On `input`: relay to host.
+- On `event` (host only): increment `seq`, broadcast.
+- Heartbeats: mark `connected=false` on timeout and broadcast `roster`.
+- Host disconnect: keep room for a short TTL (e.g., 5–10 minutes); only original host can resume.
+- Relay resync: forward `snapshot_request` to host (or any donor) and relay `snapshot` back to the requester; server stores nothing.
+
+Acceptance Criteria
+- Two browsers can create/join a room; both see roster; host can Start.
+- Non-host acts → host validates → everyone updates identically from broadcast `event`s.
+- Refreshing a player attempts auto rejoin/resync; if host provides a snapshot, the player catches up; otherwise the client falls back to the lobby.
+- Host disconnect pauses the game with a visible banner; resume when the host returns.
+
 ## Lobby
 
 See MULTIPLAYER_LOBBY.md for the full lobby UX, routing, and message details (create/join flows, roster, edge cases, and heartbeats). This document focuses on gameplay replication and server responsibilities.

@@ -329,13 +329,9 @@ export default function SinglePlayerPage() {
           setDealerIdx(nextDealerIdx);
           setRoundNo(nextRound);
         } else {
+          // Final round: include aligning round 9 -> bidding in the same batch to avoid flicker
+          batch.push(events.roundStateSet({ round: 9, state: 'bidding' }));
           await appendMany(batch);
-          // For the final round, make previous round (round 9) active for bidding and keep this round scored
-          try {
-            await append(events.roundStateSet({ round: 9, state: 'bidding' }));
-          } catch (e) {
-            console.warn('failed to set round 9 to bidding after round 10 scored', e);
-          }
         }
         setSaved(true);
       } catch (e) {
