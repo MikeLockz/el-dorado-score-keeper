@@ -16,6 +16,7 @@ type Ctx = {
   height: number;
   ready: boolean;
   append: (e: AppEvent) => Promise<number>;
+  appendMany: (events: AppEvent[]) => Promise<number>;
   previewAt: (height: number) => Promise<AppState>;
   warnings: Warning[];
   clearWarnings: () => void;
@@ -94,6 +95,11 @@ export function StateProvider({
     return instRef.current.append(e);
   }
 
+  async function appendMany(evts: AppEvent[]) {
+    if (!instRef.current) throw new Error('State instance not ready');
+    return instRef.current.appendMany(evts);
+  }
+
   async function previewAt(h: number): Promise<AppState> {
     if (h === height) return state;
     return previewFromDB(dbNameRef.current, h);
@@ -133,6 +139,7 @@ export function StateProvider({
     height,
     ready,
     append,
+    appendMany,
     previewAt,
     warnings,
     clearWarnings: () => setWarnings([]),
