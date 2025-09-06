@@ -39,7 +39,11 @@ describe('reset signals', () => {
     localStorage.setItem(key, 'reset');
     try {
       // @ts-expect-error - StorageEvent may not be fully typed in Node
-      const evnt = new StorageEvent('storage', { key, newValue: 'reset', storageArea: localStorage });
+      const evnt = new StorageEvent('storage', {
+        key,
+        newValue: 'reset',
+        storageArea: localStorage,
+      });
       dispatchEvent(evnt);
     } catch {}
     await drain();
@@ -49,4 +53,3 @@ describe('reset signals', () => {
     a.close();
   });
 });
-

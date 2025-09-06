@@ -24,6 +24,14 @@ describe('reducer contract: payload schemas', () => {
         'round/finalize',
         'round/state-set',
         'score/added',
+        // single-player runtime
+        'sp/reset',
+        'sp/deal',
+        'sp/phase-set',
+        'sp/trick/played',
+        'sp/trick/cleared',
+        'sp/trump-broken-set',
+        'sp/leader-set',
       ].sort(),
     );
   });

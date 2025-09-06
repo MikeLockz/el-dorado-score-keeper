@@ -39,9 +39,14 @@ export const events = {
   spReset: (p: EventPayloadByType<'sp/reset'>, m?: Meta) => makeEvent('sp/reset', p, m),
   spDeal: (p: EventPayloadByType<'sp/deal'>, m?: Meta) => makeEvent('sp/deal', p, m),
   spPhaseSet: (p: EventPayloadByType<'sp/phase-set'>, m?: Meta) => makeEvent('sp/phase-set', p, m),
-  spTrickPlayed: (p: EventPayloadByType<'sp/trick/played'>, m?: Meta) => makeEvent('sp/trick/played', p, m),
-  spTrickCleared: (p: EventPayloadByType<'sp/trick/cleared'>, m?: Meta) => makeEvent('sp/trick/cleared', p, m),
-  spTrumpBrokenSet: (p: EventPayloadByType<'sp/trump-broken-set'>, m?: Meta) => makeEvent('sp/trump-broken-set', p, m),
+  spTrickPlayed: (p: EventPayloadByType<'sp/trick/played'>, m?: Meta) =>
+    makeEvent('sp/trick/played', p, m),
+  spTrickCleared: (p: EventPayloadByType<'sp/trick/cleared'>, m?: Meta) =>
+    makeEvent('sp/trick/cleared', p, m),
+  spTrumpBrokenSet: (p: EventPayloadByType<'sp/trump-broken-set'>, m?: Meta) =>
+    makeEvent('sp/trump-broken-set', p, m),
+  spLeaderSet: (p: EventPayloadByType<'sp/leader-set'>, m?: Meta) =>
+    makeEvent('sp/leader-set', p, m),
 };
 
 export type { AppEventType, EventPayloadByType, KnownAppEvent };

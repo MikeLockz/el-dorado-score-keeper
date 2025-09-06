@@ -8,7 +8,15 @@ const round = z.number().int().nonnegative();
 const playerId = id;
 const ts = z.number().finite();
 
-const roundState: z.ZodType<RoundState> = z.enum(['locked', 'bidding', 'playing', 'complete', 'scored']);
+const roundState: z.ZodType<RoundState> = z.enum([
+  'locked',
+  'bidding',
+  'playing',
+  'complete',
+  'scored',
+]);
+
+// Single-player helpers
 const suit = z.enum(['clubs', 'diamonds', 'hearts', 'spades']);
 const card = z.object({ suit, rank: z.number().int().min(2).max(14) });
 
@@ -24,6 +32,7 @@ export const payloadSchemas: Record<AppEventType, z.ZodType<unknown>> = {
   'bid/set': z.object({ round, playerId, bid: z.number().int().nonnegative() }),
   'made/set': z.object({ round, playerId, made: z.boolean() }),
   'round/finalize': z.object({ round }),
+  // single-player
   'sp/reset': z.object({}),
   'sp/deal': z.object({
     roundNo: round,
@@ -37,6 +46,7 @@ export const payloadSchemas: Record<AppEventType, z.ZodType<unknown>> = {
   'sp/trick/played': z.object({ playerId: id, card }),
   'sp/trick/cleared': z.object({ winnerId: id }),
   'sp/trump-broken-set': z.object({ broken: z.boolean() }),
+  'sp/leader-set': z.object({ leaderId: id }),
 };
 
 const baseEventShape = z.object({

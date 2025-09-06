@@ -58,4 +58,3 @@ describe('compactSnapshots early return', () => {
     expect(heights).toEqual([10, 20, 30, 40, 50]);
   });
 });
-

@@ -4,6 +4,7 @@ import { validateEventStrict } from './validation';
 
 export type Instance = {
   append: (event: AppEvent) => Promise<number>;
+  appendMany: (events: AppEvent[]) => Promise<number>;
   getState: () => AppState;
   getHeight: () => number;
   rehydrate: () => Promise<void>;
@@ -497,6 +498,130 @@ export async function createInstance(opts?: {
     return seq;
   }
 
+  async function appendMany(batch: AppEvent[]): Promise<number> {
+    // Short-circuit empty batches
+    if (!Array.isArray(batch) || batch.length === 0) return height;
+    // Validate all events strict first
+    let validated: AppEvent[] = [];
+    try {
+      validated = batch.map((e) => validateEventStrict(e));
+    } catch (err: unknown) {
+      const info = (err as { info?: unknown } | null)?.info;
+      const code =
+        (info && (info as { code?: string } | null)?.code) || 'append.invalid_event_shape';
+      warn(code, info);
+      const ex: Error & { code: string; info?: unknown } = Object.assign(
+        new Error('InvalidEvent'),
+        { name: 'InvalidEvent', code, info },
+      );
+      throw ex;
+    }
+    // Optional test failure hooks (match single-append semantics best-effort)
+    if (testFailMode) {
+      const name = testFailMode === 'quota' ? 'QuotaExceededError' : 'TestAppendError';
+      testFailMode = null;
+      const err = Object.assign(new Error(name), { name });
+      throw err;
+    }
+    if (testAbortAfterAdd) {
+      // For batch, simulate by adding first event then aborting
+      testAbortAfterAdd = false;
+      const t = tx(db, 'readwrite', [storeNames.EVENTS, storeNames.STATE]);
+      const addReq = t.objectStore(storeNames.EVENTS).add(validated[0]!);
+      await new Promise<void>((res, rej) => {
+        addReq.onsuccess = () => res();
+        addReq.onerror = () => rej(asError(addReq.error, 'Failed to add test event (batch)'));
+      });
+      try {
+        t.abort();
+      } catch {}
+      const err = Object.assign(new Error('AbortedAfterAdd'), { name: 'AbortedAfterAdd' });
+      throw err;
+    }
+    // Phase 1: insert all events in a single transaction, skipping duplicates by eventId
+    let lastSeq: number = height;
+    try {
+      const tAdd = tx(db, 'readwrite', [storeNames.EVENTS]);
+      const store = tAdd.objectStore(storeNames.EVENTS);
+      const byEventId = store.index('eventId');
+      for (const ev of validated) {
+        // Check duplicate by eventId within same txn to avoid Constraint aborts
+        const getKeyReq = byEventId.getKey((ev as { eventId: string }).eventId);
+        const existingKey = await new Promise<number | undefined>((res, rej) => {
+          getKeyReq.onsuccess = () => res((getKeyReq.result as number | undefined) ?? undefined);
+          getKeyReq.onerror = () =>
+            rej(asError(getKeyReq.error, 'Failed to lookup duplicate (batch)'));
+        });
+        if (typeof existingKey === 'number') {
+          // Skip duplicate
+          lastSeq = Math.max(lastSeq, existingKey);
+          continue;
+        }
+        const addReq = store.add(ev);
+        const seq = await new Promise<number>((res, rej) => {
+          addReq.onsuccess = () => res(addReq.result as number);
+          addReq.onerror = () => rej(asError(addReq.error, 'Failed to add event (batch)'));
+          // tAdd abort/error handled at txn level below
+        });
+        if (Number.isFinite(seq)) lastSeq = Math.max(lastSeq, seq);
+      }
+      await new Promise<void>((res, rej) => {
+        tAdd.oncomplete = () => res();
+        tAdd.onabort = () => rej(asError(tAdd.error, 'Transaction aborted adding batch'));
+        tAdd.onerror = () => rej(asError(tAdd.error, 'Transaction error adding batch'));
+      });
+    } catch (err) {
+      throw err;
+    }
+    // Phase 2: catch up apply + persist in one pass
+    await enqueueCatchUp(async () => {
+      await applyTail(height);
+      const tPersist = tx(db, 'readwrite', [storeNames.STATE, storeNames.SNAPSHOTS]);
+      const putReq = tPersist
+        .objectStore(storeNames.STATE)
+        .put({ id: 'current', height, state: memoryState } as CurrentStateRecord);
+      await new Promise<void>((res, rej) => {
+        putReq.onsuccess = () => res();
+        putReq.onerror = () =>
+          rej(asError(putReq.error, 'Failed to persist state during appendMany'));
+        tPersist.onabort = () =>
+          rej(asError(tPersist.error, 'Transaction aborted persisting state (batch)'));
+        tPersist.onerror = () =>
+          rej(asError(tPersist.error, 'Transaction error persisting state (batch)'));
+      });
+      if (height % snapshotEvery === 0) {
+        const snapPut = tPersist
+          .objectStore(storeNames.SNAPSHOTS)
+          .put({ height, state: memoryState });
+        await new Promise<void>((res, rej) => {
+          snapPut.onsuccess = () => res();
+          snapPut.onerror = () => rej(asError(snapPut.error, 'Failed to persist snapshot (batch)'));
+        });
+        try {
+          setTimeout(() => {
+            compactSnapshots().catch(() => {});
+          }, 0);
+        } catch {}
+      }
+    });
+    if (chan) {
+      chan.postMessage({ type: 'append', seq: lastSeq });
+    } else if (typeof localStorage !== 'undefined') {
+      try {
+        const key = `app-events:lastSeq:${dbName}`;
+        const val = String(lastSeq);
+        localStorage.setItem(key, val);
+        try {
+          // @ts-expect-error - StorageEvent may not be fully typed in Node
+          const ev = new StorageEvent('storage', { key, newValue: val, storageArea: localStorage });
+          dispatchEvent(ev);
+        } catch {}
+      } catch {}
+    }
+    notify();
+    return lastSeq;
+  }
+
   function getState() {
     return memoryState;
   }
@@ -527,6 +652,7 @@ export async function createInstance(opts?: {
 
   return {
     append,
+    appendMany,
     getState,
     getHeight,
     rehydrate,

@@ -12,10 +12,10 @@ type LogBody = {
 
 export async function POST(req: NextRequest) {
   try {
-    const dataUnknown: unknown = await req.json().catch(() => ({} as unknown));
-    const data: LogBody = (dataUnknown && typeof dataUnknown === 'object'
-      ? (dataUnknown as Record<string, unknown>)
-      : {}) as LogBody;
+    const dataUnknown: unknown = await req.json().catch(() => ({}) as unknown);
+    const data: LogBody = (
+      dataUnknown && typeof dataUnknown === 'object' ? (dataUnknown as Record<string, unknown>) : {}
+    ) as LogBody;
 
     const type = typeof data.type === 'string' ? data.type : 'log';
     const safe = {

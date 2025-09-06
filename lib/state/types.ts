@@ -13,15 +13,18 @@ export type EventMap = {
   'bid/set': { round: number; playerId: string; bid: number };
   'made/set': { round: number; playerId: string; made: boolean };
   'round/finalize': { round: number };
-  // Single-player runtime events (engine state stored in the same event store)
-  'sp/reset': {};
+  // Single-player events
+  'sp/reset': Record<never, never>;
   'sp/deal': {
     roundNo: number;
     dealerId: string;
     order: string[];
     trump: 'clubs' | 'diamonds' | 'hearts' | 'spades';
     trumpCard: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number };
-    hands: Record<string, Array<{ suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number }>>;
+    hands: Record<
+      string,
+      Array<{ suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number }>
+    >;
   };
   'sp/phase-set': { phase: 'setup' | 'bidding' | 'playing' | 'done' };
   'sp/trick/played': {
@@ -30,6 +33,7 @@ export type EventMap = {
   };
   'sp/trick/cleared': { winnerId: string };
   'sp/trump-broken-set': { broken: boolean };
+  'sp/leader-set': { leaderId: string };
 };
 
 export type AppEventType = keyof EventMap;
@@ -53,42 +57,48 @@ export type AppEvent =
 export type RoundState = 'locked' | 'bidding' | 'playing' | 'complete' | 'scored';
 
 export type RoundData = Readonly<{
-	  state: RoundState;
-	  bids: Record<string, number>;
-	  made: Record<string, boolean | null>;
-	  // If present[pid] === false, player is absent for the round. Missing implies present.
-	  present?: Record<string, boolean>;
-	}>;
+  state: RoundState;
+  bids: Record<string, number>;
+  made: Record<string, boolean | null>;
+  // If present[pid] === false, player is absent for the round. Missing implies present.
+  present?: Record<string, boolean>;
+}>;
 
 export type AppState = Readonly<{
   players: Record<string, string>;
   scores: Record<string, number>;
   rounds: Record<number, RoundData>;
-  // Optional dense display order per player ID. Missing entries are handled by selectors.
-  display_order: Record<string, number>;
   sp: Readonly<{
     phase: 'setup' | 'bidding' | 'playing' | 'done';
-    roundNo: number;
+    roundNo: number | null;
     dealerId: string | null;
     order: string[];
     trump: 'clubs' | 'diamonds' | 'hearts' | 'spades' | null;
     trumpCard: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null;
-    hands: Record<string, Array<{ suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number }>>;
-    trickPlays: Array<{ playerId: string; card: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } }>;
+    hands: Record<
+      string,
+      Array<{ suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number }>
+    >;
+    trickPlays: Array<{
+      playerId: string;
+      card: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number };
+    }>;
     trickCounts: Record<string, number>;
     trumpBroken: boolean;
+    leaderId: string | null;
   }>;
-}>; 
+  // Optional dense display order per player ID. Missing entries are handled by selectors.
+  display_order: Record<string, number>;
+}>;
 import { initialRounds, clampBid, finalizeRound } from './logic';
 
 export const INITIAL_STATE: AppState = {
   players: {},
   scores: {},
   rounds: initialRounds(),
-  display_order: {},
   sp: {
     phase: 'setup',
-    roundNo: 1,
+    roundNo: null,
     dealerId: null,
     order: [],
     trump: null,
@@ -97,7 +107,9 @@ export const INITIAL_STATE: AppState = {
     trickPlays: [],
     trickCounts: {},
     trumpBroken: false,
+    leaderId: null,
   },
+  display_order: {},
 } as const;
 
 export function reduce(state: AppState, event: AppEvent): AppState {
@@ -251,6 +263,7 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const { round } = event.payload as EventMap['round/finalize'];
       return finalizeRound(state, round);
     }
+    // Single-player state transitions
     case 'sp/reset': {
       return { ...state, sp: { ...INITIAL_STATE.sp } };
     }
@@ -279,6 +292,8 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     }
     case 'sp/trick/played': {
       const { playerId, card } = event.payload as EventMap['sp/trick/played'];
+      // Idempotency: ignore if this player already played in the current trick
+      if (state.sp.trickPlays.some((p) => p.playerId === playerId)) return state;
       const trickPlays = [...state.sp.trickPlays, { playerId, card }];
       const hands = { ...state.sp.hands };
       const arr = [...(hands[playerId] ?? [])];
@@ -289,12 +304,21 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     }
     case 'sp/trick/cleared': {
       const { winnerId } = event.payload as EventMap['sp/trick/cleared'];
-      const trickCounts = { ...state.sp.trickCounts, [winnerId]: (state.sp.trickCounts[winnerId] ?? 0) + 1 };
+      // Idempotency: only clear/increment if there were plays to clear
+      if (!state.sp.trickPlays || state.sp.trickPlays.length === 0) return state;
+      const trickCounts = {
+        ...state.sp.trickCounts,
+        [winnerId]: (state.sp.trickCounts[winnerId] ?? 0) + 1,
+      };
       return { ...state, sp: { ...state.sp, trickPlays: [], trickCounts } };
     }
     case 'sp/trump-broken-set': {
       const { broken } = event.payload as EventMap['sp/trump-broken-set'];
       return { ...state, sp: { ...state.sp, trumpBroken: !!broken } };
+    }
+    case 'sp/leader-set': {
+      const { leaderId } = event.payload as EventMap['sp/leader-set'];
+      return { ...state, sp: { ...state.sp, leaderId } };
     }
     default:
       return state;

@@ -1,47 +1,62 @@
-"use client";
+'use client';
 import React from 'react';
 import { startRound, bots, winnerOfTrick } from '@/lib/single-player';
 import CurrentGame from '@/components/views/CurrentGame';
-import type { PlayerId, RoundStart, Card } from '@/lib/single-player';
-import { tricksForRound } from '@/lib/state/logic';
+import type { PlayerId, Card } from '@/lib/single-player';
 import { useAppState } from '@/components/state-provider';
-import { selectPlayersOrdered, events, archiveCurrentGameAndReset } from '@/lib/state';
+import { tricksForRound } from '@/lib/state/logic';
+import {
+  selectPlayersOrdered,
+  events,
+  archiveCurrentGameAndReset,
+  selectSpNextToPlay,
+  selectSpLiveOverlay,
+  selectSpTrumpInfo,
+  selectSpDealerName,
+  selectSpTricksForRound,
+  selectSpHandBySuit,
+  selectSpIsRoundDone,
+} from '@/lib/state';
 
 export default function SinglePlayerPage() {
-  const { state, append, ready } = useAppState();
+  const { state, append, appendMany, ready } = useAppState();
   const [playersCount, setPlayersCount] = React.useState(4);
   const [dealerIdx, setDealerIdx] = React.useState(0);
   const [humanIdx, setHumanIdx] = React.useState(0);
   const [roundNo, setRoundNo] = React.useState(1);
-  const [lastDeal, setLastDeal] = React.useState<RoundStart | null>(null);
-  const [phase, setPhase] = React.useState<'setup' | 'bidding' | 'playing' | 'done'>('setup');
-  const [bids, setBids] = React.useState<Record<PlayerId, number>>({});
-  const [currentBidderIdx, setCurrentBidderIdx] = React.useState(0);
-  const [turnOrder, setTurnOrder] = React.useState<PlayerId[]>([]);
-  const [trickLeader, setTrickLeader] = React.useState<PlayerId | null>(null);
-  const [trickPlays, setTrickPlays] = React.useState<Array<{ player: PlayerId; card: Card; order: number }>>([]);
-  const [trickCounts, setTrickCounts] = React.useState<Record<PlayerId, number>>({});
-  const [completedTricks, setCompletedTricks] = React.useState(0);
-  const [hands, setHands] = React.useState<Record<PlayerId, Card[]>>({});
+  const trickLeader = (state.sp.leaderId as PlayerId | null) ?? null;
   const [saved, setSaved] = React.useState(false);
   const [selectedCard, setSelectedCard] = React.useState<Card | null>(null);
-  const [trumpBroken, setTrumpBroken] = React.useState(false);
   const [initializedScoring, setInitializedScoring] = React.useState(false);
   const [autoDealt, setAutoDealt] = React.useState(false);
-  const SESSION_KEY = 'single-player:session:v1';
 
   const appPlayers = React.useMemo(() => selectPlayersOrdered(state), [state]);
-  const activePlayers = React.useMemo(() => appPlayers.slice(0, playersCount), [appPlayers, playersCount]);
+  const activePlayers = React.useMemo(
+    () => appPlayers.slice(0, playersCount),
+    [appPlayers, playersCount],
+  );
   const players = React.useMemo(() => activePlayers.map((p) => p.id), [activePlayers]);
   const dealer = players[dealerIdx] ?? players[0]!;
   const human = players[humanIdx] ?? players[0]!;
-  const tricks = tricksForRound(roundNo);
+  const tricks = selectSpTricksForRound(state);
   const useTwoDecks = playersCount > 5;
+  const sp = state.sp;
+  const phase = sp.phase;
+  const spTrump = sp.trump;
+  const spTrumpCard = sp.trumpCard;
+  const spOrder = sp.order;
+  const spHands = sp.hands as Record<PlayerId, Card[]>;
+  const spTrickPlays = (sp.trickPlays ?? []).map((p, i) => ({
+    player: p.playerId as PlayerId,
+    card: p.card as any as Card,
+    order: i,
+  }));
+  const spTrickCounts = sp.trickCounts as Record<PlayerId, number>;
+  const spTrumpBroken = sp.trumpBroken;
 
   const onDeal = async () => {
     setSaved(false);
     setSelectedCard(null);
-    setTrumpBroken(false);
     // On first deal for this session, archive current game and reset scoring roster
     if (!initializedScoring) {
       const desired = activePlayers.map((p) => ({ id: p.id, name: p.name }));
@@ -79,24 +94,22 @@ export default function SinglePlayerPage() {
       },
       Date.now(),
     );
-    setLastDeal(deal);
-    setPhase('bidding');
-    setBids({});
-    setCurrentBidderIdx(0);
-    setTurnOrder(deal.order);
-    setTrickLeader(deal.firstToAct);
-    setTrickPlays([]);
-    setHands(deal.hands);
-    const emptyCounts: Record<PlayerId, number> = {};
-    for (const p of players) emptyCounts[p] = 0;
-    setTrickCounts(emptyCounts);
-    setCompletedTricks(0);
-
-    // Ensure the current round is set to bidding (do not touch other rounds to avoid flicker)
+    // Persist deal + leader + set current scoring round to bidding atomically
     try {
-      await append(events.roundStateSet({ round: roundNo, state: 'bidding' }));
+      await appendMany([
+        events.spDeal({
+          roundNo: roundNo,
+          dealerId: dealer,
+          order: deal.order,
+          trump: deal.trump,
+          trumpCard: { suit: deal.trumpCard.suit as any, rank: deal.trumpCard.rank as any },
+          hands: deal.hands as any,
+        }),
+        events.spLeaderSet({ leaderId: deal.firstToAct }),
+        events.roundStateSet({ round: roundNo, state: 'bidding' }),
+      ]);
     } catch (e) {
-      console.warn('Failed to set current round to bidding', e);
+      console.warn('Failed to persist deal', e);
     }
   };
 
@@ -111,65 +124,10 @@ export default function SinglePlayerPage() {
     void onDeal();
   }, [ready, phase, autoDealt, activePlayers.length, playersCount]);
 
-  // Restore session from localStorage if available (preempts auto-deal)
-  React.useEffect(() => {
-    if (!ready) return;
-    if (autoDealt) return;
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (!raw) return;
-      const s = JSON.parse(raw);
-      if (!s || typeof s !== 'object') return;
-      // Basic sanity check
-      if (!Array.isArray(s.players) || !s.roundNo) return;
-      // Restore core state
-      setPhase(s.phase ?? 'bidding');
-      setRoundNo(s.roundNo);
-      setDealerIdx(s.dealerIdx ?? 0);
-      setHumanIdx(s.humanIdx ?? 0);
-      setLastDeal(s.lastDeal ?? null);
-      setBids(s.bids ?? {});
-      setTurnOrder(s.turnOrder ?? []);
-      setTrickLeader(s.trickLeader ?? null);
-      setTrickPlays(s.trickPlays ?? []);
-      setTrickCounts(s.trickCounts ?? {});
-      setHands(s.hands ?? {});
-      setTrumpBroken(!!s.trumpBroken);
-      setCompletedTricks(s.completedTricks ?? 0);
-      setInitializedScoring(true);
-      setAutoDealt(true);
-    } catch (e) {
-      console.warn('Failed to restore single-player session', e);
-    }
-  }, [ready, autoDealt]);
+  // Removed: localStorage snapshot/restore – now fully store-driven
 
-  // Persist session snapshot to localStorage so hard refresh can restore
-  React.useEffect(() => {
-    try {
-      if (!lastDeal) return;
-      const snapshot = {
-        phase,
-        roundNo,
-        dealerIdx,
-        humanIdx,
-        players,
-        bids,
-        turnOrder,
-        trickLeader,
-        trickPlays,
-        trickCounts,
-        hands,
-        lastDeal,
-        trumpBroken,
-        completedTricks,
-      };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(snapshot));
-    } catch (e) {
-      // best effort only
-    }
-  }, [lastDeal, phase, roundNo, dealerIdx, humanIdx, players, bids, turnOrder, trickLeader, trickPlays, trickCounts, hands, trumpBroken, completedTricks]);
-
-  const humanHand = lastDeal?.hands[human] ?? [];
+  const humanBySuit = selectSpHandBySuit(state, human);
+  const isRoundDone = selectSpIsRoundDone(state);
 
   // Formatting helpers for card display
   const rankLabel = React.useCallback((rank: number): string => {
@@ -194,131 +152,174 @@ export default function SinglePlayerPage() {
     [activePlayers],
   );
   const BotBadge = () => (
-    <span className="ml-1 text-[10px] uppercase rounded px-1 border border-border text-muted-foreground">BOT</span>
+    <span className="ml-1 text-[10px] uppercase rounded px-1 border border-border text-muted-foreground">
+      BOT
+    </span>
   );
 
   // Advance play: bot turns and trick resolution
   React.useEffect(() => {
-    if (!lastDeal || phase !== 'playing' || !trickLeader) return;
-    const leaderIdx = turnOrder.findIndex((p) => p === trickLeader);
-    if (leaderIdx < 0) return;
-    const rotated = [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
-    const nextToPlay = rotated[trickPlays.length];
+    if (!spTrump || phase !== 'playing' || !trickLeader) return;
+    const nextToPlay = selectSpNextToPlay(state);
     if (!nextToPlay) return;
     // If trick complete
-    if (trickPlays.length === turnOrder.length) return; // will be handled in another effect
+    if (spTrickPlays.length === spOrder.length) return; // handled in another effect
     // If it's a bot, play automatically
     if (nextToPlay !== human) {
       const pid = nextToPlay;
-      const botHand = hands[pid] ?? [];
+      const botHand = spHands[pid] ?? [];
       // Build context and let bot choose
       const card = bots.botPlay(
         {
-          trump: lastDeal.trump,
-          trickPlays,
+          trump: spTrump!,
+          trickPlays: spTrickPlays as any,
           hand: botHand,
           tricksThisRound: tricks,
-          seatIndex: turnOrder.findIndex((p) => p === pid),
-          bidsSoFar: bids,
-          tricksWonSoFar: trickCounts,
+          seatIndex: spOrder.findIndex((p) => p === pid),
+          bidsSoFar: (state.rounds[roundNo]?.bids ?? {}) as any,
+          tricksWonSoFar: spTrickCounts as any,
           selfId: pid,
-          trumpBroken,
+          trumpBroken: spTrumpBroken,
         },
         'normal',
       );
-      const idx = botHand.findIndex((c) => c === card);
-      const play = { player: pid, card, order: trickPlays.length };
       // Slight delay for UX
       const t = setTimeout(() => {
-        setTrickPlays((tp) => [...tp, play]);
-        setHands((h) => ({ ...h, [pid]: (h[pid] ?? []).filter((_, i) => i !== idx) }));
-        // Persist to store
-        void append(events.spTrickPlayed({ playerId: pid, card: { suit: card.suit as any, rank: card.rank } }));
+        // Persist to store (batched for uniformity)
+        void appendMany([
+          events.spTrickPlayed({
+            playerId: pid,
+            card: { suit: card.suit as any, rank: card.rank },
+          }),
+        ]);
       }, 250);
       return () => clearTimeout(t);
     }
-  }, [phase, trickPlays, trickLeader, hands, lastDeal, bids, trickCounts, human, tricks, turnOrder]);
+  }, [
+    phase,
+    spTrickPlays,
+    trickLeader,
+    spHands,
+    human,
+    tricks,
+    spOrder,
+    spTrump,
+    spTrumpBroken,
+    spTrickCounts,
+    roundNo,
+    state.rounds,
+  ]);
 
-  // Auto-bid for bots during bidding phase
+  // Auto-bid for bots during bidding phase (store-driven)
   React.useEffect(() => {
-    if (!lastDeal || phase !== 'bidding') return;
-    const pid = turnOrder[currentBidderIdx];
-    if (!pid || pid === human) return;
+    if (phase !== 'bidding') return;
+    const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<string, number | undefined>;
+    // Only proceed if human has bid
+    if (bidsMap[human] == null) return;
+    // Find the next bot without a bid
+    const nextBot = spOrder.find((pid) => pid !== human && bidsMap[pid] == null);
+    if (!nextBot) {
+      // All bids present -> advance to playing
+      const t = setTimeout(() => {
+        void appendMany([
+          events.roundStateSet({ round: roundNo, state: 'playing' }),
+          events.spPhaseSet({ phase: 'playing' }),
+        ]);
+      }, 0);
+      return () => clearTimeout(t);
+    }
     const amount = bots.botBid(
       {
-        trump: lastDeal.trump,
-        hand: hands[pid] ?? [],
+        trump: spTrump!,
+        hand: spHands[nextBot] ?? [],
         tricksThisRound: tricks,
-        seatIndex: currentBidderIdx,
-        bidsSoFar: bids,
-        selfId: pid,
-        // trumpBroken not relevant during bidding; omit
+        seatIndex: spOrder.findIndex((p) => p === nextBot),
+        bidsSoFar: bidsMap as any,
+        selfId: nextBot,
       },
       'normal',
     );
     const t = setTimeout(() => {
-      setBids((m) => ({ ...m, [pid]: amount }));
-      void append(events.bidSet({ round: roundNo, playerId: pid, bid: amount }));
-      const nextIdx = currentBidderIdx + 1;
-      if (nextIdx >= turnOrder.length) {
-        setPhase('playing');
-        void append(events.roundStateSet({ round: roundNo, state: 'playing' }));
-      }
-      setCurrentBidderIdx(nextIdx);
-    }, 300);
+      void append(events.bidSet({ round: roundNo, playerId: nextBot, bid: amount }));
+    }, 250);
     return () => clearTimeout(t);
-  }, [phase, currentBidderIdx, turnOrder, human, lastDeal, hands, bids, tricks]);
+  }, [phase, spOrder, human, spTrump, spHands, roundNo, tricks, state.rounds]);
 
   // Resolve completed trick
   React.useEffect(() => {
-    if (!lastDeal || phase !== 'playing' || !trickLeader) return;
-    if (trickPlays.length < turnOrder.length) return;
+    if (!spTrump || phase !== 'playing' || !trickLeader) return;
+    if (spTrickPlays.length < spOrder.length) return;
     // Determine winner
-    const winner = winnerOfTrick(trickPlays as any, lastDeal.trump);
+    const winner = winnerOfTrick(spTrickPlays as any, spTrump!);
     if (!winner) return;
     const t = setTimeout(() => {
       // If any off-suit trump was played this trick, mark trump as broken for future leads
-      const ledSuit = trickPlays[0]?.card.suit;
-      const anyTrump = trickPlays.some((p) => p.card.suit === lastDeal.trump);
-      if (!trumpBroken && anyTrump && ledSuit && ledSuit !== lastDeal.trump) {
-        setTrumpBroken(true);
-        void append(events.spTrumpBrokenSet({ broken: true }));
+      const ledSuit = spTrickPlays[0]?.card.suit as any;
+      const anyTrump = spTrickPlays.some((p) => (p.card as any).suit === spTrump);
+      const batch: any[] = [];
+      if (!spTrumpBroken && anyTrump && ledSuit && ledSuit !== spTrump) {
+        batch.push(events.spTrumpBrokenSet({ broken: true }));
       }
-      setTrickCounts((tc) => ({ ...tc, [winner]: (tc[winner] ?? 0) + 1 }));
-      setTrickLeader(winner);
-      setTrickPlays([]);
-      void append(events.spTrickCleared({ winnerId: winner }));
-      setCompletedTricks((n) => {
-        const next = n + 1;
-        if (next >= tricks) setPhase('done');
-        return next;
-      });
+      batch.push(events.spTrickCleared({ winnerId: winner }));
+      batch.push(events.spLeaderSet({ leaderId: winner }));
+      void appendMany(batch);
     }, 800); // leave the full trick visible a bit longer
     return () => clearTimeout(t);
-  }, [trickPlays, turnOrder.length, lastDeal, phase, trickLeader, tricks]);
+  }, [spTrickPlays, spOrder.length, spTrump, phase, trickLeader, spTrumpBroken]);
 
   // Auto-sync results to scorekeeper when round ends
   React.useEffect(() => {
-    if (phase !== 'done' || !lastDeal) return;
+    if (!isRoundDone) return;
     if (saved) return; // already synced
     (async () => {
       try {
+        const batch: any[] = [];
+        const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<string, number | undefined>;
         for (const pid of players) {
-          const won = trickCounts[pid] ?? 0;
-          const made = won === (bids[pid] ?? 0);
-          await append(events.madeSet({ round: roundNo, playerId: pid, made }));
+          const won = spTrickCounts[pid] ?? 0;
+          const made = won === (bidsMap[pid] ?? 0);
+          batch.push(events.madeSet({ round: roundNo, playerId: pid, made }));
         }
-        await append(events.roundFinalize({ round: roundNo }));
-        setSaved(true);
-        // Automatically deal next round if any remain
+        // Mark SP phase as done and finalize scoring row in the same batch
+        batch.push(events.spPhaseSet({ phase: 'done' }));
+        batch.push(events.roundFinalize({ round: roundNo }));
+
+        // Auto-advance: prepare next round deal (if any) and include in the same batch
         if (roundNo < 10) {
-          setDealerIdx((i) => (i + 1) % players.length);
-          setRoundNo((r) => Math.min(10, r + 1));
-          // Allow brief pause, then deal next round
-          setTimeout(() => {
-            void onDeal();
-          }, 400);
+          const nextRound = Math.min(10, roundNo + 1);
+          const nextDealerIdx = (dealerIdx + 1) % players.length;
+          const nextDealer = players[nextDealerIdx]!;
+          const nextTricks = tricksForRound(nextRound);
+          const useTwoDecks = playersCount > 5;
+          const deal = startRound(
+            {
+              round: nextRound,
+              players,
+              dealer: nextDealer,
+              tricks: nextTricks,
+              useTwoDecks,
+            },
+            Date.now(),
+          );
+          batch.push(
+            events.spDeal({
+              roundNo: nextRound,
+              dealerId: nextDealer,
+              order: deal.order,
+              trump: deal.trump,
+              trumpCard: { suit: deal.trumpCard.suit as any, rank: deal.trumpCard.rank as any },
+              hands: deal.hands as any,
+            }),
+          );
+          batch.push(events.spLeaderSet({ leaderId: deal.firstToAct }));
+          batch.push(events.spPhaseSet({ phase: 'bidding' }));
+          batch.push(events.roundStateSet({ round: nextRound, state: 'bidding' }));
+          await appendMany(batch);
+          // reflect UI local indices to keep controls coherent
+          setDealerIdx(nextDealerIdx);
+          setRoundNo(nextRound);
         } else {
+          await appendMany(batch);
           // For the final round, make previous round (round 9) active for bidding and keep this round scored
           try {
             await append(events.roundStateSet({ round: 9, state: 'bidding' }));
@@ -326,11 +327,12 @@ export default function SinglePlayerPage() {
             console.warn('failed to set round 9 to bidding after round 10 scored', e);
           }
         }
+        setSaved(true);
       } catch (e) {
         console.warn('Failed to auto-sync results', e);
       }
     })();
-  }, [phase, lastDeal, bids, trickCounts, players, roundNo, append, saved]);
+  }, [isRoundDone, players, roundNo, append, saved, spTrickCounts, state.rounds]);
 
   return (
     <main className="p-4 space-y-6">
@@ -344,12 +346,20 @@ export default function SinglePlayerPage() {
             min={2}
             max={10}
             value={playersCount}
-            onChange={(e) => setPlayersCount(Math.max(2, Math.min(10, Number(e.target.value) || 0)))}
+            onChange={(e) =>
+              setPlayersCount(Math.max(2, Math.min(10, Number(e.target.value) || 0)))
+            }
           />
-          <div className="text-xs text-muted-foreground">{useTwoDecks ? 'Using two decks' : 'Using one deck'}</div>
-          <div className="text-xs text-muted-foreground">Available players in scorekeeper: {appPlayers.length}</div>
+          <div className="text-xs text-muted-foreground">
+            {useTwoDecks ? 'Using two decks' : 'Using one deck'}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Available players in scorekeeper: {appPlayers.length}
+          </div>
           {appPlayers.length < playersCount && (
-            <div className="text-xs text-red-600">Add more players on Players page to reach {playersCount}.</div>
+            <div className="text-xs text-red-600">
+              Add more players on Players page to reach {playersCount}.
+            </div>
           )}
         </div>
         <div className="space-y-2">
@@ -398,96 +408,61 @@ export default function SinglePlayerPage() {
         Deal Round
       </button>
 
-      {lastDeal && (
+      {spOrder.length > 0 && (
         <div className="space-y-2">
-          <div className="text-sm">
-            Trump:{' '}
-            <span
-              className="font-mono text-lg inline-flex items-center gap-1"
-              title={`Trump card: ${rankLabel(lastDeal.trumpCard.rank)} of ${lastDeal.trumpCard.suit}`}
-            >
-              <span className="font-bold text-foreground">{rankLabel(lastDeal.trumpCard.rank)}</span>
-              <span className={suitColorClass(lastDeal.trump)}>{suitSymbol(lastDeal.trump)}</span>
-            </span>
-          </div>
-          <div className="text-sm">First to act: <span className="font-mono">{lastDeal.firstToAct}</span></div>
-          <div className="text-sm">Deck remaining: <span className="font-mono">{lastDeal.deckRemaining}</span></div>
-          <div className="text-sm">Phase: <span className="font-mono">{phase}</span></div>
-
-          {phase === 'bidding' && (
-            <div className="space-y-2">
-              <div className="font-semibold">Bidding</div>
+          {(() => {
+            const info = selectSpTrumpInfo(state);
+            return (
               <div className="text-sm">
-                Current bidder:{' '}
-                <strong className="inline-flex items-center">
-                  {nameFor(turnOrder[currentBidderIdx])}
-                  {turnOrder[currentBidderIdx] !== human && <BotBadge />}
-                </strong>
-                <span className="ml-2 text-xs text-muted-foreground">
-                  ({currentBidderIdx + 1} of {turnOrder.length})
+                Trump:{' '}
+                <span
+                  className="font-mono text-lg inline-flex items-center gap-1"
+                  title={
+                    info.trumpCard
+                      ? `Trump card: ${rankLabel(info.trumpCard.rank)} of ${info.trumpCard.suit}`
+                      : undefined
+                  }
+                >
+                  {info.trump && info.trumpCard ? (
+                    <>
+                      <span className="font-bold text-foreground">
+                        {rankLabel(info.trumpCard.rank)}
+                      </span>
+                      <span className={suitColorClass(info.trump)}>{suitSymbol(info.trump)}</span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-1 text-xs">
-                {turnOrder.map((p, i) => (
-                  <span
-                    key={`bid-chip-${p}-${i}`}
-                    className={`px-2 py-0.5 rounded border ${
-                      i === currentBidderIdx ? 'bg-accent text-accent-foreground border-accent' : 'border-border'
-                    }`}
-                    title={`Seat ${i + 1}`}
-                  >
-                    <span className="inline-flex items-center">
-                      {nameFor(p)}
-                      {p !== human && <BotBadge />}
-                    </span>
-                  </span>
-                ))}
+            );
+          })()}
+          {(() => {
+            const dealerName = selectSpDealerName(state);
+            return (
+              <div className="text-sm">
+                Dealer: <span className="font-mono">{dealerName ?? '-'}</span>
               </div>
-              {turnOrder[currentBidderIdx] === human ? (
-                <div className="flex items-center gap-2">
-                  <label className="text-sm">Your bid:</label>
-                  <input
-                    className="border rounded px-2 py-1 w-24"
-                    type="number"
-                    min={0}
-                    max={tricks}
-                    value={bids[human] ?? 0}
-                    onChange={(e) => setBids((m) => ({ ...m, [human]: Math.max(0, Math.min(tricks, Number(e.target.value) || 0)) }))}
-                  />
-                  <button
-                    className="inline-flex items-center rounded border px-2 py-1 text-sm"
-                    onClick={() => {
-                      const amount = Math.max(0, Math.min(tricks, Math.round(bids[human] ?? 0)));
-                      setBids((m) => ({ ...m, [human]: amount }));
-                      void append(events.bidSet({ round: roundNo, playerId: human, bid: amount }));
-                      const nextIdx = currentBidderIdx + 1;
-                      if (nextIdx >= turnOrder.length) {
-                        setPhase('playing');
-                        void append(events.roundStateSet({ round: roundNo, state: 'playing' }));
-                      }
-                      setCurrentBidderIdx(nextIdx);
-                    }}
-                  >
-                    Confirm
-                  </button>
-                </div>
-              ) : (
-                <span className="text-sm text-muted-foreground">Bot is bidding…</span>
-              )}
-              <div className="text-xs text-muted-foreground">Bids: {turnOrder.map((p) => `${p}:${bids[p] ?? '-'}`).join('  ')}</div>
-            </div>
-          )}
+            );
+          })()}
+          <div className="text-sm">
+            First to act: <span className="font-mono">{spOrder?.[0] ?? '-'}</span>
+          </div>
+          <div className="text-sm">
+            Phase: <span className="font-mono">{phase}</span>
+          </div>
 
           {phase !== 'bidding' && (
             <div className="space-y-3">
               <div className="font-semibold">Play</div>
               <div className="text-sm">Leader: {trickLeader}</div>
               {(() => {
-                const leaderIdx = turnOrder.findIndex((p) => p === trickLeader);
-                const rotated = leaderIdx < 0
-                  ? turnOrder
-                  : [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
-                const currentIdx = trickPlays.length; // next to play in this trick
+                const leaderIdx = spOrder.findIndex((p) => p === trickLeader);
+                const rotated =
+                  leaderIdx < 0
+                    ? spOrder
+                    : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
+                const currentIdx = spTrickPlays.length; // next to play in this trick
                 return (
                   <div className="space-y-1">
                     <div className="text-sm">
@@ -501,7 +476,9 @@ export default function SinglePlayerPage() {
                         <span
                           key={`play-chip-${p}-${i}`}
                           className={`px-2 py-0.5 rounded border ${
-                            i === currentIdx ? 'bg-accent text-accent-foreground border-accent' : 'border-border'
+                            i === currentIdx
+                              ? 'bg-accent text-accent-foreground border-accent'
+                              : 'border-border'
                           }`}
                           title={`Order ${i + 1}`}
                         >
@@ -519,14 +496,22 @@ export default function SinglePlayerPage() {
               <div className="space-y-1">
                 <div className="font-medium text-sm">Current trick:</div>
                 <ul className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {trickPlays.map((p, i) => (
-                    <li key={`tp-${p.player}-${i}`} className="border rounded px-2 py-1 flex items-center justify-between">
+                  {spTrickPlays.map((p, i) => (
+                    <li
+                      key={`tp-${p.player}-${i}`}
+                      className="border rounded px-2 py-1 flex items-center justify-between"
+                    >
                       <span className="text-xs mr-2 inline-flex items-center">
                         {nameFor(p.player)}
                         {p.player !== human && <BotBadge />}
                       </span>
-                      <span className={`font-mono inline-flex items-center gap-1 ${suitColorClass(p.card.suit)}`} title={`${rankLabel(p.card.rank)} of ${p.card.suit}`}>
-                        <span className="font-bold text-sm text-foreground">{rankLabel(p.card.rank)}</span>
+                      <span
+                        className={`font-mono inline-flex items-center gap-1 ${suitColorClass(p.card.suit)}`}
+                        title={`${rankLabel(p.card.rank)} of ${p.card.suit}`}
+                      >
+                        <span className="font-bold text-sm text-foreground">
+                          {rankLabel(p.card.rank)}
+                        </span>
                         <span>{suitSymbol(p.card.suit)}</span>
                       </span>
                     </li>
@@ -536,13 +521,16 @@ export default function SinglePlayerPage() {
               <div className="text-sm">
                 Tricks won:
                 <div className="mt-1 flex flex-wrap gap-1 text-xs">
-                  {turnOrder.map((p) => (
-                    <span key={`won-${p}`} className="px-2 py-0.5 rounded border border-border inline-flex items-center gap-1">
+                  {spOrder.map((p) => (
+                    <span
+                      key={`won-${p}`}
+                      className="px-2 py-0.5 rounded border border-border inline-flex items-center gap-1"
+                    >
                       <span className="inline-flex items-center">
                         {nameFor(p)}
                         {p !== human && <BotBadge />}
                       </span>
-                      <span className="font-mono">{trickCounts[p] ?? 0}</span>
+                      <span className="font-mono">{spTrickCounts[p] ?? 0}</span>
                     </span>
                   ))}
                 </div>
@@ -551,14 +539,14 @@ export default function SinglePlayerPage() {
             </div>
           )}
 
-          {phase === 'done' && (
+          {(phase === 'done' || isRoundDone) && (
             <div className="space-y-2">
               <div className="font-semibold">Round Complete</div>
               <div className="text-sm">Results:</div>
               <ul className="text-sm">
-                {turnOrder.map((p) => {
-                  const won = trickCounts[p] ?? 0;
-                  const bid = bids[p] ?? 0;
+                {spOrder.map((p) => {
+                  const won = spTrickCounts[p] ?? 0;
+                  const bid = (state.rounds[roundNo]?.bids?.[p] ?? 0) as number;
                   const made = won === bid;
                   return (
                     <li key={`res-${p}`} className="inline-flex items-center gap-1">
@@ -574,16 +562,18 @@ export default function SinglePlayerPage() {
               <button
                 className="inline-flex items-center rounded border px-3 py-1 text-sm"
                 onClick={async () => {
+                  const batch: any[] = [];
+                  const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<
+                    string,
+                    number | undefined
+                  >;
                   for (const pid of players) {
-                    const bid = Math.max(0, Math.min(tricks, Math.round(bids[pid] ?? 0)));
-                    await append(events.bidSet({ round: roundNo, playerId: pid, bid }));
+                    const won = spTrickCounts[pid] ?? 0;
+                    const made = won === (bidsMap[pid] ?? 0);
+                    batch.push(events.madeSet({ round: roundNo, playerId: pid, made }));
                   }
-                  for (const pid of players) {
-                    const won = trickCounts[pid] ?? 0;
-                    const made = won === (bids[pid] ?? 0);
-                    await append(events.madeSet({ round: roundNo, playerId: pid, made }));
-                  }
-                  await append(events.roundFinalize({ round: roundNo }));
+                  batch.push(events.roundFinalize({ round: roundNo }));
+                  await appendMany(batch);
                   setSaved(true);
                 }}
               >
@@ -601,7 +591,9 @@ export default function SinglePlayerPage() {
                 Next Round
               </button>
               {!saved && (
-                <div className="text-xs text-muted-foreground">Tip: Save to scorekeeper before advancing.</div>
+                <div className="text-xs text-muted-foreground">
+                  Tip: Save to scorekeeper before advancing.
+                </div>
               )}
             </div>
           )}
@@ -611,28 +603,50 @@ export default function SinglePlayerPage() {
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">Scorecard</h2>
         <div className="border rounded">
-          {lastDeal && (
+          {spOrder.length > 0 && (
             <div className="flex items-center justify-between px-2 py-1 border-b">
-              <div className="text-xs text-muted-foreground">
-                Round {roundNo}
-                <span className="mx-2 text-muted-foreground">•</span>
-                <span>
-                  Dealer: {activePlayers.find((ap) => ap.id === dealer)?.name ?? dealer}
-                </span>
-              </div>
+              {(() => {
+                const dealerName = selectSpDealerName(state);
+                return (
+                  <div className="text-xs text-muted-foreground">
+                    Round {roundNo}
+                    <span className="mx-2 text-muted-foreground">•</span>
+                    <span>Dealer: {dealerName ?? '-'}</span>
+                  </div>
+                );
+              })()}
               <div className="flex items-center gap-4">
-                <div
-                  className="text-sm font-mono inline-flex items-center gap-1"
-                  title={`Trump card: ${rankLabel(lastDeal.trumpCard.rank)} of ${lastDeal.trumpCard.suit}`}
-                >
-                  <span className="text-xs text-muted-foreground mr-1">Trump:</span>
-                  <span className="font-bold text-foreground">{rankLabel(lastDeal.trumpCard.rank)}</span>
-                  <span className={suitColorClass(lastDeal.trump)}>{suitSymbol(lastDeal.trump)}</span>
-                </div>
+                {(() => {
+                  const info = selectSpTrumpInfo(state);
+                  return (
+                    <div
+                      className="text-sm font-mono inline-flex items-center gap-1"
+                      title={
+                        info.trumpCard
+                          ? `Trump card: ${rankLabel(info.trumpCard.rank)} of ${info.trumpCard.suit}`
+                          : undefined
+                      }
+                    >
+                      <span className="text-xs text-muted-foreground mr-1">Trump:</span>
+                      {info.trump && info.trumpCard ? (
+                        <>
+                          <span className="font-bold text-foreground">
+                            {rankLabel(info.trumpCard.rank)}
+                          </span>
+                          <span className={suitColorClass(info.trump)}>
+                            {suitSymbol(info.trump)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="text-sm font-mono inline-flex items-center gap-1">
                   <span className="text-xs text-muted-foreground mr-1">Lead:</span>
                   {(() => {
-                    const lead = trickPlays[0]?.card;
+                    const lead = spTrickPlays[0]?.card as any;
                     if (!lead) return <span className="text-xs text-muted-foreground">—</span>;
                     return (
                       <>
@@ -646,21 +660,10 @@ export default function SinglePlayerPage() {
             </div>
           )}
           {(() => {
-            const leaderIdx = turnOrder.findIndex((p) => p === trickLeader);
-            const rotated = leaderIdx < 0 ? turnOrder : [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
-            const nextToPlay = phase === 'playing' ? rotated[trickPlays.length] : null;
-            const cards: Record<string, { suit: 'clubs'|'diamonds'|'hearts'|'spades'; rank: number } | null> = {} as any;
-            if (phase !== 'bidding') {
-              for (const p of turnOrder) (cards as any)[p] = null;
-              for (const tp of trickPlays) (cards as any)[tp.player] = { suit: tp.card.suit as any, rank: tp.card.rank };
-            }
+            const overlay = phase === 'playing' ? selectSpLiveOverlay(state) : null;
             return (
               <CurrentGame
-                live={
-                  phase === 'playing'
-                    ? { round: roundNo, currentPlayerId: nextToPlay, cards, counts: trickCounts as any }
-                    : undefined
-                }
+                live={overlay ?? undefined}
                 biddingInteractiveIds={[human]}
                 onConfirmBid={(r, pid, bid) => {
                   // Confirm this player's bid, auto-bid others if needed, then start playing
@@ -668,34 +671,30 @@ export default function SinglePlayerPage() {
                     try {
                       // Ignore confirmations for non-current rounds to avoid corrupting other rows
                       if (r !== roundNo) return;
-                      // Set this player's bid
-                      setBids((m) => ({ ...m, [pid]: bid }));
-                      await append(events.bidSet({ round: r, playerId: pid, bid }));
-                      // For any others without bids, auto-bid using simple bot
-                      for (const p of turnOrder) {
+                      // Set this player's bid and auto-bids for others in one batch
+                      const batch: any[] = [events.bidSet({ round: r, playerId: pid, bid })];
+                      for (const p of spOrder) {
                         if (p === pid) continue;
-                        const has = (bids[p] ?? null) !== null && (bids[p] ?? undefined) !== undefined;
-                        const currentBid = has ? (bids[p] as number) : (state.rounds[r]?.bids[p] ?? null);
+                        const currentBid = state.rounds[r]?.bids?.[p] ?? null;
                         if (currentBid == null) {
                           const amount = bots.botBid(
                             {
-                              trump: lastDeal!.trump,
-                              hand: hands[p] ?? [],
+                              trump: spTrump!,
+                              hand: spHands[p] ?? [],
                               tricksThisRound: tricks,
-                              seatIndex: turnOrder.findIndex((x) => x === p),
-                              bidsSoFar: bids,
+                              seatIndex: spOrder.findIndex((x) => x === p),
+                              bidsSoFar: (state.rounds[r]?.bids ?? {}) as any,
                               selfId: p,
                             },
                             'normal',
                           );
-                          setBids((m) => ({ ...m, [p]: amount }));
-                          await append(events.bidSet({ round: r, playerId: p, bid: amount }));
+                          batch.push(events.bidSet({ round: r, playerId: p, bid: amount }));
                         }
                       }
                       // Start playing
-                      setPhase('playing');
-                      await append(events.roundStateSet({ round: r, state: 'playing' }));
-                      await append(events.spPhaseSet({ phase: 'playing' }));
+                      batch.push(events.roundStateSet({ round: r, state: 'playing' }));
+                      batch.push(events.spPhaseSet({ phase: 'playing' }));
+                      await appendMany(batch);
                     } catch (e) {
                       console.warn('confirm bid failed', e);
                     }
@@ -707,13 +706,15 @@ export default function SinglePlayerPage() {
         </div>
       </div>
 
-      {lastDeal && (
+      {spOrder.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-lg font-semibold">Your Hand ({activePlayers.find(ap => ap.id===human)?.name ?? human})</h2>
+          <h2 className="text-lg font-semibold">
+            Your Hand ({activePlayers.find((ap) => ap.id === human)?.name ?? human})
+          </h2>
           {phase === 'bidding' ? (
             <div className="space-y-1">
               {suitOrder.map((s) => {
-                const row = humanHand.filter((c) => c.suit === s).sort((a,b)=> b.rank - a.rank);
+                const row = humanBySuit[s];
                 if (row.length === 0) return null;
                 return (
                   <div key={`bid-row-${s}`} className="flex items-center gap-2">
@@ -738,29 +739,36 @@ export default function SinglePlayerPage() {
             <div>
               <div className="space-y-1">
                 {suitOrder.map((s) => {
-                  const row = (hands[human] ?? []).filter((c) => c.suit === s).sort((a,b)=> b.rank - a.rank);
+                  const row = humanBySuit[s];
                   if (row.length === 0) return null;
                   return (
                     <div key={`play-row-${s}`} className="flex items-center gap-2">
                       <div className={`w-5 text-center ${suitColorClass(s)}`}>{suitSymbol(s)}</div>
                       <div className="flex flex-wrap gap-1">
                         {row.map((c, idx) => {
-                          const ledSuit = trickPlays[0]?.card.suit;
-                          const trickTrumped = trickPlays.some((p) => p.card.suit === lastDeal!.trump);
-                          const canFollow = (hands[human] ?? []).some((h) => h.suit === ledSuit);
+                          const ledSuit = spTrickPlays[0]?.card.suit as any;
+                          const trickTrumped = spTrickPlays.some(
+                            (p) => (p.card as any).suit === spTrump,
+                          );
+                          const canFollow = (spHands[human] ?? []).some((h) => h.suit === ledSuit);
                           let legal = true;
                           if (!ledSuit) {
-                            const hasNonTrump = (hands[human] ?? []).some((h) => h.suit !== lastDeal!.trump);
-                            if (!trumpBroken && hasNonTrump && c.suit === lastDeal!.trump) legal = false;
+                            const hasNonTrump = (spHands[human] ?? []).some(
+                              (h) => h.suit !== spTrump,
+                            );
+                            if (!spTrumpBroken && hasNonTrump && c.suit === spTrump) legal = false;
                           } else if (canFollow) {
                             legal = c.suit === ledSuit;
                           } else if (trickTrumped) {
-                            const hasTrump = (hands[human] ?? []).some((h) => h.suit === lastDeal!.trump);
-                            if (hasTrump) legal = c.suit === lastDeal!.trump;
+                            const hasTrump = (spHands[human] ?? []).some((h) => h.suit === spTrump);
+                            if (hasTrump) legal = c.suit === spTrump;
                           }
-                          const leaderIdx = turnOrder.findIndex((p) => p === trickLeader);
-                          const rotated = leaderIdx < 0 ? turnOrder : [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
-                          const nextToPlay = rotated[trickPlays.length];
+                          const leaderIdx = spOrder.findIndex((p) => p === trickLeader);
+                          const rotated =
+                            leaderIdx < 0
+                              ? spOrder
+                              : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
+                          const nextToPlay = rotated[spTrickPlays.length];
                           const isHumansTurn = nextToPlay === human;
                           const isSelected = selectedCard === c;
                           return (
@@ -775,30 +783,44 @@ export default function SinglePlayerPage() {
                               onDoubleClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                const ledSuitNow = trickPlays[0]?.card.suit;
-                                const trickTrumpedNow = trickPlays.some((p) => p.card.suit === lastDeal!.trump);
-                                const canFollowNow = (hands[human] ?? []).some((h) => h.suit === ledSuitNow);
+                                const ledSuitNow = spTrickPlays[0]?.card.suit as any;
+                                const trickTrumpedNow = spTrickPlays.some(
+                                  (p) => (p.card as any).suit === spTrump,
+                                );
+                                const canFollowNow = (spHands[human] ?? []).some(
+                                  (h) => h.suit === ledSuitNow,
+                                );
                                 let legalNow = true;
                                 if (!ledSuitNow) {
-                                  const hasNonTrump = (hands[human] ?? []).some((h) => h.suit !== lastDeal!.trump);
-                                  if (!trumpBroken && hasNonTrump && c.suit === lastDeal!.trump) legalNow = false;
+                                  const hasNonTrump = (spHands[human] ?? []).some(
+                                    (h) => h.suit !== spTrump,
+                                  );
+                                  if (!spTrumpBroken && hasNonTrump && c.suit === spTrump)
+                                    legalNow = false;
                                 } else if (canFollowNow) {
                                   legalNow = c.suit === ledSuitNow;
                                 } else if (trickTrumpedNow) {
-                                  const hasTrump = (hands[human] ?? []).some((h) => h.suit === lastDeal!.trump);
-                                  if (hasTrump) legalNow = c.suit === lastDeal!.trump;
+                                  const hasTrump = (spHands[human] ?? []).some(
+                                    (h) => h.suit === spTrump,
+                                  );
+                                  if (hasTrump) legalNow = c.suit === spTrump;
                                 }
-                                const leaderIdxNow = turnOrder.findIndex((p) => p === trickLeader);
-                                const rotatedNow = leaderIdxNow < 0 ? turnOrder : [...turnOrder.slice(leaderIdxNow), ...turnOrder.slice(0, leaderIdxNow)];
-                                const nextToPlayNow = rotatedNow[trickPlays.length];
+                                const leaderIdxNow = spOrder.findIndex((p) => p === trickLeader);
+                                const rotatedNow =
+                                  leaderIdxNow < 0
+                                    ? spOrder
+                                    : [
+                                        ...spOrder.slice(leaderIdxNow),
+                                        ...spOrder.slice(0, leaderIdxNow),
+                                      ];
+                                const nextToPlayNow = rotatedNow[spTrickPlays.length];
                                 if (!legalNow || nextToPlayNow !== human) return;
-                                setTrickPlays((tp) => [...tp, { player: human, card: c, order: tp.length }]);
-                                setHands((h) => {
-                                  const arr = (h[human] ?? []);
-                                  const removeIdx = arr.findIndex((hc) => hc === c);
-                                  const nextArr = removeIdx >= 0 ? [...arr.slice(0, removeIdx), ...arr.slice(removeIdx + 1)] : arr.slice();
-                                  return { ...h, [human]: nextArr };
-                                });
+                                void append(
+                                  events.spTrickPlayed({
+                                    playerId: human,
+                                    card: { suit: c.suit as any, rank: c.rank },
+                                  }),
+                                );
                                 setSelectedCard(null);
                               }}
                               title={`${rankLabel(c.rank)} of ${c.suit}`}
@@ -820,30 +842,33 @@ export default function SinglePlayerPage() {
                   disabled={!selectedCard}
                   onClick={() => {
                     if (!selectedCard) return;
-                    const ledSuit = trickPlays[0]?.card.suit;
-                    const trickTrumped = trickPlays.some((p) => p.card.suit === lastDeal!.trump);
-                    const canFollow = (hands[human] ?? []).some((h) => h.suit === ledSuit);
+                    const ledSuit = spTrickPlays[0]?.card.suit as any;
+                    const trickTrumped = spTrickPlays.some((p) => (p.card as any).suit === spTrump);
+                    const canFollow = (spHands[human] ?? []).some((h) => h.suit === ledSuit);
                     let legal = true;
                     if (!ledSuit) {
-                      const hasNonTrump = (hands[human] ?? []).some((h) => h.suit !== lastDeal!.trump);
-                      if (!trumpBroken && hasNonTrump && selectedCard.suit === lastDeal!.trump) legal = false;
+                      const hasNonTrump = (spHands[human] ?? []).some((h) => h.suit !== spTrump);
+                      if (!spTrumpBroken && hasNonTrump && selectedCard.suit === spTrump)
+                        legal = false;
                     } else if (canFollow) {
                       legal = selectedCard.suit === ledSuit;
                     } else if (trickTrumped) {
-                      const hasTrump = (hands[human] ?? []).some((h) => h.suit === lastDeal!.trump);
-                      if (hasTrump) legal = selectedCard.suit === lastDeal!.trump;
+                      const hasTrump = (spHands[human] ?? []).some((h) => h.suit === spTrump);
+                      if (hasTrump) legal = selectedCard.suit === spTrump;
                     }
-                    const leaderIdx = turnOrder.findIndex((p) => p === trickLeader);
-                    const rotated = leaderIdx < 0 ? turnOrder : [...turnOrder.slice(leaderIdx), ...turnOrder.slice(0, leaderIdx)];
-                    const nextToPlay = rotated[trickPlays.length];
+                    const leaderIdx = spOrder.findIndex((p) => p === trickLeader);
+                    const rotated =
+                      leaderIdx < 0
+                        ? spOrder
+                        : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
+                    const nextToPlay = rotated[spTrickPlays.length];
                     if (!legal || nextToPlay !== human) return;
-                    setTrickPlays((tp) => [...tp, { player: human, card: selectedCard, order: tp.length }]);
-                    setHands((h) => {
-                      const arr = (h[human] ?? []);
-                      const idx = arr.findIndex((hc) => hc === selectedCard);
-                      const nextArr = idx >= 0 ? [...arr.slice(0, idx), ...arr.slice(idx + 1)] : arr.slice();
-                      return { ...h, [human]: nextArr };
-                    });
+                    void append(
+                      events.spTrickPlayed({
+                        playerId: human,
+                        card: { suit: selectedCard.suit as any, rank: selectedCard.rank },
+                      }),
+                    );
                     setSelectedCard(null);
                   }}
                 >
