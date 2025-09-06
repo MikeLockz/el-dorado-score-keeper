@@ -30,4 +30,3 @@ describe('selectSpNextToPlay', () => {
     expect(selectSpNextToPlay(s)).toBeNull();
   });
 });
-
