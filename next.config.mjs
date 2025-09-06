@@ -2,9 +2,19 @@
 const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
 
 // Derive basePath/assetPrefix for project pages (not user/org sites)
+// Priority:
+// 1) Explicit env: BASE_PATH or NEXT_PUBLIC_BASE_PATH (useful for local export + CI)
+// 2) Auto-detect in GitHub Actions from GITHUB_REPOSITORY
 let basePath = '';
 let assetPrefix;
-if (isGithubActions) {
+
+const envBase = process.env.BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH;
+if (envBase && typeof envBase === 'string') {
+  const normalized = envBase.startsWith('/') ? envBase : `/${envBase}`;
+  // Remove trailing slash for Next basePath, keep it for assetPrefix
+  basePath = normalized.replace(/\/+$/, '');
+  assetPrefix = `${basePath}/`;
+} else if (isGithubActions) {
   const repo = process.env.GITHUB_REPOSITORY?.split('/')[1] ?? '';
   // If deploying to <user>.github.io, keep basePath empty
   if (repo && !repo.endsWith('.github.io')) {

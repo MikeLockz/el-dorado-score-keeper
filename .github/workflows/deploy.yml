@@ -41,8 +41,12 @@ jobs:
           NEXT_TELEMETRY_DISABLED: '1'
           # Inject GitHub variable into the Next.js build
           NEXT_PUBLIC_ANALYTICS_WORKER_URL: ${{ vars.NEXT_PUBLIC_ANALYTICS_WORKER_URL }}
+          # Force basePath for GitHub Project Pages (e.g., /<repo>)
+          # next.config.mjs reads BASE_PATH (or NEXT_PUBLIC_BASE_PATH) with priority
+          BASE_PATH: /${{ github.event.repository.name }}
         run: |
           echo "NEXT_PUBLIC_ANALYTICS_WORKER_URL=${NEXT_PUBLIC_ANALYTICS_WORKER_URL}"
+          echo "BASE_PATH=${BASE_PATH}"
           pnpm build
           # For older Next versions, export step is required. Harmless if not needed.
           npx next export || true

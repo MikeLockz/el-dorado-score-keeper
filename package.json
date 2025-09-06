@@ -5,6 +5,8 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
+    "dev:pages": "BASE_PATH=/$npm_package_name next dev",
+    "build:pages": "BASE_PATH=/$npm_package_name next build && next export",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "start": "next start",
