@@ -176,11 +176,14 @@ export const selectRoundInfosAll = memo1((s: AppState): RoundInfoMap => {
 
 // Single-player helpers
 export const selectSpRotatedOrder = memo1((s: AppState): string[] => {
-  const order: string[] = s.sp.order ?? [];
+  const order: string[] = Array.isArray((s as any)?.sp?.order) ? ((s as any).sp.order as string[]) : [];
   if (order.length === 0) return order;
+  const tps: Array<{ playerId: string }> = Array.isArray((s as any)?.sp?.trickPlays)
+    ? ((s as any).sp.trickPlays as Array<{ playerId: string }>)
+    : [];
   // Prefer the actual leader of the current trick if a play exists; otherwise, use stored leaderId
-  const firstPlayLeader = (s.sp.trickPlays && s.sp.trickPlays[0]?.playerId) || null;
-  const nominalLeader = s.sp?.leaderId ?? null;
+  const firstPlayLeader = tps[0]?.playerId || null;
+  const nominalLeader = ((s as any)?.sp?.leaderId as string | null) ?? null;
   const leader = firstPlayLeader || nominalLeader;
   if (!leader) return order;
   const idx = order.indexOf(leader);
