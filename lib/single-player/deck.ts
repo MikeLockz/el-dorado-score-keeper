@@ -1,11 +1,11 @@
 import { SUITS } from './ordering';
-import type { Card, RNG } from './types';
+import type { Card, RNG, Rank } from './types';
 
 export function standardDeck(deckId: 1 | 2 = 1): Card[] {
   const out: Card[] = [];
   for (const suit of SUITS) {
     for (let r = 2; r <= 14; r++) {
-      out.push({ suit, rank: r as any, deckId });
+      out.push({ suit, rank: r as Rank, deckId });
     }
   }
   return out;
@@ -25,4 +25,3 @@ export function shuffleInPlace<T>(arr: T[], rng: RNG): void {
 export function draw<T>(arr: T[]): T | undefined {
   return arr.pop();
 }
-

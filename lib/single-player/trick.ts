@@ -1,15 +1,18 @@
-import type { Card, PlayerId, Suit, Trick, TrickPlay } from './types';
+import type { PlayerId, Suit, Trick, TrickPlay } from './types';
 import { compareRanks } from './ordering';
 
-export function ledSuitOf(plays: TrickPlay[]): Suit | undefined {
+export function ledSuitOf(plays: ReadonlyArray<TrickPlay>): Suit | undefined {
   return plays.length > 0 ? plays[0]!.card.suit : undefined;
 }
 
-export function trickHasTrump(plays: TrickPlay[], trump: Suit): boolean {
+export function trickHasTrump(plays: ReadonlyArray<TrickPlay>, trump: Suit): boolean {
   return plays.some((p) => p.card.suit === trump);
 }
 
-export function winnerOfTrick(plays: TrickPlay[], trump: Suit): PlayerId | undefined {
+export function winnerOfTrick(
+  plays: ReadonlyArray<TrickPlay>,
+  trump: Suit,
+): PlayerId | undefined {
   if (plays.length === 0) return undefined;
   const led = plays[0]!.card.suit;
   let best: TrickPlay = plays[0]!;
@@ -33,9 +36,8 @@ export function winnerOfTrick(plays: TrickPlay[], trump: Suit): PlayerId | undef
   return best.player;
 }
 
-export function closeTrick(plays: TrickPlay[], trump: Suit): Trick {
+export function closeTrick(plays: ReadonlyArray<TrickPlay>, trump: Suit): Trick {
   const ledBy = plays[0]?.player as PlayerId;
   const winner = winnerOfTrick(plays, trump);
   return { ledBy, plays: [...plays], winner };
 }
-

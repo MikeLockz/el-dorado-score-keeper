@@ -219,7 +219,6 @@ export default function CurrentGame(
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const gridRef = React.useRef<HTMLDivElement | null>(null);
-  const [scale, setScale] = React.useState(1);
   const [applyScale, setApplyScale] = React.useState(false);
 
   React.useLayoutEffect(() => {
@@ -242,7 +241,6 @@ export default function CurrentGame(
 
       if (!shouldScale) {
         setApplyScale(false);
-        setScale(1);
         container.style.height = '';
         if (content) {
           content.style.transform = '';
@@ -253,7 +251,6 @@ export default function CurrentGame(
 
       const next = Math.max(0.5, Math.min(1, cw / naturalPx));
       setApplyScale(true);
-      setScale(next);
       // Maintain correct outer height to avoid clipping when scaled
       container.style.height = `${Math.ceil(grid.scrollHeight * next)}px`;
       if (content) {
@@ -396,8 +393,8 @@ export default function CurrentGame(
                 const cellKeyId = `cell-details-${round.round}-${c.id}`;
                 const isScored = rState === 'scored';
                 const isLive = (rState === 'playing') && live && live.round === round.round;
-                const liveCard = isLive ? live!.cards[c.id] : null;
-                const isCurrent = isLive && live!.currentPlayerId === c.id;
+                const liveCard = isLive ? live.cards[c.id] : null;
+                const isCurrent = isLive && live.currentPlayerId === c.id;
                 const cellBorder = isCurrent ? 'border-2 border-indigo-500' : 'border-b';
                 return (
                   <div

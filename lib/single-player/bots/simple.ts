@@ -52,10 +52,10 @@ export function botBid(ctx: Omit<BotContext, 'trickPlays' | 'tricksWonSoFar'>, d
 
 export function botPlay(ctx: BotContext, diff: BotDifficulty): Card {
   const { hand, trump, trickPlays, trumpBroken } = ctx;
-  const led = ledSuitOf(trickPlays as any);
+  const led = ledSuitOf(trickPlays);
   const hasTrump = hand.some((c) => c.suit === trump);
   const hasNonTrump = hand.some((c) => c.suit !== trump);
-  const trickTrumped = trickHasTrump(trickPlays as any, trump);
+  const trickTrumped = trickHasTrump(trickPlays, trump);
 
   // Utilities
   const byRankAsc = (a: Card, b: Card) => a.rank - b.rank;

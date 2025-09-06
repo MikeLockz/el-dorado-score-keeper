@@ -34,9 +34,6 @@ export default function PlayerList() {
   };
 
   const nextRound = selectNextActionableRound(state) ?? 1;
-  const dropPlayer = async (playerId: string) => {
-    await append(events.playerDropped({ id: playerId, fromRound: nextRound }));
-  };
   const resumePlayer = async (playerId: string) => {
     await append(events.playerResumed({ id: playerId, fromRound: nextRound }));
   };
@@ -53,7 +50,7 @@ export default function PlayerList() {
         )}
         {ready ? (
           <>
-            {players.map((p, idx) => (
+            {players.map((p) => (
               <Fragment key={p.id}>
                 <div
                   draggable={!minReached}

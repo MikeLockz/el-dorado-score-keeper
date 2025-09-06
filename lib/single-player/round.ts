@@ -1,6 +1,6 @@
-import type { Bid, PlayerId, RoundConfig, RoundResult, Suit, Trick, TrickPlay } from './types';
+import type { Bid, Card, PlayerId, RoundConfig, RoundResult, Suit, Trick, TrickPlay } from './types';
 import { dealRound, rotateOrder, startIdxAfterDealer } from './deal';
-import { closeTrick, trickHasTrump, ledSuitOf, winnerOfTrick } from './trick';
+import { trickHasTrump, ledSuitOf, winnerOfTrick } from './trick';
 import { isLegalPlay } from './rules';
 
 export function seatingOrderForBidding(cfg: RoundConfig): PlayerId[] {
@@ -33,22 +33,22 @@ export function startRound(cfg: RoundConfig, seed?: number): RoundStart {
 
 export function validatePlay(
   play: TrickPlay,
-  playsSoFar: TrickPlay[],
+  playsSoFar: ReadonlyArray<TrickPlay>,
   trump: Suit,
-  hand: readonly { suit: Suit; rank: number }[],
+  hand: readonly Card[],
 ): true | { reason: string } {
   const led = ledSuitOf(playsSoFar);
-  const legal = isLegalPlay(play.card as any, {
+  const legal = isLegalPlay(play.card, {
     trump,
     ledSuit: led,
     trickHasTrump: trickHasTrump(playsSoFar, trump),
-    hand: hand as any,
+    hand,
   });
   if (!legal) return { reason: 'Illegal play per rules' };
   return true;
 }
 
-export function resolveTrick(plays: TrickPlay[], trump: Suit): Trick {
+export function resolveTrick(plays: ReadonlyArray<TrickPlay>, trump: Suit): Trick {
   // winner determined; attach winner and return Trick
   const winner = winnerOfTrick(plays, trump);
   return { ledBy: plays[0]!.player, plays: [...plays], winner };
@@ -61,4 +61,3 @@ export function summarizeRound(bids: Bid[], tricks: Trick[]): RoundResult {
   const made = madeFromBids(bidsMap, won);
   return { bids: bidsMap, tricksWon: won, made };
 }
-
