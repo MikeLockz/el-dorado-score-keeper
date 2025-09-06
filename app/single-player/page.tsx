@@ -2,6 +2,7 @@
 import React from 'react';
 import { startRound, bots, winnerOfTrick } from '@/lib/single-player';
 import CurrentGame from '@/components/views/CurrentGame';
+import { CardGlyph } from '@/components/ui';
 import type { PlayerId, Card } from '@/lib/single-player';
 import { useAppState } from '@/components/state-provider';
 import { tricksForRound } from '@/lib/state/logic';
@@ -270,6 +271,9 @@ export default function SinglePlayerPage() {
   // Auto-sync results to scorekeeper when round ends
   React.useEffect(() => {
     if (!isRoundDone) return;
+    // If the round is already scored (e.g., after a refresh), do not re-finalize
+    const rState = state.rounds[roundNo]?.state;
+    if (rState === 'scored') return;
     if (saved) return; // already synced
     (async () => {
       try {
@@ -336,272 +340,8 @@ export default function SinglePlayerPage() {
 
   return (
     <main className="p-4 space-y-6">
-      <h1 className="text-xl font-bold">El Dorado — Single Player (Dev Harness)</h1>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <label className="block text-sm font-medium">Players</label>
-          <input
-            className="border rounded px-2 py-1 w-24"
-            type="number"
-            min={2}
-            max={10}
-            value={playersCount}
-            onChange={(e) =>
-              setPlayersCount(Math.max(2, Math.min(10, Number(e.target.value) || 0)))
-            }
-          />
-          <div className="text-xs text-muted-foreground">
-            {useTwoDecks ? 'Using two decks' : 'Using one deck'}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Available players in scorekeeper: {appPlayers.length}
-          </div>
-          {appPlayers.length < playersCount && (
-            <div className="text-xs text-red-600">
-              Add more players on Players page to reach {playersCount}.
-            </div>
-          )}
-        </div>
-        <div className="space-y-2">
-          <label className="block text-sm font-medium">Round</label>
-          <input
-            className="border rounded px-2 py-1 w-24"
-            type="number"
-            min={1}
-            max={10}
-            value={roundNo}
-            onChange={(e) => setRoundNo(Math.max(1, Math.min(10, Number(e.target.value) || 1)))}
-          />
-          <div className="text-xs text-muted-foreground">Tricks this round: {tricks}</div>
-        </div>
-        <div className="space-y-2">
-          <label className="block text-sm font-medium">Dealer Seat</label>
-          <select
-            className="border rounded px-2 py-1"
-            value={dealerIdx}
-            onChange={(e) => setDealerIdx(Number(e.target.value))}
-          >
-            {activePlayers.map((p, i) => (
-              <option key={p.id} value={i}>{`${p.name}`}</option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-2">
-          <label className="block text-sm font-medium">Human Seat</label>
-          <select
-            className="border rounded px-2 py-1"
-            value={humanIdx}
-            onChange={(e) => setHumanIdx(Number(e.target.value))}
-          >
-            {activePlayers.map((p, i) => (
-              <option key={p.id} value={i}>{`${p.name}`}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <button
-        className="inline-flex items-center rounded border px-3 py-1 text-sm"
-        type="button"
-        onClick={onDeal}
-      >
-        Deal Round
-      </button>
-
-      {spOrder.length > 0 && (
-        <div className="space-y-2">
-          {(() => {
-            const info = selectSpTrumpInfo(state);
-            return (
-              <div className="text-sm">
-                Trump:{' '}
-                <span
-                  className="font-mono text-lg inline-flex items-center gap-1"
-                  title={
-                    info.trumpCard
-                      ? `Trump card: ${rankLabel(info.trumpCard.rank)} of ${info.trumpCard.suit}`
-                      : undefined
-                  }
-                >
-                  {info.trump && info.trumpCard ? (
-                    <>
-                      <span className="font-bold text-foreground">
-                        {rankLabel(info.trumpCard.rank)}
-                      </span>
-                      <span className={suitColorClass(info.trump)}>{suitSymbol(info.trump)}</span>
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </span>
-              </div>
-            );
-          })()}
-          {(() => {
-            const dealerName = selectSpDealerName(state);
-            return (
-              <div className="text-sm">
-                Dealer: <span className="font-mono">{dealerName ?? '-'}</span>
-              </div>
-            );
-          })()}
-          <div className="text-sm">
-            First to act: <span className="font-mono">{spOrder?.[0] ?? '-'}</span>
-          </div>
-          <div className="text-sm">
-            Phase: <span className="font-mono">{phase}</span>
-          </div>
-
-          {phase !== 'bidding' && (
-            <div className="space-y-3">
-              <div className="font-semibold">Play</div>
-              <div className="text-sm">Leader: {trickLeader}</div>
-              {(() => {
-                const leaderIdx = spOrder.findIndex((p) => p === trickLeader);
-                const rotated =
-                  leaderIdx < 0
-                    ? spOrder
-                    : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
-                const currentIdx = spTrickPlays.length; // next to play in this trick
-                return (
-                  <div className="space-y-1">
-                    <div className="text-sm">
-                      Playing order:
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        Position {Math.min(currentIdx + 1, rotated.length)} of {rotated.length}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1 text-xs">
-                      {rotated.map((p, i) => (
-                        <span
-                          key={`play-chip-${p}-${i}`}
-                          className={`px-2 py-0.5 rounded border ${
-                            i === currentIdx
-                              ? 'bg-accent text-accent-foreground border-accent'
-                              : 'border-border'
-                          }`}
-                          title={`Order ${i + 1}`}
-                        >
-                          <span className="inline-flex items-center">
-                            {nameFor(p)}
-                            {p !== human && <BotBadge />}
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-              {/* Show current trick with card tiles */}
-              <div className="space-y-1">
-                <div className="font-medium text-sm">Current trick:</div>
-                <ul className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {spTrickPlays.map((p, i) => (
-                    <li
-                      key={`tp-${p.player}-${i}`}
-                      className="border rounded px-2 py-1 flex items-center justify-between"
-                    >
-                      <span className="text-xs mr-2 inline-flex items-center">
-                        {nameFor(p.player)}
-                        {p.player !== human && <BotBadge />}
-                      </span>
-                      <span
-                        className={`font-mono inline-flex items-center gap-1 ${suitColorClass(p.card.suit)}`}
-                        title={`${rankLabel(p.card.rank)} of ${p.card.suit}`}
-                      >
-                        <span className="font-bold text-sm text-foreground">
-                          {rankLabel(p.card.rank)}
-                        </span>
-                        <span>{suitSymbol(p.card.suit)}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="text-sm">
-                Tricks won:
-                <div className="mt-1 flex flex-wrap gap-1 text-xs">
-                  {spOrder.map((p) => (
-                    <span
-                      key={`won-${p}`}
-                      className="px-2 py-0.5 rounded border border-border inline-flex items-center gap-1"
-                    >
-                      <span className="inline-flex items-center">
-                        {nameFor(p)}
-                        {p !== human && <BotBadge />}
-                      </span>
-                      <span className="font-mono">{spTrickCounts[p] ?? 0}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-              {/* Player cards moved below scorecard */}
-            </div>
-          )}
-
-          {(phase === 'done' || isRoundDone) && (
-            <div className="space-y-2">
-              <div className="font-semibold">Round Complete</div>
-              <div className="text-sm">Results:</div>
-              <ul className="text-sm">
-                {spOrder.map((p) => {
-                  const won = spTrickCounts[p] ?? 0;
-                  const bid = (state.rounds[roundNo]?.bids?.[p] ?? 0) as number;
-                  const made = won === bid;
-                  return (
-                    <li key={`res-${p}`} className="inline-flex items-center gap-1">
-                      <span className="inline-flex items-center">
-                        {nameFor(p)}
-                        {p !== human && <BotBadge />}
-                      </span>
-                      : bid {bid}, won {won} — {made ? 'Made' : 'Missed'}
-                    </li>
-                  );
-                })}
-              </ul>
-              <button
-                className="inline-flex items-center rounded border px-3 py-1 text-sm"
-                onClick={async () => {
-                  const batch: any[] = [];
-                  const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<
-                    string,
-                    number | undefined
-                  >;
-                  for (const pid of players) {
-                    const won = spTrickCounts[pid] ?? 0;
-                    const made = won === (bidsMap[pid] ?? 0);
-                    batch.push(events.madeSet({ round: roundNo, playerId: pid, made }));
-                  }
-                  batch.push(events.roundFinalize({ round: roundNo }));
-                  await appendMany(batch);
-                  setSaved(true);
-                }}
-              >
-                Save to Scorekeeper
-              </button>
-              <button
-                className="inline-flex items-center rounded border px-3 py-1 text-sm ml-2"
-                onClick={() => {
-                  // Rotate dealer and advance round; then auto-deal next round
-                  setDealerIdx((i) => (i + 1) % players.length);
-                  setRoundNo((r) => Math.min(10, r + 1));
-                  setTimeout(() => onDeal(), 0);
-                }}
-              >
-                Next Round
-              </button>
-              {!saved && (
-                <div className="text-xs text-muted-foreground">
-                  Tip: Save to scorekeeper before advancing.
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold">Scorecard</h2>
         <div className="border rounded">
           {spOrder.length > 0 && (
             <div className="flex items-center justify-between px-2 py-1 border-b">
@@ -629,14 +369,7 @@ export default function SinglePlayerPage() {
                     >
                       <span className="text-xs text-muted-foreground mr-1">Trump:</span>
                       {info.trump && info.trumpCard ? (
-                        <>
-                          <span className="font-bold text-foreground">
-                            {rankLabel(info.trumpCard.rank)}
-                          </span>
-                          <span className={suitColorClass(info.trump)}>
-                            {suitSymbol(info.trump)}
-                          </span>
-                        </>
+                        <CardGlyph suit={info.trump} rank={info.trumpCard.rank} size="sm" />
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
@@ -648,12 +381,7 @@ export default function SinglePlayerPage() {
                   {(() => {
                     const lead = spTrickPlays[0]?.card as any;
                     if (!lead) return <span className="text-xs text-muted-foreground">—</span>;
-                    return (
-                      <>
-                        <span className="font-bold text-foreground">{rankLabel(lead.rank)}</span>
-                        <span className={suitColorClass(lead.suit)}>{suitSymbol(lead.suit)}</span>
-                      </>
-                    );
+                    return <CardGlyph suit={lead.suit} rank={lead.rank} size="sm" />;
                   })()}
                 </div>
               </div>
@@ -700,6 +428,8 @@ export default function SinglePlayerPage() {
                     }
                   })();
                 }}
+                }
+                disableRoundStateCycling
               />
             );
           })()}
@@ -721,14 +451,12 @@ export default function SinglePlayerPage() {
                     <div className={`w-5 text-center ${suitColorClass(s)}`}>{suitSymbol(s)}</div>
                     <div className="flex flex-wrap gap-1">
                       {row.map((c, i) => (
-                        <div
+                        <CardGlyph
                           key={`bid-${s}-${c.rank}-${i}`}
-                          className="border rounded px-2 py-1 text-sm font-mono inline-flex items-center justify-center gap-1 bg-background"
-                          title={`${rankLabel(c.rank)} of ${c.suit}`}
-                        >
-                          <span className="font-bold">{rankLabel(c.rank)}</span>
-                          <span className={suitColorClass(c.suit)}>{suitSymbol(c.suit)}</span>
-                        </div>
+                          suit={c.suit}
+                          rank={c.rank}
+                          size="sm"
+                        />
                       ))}
                     </div>
                   </div>
@@ -774,7 +502,7 @@ export default function SinglePlayerPage() {
                           return (
                             <button
                               key={`play-${s}-${c.rank}-${idx}`}
-                              className={`border rounded px-2 py-1 text-sm font-mono inline-flex items-center justify-center gap-1 ${legal && isHumansTurn ? '' : 'opacity-40'} ${isSelected ? 'ring-2 ring-sky-500' : ''}`}
+                              className={`${legal && isHumansTurn ? '' : 'opacity-40'} ${isSelected ? 'ring-2 ring-sky-500 rounded' : ''}`}
                               disabled={!legal || !isHumansTurn}
                               onClick={() => {
                                 if (!legal || !isHumansTurn) return;
@@ -825,8 +553,7 @@ export default function SinglePlayerPage() {
                               }}
                               title={`${rankLabel(c.rank)} of ${c.suit}`}
                             >
-                              <span className="font-bold">{rankLabel(c.rank)}</span>
-                              <span className={suitColorClass(c.suit)}>{suitSymbol(c.suit)}</span>
+                              <CardGlyph suit={c.suit} rank={c.rank} size="sm" />
                             </button>
                           );
                         })}

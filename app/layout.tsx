@@ -9,18 +9,20 @@ import Header from '@/components/header';
 
 // Use system fonts to avoid network fetches during build
 
+const bp = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 export const metadata: Metadata = {
   title: 'El Dorado Score Keeper',
   description: 'Score keeper for El Dorado',
   generator: 'v0.app',
-  manifest: '/site.webmanifest',
+  manifest: `${bp}/site.webmanifest`,
   icons: {
     icon: [
-      { url: '/favicon.ico' },
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
+      { url: `${bp}/favicon.ico` },
+      { url: `${bp}/favicon.svg`, type: 'image/svg+xml' },
+      { url: `${bp}/favicon-96x96.png`, sizes: '96x96', type: 'image/png' },
     ],
-    apple: '/apple-touch-icon.png',
+    apple: `${bp}/apple-touch-icon.png`,
     // Remove mask-icon until available in /public
   },
   openGraph: {

@@ -9,6 +9,7 @@ import { Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Header() {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const pathname = usePathname();
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname === href);
   const itemBase =
@@ -18,7 +19,7 @@ export default function Header() {
       <div className="w-full px-3 h-12 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-wide">
           <Image
-            src="/el-dorado-card-game-logo.png"
+            src={`${basePath}/el-dorado-card-game-logo.png`}
             alt="El Dorado logo"
             width={24}
             height={24}

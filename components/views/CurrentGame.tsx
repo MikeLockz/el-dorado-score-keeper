@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card, Button } from '@/components/ui';
+import { Card, Button, CardGlyph } from '@/components/ui';
 import { Check, X, Plus, Minus } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
 import { twoCharAbbrs } from '@/lib/utils';
@@ -163,10 +163,12 @@ export default function CurrentGame({
   live,
   biddingInteractiveIds,
   onConfirmBid,
+  disableRoundStateCycling,
 }: {
   live?: LiveOverlay;
   biddingInteractiveIds?: string[];
   onConfirmBid?: (round: number, playerId: string, bid: number) => void;
+  disableRoundStateCycling?: boolean;
 } = {}) {
   const { state, append, ready } = useAppState();
   const players = selectPlayersOrdered(state);
@@ -208,6 +210,7 @@ export default function CurrentGame({
   };
 
   const cycleRoundState = async (round: number) => {
+    if (disableRoundStateCycling) return;
     const current = state.rounds[round]?.state ?? 'locked';
     if (current === 'locked') return;
     if (current === 'bidding') {
@@ -354,27 +357,29 @@ export default function CurrentGame({
                   className="contents"
                   key={`row-${round.round}`}
                 >
-                  <div
-                    role="rowheader"
-                    aria-colindex={1}
-                    className={`border-b border-r transition-all duration-200 cursor-pointer ${getRoundStateStyles(state.rounds[round.round]?.state ?? 'locked')}`}
+                <div
+                  role="rowheader"
+                  aria-colindex={1}
+                  className={`border-b border-r transition-all duration-200 cursor-pointer ${getRoundStateStyles(state.rounds[round.round]?.state ?? 'locked')}`}
+                >
+                  <button
+                    type="button"
+                    className={`w-full h-full p-1 text-center flex flex-col justify-center outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${disableRoundStateCycling ? 'cursor-default' : 'cursor-pointer'}`}
+                    onClick={disableRoundStateCycling ? undefined : () => void cycleRoundState(round.round)}
+                    aria-label={`Round ${round.round}. ${(() => {
+                      const rState = state.rounds[round.round]?.state ?? 'locked';
+                      const showBid = rState === 'bidding' || rState === 'scored';
+                      const info = roundInfoByRound[round.round] ?? {
+                        sumBids: 0,
+                        tricks: round.tricks,
+                      };
+                      const total = showBid ? info.sumBids : 0;
+                      const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
+                      return disableRoundStateCycling
+                        ? `Current: ${label}.`
+                        : `Current: ${label}. Activate to advance state.`;
+                    })()}`}
                   >
-                    <button
-                      type="button"
-                      className={`w-full h-full p-1 text-center flex flex-col justify-center outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer`}
-                      onClick={() => void cycleRoundState(round.round)}
-                      aria-label={`Round ${round.round}. ${(() => {
-                        const rState = state.rounds[round.round]?.state ?? 'locked';
-                        const showBid = rState === 'bidding' || rState === 'scored';
-                        const info = roundInfoByRound[round.round] ?? {
-                          sumBids: 0,
-                          tricks: round.tricks,
-                        };
-                        const total = showBid ? info.sumBids : 0;
-                        const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
-                        return `Current: ${label}. Activate to advance state.`;
-                      })()}`}
-                    >
                       <div className="font-bold text-sm text-foreground">{round.tricks}</div>
                       {(() => {
                         const rState = state.rounds[round.round]?.state ?? 'locked';
@@ -529,18 +534,11 @@ export default function CurrentGame({
                               );
                             })()}
                             <span className="px-1 font-extrabold text-xl text-foreground">-</span>
-                            <span
-                              className={`w-full text-left font-mono inline-flex items-center gap-1 ${liveCard ? suitColorClass(liveCard?.suit || '') : 'text-muted-foreground'}`}
-                            >
+                            <span className="w-full text-left">
                               {liveCard ? (
-                                <>
-                                  <span className="font-bold text-lg text-foreground">
-                                    {rankLabel(liveCard.rank)}
-                                  </span>
-                                  <span className="text-lg">{suitSymbol(liveCard.suit)}</span>
-                                </>
+                                <CardGlyph suit={liveCard.suit} rank={liveCard.rank} size="md" />
                               ) : (
-                                <span className="text-[0.9rem]">—</span>
+                                <span className="text-[0.9rem] text-muted-foreground">—</span>
                               )}
                             </span>
                           </div>

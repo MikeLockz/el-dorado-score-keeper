@@ -27,6 +27,8 @@ export function initialRounds(total: number = ROUNDS_TOTAL): Record<number, Roun
 
 export function finalizeRound(prev: AppState, round: number): AppState {
   const r = prev.rounds[round] ?? { state: 'locked', bids: {}, made: {} };
+  // Idempotency: if this round is already scored, do nothing
+  if ((r.state as RoundState) === 'scored') return prev;
   const scores = { ...prev.scores };
   for (const pid of Object.keys(prev.players)) {
     // Only count if player is present (treat missing as present for compatibility)
