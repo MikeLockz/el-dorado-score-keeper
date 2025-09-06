@@ -176,7 +176,9 @@ export const selectRoundInfosAll = memo1((s: AppState): RoundInfoMap => {
 
 // Single-player helpers
 export const selectSpRotatedOrder = memo1((s: AppState): string[] => {
-  const order: string[] = Array.isArray((s as any)?.sp?.order) ? ((s as any).sp.order as string[]) : [];
+  const order: string[] = Array.isArray((s as any)?.sp?.order)
+    ? ((s as any).sp.order as string[])
+    : [];
   if (order.length === 0) return order;
   const tps: Array<{ playerId: string }> = Array.isArray((s as any)?.sp?.trickPlays)
     ? ((s as any).sp.trickPlays as Array<{ playerId: string }>)
