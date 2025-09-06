@@ -29,7 +29,7 @@ MVP Constraints
 - Auto rejoin/resync on refresh: client reconnects with the same `playerId` and attempts to resync; if unable (e.g., host unavailable), fall back to lobby gracefully.
 - No timers/penalties: manual pacing; host may choose neutral actions if needed.
 - No spectators, no chat, no anti-cheat, no snapshots.
-- Hidden info policy: simplest path for v0 — trust the host to send hands privately; alternatively disclose hands to all for early playtesting.
+- Hidden info policy: simplest path for v0 — trust the current dealer to send hands privately (dealt cards originate from the dealer, not always the host); alternatively disclose hands to all for early playtesting.
 
 Minimal Protocol (message types)
 - `join` (client→server): { roomId, name, playerId? }
@@ -37,15 +37,16 @@ Minimal Protocol (message types)
 - `start` (host→server): { roomId, seed, order }
 - `input` (client→server → relayed to host): { turnId, kind, data }
 - `event` (host→server → broadcast): { event: KnownAppEvent }
-- `leave` (client→server)
+ - `leave` (client→server)
 - `ping`/`pong` for presence
 - `snapshot_request` (client→server → relayed to host): { sinceSeq }
 - `snapshot` (host→server → relayed to client): { baseSeq, bundle }
+  Notes: `private` hand delivery may originate from the current dealer (dealer→server → relayed to each target), not necessarily the host.
 
 Client Tasks
 - Implement lobby UI (see MULTIPLAYER_LOBBY.md) to create/join and display roster; Start enabled for host when ≥ 2 players.
 - Networking: open WS, send `join`, handle `roster`, send/receive `ping`/`pong`.
-- Host path: map UI actions to `KnownAppEvent` and broadcast `event`; privately deliver hands when applicable.
+- Host path: map UI actions to `KnownAppEvent` and broadcast `event`. The dealer (who may or may not be the host) privately delivers hands when applicable.
 - Non-host path: map UI actions to `input`; apply incoming `event` via existing reducer and persist.
 - UX: show connection state; on host disconnect, block interactions and show “Waiting for host…”.
 - Auto rejoin/resync:
@@ -118,6 +119,7 @@ Key messages
 - `event` (host→server; server→clients): { event: KnownAppEvent } — the authoritative stream in Phase 1
 - `input` (client→server): { turnId, kind: 'bid'|'play'|'pass'|..., data } — forwarded to host in Phase 1
 - `private` (host→server): { to: playerId, kind: 'hand'|'prompt'|..., data }
+  Note: For hand delivery, `private` may be sent by the current dealer instead of the host.
 - `hash` (client→server): { turnId, hash } — state hash to detect desyncs
 - `snapshot_request` (client→server): { sinceSeq }
 - `snapshot` (client→server via server relay): { baseSeq, bundle: ExportBundle } — provided by a peer/host
