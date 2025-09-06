@@ -27,7 +27,8 @@ describe('SP event idempotency semantics', () => {
         },
         'd1',
       ),
-      ev('sp/leader-set', { leaderId: 'b' }, 'l1'),
+      // Set leader to the player who will play first to focus purely on idempotency
+      ev('sp/leader-set', { leaderId: 'a' }, 'l1'),
       ev('sp/phase-set', { phase: 'playing' }, 'ph'),
     ]);
     const play = ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 2 } }, 't1');
