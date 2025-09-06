@@ -21,6 +21,9 @@ type Ctx = {
   previewAt: (height: number) => Promise<AppState>;
   warnings: Warning[];
   clearWarnings: () => void;
+  timeTravelHeight: number | null;
+  setTimeTravelHeight: (h: number | null) => void;
+  timeTraveling: boolean;
 };
 
 const StateCtx = React.createContext<Ctx | null>(null);
@@ -37,6 +40,8 @@ export function StateProvider({
   const [ready, setReady] = React.useState(false);
   const [pendingBatches, setPendingBatches] = React.useState(0);
   const [warnings, setWarnings] = React.useState<Warning[]>([]);
+  const [ttHeight, setTtHeight] = React.useState<number | null>(null);
+  const [ttState, setTtState] = React.useState<AppState | null>(null);
   const instRef = React.useRef<Awaited<ReturnType<typeof createInstance>> | null>(null);
   const dbNameRef = React.useRef<string>('app-db');
 
@@ -112,6 +117,26 @@ export function StateProvider({
     return previewFromDB(dbNameRef.current, h);
   }
 
+  // Time-travel: compute a read-only preview state at a given height and expose it as the visible state
+  React.useEffect(() => {
+    if (ttHeight == null) {
+      setTtState(null);
+      return;
+    }
+    let closed = false;
+    (async () => {
+      try {
+        const s = await previewFromDB(dbNameRef.current, ttHeight);
+        if (!closed) setTtState(s);
+      } catch (e) {
+        setWarnings((prev) => [{ code: 'timetravel.preview_failed', info: String(e), at: Date.now() }, ...prev].slice(0, 20));
+      }
+    })();
+    return () => {
+      closed = true;
+    };
+  }, [ttHeight]);
+
   // Seed default players on a truly fresh DB (height 0, no players)
   const seedingRef = React.useRef(false);
   React.useEffect(() => {
@@ -142,7 +167,7 @@ export function StateProvider({
   }, [ready, height, state.players]);
 
   const value: Ctx = {
-    state,
+    state: ttState ?? state,
     height,
     ready,
     append,
@@ -151,7 +176,24 @@ export function StateProvider({
     previewAt,
     warnings,
     clearWarnings: () => setWarnings([]),
+    timeTravelHeight: ttHeight,
+    setTimeTravelHeight: setTtHeight,
+    timeTraveling: ttHeight != null,
   };
+  // Expose simple debug helpers in dev
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    try {
+      (globalThis as any).__APP_STATE__ = ttState ?? state;
+      (globalThis as any).__APP_HEIGHT__ = height;
+      (globalThis as any).__append = append;
+      (globalThis as any).__appendMany = appendMany;
+      (globalThis as any).__dumpState = () =>
+        console.log('[app state]', JSON.parse(JSON.stringify(ttState ?? state)));
+      (globalThis as any).__SET_TT = (h: number | null) => setTtHeight(h);
+    } catch {}
+  }, [state, ttState, height]);
+
   return <StateCtx.Provider value={value}>{children}</StateCtx.Provider>;
 }
 

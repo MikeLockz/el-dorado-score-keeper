@@ -44,6 +44,7 @@ export default function SinglePlayerPage() {
   const useTwoDecks = playersCount > 5;
   const sp = state.sp;
   const phase = sp.phase;
+  const spRoundNo = sp.roundNo ?? roundNo;
   const spTrump = sp.trump;
   const spTrumpCard = sp.trumpCard;
   const spOrder = sp.order;
@@ -162,6 +163,8 @@ export default function SinglePlayerPage() {
   // Advance play: bot turns and trick resolution
   React.useEffect(() => {
     if (!spTrump || phase !== 'playing' || !trickLeader) return;
+    // Round complete: do not attempt further bot plays
+    if (isRoundDone) return;
     if (isBatchPending) return;
     const nextToPlay = selectSpNextToPlay(state);
     if (!nextToPlay) return;
@@ -171,6 +174,8 @@ export default function SinglePlayerPage() {
     if (nextToPlay !== human) {
       const pid = nextToPlay;
       const botHand = spHands[pid] ?? [];
+      // No cards left (edge of round): nothing to play
+      if (!botHand || botHand.length === 0) return;
       // Build context and let bot choose
       const card = bots.botPlay(
         {
@@ -212,43 +217,11 @@ export default function SinglePlayerPage() {
     roundNo,
     state.rounds,
     isBatchPending,
+    isRoundDone,
   ]);
 
-  // Auto-bid for bots during bidding phase (store-driven)
-  React.useEffect(() => {
-    if (phase !== 'bidding') return;
-    if (isBatchPending) return;
-    const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<string, number | undefined>;
-    // Only proceed if human has bid
-    if (bidsMap[human] == null) return;
-    // Find the next bot without a bid
-    const nextBot = spOrder.find((pid) => pid !== human && bidsMap[pid] == null);
-    if (!nextBot) {
-      // All bids present -> advance to playing
-      const t = setTimeout(() => {
-        void appendMany([
-          events.roundStateSet({ round: roundNo, state: 'playing' }),
-          events.spPhaseSet({ phase: 'playing' }),
-        ]);
-      }, 0);
-      return () => clearTimeout(t);
-    }
-    const amount = bots.botBid(
-      {
-        trump: spTrump!,
-        hand: spHands[nextBot] ?? [],
-        tricksThisRound: tricks,
-        seatIndex: spOrder.findIndex((p) => p === nextBot),
-        bidsSoFar: bidsMap as any,
-        selfId: nextBot,
-      },
-      'normal',
-    );
-    const t = setTimeout(() => {
-      void append(events.bidSet({ round: roundNo, playerId: nextBot, bid: amount }));
-    }, 250);
-    return () => clearTimeout(t);
-  }, [phase, spOrder, human, spTrump, spHands, roundNo, tricks, state.rounds, isBatchPending]);
+  // Removed: store-driven auto-bid during bidding.
+  // Bots will be auto-bid within onConfirmBid's batch to ensure explicit confirmation.
 
   // Resolve completed trick
   React.useEffect(() => {
@@ -277,27 +250,28 @@ export default function SinglePlayerPage() {
   React.useEffect(() => {
     if (!isRoundDone) return;
     // If the round is already scored (e.g., after a refresh), do not re-finalize
-    const rState = state.rounds[roundNo]?.state;
+    const rState = state.rounds[spRoundNo]?.state;
     if (rState === 'scored') return;
-    if (saved) return; // already synced
     if (isBatchPending) return;
     (async () => {
       try {
         const batch: any[] = [];
-        const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<string, number | undefined>;
+        const bidsMap = (state.rounds[spRoundNo]?.bids ?? {}) as Record<string, number | undefined>;
         for (const pid of players) {
           const won = spTrickCounts[pid] ?? 0;
           const made = won === (bidsMap[pid] ?? 0);
-          batch.push(events.madeSet({ round: roundNo, playerId: pid, made }));
+          batch.push(events.madeSet({ round: spRoundNo, playerId: pid, made }));
         }
         // Mark SP phase as done and finalize scoring row in the same batch
         batch.push(events.spPhaseSet({ phase: 'done' }));
-        batch.push(events.roundFinalize({ round: roundNo }));
+        batch.push(events.roundFinalize({ round: spRoundNo }));
 
         // Auto-advance: prepare next round deal (if any) and include in the same batch
-        if (roundNo < 10) {
-          const nextRound = Math.min(10, roundNo + 1);
-          const nextDealerIdx = (dealerIdx + 1) % players.length;
+        if (spRoundNo < 10) {
+          const nextRound = Math.min(10, spRoundNo + 1);
+          const curDealerId = state.sp.dealerId ?? players[dealerIdx] ?? players[0]!;
+          const curDealerIdx = Math.max(0, players.findIndex((p) => p === curDealerId));
+          const nextDealerIdx = (curDealerIdx + 1) % players.length;
           const nextDealer = players[nextDealerIdx]!;
           const nextTricks = tricksForRound(nextRound);
           const useTwoDecks = playersCount > 5;
@@ -338,7 +312,7 @@ export default function SinglePlayerPage() {
         console.warn('Failed to auto-sync results', e);
       }
     })();
-  }, [isRoundDone, players, roundNo, append, saved, spTrickCounts, state.rounds, isBatchPending]);
+  }, [isRoundDone, players, spRoundNo, append, spTrickCounts, state.rounds, isBatchPending]);
 
   return (
     <main className="p-4 space-y-6">
@@ -393,11 +367,11 @@ export default function SinglePlayerPage() {
                 })()}
                 <div className="text-sm font-mono inline-flex items-center gap-1">
                   <span className="text-xs text-muted-foreground mr-1">Lead:</span>
-                  {(() => {
-                    const lead = spTrickPlays[0]?.card as any;
-                    if (!lead) return <span className="text-xs text-muted-foreground">—</span>;
-                    return <CardGlyph suit={lead.suit} rank={lead.rank} size="sm" />;
-                  })()}
+                {(() => {
+                  const lead = spTrickPlays[0]?.card as any;
+                  if (!lead) return <span className="text-xs text-muted-foreground">—</span>;
+                  return <CardGlyph suit={lead.suit} rank={lead.rank} size="sm" />;
+                })()}
                 </div>
               </div>
             </div>
@@ -445,7 +419,6 @@ export default function SinglePlayerPage() {
                     }
                   })();
                 }}
-                }
                 disableRoundStateCycling
               />
             );
@@ -508,7 +481,8 @@ export default function SinglePlayerPage() {
                             const hasTrump = (spHands[human] ?? []).some((h) => h.suit === spTrump);
                             if (hasTrump) legal = c.suit === spTrump;
                           }
-                          const leaderIdx = spOrder.findIndex((p) => p === trickLeader);
+                          const effectiveLeader = (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;
+                          const leaderIdx = spOrder.findIndex((p) => p === effectiveLeader);
                           const rotated =
                             leaderIdx < 0
                               ? spOrder
@@ -550,7 +524,8 @@ export default function SinglePlayerPage() {
                                   );
                                   if (hasTrump) legalNow = c.suit === spTrump;
                                 }
-                                const leaderIdxNow = spOrder.findIndex((p) => p === trickLeader);
+                                const effectiveLeaderNow = (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;
+                                const leaderIdxNow = spOrder.findIndex((p) => p === effectiveLeaderNow);
                                 const rotatedNow =
                                   leaderIdxNow < 0
                                     ? spOrder
@@ -600,7 +575,8 @@ export default function SinglePlayerPage() {
                       const hasTrump = (spHands[human] ?? []).some((h) => h.suit === spTrump);
                       if (hasTrump) legal = selectedCard.suit === spTrump;
                     }
-                    const leaderIdx = spOrder.findIndex((p) => p === trickLeader);
+                    const effectiveLeader = (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;
+                    const leaderIdx = spOrder.findIndex((p) => p === effectiveLeader);
                     const rotated =
                       leaderIdx < 0
                         ? spOrder

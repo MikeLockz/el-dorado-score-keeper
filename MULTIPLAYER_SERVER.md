@@ -97,7 +97,83 @@ Gameplay relay
 - Single instance is fine for small games; can run as a Node server or Worker (e.g., Cloudflare Workers with Durable Objects if you later need room stickiness).
 - If horizontally scaling, ensure room stickiness (by `roomId`) so `seq` is monotonic per room, or centralize ordering.
 
+## Minimal Pseudocode (sketch)
+
+```ts
+TypeScript shape (in-memory)
+```ts
+type ConnId = string;
+type PlayerId = string;
+
+type Client = {
+  connId: ConnId;
+  playerId: PlayerId;
+  name: string;
+  connected: boolean;
+};
+
+type Room = {
+  roomId: string;
+  hostId: PlayerId | null;
+  seq: number;
+  clients: Map<ConnId, Client>;
+  createdAt: number;
+  lastHostSeenAt: number;
+};
+```
+ws.on('connection', (socket) => {
+  let connId = makeConnId();
+  let room: Room | null = null;
+  let playerId: string | null = null;
+
+  socket.on('message', (raw) => {
+    const msg = JSON.parse(String(raw));
+    switch (msg.type) {
+      case 'join': {
+        const { roomId, name } = msg.payload;
+        room = getOrCreateRoom(roomId);
+        playerId = msg.payload.playerId || makePlayerId();
+        const client: Client = { connId, playerId, name, connected: true };
+        room.clients.set(connId, client);
+        if (!room.hostId) room.hostId = playerId;
+        broadcast(room, { type: 'roster', payload: asRoster(room) });
+        break;
+      }
+      case 'input': {
+        if (!room) break;
+        relayToHost(room, msg); // host-only
+        break;
+      }
+      case 'event': {
+        if (!room) break;
+        if (playerId !== room.hostId) return sendError(socket, 'not_host');
+        room.seq += 1;
+        broadcast(room, { ...msg, seq: room.seq });
+        break;
+      }
+      case 'snapshot_request': {
+        if (!room) break;
+        relayToHost(room, msg);
+        break;
+      }
+      case 'private': {
+        if (!room) break;
+        relayToTarget(room, msg.payload.to, msg);
+        break;
+      }
+    }
+  });
+
+  socket.on('close', () => {
+    if (!room) return;
+    const c = room.clients.get(connId);
+    if (c) c.connected = false;
+    if (playerId === room.hostId) room.lastHostSeenAt = Date.now();
+    broadcast(room, { type: 'roster', payload: asRoster(room) });
+  });
+});
+```
+
 ---
 
 This API keeps the relay thin, deterministic, and stateless. Clients remain the source of truth by persisting and reducing the ordered event stream.
-

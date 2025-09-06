@@ -296,6 +296,21 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const { playerId, card } = event.payload as EventMap['sp/trick/played'];
       // Idempotency: ignore if this player already played in the current trick
       if (state.sp.trickPlays.some((p) => p.playerId === playerId)) return state;
+      // Enforce turn order: expected player is based on current trick leader (first play if any, else leaderId)
+      const order = state.sp.order ?? [];
+      const curPlays = state.sp.trickPlays ?? [];
+      const currentLeader = curPlays[0]?.playerId ?? state.sp.leaderId;
+      if (currentLeader) {
+        const leaderIdx = order.indexOf(currentLeader);
+        if (leaderIdx >= 0) {
+          const rotated = [...order.slice(leaderIdx), ...order.slice(0, leaderIdx)];
+          const expected = rotated[curPlays.length];
+          if (expected && expected !== playerId) {
+            // Out-of-turn play; ignore event
+            return state;
+          }
+        }
+      }
       const trickPlays = [...state.sp.trickPlays, { playerId, card }];
       const hands = { ...state.sp.hands };
       const arr = [...(hands[playerId] ?? [])];

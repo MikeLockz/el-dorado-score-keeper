@@ -8,6 +8,48 @@ This document specifies the multiplayer lobby experience: creating a new game, j
 - `/multiplayer/room/:roomId` — in‑room lobby showing share link, roster, and Start controls.
 - On Start, transition to the multiplayer game view (same route can render different phase states: lobby → game).
 
+## UI Wireframes (ASCII)
+
+Create/Join
+```
+┌───────────────────────────────────────────────┐
+│ Multiplayer Lobby                             │
+│                                               │
+│ [ Create New Game ]                           │
+│                                               │
+│ Join an existing game                         │
+│ [ room ID or link            ] ( Join )       │
+│                                               │
+│ Rooms look like: https://host/multiplayer/room/<id> │
+└───────────────────────────────────────────────┘
+```
+
+In-room Lobby
+```
+┌───────────────────────────────────────────────┐
+│ Room: k3c7tq9h    ( Copy Link )               │
+│                                               │
+│ Players (host ★)                              │
+│  • Alex ★   (connected)                       │
+│  • Bea      (connected)                       │
+│                                               │
+│ [ Start Game ]  (host only, enabled when ≥2)  │
+│ [ Leave ]                                      │
+└───────────────────────────────────────────────┘
+```
+
+## User Flows
+
+- Create: click Create → room page → copy/share link → wait for players → Start when ready.
+- Join: paste ID/link → join room → set name if needed → wait for Start.
+- Leave: return to /multiplayer; room remains if others stay.
+
+## Validation Rules
+
+- roomId: lowercase base36, 8–10 chars. Regex: `^[a-z0-9]{8,10}$`
+- name: 2–20 visible chars, trim whitespace, allow letters/digits/space/basic punctuation.
+- duplicate names: allowed; UI may append a local suffix for disambiguation.
+
 ## Lobby UX (Create/Join)
 
 Overview
@@ -57,4 +99,3 @@ Envelope fields: `roomId`, `seq?`, `type`, `payload` (see MULTIPLAYER.md for env
 Notes
 - The first entrant becomes `hostId` by default; host can be reassigned.
 - `start` should only be accepted from the current host and when roster size ≥ 2.
-

@@ -75,6 +75,17 @@ Acceptance Criteria
 
 See MULTIPLAYER_LOBBY.md for the full lobby UX, routing, and message details (create/join flows, roster, edge cases, and heartbeats). This document focuses on gameplay replication and server responsibilities.
 
+Related docs for deeper details:
+- MULTIPLAYER_SCOPE.md — explicit MVP scope, roles, start gates, and acceptance criteria
+- MULTIPLAYER_PROTOCOL.md — message schemas, sequencing, turn IDs, and examples
+- MULTIPLAYER_DEALER.md — dealer responsibilities and hidden information handling
+- MULTIPLAYER_RESYNC.md — auto rejoin/resync via peer snapshots
+- MULTIPLAYER_CONNECTIONS.md — heartbeats, disconnect handling, TTLs, and rate limits
+- MULTIPLAYER_STORAGE.md — local storage keys and per-room isolation
+- MULTIPLAYER_ERRORS.md — error codes and UI surfaces
+- MULTIPLAYER_VERSIONING.md — versions and flags
+- MULTIPLAYER_TESTING.md — E2E and chaos testing plan
+
 ## Architecture
 
 Two implementation phases are proposed. Phase 1 is simpler and gets a working system quickly; Phase 2 improves trust and desync handling.

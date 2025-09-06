@@ -2,20 +2,33 @@
 import React from 'react';
 import { useAppState } from '@/components/state-provider';
 import type { AppState } from '@/lib/state';
+import { exportBundle } from '@/lib/state';
 import { formatTime } from '@/lib/format';
 
 export default function Devtools() {
-  const { height, state, previewAt, warnings, clearWarnings } = useAppState();
+  const {
+    height,
+    state,
+    previewAt,
+    warnings,
+    clearWarnings,
+    timeTravelHeight,
+    setTimeTravelHeight,
+    timeTraveling,
+  } = useAppState();
   const [cursor, setCursor] = React.useState<number>(height);
+  const [followLive, setFollowLive] = React.useState(true);
   const [preview, setPreview] = React.useState<AppState | null>(null);
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
-    setCursor(height);
-  }, [height]);
+    if (followLive) setCursor(height);
+  }, [height, followLive]);
 
   const onChange = (h: number) => {
+    setFollowLive(false);
     setCursor(h);
+    setTimeTravelHeight(h);
     setLoading(true);
     void (async () => {
       try {
@@ -55,7 +68,22 @@ export default function Devtools() {
             onChange={(e) => onChange(Number(e.target.value))}
             style={{ flex: 1 }}
           />
-          <span style={{ width: 36, textAlign: 'right' }}>{cursor}</span>
+          <span style={{ width: 48, textAlign: 'right' }}>{cursor}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+          <button
+            onClick={() => {
+              setFollowLive(true);
+              setCursor(height);
+              setPreview(null);
+              setTimeTravelHeight(null);
+            }}
+            disabled={followLive}
+            style={{ fontSize: 11, padding: '2px 6px', background: '#334155', color: '#fff', borderRadius: 4, opacity: followLive ? 0.6 : 1 }}
+            title="Follow live state and keep slider at the latest height"
+          >
+            Go live
+          </button>
         </div>
         <div style={{ fontSize: 12, marginTop: 8, opacity: 0.9 }}>
           <div>
@@ -66,8 +94,40 @@ export default function Devtools() {
             {loading
               ? 'loading…'
               : preview
-                ? `players ${Object.keys(preview.players).length}, scores ${Object.keys(preview.scores).length}`
+                ? `players ${Object.keys(preview.players).length}, scores ${Object.keys(preview.scores).length}, sp round ${preview.sp?.roundNo ?? '—'} phase ${preview.sp?.phase ?? '—'}`
                 : '—'}
+          </div>
+          <div style={{ fontSize: 11, marginTop: 4, opacity: 0.85 }}>
+            mode: {timeTraveling ? `time-travel @ ${timeTravelHeight}` : 'live'}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(JSON.stringify(state, null, 2));
+                } catch (e) {
+                  console.warn('copy state failed', e);
+                }
+              }}
+              style={{ fontSize: 11, padding: '4px 6px', background: '#334155', color: '#fff', borderRadius: 4 }}
+              title="Copy current app state JSON to clipboard"
+            >
+              Copy state JSON
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const bundle = await exportBundle('app-db');
+                  await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
+                } catch (e) {
+                  console.warn('copy bundle failed', e);
+                }
+              }}
+              style={{ fontSize: 11, padding: '4px 6px', background: '#334155', color: '#fff', borderRadius: 4 }}
+              title="Copy full event bundle JSON to clipboard"
+            >
+              Copy bundle JSON
+            </button>
           </div>
           <div style={{ marginTop: 6 }}>
             <span>warnings: {warnings.length}</span>
