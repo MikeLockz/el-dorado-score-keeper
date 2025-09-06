@@ -143,7 +143,7 @@ export const selectRoundInfosAll = memo1((s: AppState): RoundInfoMap => {
 
 // Single-player helpers
 export const selectSpRotatedOrder = memo1((s: AppState): string[] => {
-  const order = (s.sp?.order ?? []) as string[];
+  const order: string[] = s.sp.order ?? [];
   const leader = s.sp?.leaderId ?? null;
   if (!leader || order.length === 0) return order;
   const idx = order.indexOf(leader);
@@ -173,12 +173,12 @@ export const selectSpLiveOverlay = memo1((s: AppState): SpLiveOverlay | null => 
   if (!s.sp) return null;
   const round = s.sp.roundNo ?? 0;
   const currentPlayerId = selectSpNextToPlay(s);
-  const order = (s.sp.order ?? []) as string[];
-  const trickPlays = (s.sp.trickPlays ?? []) as Array<{ playerId: string; card: { suit: any; rank: number } }>;
-  const cards: Record<string, { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null> = {} as any;
+  const order: string[] = s.sp.order ?? [];
+  const trickPlays = s.sp.trickPlays ?? [];
+  const cards: Record<string, { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null> = {};
   for (const pid of order) cards[pid] = null;
-  for (const p of trickPlays) cards[p.playerId] = { suit: p.card.suit, rank: p.card.rank } as any;
-  const counts = (s.sp.trickCounts ?? {}) as Record<string, number>;
+  for (const p of trickPlays) cards[p.playerId] = { suit: p.card.suit, rank: p.card.rank };
+  const counts: Record<string, number> = s.sp.trickCounts ?? {};
   return { round, currentPlayerId, cards, counts };
 });
 
@@ -193,8 +193,8 @@ export const selectSpTrumpInfo = memo1((s: AppState): SpTrumpInfo => {
   return {
     round: s.sp?.roundNo ?? 0,
     leaderId: s.sp?.leaderId ?? null,
-    trump: (s.sp?.trump ?? null) as any,
-    trumpCard: (s.sp?.trumpCard ?? null) as any,
+    trump: s.sp?.trump ?? null,
+    trumpCard: s.sp?.trumpCard ?? null,
   };
 });
 
@@ -225,7 +225,7 @@ export type SpCard = { suit: SpSuit; rank: number };
 
 export const selectSpHandBySuit = memo2(
   (s: AppState, playerId: string): Record<SpSuit, SpCard[]> => {
-    const hand = (s.sp?.hands?.[playerId] ?? []) as SpCard[];
+    const hand: SpCard[] = (s.sp?.hands?.[playerId] ?? []) as SpCard[];
     const out: Record<SpSuit, SpCard[]> = {
       spades: [],
       hearts: [],
@@ -245,7 +245,8 @@ export const selectSpHandBySuit = memo2(
       }
     }
     // Sort high→low within each suit for consistent display
-    for (const k of Object.keys(out) as SpSuit[]) out[k].sort((a, b) => b.rank - a.rank);
+    const suits: SpSuit[] = ['spades', 'hearts', 'diamonds', 'clubs'];
+    for (const k of suits) out[k].sort((a, b) => b.rank - a.rank);
     return out;
   },
 );

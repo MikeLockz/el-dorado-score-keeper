@@ -11,7 +11,7 @@ export type EventMap = {
   'made/set': { round: number; playerId: string; made: boolean };
   'round/finalize': { round: number };
   // Single-player events
-  'sp/reset': {};
+  'sp/reset': Record<never, never>;
   'sp/deal': {
     roundNo: number;
     dealerId: string;
@@ -48,7 +48,7 @@ export type AppEvent =
   | KnownAppEvent
   | { eventId: UUID; type: string; payload: unknown; ts: number };
 
-export type RoundState = 'locked' | 'bidding' | 'complete' | 'scored';
+export type RoundState = 'locked' | 'bidding' | 'playing' | 'complete' | 'scored';
 
 export type RoundData = Readonly<{
   state: RoundState;

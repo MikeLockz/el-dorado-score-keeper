@@ -8,7 +8,13 @@ const round = z.number().int().nonnegative();
 const playerId = id;
 const ts = z.number().finite();
 
-const roundState: z.ZodType<RoundState> = z.enum(['locked', 'bidding', 'complete', 'scored']);
+const roundState: z.ZodType<RoundState> = z.enum([
+  'locked',
+  'bidding',
+  'playing',
+  'complete',
+  'scored',
+]);
 
 // Single-player helpers
 const suit = z.enum(['clubs', 'diamonds', 'hearts', 'spades']);
