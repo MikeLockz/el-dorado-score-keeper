@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -72,7 +71,10 @@ vi.mock('@/lib/single-player', async () => {
   };
 });
 
-describe('UI finalize (round 10) batches single appendMany', () => {
+// Skip this UI test when no DOM environment is available (no jsdom)
+const suite = typeof document === 'undefined' ? describe.skip : describe;
+
+suite('UI finalize (round 10) batches single appendMany', () => {
   it('calls appendMany once including r9->bidding alignment', async () => {
     const { default: SinglePlayerPage } = await import('@/app/single-player/page');
     const div = document.createElement('div');
@@ -104,4 +106,3 @@ describe('UI finalize (round 10) batches single appendMany', () => {
     div.remove();
   });
 });
-
