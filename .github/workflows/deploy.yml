@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: github-pages
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,7 +39,10 @@ jobs:
       - name: Build and export static site
         env:
           NEXT_TELEMETRY_DISABLED: '1'
+          # Inject GitHub variable into the Next.js build
+          NEXT_PUBLIC_ANALYTICS_WORKER_URL: ${{ vars.NEXT_PUBLIC_ANALYTICS_WORKER_URL }}
         run: |
+          echo "NEXT_PUBLIC_ANALYTICS_WORKER_URL=${NEXT_PUBLIC_ANALYTICS_WORKER_URL}"
           pnpm build
           # For older Next versions, export step is required. Harmless if not needed.
           npx next export || true
