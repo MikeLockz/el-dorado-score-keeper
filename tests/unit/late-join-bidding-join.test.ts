@@ -4,7 +4,11 @@ import { INITIAL_STATE, reduce, type AppState } from '@/lib/state/types';
 import { validateEventStrict } from '@/lib/state/validation';
 
 const now = 1_700_000_000_000;
-const ev = (type: any, payload: any) => makeEvent(type as any, payload as any, { ts: now, eventId: `${type}-${JSON.stringify(payload)}` });
+const ev = (type: any, payload: any) =>
+  makeEvent(type as any, payload as any, {
+    ts: now,
+    eventId: `${type}-${JSON.stringify(payload)}`,
+  });
 
 describe('late join when a round is in bidding', () => {
   it('newly added player is present for the active bidding round', () => {
@@ -17,4 +21,3 @@ describe('late join when a round is in bidding', () => {
     expect(s.rounds[1].present?.p2).toBe(true);
   });
 });
-

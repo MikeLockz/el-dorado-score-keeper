@@ -146,6 +146,7 @@ This repo includes a lightweight analytics relay that forwards pageview details 
 - CI deploy: `.github/workflows/deploy-cloudflare-worker.yml`
 
 Setup (local quick test)
+
 - Install Wrangler v4: `npm i -g wrangler@4`
 - Login: `wrangler login`
 - Set secrets (replace paths as needed):
@@ -156,20 +157,22 @@ Setup (local quick test)
 - Note your URL: `https://analytics-relay.<account>.workers.dev`
 
 GitHub Actions deploy
+
 - Add repo secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SLACK_WEBHOOK_URL`, optional `ANALYTICS_TOKEN`, `ALLOWED_ORIGIN`.
 - Push changes in `cloudflare/analytics-worker/**` (or run workflow manually) to deploy.
 
 Client configuration example
+
 ```html
 <script>
   window.analyticsConfig = {
-    webhookUrl: "https://analytics-relay.<account>.workers.dev",
-    siteId: "el-dorado-score-keeper",
-    env: "prod",
-    includeIP: "server",
+    webhookUrl: 'https://analytics-relay.<account>.workers.dev',
+    siteId: 'el-dorado-score-keeper',
+    env: 'prod',
+    includeIP: 'server',
     emoji: true,
     disabledInDev: true,
-    authToken: "${ANALYTICS_TOKEN}" // if configured
+    authToken: '${ANALYTICS_TOKEN}', // if configured
   };
 </script>
 ```

@@ -14,4 +14,3 @@ export function isTrump(card: Card, trump: Suit): boolean {
 export function sameFace(a: Card, b: Card): boolean {
   return a.suit === b.suit && a.rank === b.rank;
 }
-

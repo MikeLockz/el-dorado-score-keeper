@@ -3,11 +3,13 @@
 This plan adds an online multiplayer mode that lets multiple devices play a full game together while keeping the server stateless with respect to long‑term game state. The server only relays and orders inputs; clients hold and persist the state locally (IndexedDB), just as in single‑player.
 
 Guiding principles
+
 - Keep scoring rules and round flow identical to the current app (see README.md Current Game/Rules) and the single‑player engine (see SINGLE_PLAYER.md).
 - Reuse the existing event log reducer (`lib/state/types.ts` + `reduce`) so multiplayer becomes “network‑replicated events” rather than a new state system.
 - Keep the server stateless/durable‑less: no database; maintain only ephemeral room connections and a per‑room monotonic sequence in memory.
 
 ## Goals
+
 - Online play with 2–10 human players from separate devices.
 - Server acts as an input relay/referee (orders inputs, rebroadcasts) with no durable storage.
 - Deterministic, identical state on all clients derived from the same ordered event stream.
@@ -19,17 +21,20 @@ Guiding principles
 Two implementation phases are proposed. Phase 1 is simpler and gets a working system quickly; Phase 2 improves trust and desync handling.
 
 Phase 1 — Host‑Authoritative Client (recommended start)
+
 - One client (the host) runs the single‑player engine and emits authoritative game events (`sp/*` and existing scorekeeper events).
 - The server (WebSocket relay) assigns sequence numbers and broadcasts these events to all room members.
 - All clients apply the exact same ordered events through the existing reducer and persist them locally.
 - Hidden information is supported because only the host needs to know the full deck; the host privately sends each player their hand via direct messages. Other clients trust the host’s emitted events for legality and trick results.
 
 Phase 2 — Deterministic Lockstep (optional upgrade)
+
 - All clients run the same engine with the same seed and full state; the server only orders inputs per turn/trick.
 - Pros: less trust in a single host; better anti‑cheat.
 - Cons: handling hidden information without a trusted server requires commit‑reveal (“mental poker”) or disclosing full state to all clients. This adds complexity and is not necessary for an initial release.
 
 Server (stateless relay)
+
 - WebSocket endpoint with in‑memory rooms: {roomId → {clients, seq}}; no database.
 - Responsibilities:
   - Order inputs: attach `seq` and `turnId` to incoming messages, then broadcast.
@@ -38,6 +43,7 @@ Server (stateless relay)
   - Never store state persistently; if the server restarts, clients reconnect and resync from peers (see Resync).
 
 Client
+
 - Persist the canonical event log in IndexedDB (existing stores).
 - Apply ordered events via `reduce` (reuse `sp/*` events and scorekeeper events like `bid/set`, `made/set`, `round/finalize`).
 - For host: run the engine, produce events; for peers: accept events and render UI, send inputs for your seat.
@@ -46,12 +52,14 @@ Client
 ## Message Schema (sketch)
 
 Envelope (server → clients and clients → server)
+
 - `roomId`: string
 - `seq`: number | null (server fills)
 - `type`: `join|roster|start|input|event|private|hash|snapshot_request|snapshot|pong`
 - `payload`: object
 
 Key messages
+
 - `join`: { playerId, name, roomId, clientVersion }
 - `roster` (server→clients): { players: Array<{id,name,connected:boolean}>, hostId, seq }
 - `start` (host→server): { seed, order: string[], rulesVersion, options }
@@ -63,42 +71,50 @@ Key messages
 - `snapshot` (client→server via server relay): { baseSeq, bundle: ExportBundle } — provided by a peer/host
 
 Notes
+
 - `KnownAppEvent` already includes `eventId` and `ts`. The server adds `seq` to establish a total order.
 - For Phase 2 (lockstep), replace `event` with `input` + server‑ordered `TickBundle` and let all clients run the engine locally.
 
 ## Game Flow (Phase 1)
 
 Lobby
+
 - `/multiplayer`: Create or join a room; pick a seat and host.
 - The first entrant becomes `hostId` by default; host can reassign.
 
 Start
+
 - Host sends `start` with `seed` and seating order.
 - Host runs the engine’s deal using `seed`, then emits:
   - `sp/deal` + `sp/phase-set` events (broadcast)
   - Per‑player `private{kind:'hand'}` messages to deliver hands
 
 Bidding
+
 - Current bidder’s client submits `input{kind:'bid'}` → server → host.
 - Host validates and emits `events.bidSet` and advances when all bids present.
 
 Play/tricks
+
 - The client whose turn it is submits `input{kind:'play', card}`.
 - Host validates against engine rules and emits `sp/trick/played`; on trick end emits `sp/trick/cleared`, `sp/leader-set`.
 - When the round finishes, host compares tricks‑won to bids and emits `events.madeSet` per player, then `events.round/finalize` to apply scoring (existing reducer logic).
 
 Late join / drop
+
 - Mirror docs/LATE_AND_DROPPED_PLAYERS.md:
   - `player/dropped{ id, fromRound }` at a deterministic boundary.
   - `player/resumed{ id, fromRound }` to re‑add.
   - UI disables bid/complete inputs for absent rounds.
 
 Rejoin / resync
+
 - Any client can request `snapshot_request{ sinceSeq }` from server; server forwards to host or any healthy peer.
 - A peer responds with `snapshot{ baseSeq, bundle }` built via `exportBundle(dbName)`; the rejoining client imports via `importBundleSoft` and then streams new `event` messages from `baseSeq+1`.
 - Periodic `hash{ turnId, hash }` can be used for early desync detection.
 
 Disconnects and timeouts
+
 - Heartbeats: server expects a ping every N seconds; after M missed beats, mark disconnected and broadcast `roster`.
 - Active turn timeout: for bidding/plays, if the active player is disconnected or times out, host commits a deterministic default (e.g., PASS / auto‑discard first legal). Apply at a specific `turnId` so all clients agree. Defaults should match SINGLE_PLAYER.md assumptions where applicable.
 
@@ -133,24 +149,29 @@ Disconnects and timeouts
 
 ## Phased Delivery
 
-1) Minimal relay server
+1. Minimal relay server
+
 - WebSocket relay with rooms, sequence numbers, roster broadcast, heartbeats.
 - No persistence. Small Node server or Worker.
 
-2) Client networking layer
+2. Client networking layer
+
 - Room lifecycle (create/join/leave), host designation, heartbeats.
 - Map incoming `event` messages to `reduce` and persist.
 - Wire snapshot import/export for resync.
 
-3) Host‑authoritative gameplay
+3. Host‑authoritative gameplay
+
 - Host uses `lib/single-player/*` to run rounds, validate moves, and emit `sp/*` + scorekeeper events.
 - Implement bidding/playing UIs gated by turn ownership.
 
-4) UX polish + rules parity
+4. UX polish + rules parity
+
 - Timers, prompts, private hand delivery, spectator mode for dropped players.
 - Visual indicators for disconnects and turn ownership.
 
-5) Optional: Trust upgrades
+5. Optional: Trust upgrades
+
 - Deal integrity proofs or server‑dealt hands (ephemeral only).
 - Lockstep/rollback netcode if needed.
 
@@ -170,4 +191,3 @@ Disconnects and timeouts
 ---
 
 This plan keeps the current scoring model and reducer unchanged, adds a thin network replication layer, and introduces a small relay server. Phase 1 delivers a practical, easy‑to‑ship mode; Phase 2 leaves room for stronger trust and determinism if needed.
-

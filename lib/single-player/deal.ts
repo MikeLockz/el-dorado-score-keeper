@@ -32,7 +32,9 @@ export function dealRound(cfg: RoundConfig, seed: number = Date.now()): DealResu
   const startIdx = startIdxAfterDealer(cfg.players, cfg.dealer);
   const order = rotateOrder(cfg.players, startIdx);
 
-  const hands: Record<PlayerId, Card[]> = Object.fromEntries(cfg.players.map((p) => [p, []] as const));
+  const hands: Record<PlayerId, Card[]> = Object.fromEntries(
+    cfg.players.map((p) => [p, []] as const),
+  );
   for (let c = 0; c < cfg.tricks; c++) {
     for (const p of order) {
       const card = draw(shoe);
@@ -51,4 +53,3 @@ export function dealRound(cfg: RoundConfig, seed: number = Date.now()): DealResu
     deckRemaining: shoe.length,
   };
 }
-

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
 
 permissions:
@@ -58,4 +58,3 @@ jobs:
       - name: Run worker tests
         working-directory: cloudflare/analytics-worker
         run: pnpm test
-

@@ -46,4 +46,3 @@ describe('drop → resume across rounds; finalize ignores absent', () => {
     a.close();
   });
 });
-

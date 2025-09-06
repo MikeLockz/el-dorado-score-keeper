@@ -33,7 +33,10 @@ function handStats(hand: readonly Card[], trump: Suit) {
   return { trumpCount, trumpHigh, high, nonTrumpCount };
 }
 
-export function botBid(ctx: Omit<BotContext, 'trickPlays' | 'tricksWonSoFar'>, diff: BotDifficulty): number {
+export function botBid(
+  ctx: Omit<BotContext, 'trickPlays' | 'tricksWonSoFar'>,
+  diff: BotDifficulty,
+): number {
   const { trump, hand, tricksThisRound, seatIndex } = ctx;
   const s = handStats(hand, trump);
   // Heuristic base: value trump more, high cards moderate value

@@ -1,4 +1,13 @@
-import type { Bid, Card, PlayerId, RoundConfig, RoundResult, Suit, Trick, TrickPlay } from './types';
+import type {
+  Bid,
+  Card,
+  PlayerId,
+  RoundConfig,
+  RoundResult,
+  Suit,
+  Trick,
+  TrickPlay,
+} from './types';
 import { dealRound, rotateOrder, startIdxAfterDealer } from './deal';
 import { trickHasTrump, ledSuitOf, winnerOfTrick } from './trick';
 import { isLegalPlay } from './rules';
@@ -17,7 +26,10 @@ export function tallyTricks(tricks: Trick[]): Record<PlayerId, number> {
   return out;
 }
 
-export function madeFromBids(bids: Record<PlayerId, number>, won: Record<PlayerId, number>): Record<PlayerId, boolean> {
+export function madeFromBids(
+  bids: Record<PlayerId, number>,
+  won: Record<PlayerId, number>,
+): Record<PlayerId, boolean> {
   const out: Record<PlayerId, boolean> = {};
   for (const pid of Object.keys(bids)) out[pid] = (won[pid] ?? 0) === (bids[pid] ?? 0);
   return out;

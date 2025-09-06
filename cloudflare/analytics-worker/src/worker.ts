@@ -7,7 +7,10 @@ export interface Env {
 function parseAllowedOrigins(env: Env): string[] | null {
   const raw = (env.ALLOWED_ORIGIN || '').trim();
   if (!raw) return null;
-  return raw.split(',').map(s => s.trim()).filter(Boolean);
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function isOriginAllowed(origin: string | null, env: Env): string | null {
@@ -74,22 +77,21 @@ export default {
     }
 
     // Derive IP server-side (ignore any client-supplied IP unless none available)
-    const ip = req.headers.get('cf-connecting-ip')
-      || firstIp(req.headers.get('x-forwarded-for'))
-      || req.headers.get('x-real-ip')
-      || body.ip
-      || null;
+    const ip =
+      req.headers.get('cf-connecting-ip') ||
+      firstIp(req.headers.get('x-forwarded-for')) ||
+      req.headers.get('x-real-ip') ||
+      body.ip ||
+      null;
 
     const ref = body.referrer ? String(body.referrer) : 'direct';
     const browser = body.browser ? String(body.browser) : 'Unknown';
     const path = body.path ? String(body.path) : '/';
     const fullUrl = body.url ? String(body.url) : '';
 
-    const text = [
-      `📄 ${path}  ·  🔗 ${ref}`,
-      `🧭 ${browser}  ·  🌐 ${ip || 'unknown'}`,
-      fullUrl,
-    ].filter(Boolean).join('\n');
+    const text = [`📄 ${path}  ·  🔗 ${ref}`, `🧭 ${browser}  ·  🌐 ${ip || 'unknown'}`, fullUrl]
+      .filter(Boolean)
+      .join('\n');
 
     try {
       const resp = await fetch(env.SLACK_WEBHOOK_URL, {

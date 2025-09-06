@@ -19,7 +19,10 @@ import {
 type LiveOverlay = {
   round: number;
   currentPlayerId?: string | null;
-  cards: Record<string, { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null | undefined>;
+  cards: Record<
+    string,
+    { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null | undefined
+  >;
   counts?: Record<string, number>;
 };
 
@@ -74,7 +77,15 @@ function suitColorClass(suit: string): string {
     : 'text-foreground';
 }
 function rankLabel(rank: number): string {
-  return rank === 14 ? 'A' : rank === 13 ? 'K' : rank === 12 ? 'Q' : rank === 11 ? 'J' : String(rank);
+  return rank === 14
+    ? 'A'
+    : rank === 13
+      ? 'K'
+      : rank === 12
+        ? 'Q'
+        : rank === 11
+          ? 'J'
+          : String(rank);
 }
 
 // Shrinks row text to keep everything on a single line without wrapping
@@ -148,13 +159,15 @@ function FitRow({
   );
 }
 
-export default function CurrentGame(
-  {
-    live,
-    biddingInteractiveIds,
-    onConfirmBid,
-  }: { live?: LiveOverlay; biddingInteractiveIds?: string[]; onConfirmBid?: (round: number, playerId: string, bid: number) => void } = {},
-) {
+export default function CurrentGame({
+  live,
+  biddingInteractiveIds,
+  onConfirmBid,
+}: {
+  live?: LiveOverlay;
+  biddingInteractiveIds?: string[];
+  onConfirmBid?: (round: number, playerId: string, bid: number) => void;
+} = {}) {
   const { state, append, ready } = useAppState();
   const players = selectPlayersOrdered(state);
   const abbr = twoCharAbbrs(players);
@@ -203,7 +216,9 @@ export default function CurrentGame(
     }
     if (current === 'complete') {
       const rd = state.rounds[round];
-      const allMarked = players.every((p) => (rd?.present?.[p.id] === false) || ((rd?.made[p.id] ?? null) !== null));
+      const allMarked = players.every(
+        (p) => rd?.present?.[p.id] === false || (rd?.made[p.id] ?? null) !== null,
+      );
       if (allMarked) {
         await append(events.roundFinalize({ round }));
       }
@@ -305,364 +320,376 @@ export default function CurrentGame(
                   : `3rem repeat(${columnCount}, 1fr)`,
               }}
             >
-          <div role="row" aria-rowindex={1} className="contents">
-            <div
-              role="columnheader"
-              aria-colindex={1}
-              className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b border-r outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-              tabIndex={0}
-            >
-              Rd
-            </div>
-            {columns.map((c, idx) => (
-              <div
-                key={`hdr-${c.id}`}
-                role="columnheader"
-                aria-colindex={idx + 2}
-                className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                tabIndex={0}
-                title={c.placeholder ? undefined : c.name}
-                aria-label={c.placeholder ? undefined : `Player ${c.name}`}
-              >
-                {c.placeholder ? '-' : (abbr[c.id] ?? c.name.substring(0, 2))}
-              </div>
-            ))}
-          </div>
-
-          {Array.from({ length: ROUNDS_TOTAL }, (_, i) => ({
-            round: i + 1,
-            tricks: tricksForRound(i + 1),
-          })).map((round) => (
-            <div
-              role="row"
-              aria-rowindex={round.round + 1}
-              className="contents"
-              key={`row-${round.round}`}
-            >
-              <div
-                role="rowheader"
-                aria-colindex={1}
-                className={`border-b border-r transition-all duration-200 cursor-pointer ${getRoundStateStyles(state.rounds[round.round]?.state ?? 'locked')}`}
-              >
-                <button
-                  type="button"
-                  className={`w-full h-full p-1 text-center flex flex-col justify-center outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer`}
-                  onClick={() => void cycleRoundState(round.round)}
-                  aria-label={`Round ${round.round}. ${(() => {
-                    const rState = state.rounds[round.round]?.state ?? 'locked';
-                    const showBid = rState === 'bidding' || rState === 'scored';
-                    const info = roundInfoByRound[round.round] ?? {
-                      sumBids: 0,
-                      tricks: round.tricks,
-                    };
-                    const total = showBid ? info.sumBids : 0;
-                    const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
-                    return `Current: ${label}. Activate to advance state.`;
-                  })()}`}
+              <div role="row" aria-rowindex={1} className="contents">
+                <div
+                  role="columnheader"
+                  aria-colindex={1}
+                  className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b border-r outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  tabIndex={0}
                 >
-                  <div className="font-bold text-sm text-foreground">{round.tricks}</div>
-                  {(() => {
-                    const rState = state.rounds[round.round]?.state ?? 'locked';
-                    const showBid = rState === 'bidding' || rState === 'scored';
-                    const info = roundInfoByRound[round.round] ?? {
-                      sumBids: 0,
-                      tricks: round.tricks,
-                    };
-                    const total = showBid ? info.sumBids : 0;
-                    const mismatch = showBid && total !== info.tricks;
-                    const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
-                    return (
-                      <div
-                        className={`text-[0.55rem] mt-0.5 font-semibold ${mismatch ? 'text-red-700 dark:text-red-300' : ''}`}
-                      >
-                        {label}
-                      </div>
-                    );
-                  })()}
-                </button>
+                  Rd
+                </div>
+                {columns.map((c, idx) => (
+                  <div
+                    key={`hdr-${c.id}`}
+                    role="columnheader"
+                    aria-colindex={idx + 2}
+                    className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                    tabIndex={0}
+                    title={c.placeholder ? undefined : c.name}
+                    aria-label={c.placeholder ? undefined : `Player ${c.name}`}
+                  >
+                    {c.placeholder ? '-' : (abbr[c.id] ?? c.name.substring(0, 2))}
+                  </div>
+                ))}
               </div>
 
-              {columns.map((c, colIdx) => {
-                const rState = state.rounds[round.round]?.state ?? 'locked';
-                const isAbsent = !c.placeholder && (state.rounds[round.round]?.present?.[c.id] === false);
-                const bid = c.placeholder || isAbsent ? 0 : (state.rounds[round.round]?.bids[c.id] ?? 0);
-                const made = c.placeholder || isAbsent ? null : (state.rounds[round.round]?.made[c.id] ?? null);
-                const max = tricksForRound(round.round);
-                const cellKey = `${round.round}-${c.id}`;
-                const showDetails = rState !== 'scored' ? true : !!detailCells[cellKey];
-                const cellKeyId = `cell-details-${round.round}-${c.id}`;
-                const isScored = rState === 'scored';
-                const isLive = (rState === 'playing') && live && live.round === round.round;
-                const liveCard = isLive ? live.cards[c.id] : null;
-                const isCurrent = isLive && live.currentPlayerId === c.id;
-                const cellBorder = isCurrent ? 'border-2 border-indigo-500' : 'border-b';
-                return (
+              {Array.from({ length: ROUNDS_TOTAL }, (_, i) => ({
+                round: i + 1,
+                tricks: tricksForRound(i + 1),
+              })).map((round) => (
+                <div
+                  role="row"
+                  aria-rowindex={round.round + 1}
+                  className="contents"
+                  key={`row-${round.round}`}
+                >
                   <div
-                    key={`${round.round}-${c.id}`}
-                    role="gridcell"
-                    aria-colindex={colIdx + 2}
-                    className={`${cellBorder} grid grid-cols-1 ${rState === 'bidding' || rState === 'complete' || rState === 'playing' ? 'grid-rows-1' : showDetails ? 'grid-rows-2' : 'grid-rows-1'} transition-all duration-200 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${getPlayerCellBackgroundStyles(rState)}`}
-                    tabIndex={0}
-                    onClick={() => {
-                      if (isScored) toggleCellDetails(round.round, c.id);
-                    }}
-                    {...(isScored
-                      ? {
-                          onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              toggleCellDetails(round.round, c.id);
-                            }
-                          },
-                          'aria-expanded': showDetails,
-                          'aria-controls': cellKeyId,
-                          'aria-label': `Toggle score details for ${c.placeholder ? 'player' : c.name} in round ${round.round}`,
-                        }
-                      : {})}
-                    {...(!isScored
-                      ? {
-                          'aria-label': `Scores for ${c.placeholder ? 'player' : c.name} in round ${round.round}`,
-                        }
-                      : {})}
+                    role="rowheader"
+                    aria-colindex={1}
+                    className={`border-b border-r transition-all duration-200 cursor-pointer ${getRoundStateStyles(state.rounds[round.round]?.state ?? 'locked')}`}
                   >
-                    {c.placeholder || isAbsent ? (
-                      <>
-                        <div className="border-b flex items-center justify-center px-1 py-0.5">
-                          <span className="text-[0.6rem] text-gray-500">-</span>
-                        </div>
-                        <div className="flex items-center justify-center px-1 py-0.5">
-                          <span className="text-[0.6rem] text-gray-500">-</span>
-                        </div>
-                      </>
-                    ) : rState === 'locked' ? (
-                      <>
-                        <div className="border-b flex items-center justify-center px-1 py-0.5">
-                          <span className="text-[0.6rem] text-gray-500">-</span>
-                        </div>
-                        <div className="flex items-center justify-center px-1 py-0.5">
-                          <span className="text-[0.6rem] text-gray-500">-</span>
-                        </div>
-                      </>
-                    ) : rState === 'bidding' ? (
-                      (() => {
-                        const canBid = !biddingInteractiveIds || biddingInteractiveIds.includes(c.id);
-                        if (!canBid) {
-                          return (
-                            <div className="flex items-center justify-center px-1">
-                              <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-foreground bg-secondary/50 dark:bg-secondary/20 px-1.5 rounded">
-                                {bid}
-                              </span>
-                            </div>
-                          );
-                        }
+                    <button
+                      type="button"
+                      className={`w-full h-full p-1 text-center flex flex-col justify-center outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer`}
+                      onClick={() => void cycleRoundState(round.round)}
+                      aria-label={`Round ${round.round}. ${(() => {
+                        const rState = state.rounds[round.round]?.state ?? 'locked';
+                        const showBid = rState === 'bidding' || rState === 'scored';
+                        const info = roundInfoByRound[round.round] ?? {
+                          sumBids: 0,
+                          tricks: round.tricks,
+                        };
+                        const total = showBid ? info.sumBids : 0;
+                        const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
+                        return `Current: ${label}. Activate to advance state.`;
+                      })()}`}
+                    >
+                      <div className="font-bold text-sm text-foreground">{round.tricks}</div>
+                      {(() => {
+                        const rState = state.rounds[round.round]?.state ?? 'locked';
+                        const showBid = rState === 'bidding' || rState === 'scored';
+                        const info = roundInfoByRound[round.round] ?? {
+                          sumBids: 0,
+                          tricks: round.tricks,
+                        };
+                        const total = showBid ? info.sumBids : 0;
+                        const mismatch = showBid && total !== info.tricks;
+                        const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
                         return (
-                          <div className="flex items-center justify-center px-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
-                              onClick={() => void decrementBid(round.round, c.id)}
-                              aria-label={`Decrease bid for ${c.name} in round ${round.round}`}
-                              disabled={bid <= 0}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-foreground bg-secondary/70 dark:bg-secondary/30 px-1.5 rounded">
-                              {bid}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
-                              onClick={() => void incrementBid(round.round, c.id, max)}
-                              aria-label={`Increase bid for ${c.name} in round ${round.round}`}
-                              disabled={bid >= max}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                            {onConfirmBid ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 w-6 p-0 ml-1 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 border-emerald-700 dark:border-emerald-600 text-white"
-                                onClick={() => onConfirmBid(round.round, c.id, bid)}
-                                aria-label={`Confirm bid for ${c.name} and start round`}
-                              >
-                                <Check className="h-3 w-3" />
-                              </Button>
-                            ) : null}
+                          <div
+                            className={`text-[0.55rem] mt-0.5 font-semibold ${mismatch ? 'text-red-700 dark:text-red-300' : ''}`}
+                          >
+                            {label}
                           </div>
                         );
-                      })()
-                    ) : rState === 'playing' ? (
+                      })()}
+                    </button>
+                  </div>
+
+                  {columns.map((c, colIdx) => {
+                    const rState = state.rounds[round.round]?.state ?? 'locked';
+                    const isAbsent =
+                      !c.placeholder && state.rounds[round.round]?.present?.[c.id] === false;
+                    const bid =
+                      c.placeholder || isAbsent ? 0 : (state.rounds[round.round]?.bids[c.id] ?? 0);
+                    const made =
+                      c.placeholder || isAbsent
+                        ? null
+                        : (state.rounds[round.round]?.made[c.id] ?? null);
+                    const max = tricksForRound(round.round);
+                    const cellKey = `${round.round}-${c.id}`;
+                    const showDetails = rState !== 'scored' ? true : !!detailCells[cellKey];
+                    const cellKeyId = `cell-details-${round.round}-${c.id}`;
+                    const isScored = rState === 'scored';
+                    const isLive = rState === 'playing' && live && live.round === round.round;
+                    const liveCard = isLive ? live.cards[c.id] : null;
+                    const isCurrent = isLive && live.currentPlayerId === c.id;
+                    const cellBorder = isCurrent ? 'border-2 border-indigo-500' : 'border-b';
+                    return (
                       <div
-                        id={cellKeyId}
-                        className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none"
+                        key={`${round.round}-${c.id}`}
+                        role="gridcell"
+                        aria-colindex={colIdx + 2}
+                        className={`${cellBorder} grid grid-cols-1 ${rState === 'bidding' || rState === 'complete' || rState === 'playing' ? 'grid-rows-1' : showDetails ? 'grid-rows-2' : 'grid-rows-1'} transition-all duration-200 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${getPlayerCellBackgroundStyles(rState)}`}
+                        tabIndex={0}
+                        onClick={() => {
+                          if (isScored) toggleCellDetails(round.round, c.id);
+                        }}
+                        {...(isScored
+                          ? {
+                              onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  toggleCellDetails(round.round, c.id);
+                                }
+                              },
+                              'aria-expanded': showDetails,
+                              'aria-controls': cellKeyId,
+                              'aria-label': `Toggle score details for ${c.placeholder ? 'player' : c.name} in round ${round.round}`,
+                            }
+                          : {})}
+                        {...(!isScored
+                          ? {
+                              'aria-label': `Scores for ${c.placeholder ? 'player' : c.name} in round ${round.round}`,
+                            }
+                          : {})}
                       >
-                        {(() => {
-                          const taken = live?.counts?.[c.id] ?? 0;
-                          return (
-                            <span className="w-full text-right font-extrabold text-xl text-foreground">
-                              {taken}/{bid}
-                            </span>
-                          );
-                        })()}
-                        <span className="px-1 font-extrabold text-xl text-foreground">-</span>
-                        <span className={`w-full text-left font-mono inline-flex items-center gap-1 ${liveCard ? suitColorClass(liveCard?.suit || '') : 'text-muted-foreground'}`}>
-                          {liveCard ? (
-                            <>
-                              <span className="font-bold text-lg text-foreground">{rankLabel(liveCard.rank)}</span>
-                              <span className="text-lg">{suitSymbol(liveCard.suit)}</span>
-                            </>
-                          ) : (
-                            <span className="text-[0.9rem]">—</span>
-                          )}
-                        </span>
-                      </div>
-                    ) : rState === 'complete' ? (
-                      <div className="flex items-center justify-center gap-4 w-full px-1 py-0.5">
-                        <Button
-                          size="sm"
-                          variant={made === true ? 'default' : 'outline'}
-                          className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
-                          onClick={() => void toggleMade(round.round, c.id, true)}
-                          aria-pressed={made === true}
-                          aria-label={`Mark made for ${c.name} in round ${round.round}`}
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={made === false ? 'destructive' : 'outline'}
-                          className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
-                          onClick={() => void toggleMade(round.round, c.id, false)}
-                          aria-pressed={made === false}
-                          aria-label={`Mark missed for ${c.name} in round ${round.round}`}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        {showDetails ? (
+                        {c.placeholder || isAbsent ? (
                           <>
-                            <FitRow
-                              id={cellKeyId}
-                              className="flex items-center justify-between px-1 py-0.5"
-                              maxRem={0.65}
-                              minRem={0.5}
-                              full={
-                                <>
-                                  <span className="text-foreground">Bid: {bid}</span>
-                                  <span>
-                                    <span className="text-foreground mr-1">Round:</span>
-                                    <span
-                                      className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
-                                    >
-                                      {roundDelta(bid, made)}
-                                    </span>
-                                  </span>
-                                </>
-                              }
-                            />
-                            <FitRow
-                              className="flex items-center justify-between px-1 py-0.5"
-                              maxRem={0.65}
-                              minRem={0.5}
-                              abbrevAtRem={0.55}
-                              full={
-                                <>
-                                  <span
-                                    className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
-                                  >
-                                    {made ? 'Made' : 'Missed'}
-                                  </span>
-                                  {(() => {
-                                    const cum = totalsByRound[round.round]?.[c.id] ?? 0;
-                                    const isNeg = cum < 0;
-                                    return (
-                                      <span>
-                                        <span className="text-foreground mr-1">Total:</span>
-                                        {isNeg ? (
-                                          <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
-                                            <span className="text-red-700 dark:text-red-300 leading-none">
-                                              {Math.abs(cum)}
-                                            </span>
-                                          </span>
-                                        ) : (
-                                          <span className="text-foreground">{cum}</span>
-                                        )}
-                                      </span>
-                                    );
-                                  })()}
-                                </>
-                              }
-                              abbrev={
-                                <>
-                                  <span
-                                    className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
-                                  >
-                                    {made ? 'Made' : 'Missed'}
-                                  </span>
-                                  {(() => {
-                                    const cum = totalsByRound[round.round]?.[c.id] ?? 0;
-                                    const isNeg = cum < 0;
-                                    return (
-                                      <span>
-                                        <span className="text-foreground mr-1">Tot:</span>
-                                        {isNeg ? (
-                                          <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
-                                            <span className="text-red-700 dark:text-red-300 leading-none">
-                                              {Math.abs(cum)}
-                                            </span>
-                                          </span>
-                                        ) : (
-                                          <span className="text-foreground">{cum}</span>
-                                        )}
-                                      </span>
-                                    );
-                                  })()}
-                                </>
-                              }
-                            />
+                            <div className="border-b flex items-center justify-center px-1 py-0.5">
+                              <span className="text-[0.6rem] text-gray-500">-</span>
+                            </div>
+                            <div className="flex items-center justify-center px-1 py-0.5">
+                              <span className="text-[0.6rem] text-gray-500">-</span>
+                            </div>
                           </>
-                        ) : (
+                        ) : rState === 'locked' ? (
+                          <>
+                            <div className="border-b flex items-center justify-center px-1 py-0.5">
+                              <span className="text-[0.6rem] text-gray-500">-</span>
+                            </div>
+                            <div className="flex items-center justify-center px-1 py-0.5">
+                              <span className="text-[0.6rem] text-gray-500">-</span>
+                            </div>
+                          </>
+                        ) : rState === 'bidding' ? (
+                          (() => {
+                            const canBid =
+                              !biddingInteractiveIds || biddingInteractiveIds.includes(c.id);
+                            if (!canBid) {
+                              return (
+                                <div className="flex items-center justify-center px-1">
+                                  <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-foreground bg-secondary/50 dark:bg-secondary/20 px-1.5 rounded">
+                                    {bid}
+                                  </span>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="flex items-center justify-center px-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
+                                  onClick={() => void decrementBid(round.round, c.id)}
+                                  aria-label={`Decrease bid for ${c.name} in round ${round.round}`}
+                                  disabled={bid <= 0}
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-foreground bg-secondary/70 dark:bg-secondary/30 px-1.5 rounded">
+                                  {bid}
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
+                                  onClick={() => void incrementBid(round.round, c.id, max)}
+                                  aria-label={`Increase bid for ${c.name} in round ${round.round}`}
+                                  disabled={bid >= max}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                                {onConfirmBid ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 w-6 p-0 ml-1 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 border-emerald-700 dark:border-emerald-600 text-white"
+                                    onClick={() => onConfirmBid(round.round, c.id, bid)}
+                                    aria-label={`Confirm bid for ${c.name} and start round`}
+                                  >
+                                    <Check className="h-3 w-3" />
+                                  </Button>
+                                ) : null}
+                              </div>
+                            );
+                          })()
+                        ) : rState === 'playing' ? (
                           <div
                             id={cellKeyId}
                             className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none"
                           >
-                            <span className="w-full text-right font-extrabold text-xl text-foreground">
-                              {bid}
-                            </span>
-                            <span className="px-1 font-extrabold text-xl text-foreground">-</span>
                             {(() => {
-                              const cum = totalsByRound[round.round]?.[c.id] ?? 0;
-                              const isNeg = cum < 0;
+                              const taken = live?.counts?.[c.id] ?? 0;
                               return (
-                                <div className="w-full text-left">
-                                  {isNeg ? (
-                                    <span className="relative inline-flex items-center justify-center align-middle w-[4ch] h-[4ch] rounded-full border-2 border-red-500">
-                                      <span className="font-extrabold text-lg text-red-700 dark:text-red-300 leading-none">
-                                        {Math.abs(cum)}
-                                      </span>
-                                    </span>
-                                  ) : (
-                                    <span className="font-extrabold text-xl text-foreground">
-                                      {cum}
-                                    </span>
-                                  )}
-                                </div>
+                                <span className="w-full text-right font-extrabold text-xl text-foreground">
+                                  {taken}/{bid}
+                                </span>
                               );
                             })()}
+                            <span className="px-1 font-extrabold text-xl text-foreground">-</span>
+                            <span
+                              className={`w-full text-left font-mono inline-flex items-center gap-1 ${liveCard ? suitColorClass(liveCard?.suit || '') : 'text-muted-foreground'}`}
+                            >
+                              {liveCard ? (
+                                <>
+                                  <span className="font-bold text-lg text-foreground">
+                                    {rankLabel(liveCard.rank)}
+                                  </span>
+                                  <span className="text-lg">{suitSymbol(liveCard.suit)}</span>
+                                </>
+                              ) : (
+                                <span className="text-[0.9rem]">—</span>
+                              )}
+                            </span>
                           </div>
+                        ) : rState === 'complete' ? (
+                          <div className="flex items-center justify-center gap-4 w-full px-1 py-0.5">
+                            <Button
+                              size="sm"
+                              variant={made === true ? 'default' : 'outline'}
+                              className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
+                              onClick={() => void toggleMade(round.round, c.id, true)}
+                              aria-pressed={made === true}
+                              aria-label={`Mark made for ${c.name} in round ${round.round}`}
+                            >
+                              <Check className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={made === false ? 'destructive' : 'outline'}
+                              className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
+                              onClick={() => void toggleMade(round.round, c.id, false)}
+                              aria-pressed={made === false}
+                              aria-label={`Mark missed for ${c.name} in round ${round.round}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            {showDetails ? (
+                              <>
+                                <FitRow
+                                  id={cellKeyId}
+                                  className="flex items-center justify-between px-1 py-0.5"
+                                  maxRem={0.65}
+                                  minRem={0.5}
+                                  full={
+                                    <>
+                                      <span className="text-foreground">Bid: {bid}</span>
+                                      <span>
+                                        <span className="text-foreground mr-1">Round:</span>
+                                        <span
+                                          className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
+                                        >
+                                          {roundDelta(bid, made)}
+                                        </span>
+                                      </span>
+                                    </>
+                                  }
+                                />
+                                <FitRow
+                                  className="flex items-center justify-between px-1 py-0.5"
+                                  maxRem={0.65}
+                                  minRem={0.5}
+                                  abbrevAtRem={0.55}
+                                  full={
+                                    <>
+                                      <span
+                                        className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
+                                      >
+                                        {made ? 'Made' : 'Missed'}
+                                      </span>
+                                      {(() => {
+                                        const cum = totalsByRound[round.round]?.[c.id] ?? 0;
+                                        const isNeg = cum < 0;
+                                        return (
+                                          <span>
+                                            <span className="text-foreground mr-1">Total:</span>
+                                            {isNeg ? (
+                                              <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
+                                                <span className="text-red-700 dark:text-red-300 leading-none">
+                                                  {Math.abs(cum)}
+                                                </span>
+                                              </span>
+                                            ) : (
+                                              <span className="text-foreground">{cum}</span>
+                                            )}
+                                          </span>
+                                        );
+                                      })()}
+                                    </>
+                                  }
+                                  abbrev={
+                                    <>
+                                      <span
+                                        className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
+                                      >
+                                        {made ? 'Made' : 'Missed'}
+                                      </span>
+                                      {(() => {
+                                        const cum = totalsByRound[round.round]?.[c.id] ?? 0;
+                                        const isNeg = cum < 0;
+                                        return (
+                                          <span>
+                                            <span className="text-foreground mr-1">Tot:</span>
+                                            {isNeg ? (
+                                              <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
+                                                <span className="text-red-700 dark:text-red-300 leading-none">
+                                                  {Math.abs(cum)}
+                                                </span>
+                                              </span>
+                                            ) : (
+                                              <span className="text-foreground">{cum}</span>
+                                            )}
+                                          </span>
+                                        );
+                                      })()}
+                                    </>
+                                  }
+                                />
+                              </>
+                            ) : (
+                              <div
+                                id={cellKeyId}
+                                className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none"
+                              >
+                                <span className="w-full text-right font-extrabold text-xl text-foreground">
+                                  {bid}
+                                </span>
+                                <span className="px-1 font-extrabold text-xl text-foreground">
+                                  -
+                                </span>
+                                {(() => {
+                                  const cum = totalsByRound[round.round]?.[c.id] ?? 0;
+                                  const isNeg = cum < 0;
+                                  return (
+                                    <div className="w-full text-left">
+                                      {isNeg ? (
+                                        <span className="relative inline-flex items-center justify-center align-middle w-[4ch] h-[4ch] rounded-full border-2 border-red-500">
+                                          <span className="font-extrabold text-lg text-red-700 dark:text-red-300 leading-none">
+                                            {Math.abs(cum)}
+                                          </span>
+                                        </span>
+                                      ) : (
+                                        <span className="font-extrabold text-xl text-foreground">
+                                          {cum}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
         </div>

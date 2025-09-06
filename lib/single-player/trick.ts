@@ -9,10 +9,7 @@ export function trickHasTrump(plays: ReadonlyArray<TrickPlay>, trump: Suit): boo
   return plays.some((p) => p.card.suit === trump);
 }
 
-export function winnerOfTrick(
-  plays: ReadonlyArray<TrickPlay>,
-  trump: Suit,
-): PlayerId | undefined {
+export function winnerOfTrick(plays: ReadonlyArray<TrickPlay>, trump: Suit): PlayerId | undefined {
   if (plays.length === 0) return undefined;
   const led = plays[0]!.card.suit;
   let best: TrickPlay = plays[0]!;

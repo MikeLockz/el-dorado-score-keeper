@@ -30,4 +30,3 @@
 
 - Add a user setting to opt out of compact scaling for accessibility.
 - Add a minimum scale clamp and switch to abbreviated headers/details when below a threshold to improve legibility on very small devices.
-

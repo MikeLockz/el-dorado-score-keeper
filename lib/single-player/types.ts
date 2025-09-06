@@ -42,4 +42,3 @@ export type RoundResult = Readonly<{
 }>;
 
 export type RNG = () => number; // [0,1)
-

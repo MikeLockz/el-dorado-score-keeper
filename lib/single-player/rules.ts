@@ -8,7 +8,12 @@ export type LegalityContext = Readonly<{
   trumpBroken?: boolean; // once trump has been played off-suit earlier this round
 }>;
 
-export function canLead(card: Card, trump: Suit, hand: readonly Card[], trumpBroken?: boolean): boolean {
+export function canLead(
+  card: Card,
+  trump: Suit,
+  hand: readonly Card[],
+  trumpBroken?: boolean,
+): boolean {
   // Leading restriction: may not lead trump if holding any non-trump card,
   // unless trump has been "broken" earlier this round.
   if (!trumpBroken) {

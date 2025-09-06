@@ -186,7 +186,9 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const knownIds = new Set(Object.keys(state.players));
       const filtered = order.filter((id) => knownIds.has(id));
       // Append any players not present in payload in their previous relative order
-      const prevOrderEntries = Object.entries(state.display_order ?? {}).sort((a, b) => a[1] - b[1]);
+      const prevOrderEntries = Object.entries(state.display_order ?? {}).sort(
+        (a, b) => a[1] - b[1],
+      );
       const prevOrder = prevOrderEntries.map(([pid]) => pid).filter((pid) => knownIds.has(pid));
       for (const pid of prevOrder) if (!filtered.includes(pid)) filtered.push(pid);
       for (const pid of Object.keys(state.players)) if (!filtered.includes(pid)) filtered.push(pid);
