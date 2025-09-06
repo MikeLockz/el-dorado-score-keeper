@@ -31,16 +31,15 @@ This document refines the MVP scope with clear roles, start gates, and acceptanc
 
 ## Acceptance Criteria (Happy Path)
 
-1) Player A opens lobby, creates room → becomes host. Player B joins via link.
-2) Both see the roster with names; Start is enabled for host.
-3) Host presses Start; both navigate to game view; dealer (per rotation) DMs hands; host emits `sp/deal` and moves to bidding.
-4) Player B bids: sends `input{kind:'bid'}` → host validates → host broadcasts `event{bid/set}` → both UIs update identically.
-5) Trick play: current player sends `input{kind:'play'}`; host validates and emits `sp/trick/played` and `sp/trick/cleared` as tricks resolve.
-6) Round end: host emits `made/set` per player and `round/finalize`; totals update identically on both clients.
-7) Game proceeds to next round with dealer rotated accordingly.
+1. Player A opens lobby, creates room → becomes host. Player B joins via link.
+2. Both see the roster with names; Start is enabled for host.
+3. Host presses Start; both navigate to game view; dealer (per rotation) DMs hands; host emits `sp/deal` and moves to bidding.
+4. Player B bids: sends `input{kind:'bid'}` → host validates → host broadcasts `event{bid/set}` → both UIs update identically.
+5. Trick play: current player sends `input{kind:'play'}`; host validates and emits `sp/trick/played` and `sp/trick/cleared` as tricks resolve.
+6. Round end: host emits `made/set` per player and `round/finalize`; totals update identically on both clients.
+7. Game proceeds to next round with dealer rotated accordingly.
 
 ## Acceptance Criteria (Disconnects & Rejoin)
 
 - If a non‑host refreshes mid‑game: client auto‑reconnects, rejoins the room with same `playerId`, requests `snapshot`; on receipt, imports and catches up; otherwise falls back to lobby with a friendly message.
 - If host disconnects mid‑game: all clients show “Waiting for host…”; inputs are blocked; if host returns within TTL, game resumes; otherwise room expires.
-

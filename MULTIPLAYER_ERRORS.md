@@ -30,7 +30,14 @@ export interface ErrorMsg {
   roomId?: string;
   type: 'error';
   payload: {
-    code: 'room_not_found' | 'room_full' | 'version_mismatch' | 'not_host' | 'rate_limited' | 'timeout' | string;
+    code:
+      | 'room_not_found'
+      | 'room_full'
+      | 'version_mismatch'
+      | 'not_host'
+      | 'rate_limited'
+      | 'timeout'
+      | string;
     message?: string;
     info?: unknown;
   };

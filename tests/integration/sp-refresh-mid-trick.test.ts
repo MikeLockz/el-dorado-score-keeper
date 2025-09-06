@@ -25,12 +25,8 @@ describe('SP refresh mid-trick restores seamlessly from state.sp', () => {
           trump: 'spades',
           trumpCard: { suit: 'spades', rank: 14 },
           hands: {
-            p1: [
-              { suit: 'clubs', rank: 2 },
-            ],
-            p2: [
-              { suit: 'clubs', rank: 3 },
-            ],
+            p1: [{ suit: 'clubs', rank: 2 }],
+            p2: [{ suit: 'clubs', rank: 3 }],
           },
         },
         'd1',
@@ -38,7 +34,9 @@ describe('SP refresh mid-trick restores seamlessly from state.sp', () => {
     );
     await a.append(ev('sp/leader-set', { leaderId: 'p1' }, 'l1'));
     await a.append(ev('sp/phase-set', { phase: 'playing' }, 'ph'));
-    await a.append(ev('sp/trick/played', { playerId: 'p1', card: { suit: 'clubs', rank: 2 } }, 't1'));
+    await a.append(
+      ev('sp/trick/played', { playerId: 'p1', card: { suit: 'clubs', rank: 2 } }, 't1'),
+    );
     // Close A to simulate a refresh
     a.close();
 
@@ -53,4 +51,3 @@ describe('SP refresh mid-trick restores seamlessly from state.sp', () => {
     b.close();
   });
 });
-

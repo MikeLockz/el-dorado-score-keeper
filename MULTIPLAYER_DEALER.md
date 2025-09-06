@@ -42,4 +42,3 @@ payload: {
 - Commit–reveal shuffles (mental poker) to reduce trust in the dealer.
 - Server‑dealt hands (ephemeral, not persisted) to centralize dealing without long‑term state.
 - Encrypted private messages with shared keys per recipient.
-

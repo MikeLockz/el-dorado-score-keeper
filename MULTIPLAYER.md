@@ -19,12 +19,14 @@ Guiding principles
 ## MVP Build Scope (What to Build Now)
 
 Deliverables
+
 - Lobby: create/join by ID; in-room roster with host badge; host can Start.
 - Host-authoritative play: host runs the game and emits authoritative events; others send inputs.
 - Stateless relay: in-memory rooms with ordered broadcast via `seq`, basic presence (ping/pong), no persistence.
 - Host disconnect handling: pause game and show “Waiting for host…”. No host migration.
 
 MVP Constraints
+
 - Join only before Start; no late joins after the game begins.
 - Auto rejoin/resync on refresh: client reconnects with the same `playerId` and attempts to resync; if unable (e.g., host unavailable), fall back to lobby gracefully.
 - No timers/penalties: manual pacing; host may choose neutral actions if needed.
@@ -32,18 +34,20 @@ MVP Constraints
 - Hidden info policy: simplest path for v0 — trust the current dealer to send hands privately (dealt cards originate from the dealer, not always the host); alternatively disclose hands to all for early playtesting.
 
 Minimal Protocol (message types)
+
 - `join` (client→server): { roomId, name, playerId? }
 - `roster` (server→clients): { roomId, players: [{id,name,connected}], hostId }
 - `start` (host→server): { roomId, seed, order }
 - `input` (client→server → relayed to host): { turnId, kind, data }
 - `event` (host→server → broadcast): { event: KnownAppEvent }
- - `leave` (client→server)
+- `leave` (client→server)
 - `ping`/`pong` for presence
 - `snapshot_request` (client→server → relayed to host): { sinceSeq }
 - `snapshot` (host→server → relayed to client): { baseSeq, bundle }
   Notes: `private` hand delivery may originate from the current dealer (dealer→server → relayed to each target), not necessarily the host.
 
 Client Tasks
+
 - Implement lobby UI (see MULTIPLAYER_LOBBY.md) to create/join and display roster; Start enabled for host when ≥ 2 players.
 - Networking: open WS, send `join`, handle `roster`, send/receive `ping`/`pong`.
 - Host path: map UI actions to `KnownAppEvent` and broadcast `event`. The dealer (who may or may not be the host) privately delivers hands when applicable.
@@ -56,6 +60,7 @@ Client Tasks
   - If no `snapshot` arrives within a short timeout or host is absent, return to the lobby with a friendly message.
 
 Server Tasks (see MULTIPLAYER_SERVER.md)
+
 - One WS endpoint; in-memory `{ roomId → { clients, hostId, seq } }`.
 - On `join`: add client, assign first as host, broadcast `roster`.
 - On `start` (host only): broadcast.
@@ -66,6 +71,7 @@ Server Tasks (see MULTIPLAYER_SERVER.md)
 - Relay resync: forward `snapshot_request` to host (or any donor) and relay `snapshot` back to the requester; server stores nothing.
 
 Acceptance Criteria
+
 - Two browsers can create/join a room; both see roster; host can Start.
 - Non-host acts → host validates → everyone updates identically from broadcast `event`s.
 - Refreshing a player attempts auto rejoin/resync; if host provides a snapshot, the player catches up; otherwise the client falls back to the lobby.
@@ -76,6 +82,7 @@ Acceptance Criteria
 See MULTIPLAYER_LOBBY.md for the full lobby UX, routing, and message details (create/join flows, roster, edge cases, and heartbeats). This document focuses on gameplay replication and server responsibilities.
 
 Related docs for deeper details:
+
 - MULTIPLAYER_SCOPE.md — explicit MVP scope, roles, start gates, and acceptance criteria
 - MULTIPLAYER_PROTOCOL.md — message schemas, sequencing, turn IDs, and examples
 - MULTIPLAYER_DEALER.md — dealer responsibilities and hidden information handling
@@ -120,6 +127,7 @@ Client
 Envelope (server → clients and clients → server)
 
 See MULTIPLAYER_SERVER.md for complete envelope and transport details. Gameplay-relevant message types used here:
+
 - `event` (host→server; server→clients): authoritative state changes
 - `input` (client→server): player intents (forwarded to host in Phase 1)
 - `private` (host→server→client): per-player hand/prompt data

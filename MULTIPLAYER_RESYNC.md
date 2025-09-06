@@ -10,12 +10,12 @@ This document defines how clients recover state after reconnecting.
 
 ## Client Flow
 
-1) Reconnect WS and send `join{ roomId, playerId }`.
-2) Send `snapshot_request{ sinceSeq }` where `sinceSeq` is the last applied broadcast `seq` saved locally.
-3) On `snapshot{ baseSeq, bundle }`:
+1. Reconnect WS and send `join{ roomId, playerId }`.
+2. Send `snapshot_request{ sinceSeq }` where `sinceSeq` is the last applied broadcast `seq` saved locally.
+3. On `snapshot{ baseSeq, bundle }`:
    - Import via `importBundleSoft(dbName, bundle)`.
    - Resume streaming broadcast messages from `baseSeq+1`.
-4) If no snapshot arrives within timeout T (e.g., 5s) or all donors absent:
+4. If no snapshot arrives within timeout T (e.g., 5s) or all donors absent:
    - Show a friendly message and return to the lobby; allow manual retry.
 
 ## Client Pseudocode

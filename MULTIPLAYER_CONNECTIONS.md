@@ -21,7 +21,8 @@ This document defines presence, heartbeats, disconnect handling, and TTL policie
 - On reconnect, attempt auto rejoin/resync (see MULTIPLAYER_RESYNC.md).
 
 Backoff formula
-- base = 500ms; attempt n uses delay = min(500ms * 2^(n-1), 5000ms) + jitter(±20%).
+
+- base = 500ms; attempt n uses delay = min(500ms \* 2^(n-1), 5000ms) + jitter(±20%).
 
 ## Rate Limits (lightweight)
 

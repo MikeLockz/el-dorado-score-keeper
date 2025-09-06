@@ -29,4 +29,3 @@ This document outlines E2E and chaos testing for the multiplayer MVP.
 ## Determinism Checks
 
 - Hash after key milestones (post-bid, post-trick, post-finalize) to compare client states in test harness.
-

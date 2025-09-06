@@ -11,6 +11,7 @@ This document specifies the multiplayer lobby experience: creating a new game, j
 ## UI Wireframes (ASCII)
 
 Create/Join
+
 ```
 ┌───────────────────────────────────────────────┐
 │ Multiplayer Lobby                             │
@@ -25,6 +26,7 @@ Create/Join
 ```
 
 In-room Lobby
+
 ```
 ┌───────────────────────────────────────────────┐
 │ Room: k3c7tq9h    ( Copy Link )               │
@@ -53,10 +55,12 @@ In-room Lobby
 ## Lobby UX (Create/Join)
 
 Overview
+
 - A dedicated lobby view allows players to either create a new room or join an existing one via a shareable ID or link.
 - No networking is implemented in this document; this section defines the UX, flows, and message contracts the relay/server would later satisfy.
 
 Create New Game
+
 - Action: “Create Game” generates a `roomId` — short, URL‑safe, human‑shareable.
 - ID format: 8–10 lowercase base36 characters (e.g., `k3c7tq9h`).
 - Share link: `https://<host>/multiplayer/room/<roomId>` (deep link pattern; exact base path may vary).
@@ -64,12 +68,14 @@ Create New Game
 - UI affordances: copy link button; optional QR code; room code shown prominently.
 
 Join Existing Game
+
 - Input accepts either the bare `roomId` or a full invite URL; client extracts the last path segment as the ID.
 - On join, prompt for display name (pre‑fill from local preference if available).
 - If display name duplicates, disambiguate in UI (append a number locally) while preserving the submitted name.
 - Validation: reject empty IDs, invalid characters, or length outside expected bounds; show toast/error inline.
 
 Lobby Screen (inside a room)
+
 - Header shows `roomId` and share link; copy button.
 - Roster list: players with `name`, `connected` status, and a host badge.
 - Controls (host only): Start Game (enabled when ≥ 2 players), Assign Host, Kick/Drop.
@@ -77,12 +83,14 @@ Lobby Screen (inside a room)
 - Status: “Waiting for host to start”, “Starting…”, “Reconnecting…”.
 
 Edge Cases & Errors
+
 - Room not found: show clear retry + “Create New Game” option.
 - Room full (≥10): surface error; allow “Create New Game”.
 - Version mismatch: display an incompatibility message (clientVersion vs. hostVersion); block joining or suggest reload.
 - Lost connection: keep lobby visible with reconnecting indicator; allow Copy Link while offline.
 
 Persistence
+
 - Remember last used display name and last joined room locally (for convenience only).
 - Do not auto‑rejoin without explicit user intent if another session is already active with the same identity.
 
@@ -97,5 +105,6 @@ Envelope fields: `roomId`, `seq?`, `type`, `payload` (see MULTIPLAYER.md for env
 - `pong`/heartbeats for presence; server derives `connected` from liveness.
 
 Notes
+
 - The first entrant becomes `hostId` by default; host can be reassigned.
 - `start` should only be accepted from the current host and when roster size ≥ 2.

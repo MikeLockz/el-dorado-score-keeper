@@ -129,7 +129,12 @@ export function StateProvider({
         const s = await previewFromDB(dbNameRef.current, ttHeight);
         if (!closed) setTtState(s);
       } catch (e) {
-        setWarnings((prev) => [{ code: 'timetravel.preview_failed', info: String(e), at: Date.now() }, ...prev].slice(0, 20));
+        setWarnings((prev) =>
+          [{ code: 'timetravel.preview_failed', info: String(e), at: Date.now() }, ...prev].slice(
+            0,
+            20,
+          ),
+        );
       }
     })();
     return () => {

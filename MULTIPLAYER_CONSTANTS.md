@@ -25,4 +25,3 @@ This file centralizes numeric/time constants and simple limits used across the m
 ## Protocol
 
 - minimal messages for MVP: join, roster, start, input, event, private, leave, ping/pong, snapshot_request, snapshot
-

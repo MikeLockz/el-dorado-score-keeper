@@ -45,4 +45,3 @@ describe('Finish Round 10 → Round 10 scored; Round 9 bidding (no flicker)', ()
     a.close();
   });
 });
-

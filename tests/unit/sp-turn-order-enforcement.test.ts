@@ -61,7 +61,10 @@ describe('SP reducer: turn order enforcement', () => {
     expect(s.sp.hands.p1.length).toBe(1);
 
     // Out-of-turn: p4 attempts before p3
-    const out = reduce(s, events.spTrickPlayed({ playerId: 'p4', card: { suit: 'spades', rank: 3 } }));
+    const out = reduce(
+      s,
+      events.spTrickPlayed({ playerId: 'p4', card: { suit: 'spades', rank: 3 } }),
+    );
     expect(out.sp.trickPlays.length).toBe(1); // ignored
     expect(out.sp.hands.p4.length).toBe(2);
 
@@ -72,4 +75,3 @@ describe('SP reducer: turn order enforcement', () => {
     expect(s.sp.hands.p3.length).toBe(1);
   });
 });
-

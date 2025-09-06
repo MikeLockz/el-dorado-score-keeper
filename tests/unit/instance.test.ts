@@ -83,16 +83,23 @@ describe('state instance (IndexedDB)', () => {
     };
 
     inst.setTestAbortAfterAddOnce();
-    await expect(inst.append(events.playerAdded({ id: 'x', name: 'X' }))).rejects.toBeInstanceOf(Error);
+    await expect(inst.append(events.playerAdded({ id: 'x', name: 'X' }))).rejects.toBeInstanceOf(
+      Error,
+    );
     // Next append should succeed
-    await expect(inst.append(events.playerAdded({ id: 'x', name: 'X' }))).resolves.toBeGreaterThan(0);
+    await expect(inst.append(events.playerAdded({ id: 'x', name: 'X' }))).resolves.toBeGreaterThan(
+      0,
+    );
 
     inst.setTestAppendFailure('generic');
-    await expect(inst.append(events.playerAdded({ id: 'y', name: 'Y' }))).rejects.toBeInstanceOf(Error);
+    await expect(inst.append(events.playerAdded({ id: 'y', name: 'Y' }))).rejects.toBeInstanceOf(
+      Error,
+    );
     // And then succeed subsequently
-    await expect(inst.append(events.playerAdded({ id: 'y', name: 'Y' }))).resolves.toBeGreaterThan(0);
+    await expect(inst.append(events.playerAdded({ id: 'y', name: 'Y' }))).resolves.toBeGreaterThan(
+      0,
+    );
 
     inst.close();
   });
 });
-
