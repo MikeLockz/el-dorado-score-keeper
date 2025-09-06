@@ -53,6 +53,7 @@ function GameDetailPageInner() {
 
   const scoresEntries = Object.entries(game.summary.scores);
   const playersById = game.summary.playersById;
+  const sp = game.summary.sp;
 
   return (
     <div className="p-3 max-w-xl mx-auto">
@@ -85,6 +86,28 @@ function GameDetailPageInner() {
           </div>
         )}
       </Card>
+
+      {sp && (
+        <Card className="p-2 mb-3">
+          <div className="font-semibold mb-2">Single-Player Snapshot</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            <div className="text-slate-600 dark:text-slate-300">Phase</div>
+            <div className="font-mono">{sp.phase}</div>
+            <div className="text-slate-600 dark:text-slate-300">Round</div>
+            <div className="font-mono">{sp.roundNo ?? '—'}</div>
+            <div className="text-slate-600 dark:text-slate-300">Dealer</div>
+            <div className="font-mono">{playersById[sp.dealerId ?? ''] ?? sp.dealerId ?? '—'}</div>
+            <div className="text-slate-600 dark:text-slate-300">Leader</div>
+            <div className="font-mono">{playersById[sp.leaderId ?? ''] ?? sp.leaderId ?? '—'}</div>
+            <div className="text-slate-600 dark:text-slate-300">Trump</div>
+            <div className="font-mono">
+              {sp.trump && sp.trumpCard ? `${sp.trumpCard.rank} of ${sp.trump}` : '—'}
+            </div>
+            <div className="text-slate-600 dark:text-slate-300">Trump Broken</div>
+            <div className="font-mono">{sp.trumpBroken ? 'yes' : 'no'}</div>
+          </div>
+        </Card>
+      )}
 
       <Card className="p-2">
         <div className="text-sm text-slate-800 dark:text-slate-200">

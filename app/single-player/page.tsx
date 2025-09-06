@@ -17,10 +17,11 @@ import {
   selectSpTricksForRound,
   selectSpHandBySuit,
   selectSpIsRoundDone,
+  selectSpRotatedOrder,
 } from '@/lib/state';
 
 export default function SinglePlayerPage() {
-  const { state, append, appendMany, ready } = useAppState();
+  const { state, append, appendMany, ready, isBatchPending } = useAppState();
   const [playersCount, setPlayersCount] = React.useState(4);
   const [dealerIdx, setDealerIdx] = React.useState(0);
   const [humanIdx, setHumanIdx] = React.useState(0);
@@ -161,6 +162,7 @@ export default function SinglePlayerPage() {
   // Advance play: bot turns and trick resolution
   React.useEffect(() => {
     if (!spTrump || phase !== 'playing' || !trickLeader) return;
+    if (isBatchPending) return;
     const nextToPlay = selectSpNextToPlay(state);
     if (!nextToPlay) return;
     // If trick complete
@@ -209,11 +211,13 @@ export default function SinglePlayerPage() {
     spTrickCounts,
     roundNo,
     state.rounds,
+    isBatchPending,
   ]);
 
   // Auto-bid for bots during bidding phase (store-driven)
   React.useEffect(() => {
     if (phase !== 'bidding') return;
+    if (isBatchPending) return;
     const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<string, number | undefined>;
     // Only proceed if human has bid
     if (bidsMap[human] == null) return;
@@ -244,11 +248,12 @@ export default function SinglePlayerPage() {
       void append(events.bidSet({ round: roundNo, playerId: nextBot, bid: amount }));
     }, 250);
     return () => clearTimeout(t);
-  }, [phase, spOrder, human, spTrump, spHands, roundNo, tricks, state.rounds]);
+  }, [phase, spOrder, human, spTrump, spHands, roundNo, tricks, state.rounds, isBatchPending]);
 
   // Resolve completed trick
   React.useEffect(() => {
     if (!spTrump || phase !== 'playing' || !trickLeader) return;
+    if (isBatchPending) return;
     if (spTrickPlays.length < spOrder.length) return;
     // Determine winner
     const winner = winnerOfTrick(spTrickPlays as any, spTrump!);
@@ -266,7 +271,7 @@ export default function SinglePlayerPage() {
       void appendMany(batch);
     }, 800); // leave the full trick visible a bit longer
     return () => clearTimeout(t);
-  }, [spTrickPlays, spOrder.length, spTrump, phase, trickLeader, spTrumpBroken]);
+  }, [spTrickPlays, spOrder.length, spTrump, phase, trickLeader, spTrumpBroken, isBatchPending]);
 
   // Auto-sync results to scorekeeper when round ends
   React.useEffect(() => {
@@ -275,6 +280,7 @@ export default function SinglePlayerPage() {
     const rState = state.rounds[roundNo]?.state;
     if (rState === 'scored') return;
     if (saved) return; // already synced
+    if (isBatchPending) return;
     (async () => {
       try {
         const batch: any[] = [];
@@ -336,7 +342,7 @@ export default function SinglePlayerPage() {
         console.warn('Failed to auto-sync results', e);
       }
     })();
-  }, [isRoundDone, players, roundNo, append, saved, spTrickCounts, state.rounds]);
+  }, [isRoundDone, players, roundNo, append, saved, spTrickCounts, state.rounds, isBatchPending]);
 
   return (
     <main className="p-4 space-y-6">
@@ -376,6 +382,19 @@ export default function SinglePlayerPage() {
                     </div>
                   );
                 })()}
+                {(() => {
+                  const rotated = selectSpRotatedOrder(state);
+                  const first = rotated[0] ?? null;
+                  const name = first
+                    ? activePlayers.find((ap) => ap.id === first)?.name ?? first
+                    : null;
+                  return (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="mr-1">First:</span>
+                      <span>{name ?? '—'}</span>
+                    </div>
+                  );
+                })()}
                 <div className="text-sm font-mono inline-flex items-center gap-1">
                   <span className="text-xs text-muted-foreground mr-1">Lead:</span>
                   {(() => {
@@ -393,10 +412,12 @@ export default function SinglePlayerPage() {
               <CurrentGame
                 live={overlay ?? undefined}
                 biddingInteractiveIds={[human]}
+                disableInputs={isBatchPending}
                 onConfirmBid={(r, pid, bid) => {
                   // Confirm this player's bid, auto-bid others if needed, then start playing
                   (async () => {
                     try {
+                      if (isBatchPending) return;
                       // Ignore confirmations for non-current rounds to avoid corrupting other rows
                       if (r !== roundNo) return;
                       // Set this player's bid and auto-bids for others in one batch
@@ -566,7 +587,7 @@ export default function SinglePlayerPage() {
                 <button
                   type="button"
                   className="inline-flex items-center rounded border px-3 py-1 text-sm"
-                  disabled={!selectedCard}
+                  disabled={!selectedCard || isBatchPending}
                   onClick={() => {
                     if (!selectedCard) return;
                     const ledSuit = spTrickPlays[0]?.card.suit as any;
@@ -590,6 +611,7 @@ export default function SinglePlayerPage() {
                         : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
                     const nextToPlay = rotated[spTrickPlays.length];
                     if (!legal || nextToPlay !== human) return;
+                    if (isBatchPending) return;
                     void append(
                       events.spTrickPlayed({
                         playerId: human,

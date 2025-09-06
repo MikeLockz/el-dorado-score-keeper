@@ -17,6 +17,7 @@ type Ctx = {
   ready: boolean;
   append: (e: AppEvent) => Promise<number>;
   appendMany: (events: AppEvent[]) => Promise<number>;
+  isBatchPending: boolean;
   previewAt: (height: number) => Promise<AppState>;
   warnings: Warning[];
   clearWarnings: () => void;
@@ -34,6 +35,7 @@ export function StateProvider({
   const [state, setState] = React.useState<AppState>(INITIAL_STATE);
   const [height, setHeight] = React.useState(0);
   const [ready, setReady] = React.useState(false);
+  const [pendingBatches, setPendingBatches] = React.useState(0);
   const [warnings, setWarnings] = React.useState<Warning[]>([]);
   const instRef = React.useRef<Awaited<ReturnType<typeof createInstance>> | null>(null);
   const dbNameRef = React.useRef<string>('app-db');
@@ -97,7 +99,12 @@ export function StateProvider({
 
   async function appendMany(evts: AppEvent[]) {
     if (!instRef.current) throw new Error('State instance not ready');
-    return instRef.current.appendMany(evts);
+    setPendingBatches((n) => n + 1);
+    try {
+      return await instRef.current.appendMany(evts);
+    } finally {
+      setPendingBatches((n) => Math.max(0, n - 1));
+    }
   }
 
   async function previewAt(h: number): Promise<AppState> {
@@ -140,6 +147,7 @@ export function StateProvider({
     ready,
     append,
     appendMany,
+    isBatchPending: pendingBatches > 0,
     previewAt,
     warnings,
     clearWarnings: () => setWarnings([]),

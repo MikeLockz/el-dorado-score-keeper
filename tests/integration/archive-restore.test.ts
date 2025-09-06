@@ -34,6 +34,8 @@ describe('archive and restore flows', () => {
     expect(rec!.id).toBeTypeOf('string');
     expect(rec!.lastSeq).toBe(endHeight);
     expect(rec!.summary.winnerId === 'p1' || rec!.summary.winnerId === 'p2').toBe(true);
+    // SP snapshot present (default initial snapshot when no SP events)
+    expect(rec!.summary.sp).toBeDefined();
     // Current DB is reset to roster only (seeded playerAdded per final roster)
     // Rehydrate to pick up DB changes in this process environment
     await inst.rehydrate();

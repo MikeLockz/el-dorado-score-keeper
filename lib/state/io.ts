@@ -23,6 +23,17 @@ export type GameRecord = {
     winnerId: string | null;
     winnerName: string | null;
     winnerScore: number | null;
+    sp?: {
+      phase: 'setup' | 'bidding' | 'playing' | 'done';
+      roundNo: number | null;
+      dealerId: string | null;
+      leaderId: string | null;
+      order: string[];
+      trump: 'clubs' | 'diamonds' | 'hearts' | 'spades' | null;
+      trumpCard: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null;
+      trickCounts: Record<string, number>;
+      trumpBroken: boolean;
+    };
   };
   bundle: ExportBundle;
 };
@@ -215,6 +226,7 @@ function summarizeState(s: AppState): GameRecord['summary'] {
       winnerId = pid;
     }
   }
+  const sp = s.sp || ({} as any);
   return {
     players: Object.keys(playersById).length,
     scores,
@@ -222,6 +234,17 @@ function summarizeState(s: AppState): GameRecord['summary'] {
     winnerId,
     winnerName: winnerId ? (playersById[winnerId] ?? null) : null,
     winnerScore,
+    sp: {
+      phase: sp.phase ?? 'setup',
+      roundNo: sp.roundNo ?? null,
+      dealerId: sp.dealerId ?? null,
+      leaderId: sp.leaderId ?? null,
+      order: Array.isArray(sp.order) ? [...sp.order] : [],
+      trump: sp.trump ?? null,
+      trumpCard: sp.trumpCard ? { suit: sp.trumpCard.suit, rank: sp.trumpCard.rank } : null,
+      trickCounts: { ...(sp.trickCounts ?? {}) },
+      trumpBroken: !!sp.trumpBroken,
+    },
   };
 }
 

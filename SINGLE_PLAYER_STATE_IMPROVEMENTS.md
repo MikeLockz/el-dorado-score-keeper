@@ -54,7 +54,6 @@ This document outlines changes to make the single‑player (SP) runtime fully re
 
 ### 5) Consistency & UX
 
-- Remove manual “Next Round” in SP (optional) to reduce accidental clicks; rely on auto‑advance.
 - Disable inputs while `appendMany` pending to prevent double‑triggers.
 - Use selectors in all headers (already done for trump/dealer; first‑to‑act via `selectSpRotatedOrder[0]`).
 

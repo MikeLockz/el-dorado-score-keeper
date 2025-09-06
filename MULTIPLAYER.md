@@ -16,6 +16,10 @@ Guiding principles
 - Late join and dropped player rules mirror the app’s existing behavior (see docs/LATE_AND_DROPPED_PLAYERS.md).
 - Resume/rejoin: a client can reconnect and catch up from peers without the server storing snapshots.
 
+## Lobby
+
+See MULTIPLAYER_LOBBY.md for the full lobby UX, routing, and message details (create/join flows, roster, edge cases, and heartbeats). This document focuses on gameplay replication and server responsibilities.
+
 ## Architecture
 
 Two implementation phases are proposed. Phase 1 is simpler and gets a working system quickly; Phase 2 improves trust and desync handling.
@@ -35,12 +39,7 @@ Phase 2 — Deterministic Lockstep (optional upgrade)
 
 Server (stateless relay)
 
-- WebSocket endpoint with in‑memory rooms: {roomId → {clients, seq}}; no database.
-- Responsibilities:
-  - Order inputs: attach `seq` and `turnId` to incoming messages, then broadcast.
-  - Enforce timing windows (turn timers, heartbeats) and publish roster changes.
-  - Route private messages (hands, prompts) from host → specific player.
-  - Never store state persistently; if the server restarts, clients reconnect and resync from peers (see Resync).
+See MULTIPLAYER_SERVER.md for the full relay API: rooms/presence, message envelope, ordering with `seq`, heartbeats, error handling, and deployment notes. In brief, the server orders inputs and broadcasts them, maintains roster presence, and does not persist game state.
 
 Client
 
@@ -48,21 +47,20 @@ Client
 - Apply ordered events via `reduce` (reuse `sp/*` events and scorekeeper events like `bid/set`, `made/set`, `round/finalize`).
 - For host: run the engine, produce events; for peers: accept events and render UI, send inputs for your seat.
 - Use BroadcastChannel/storage events for same‑tab sync (already implemented) and WebSocket for cross‑device sync.
+  See MULTIPLAYER_LOBBY.md for lobby routes.
 
 ## Message Schema (sketch)
 
 Envelope (server → clients and clients → server)
 
-- `roomId`: string
-- `seq`: number | null (server fills)
-- `type`: `join|roster|start|input|event|private|hash|snapshot_request|snapshot|pong`
-- `payload`: object
+See MULTIPLAYER_SERVER.md for complete envelope and transport details. Gameplay-relevant message types used here:
+- `event` (host→server; server→clients): authoritative state changes
+- `input` (client→server): player intents (forwarded to host in Phase 1)
+- `private` (host→server→client): per-player hand/prompt data
+- `hash`, `snapshot_request`, `snapshot`: desync detection and resync
 
 Key messages
 
-- `join`: { playerId, name, roomId, clientVersion }
-- `roster` (server→clients): { players: Array<{id,name,connected:boolean}>, hostId, seq }
-- `start` (host→server): { seed, order: string[], rulesVersion, options }
 - `event` (host→server; server→clients): { event: KnownAppEvent } — the authoritative stream in Phase 1
 - `input` (client→server): { turnId, kind: 'bid'|'play'|'pass'|..., data } — forwarded to host in Phase 1
 - `private` (host→server): { to: playerId, kind: 'hand'|'prompt'|..., data }
@@ -79,8 +77,7 @@ Notes
 
 Lobby
 
-- `/multiplayer`: Create or join a room; pick a seat and host.
-- The first entrant becomes `hostId` by default; host can reassign.
+See MULTIPLAYER_LOBBY.md.
 
 Start
 
@@ -126,7 +123,7 @@ Disconnects and timeouts
   - Multiplayer will replicate these `KnownAppEvent` objects over the network; reducers remain unchanged.
 - Storage: Clients persist the ordered event log and current state in IndexedDB via existing code in `lib/state/io.ts`.
 - UI:
-  - Add `/multiplayer` route with a lobby (create/join room, choose seat) and in‑game view.
+  - Add multiplayer lobby and in‑room lobby views (see MULTIPLAYER_LOBBY.md); in‑game view starts after host presses Start.
   - Render largely the same “Current Game” and “Rounds” views, with turn prompts and play controls when it’s your turn.
   - Use existing Players and Games views where possible; add room/seat affordances.
 

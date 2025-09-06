@@ -164,11 +164,13 @@ export default function CurrentGame({
   biddingInteractiveIds,
   onConfirmBid,
   disableRoundStateCycling,
+  disableInputs,
 }: {
   live?: LiveOverlay;
   biddingInteractiveIds?: string[];
   onConfirmBid?: (round: number, playerId: string, bid: number) => void;
   disableRoundStateCycling?: boolean;
+  disableInputs?: boolean;
 } = {}) {
   const { state, append, ready } = useAppState();
   const players = selectPlayersOrdered(state);
@@ -489,7 +491,7 @@ export default function CurrentGame({
                                   className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
                                   onClick={() => void decrementBid(round.round, c.id)}
                                   aria-label={`Decrease bid for ${c.name} in round ${round.round}`}
-                                  disabled={bid <= 0}
+                                  disabled={disableInputs || bid <= 0}
                                 >
                                   <Minus className="h-3 w-3" />
                                 </Button>
@@ -502,7 +504,7 @@ export default function CurrentGame({
                                   className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
                                   onClick={() => void incrementBid(round.round, c.id, max)}
                                   aria-label={`Increase bid for ${c.name} in round ${round.round}`}
-                                  disabled={bid >= max}
+                                  disabled={disableInputs || bid >= max}
                                 >
                                   <Plus className="h-3 w-3" />
                                 </Button>
@@ -513,6 +515,7 @@ export default function CurrentGame({
                                     className="h-6 w-6 p-0 ml-1 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 border-emerald-700 dark:border-emerald-600 text-white"
                                     onClick={() => onConfirmBid(round.round, c.id, bid)}
                                     aria-label={`Confirm bid for ${c.name} and start round`}
+                                    disabled={disableInputs}
                                   >
                                     <Check className="h-3 w-3" />
                                   </Button>
@@ -551,6 +554,7 @@ export default function CurrentGame({
                               onClick={() => void toggleMade(round.round, c.id, true)}
                               aria-pressed={made === true}
                               aria-label={`Mark made for ${c.name} in round ${round.round}`}
+                              disabled={disableInputs}
                             >
                               <Check className="h-3 w-3" />
                             </Button>
@@ -561,6 +565,7 @@ export default function CurrentGame({
                               onClick={() => void toggleMade(round.round, c.id, false)}
                               aria-pressed={made === false}
                               aria-label={`Mark missed for ${c.name} in round ${round.round}`}
+                              disabled={disableInputs}
                             >
                               <X className="h-3 w-3" />
                             </Button>
