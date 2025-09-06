@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { selectSpRotatedOrder, type AppState } from '@/lib/state';
 
-function stateWith(order: string[], leaderId: string | null, trickPlays: Array<{ playerId: string }>): AppState {
+function stateWith(
+  order: string[],
+  leaderId: string | null,
+  trickPlays: Array<{ playerId: string }>,
+): AppState {
   return {
     players: Object.fromEntries(order.map((id, i) => [id, `P${i + 1}`])),
     scores: {},
@@ -14,7 +18,10 @@ function stateWith(order: string[], leaderId: string | null, trickPlays: Array<{
       trump: 'hearts',
       trumpCard: { suit: 'hearts', rank: 2 },
       hands: Object.fromEntries(order.map((id) => [id, []])) as any,
-      trickPlays: trickPlays.map((p) => ({ playerId: p.playerId, card: { suit: 'clubs', rank: 2 } })),
+      trickPlays: trickPlays.map((p) => ({
+        playerId: p.playerId,
+        card: { suit: 'clubs', rank: 2 },
+      })),
       trickCounts: {},
       trumpBroken: false,
       leaderId,
@@ -35,4 +42,3 @@ describe('selectSpRotatedOrder prefers first play as leader for current trick', 
     expect(selectSpRotatedOrder(s)).toEqual(['p3', 'p1', 'p2']);
   });
 });
-

@@ -79,7 +79,14 @@ export default function Devtools() {
               setTimeTravelHeight(null);
             }}
             disabled={followLive}
-            style={{ fontSize: 11, padding: '2px 6px', background: '#334155', color: '#fff', borderRadius: 4, opacity: followLive ? 0.6 : 1 }}
+            style={{
+              fontSize: 11,
+              padding: '2px 6px',
+              background: '#334155',
+              color: '#fff',
+              borderRadius: 4,
+              opacity: followLive ? 0.6 : 1,
+            }}
             title="Follow live state and keep slider at the latest height"
           >
             Go live
@@ -109,7 +116,13 @@ export default function Devtools() {
                   console.warn('copy state failed', e);
                 }
               }}
-              style={{ fontSize: 11, padding: '4px 6px', background: '#334155', color: '#fff', borderRadius: 4 }}
+              style={{
+                fontSize: 11,
+                padding: '4px 6px',
+                background: '#334155',
+                color: '#fff',
+                borderRadius: 4,
+              }}
               title="Copy current app state JSON to clipboard"
             >
               Copy state JSON
@@ -123,7 +136,13 @@ export default function Devtools() {
                   console.warn('copy bundle failed', e);
                 }
               }}
-              style={{ fontSize: 11, padding: '4px 6px', background: '#334155', color: '#fff', borderRadius: 4 }}
+              style={{
+                fontSize: 11,
+                padding: '4px 6px',
+                background: '#334155',
+                color: '#fff',
+                borderRadius: 4,
+              }}
               title="Copy full event bundle JSON to clipboard"
             >
               Copy bundle JSON

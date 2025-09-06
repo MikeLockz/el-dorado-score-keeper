@@ -30,12 +30,8 @@ describe('SP reducer e2e: deal → play → clear → finalize', () => {
           trump: 'hearts',
           trumpCard: { suit: 'hearts', rank: 12 },
           hands: {
-            a: [
-              { suit: 'clubs', rank: 2 },
-            ],
-            b: [
-              { suit: 'clubs', rank: 3 },
-            ],
+            a: [{ suit: 'clubs', rank: 2 }],
+            b: [{ suit: 'clubs', rank: 3 }],
           },
         },
         'd1',
@@ -55,7 +51,10 @@ describe('SP reducer e2e: deal → play → clear → finalize', () => {
     );
 
     // First play and overlay
-    s = replay([ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 2 } }, 't1')], s);
+    s = replay(
+      [ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 2 } }, 't1')],
+      s,
+    );
     const live1 = selectSpLiveOverlay(s)!;
     expect(live1.cards.a).toEqual({ suit: 'clubs', rank: 2 });
     expect(live1.cards.b).toBeNull();
@@ -89,4 +88,3 @@ describe('SP reducer e2e: deal → play → clear → finalize', () => {
     expect(s.rounds[2]?.state).toBe('bidding');
   });
 });
-

@@ -16,7 +16,7 @@ describe('makeEvent', () => {
     const e = makeEvent(
       'round/state-set',
       { round: 2, state: 'bidding' },
-      { eventId: 'custom-id', ts: 123 }
+      { eventId: 'custom-id', ts: 123 },
     );
     expect(e.type).toBe('round/state-set');
     expect(e.eventId).toBe('custom-id');
@@ -26,11 +26,7 @@ describe('makeEvent', () => {
 });
 
 describe('events factory helpers', () => {
-  const cases: Array<[
-    keyof typeof events,
-    string,
-    any,
-  ]> = [
+  const cases: Array<[keyof typeof events, string, any]> = [
     ['playerAdded', 'player/added', { id: 'p1', name: 'P1' }],
     ['playerRenamed', 'player/renamed', { id: 'p1', name: 'New' }],
     ['playerRemoved', 'player/removed', { id: 'p1' }],
@@ -65,11 +61,7 @@ describe('events factory helpers', () => {
       },
     ],
     ['spPhaseSet', 'sp/phase-set', { phase: 'bidding' }],
-    [
-      'spTrickPlayed',
-      'sp/trick/played',
-      { playerId: 'p1', card: { suit: 'spades', rank: 9 } },
-    ],
+    ['spTrickPlayed', 'sp/trick/played', { playerId: 'p1', card: { suit: 'spades', rank: 9 } }],
     ['spTrickCleared', 'sp/trick/cleared', { winnerId: 'p2' }],
     ['spTrumpBrokenSet', 'sp/trump-broken-set', { broken: true }],
     ['spLeaderSet', 'sp/leader-set', { leaderId: 'p2' }],
@@ -91,4 +83,3 @@ describe('events factory helpers', () => {
     expect(e.ts).toBe(42);
   });
 });
-

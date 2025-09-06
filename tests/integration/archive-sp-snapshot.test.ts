@@ -39,4 +39,3 @@ describe('archive SP snapshot metadata', () => {
     inst.close();
   });
 });
-

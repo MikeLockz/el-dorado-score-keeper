@@ -26,12 +26,8 @@ describe('SP trick resolution batch', () => {
           trump: 'spades',
           trumpCard: { suit: 'spades', rank: 14 },
           hands: {
-            p1: [
-              { suit: 'clubs', rank: 2 },
-            ],
-            p2: [
-              { suit: 'diamonds', rank: 3 },
-            ],
+            p1: [{ suit: 'clubs', rank: 2 }],
+            p2: [{ suit: 'diamonds', rank: 3 }],
           },
         },
         id(),
@@ -41,8 +37,12 @@ describe('SP trick resolution batch', () => {
     await a.append(ev('sp/leader-set', { leaderId: 'p1' }, id()));
     await a.append(ev('sp/phase-set', { phase: 'playing' }, id()));
     // First plays of the trick
-    await a.append(ev('sp/trick/played', { playerId: 'p1', card: { suit: 'clubs', rank: 2 } }, id()));
-    await a.append(ev('sp/trick/played', { playerId: 'p2', card: { suit: 'diamonds', rank: 3 } }, id()));
+    await a.append(
+      ev('sp/trick/played', { playerId: 'p1', card: { suit: 'clubs', rank: 2 } }, id()),
+    );
+    await a.append(
+      ev('sp/trick/played', { playerId: 'p2', card: { suit: 'diamonds', rank: 3 } }, id()),
+    );
     await drain();
 
     let notifications = 0;
@@ -75,4 +75,3 @@ describe('SP trick resolution batch', () => {
     a.close();
   });
 });
-

@@ -270,7 +270,10 @@ export default function SinglePlayerPage() {
         if (spRoundNo < 10) {
           const nextRound = Math.min(10, spRoundNo + 1);
           const curDealerId = state.sp.dealerId ?? players[dealerIdx] ?? players[0]!;
-          const curDealerIdx = Math.max(0, players.findIndex((p) => p === curDealerId));
+          const curDealerIdx = Math.max(
+            0,
+            players.findIndex((p) => p === curDealerId),
+          );
           const nextDealerIdx = (curDealerIdx + 1) % players.length;
           const nextDealer = players[nextDealerIdx]!;
           const nextTricks = tricksForRound(nextRound);
@@ -316,7 +319,6 @@ export default function SinglePlayerPage() {
 
   return (
     <main className="p-4 space-y-6">
-
       <div className="space-y-2">
         <div className="border rounded">
           {spOrder.length > 0 && (
@@ -356,7 +358,7 @@ export default function SinglePlayerPage() {
                   const rotated = selectSpRotatedOrder(state);
                   const first = rotated[0] ?? null;
                   const name = first
-                    ? activePlayers.find((ap) => ap.id === first)?.name ?? first
+                    ? (activePlayers.find((ap) => ap.id === first)?.name ?? first)
                     : null;
                   return (
                     <div className="text-xs text-muted-foreground">
@@ -367,11 +369,11 @@ export default function SinglePlayerPage() {
                 })()}
                 <div className="text-sm font-mono inline-flex items-center gap-1">
                   <span className="text-xs text-muted-foreground mr-1">Lead:</span>
-                {(() => {
-                  const lead = spTrickPlays[0]?.card as any;
-                  if (!lead) return <span className="text-xs text-muted-foreground">—</span>;
-                  return <CardGlyph suit={lead.suit} rank={lead.rank} size="sm" />;
-                })()}
+                  {(() => {
+                    const lead = spTrickPlays[0]?.card as any;
+                    if (!lead) return <span className="text-xs text-muted-foreground">—</span>;
+                    return <CardGlyph suit={lead.suit} rank={lead.rank} size="sm" />;
+                  })()}
                 </div>
               </div>
             </div>
@@ -481,7 +483,8 @@ export default function SinglePlayerPage() {
                             const hasTrump = (spHands[human] ?? []).some((h) => h.suit === spTrump);
                             if (hasTrump) legal = c.suit === spTrump;
                           }
-                          const effectiveLeader = (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;
+                          const effectiveLeader =
+                            (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;
                           const leaderIdx = spOrder.findIndex((p) => p === effectiveLeader);
                           const rotated =
                             leaderIdx < 0
@@ -524,8 +527,11 @@ export default function SinglePlayerPage() {
                                   );
                                   if (hasTrump) legalNow = c.suit === spTrump;
                                 }
-                                const effectiveLeaderNow = (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;
-                                const leaderIdxNow = spOrder.findIndex((p) => p === effectiveLeaderNow);
+                                const effectiveLeaderNow =
+                                  (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;
+                                const leaderIdxNow = spOrder.findIndex(
+                                  (p) => p === effectiveLeaderNow,
+                                );
                                 const rotatedNow =
                                   leaderIdxNow < 0
                                     ? spOrder
@@ -575,7 +581,8 @@ export default function SinglePlayerPage() {
                       const hasTrump = (spHands[human] ?? []).some((h) => h.suit === spTrump);
                       if (hasTrump) legal = selectedCard.suit === spTrump;
                     }
-                    const effectiveLeader = (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;
+                    const effectiveLeader =
+                      (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;
                     const leaderIdx = spOrder.findIndex((p) => p === effectiveLeader);
                     const rotated =
                       leaderIdx < 0

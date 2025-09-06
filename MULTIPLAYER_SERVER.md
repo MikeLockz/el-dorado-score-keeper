@@ -18,12 +18,12 @@ This document specifies the stateless relay server used for online multiplayer. 
 
 ## Connection Lifecycle
 
-1) Connect WebSocket to `/ws` (or similar). Optionally present an auth token.
-2) Client sends `join{ roomId, playerId?, name, clientVersion }`.
+1. Connect WebSocket to `/ws` (or similar). Optionally present an auth token.
+2. Client sends `join{ roomId, playerId?, name, clientVersion }`.
    - If `playerId` missing, server assigns one for the session; client persists it locally for reconnects.
    - First joiner becomes `hostId`. Host can be reassigned via `roster` update.
-3) Server replies with `roster` and starts relaying messages for the room.
-4) On disconnect, server marks the player `connected=false` and updates `roster`.
+3. Server replies with `roster` and starts relaying messages for the room.
+4. On disconnect, server marks the player `connected=false` and updates `roster`.
 
 ## Message Envelope
 
@@ -40,6 +40,7 @@ This document specifies the stateless relay server used for online multiplayer. 
 ## Message Catalog
 
 Lobby/control (also documented in MULTIPLAYER_LOBBY.md)
+
 - `join` (client→server): { roomId, playerId?, name, clientVersion }
 - `roster` (server→clients): { roomId, players: [{id,name,connected}], hostId, maxPlayers }
 - `start` (host→server): { roomId, seed, order, rulesVersion, options }
@@ -47,6 +48,7 @@ Lobby/control (also documented in MULTIPLAYER_LOBBY.md)
 - `pong` (client→server) or server-initiated `ping` (server→client)
 
 Gameplay relay
+
 - `input` (client→server): { turnId, kind: 'bid'|'play'|'pass'|..., data }
 - `event` (host→server; server→clients): { event: KnownAppEvent } — authoritative stream in Phase 1
 - `private` (host→server): { to: playerId, kind: 'hand'|'prompt'|..., data } (server relays to target only)
@@ -99,7 +101,7 @@ Gameplay relay
 
 ## Minimal Pseudocode (sketch)
 
-```ts
+````ts
 TypeScript shape (in-memory)
 ```ts
 type ConnId = string;
@@ -120,60 +122,63 @@ type Room = {
   createdAt: number;
   lastHostSeenAt: number;
 };
-```
+````
+
 ws.on('connection', (socket) => {
-  let connId = makeConnId();
-  let room: Room | null = null;
-  let playerId: string | null = null;
+let connId = makeConnId();
+let room: Room | null = null;
+let playerId: string | null = null;
 
-  socket.on('message', (raw) => {
-    const msg = JSON.parse(String(raw));
-    switch (msg.type) {
-      case 'join': {
-        const { roomId, name } = msg.payload;
-        room = getOrCreateRoom(roomId);
-        playerId = msg.payload.playerId || makePlayerId();
-        const client: Client = { connId, playerId, name, connected: true };
-        room.clients.set(connId, client);
-        if (!room.hostId) room.hostId = playerId;
-        broadcast(room, { type: 'roster', payload: asRoster(room) });
-        break;
-      }
-      case 'input': {
-        if (!room) break;
-        relayToHost(room, msg); // host-only
-        break;
-      }
-      case 'event': {
-        if (!room) break;
-        if (playerId !== room.hostId) return sendError(socket, 'not_host');
-        room.seq += 1;
-        broadcast(room, { ...msg, seq: room.seq });
-        break;
-      }
-      case 'snapshot_request': {
-        if (!room) break;
-        relayToHost(room, msg);
-        break;
-      }
-      case 'private': {
-        if (!room) break;
-        relayToTarget(room, msg.payload.to, msg);
-        break;
-      }
-    }
-  });
-
-  socket.on('close', () => {
-    if (!room) return;
-    const c = room.clients.get(connId);
-    if (c) c.connected = false;
-    if (playerId === room.hostId) room.lastHostSeenAt = Date.now();
-    broadcast(room, { type: 'roster', payload: asRoster(room) });
-  });
+socket.on('message', (raw) => {
+const msg = JSON.parse(String(raw));
+switch (msg.type) {
+case 'join': {
+const { roomId, name } = msg.payload;
+room = getOrCreateRoom(roomId);
+playerId = msg.payload.playerId || makePlayerId();
+const client: Client = { connId, playerId, name, connected: true };
+room.clients.set(connId, client);
+if (!room.hostId) room.hostId = playerId;
+broadcast(room, { type: 'roster', payload: asRoster(room) });
+break;
+}
+case 'input': {
+if (!room) break;
+relayToHost(room, msg); // host-only
+break;
+}
+case 'event': {
+if (!room) break;
+if (playerId !== room.hostId) return sendError(socket, 'not_host');
+room.seq += 1;
+broadcast(room, { ...msg, seq: room.seq });
+break;
+}
+case 'snapshot_request': {
+if (!room) break;
+relayToHost(room, msg);
+break;
+}
+case 'private': {
+if (!room) break;
+relayToTarget(room, msg.payload.to, msg);
+break;
+}
+}
 });
+
+socket.on('close', () => {
+if (!room) return;
+const c = room.clients.get(connId);
+if (c) c.connected = false;
+if (playerId === room.hostId) room.lastHostSeenAt = Date.now();
+broadcast(room, { type: 'roster', payload: asRoster(room) });
+});
+});
+
 ```
 
 ---
 
 This API keeps the relay thin, deterministic, and stateless. Clients remain the source of truth by persisting and reducing the ordered event stream.
+```

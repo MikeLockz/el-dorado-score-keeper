@@ -59,7 +59,15 @@ export function CardGlyph({
   );
 }
 
-export function SuitGlyph({ suit, className, title }: { suit: Suit; className?: string; title?: string }) {
+export function SuitGlyph({
+  suit,
+  className,
+  title,
+}: {
+  suit: Suit;
+  className?: string;
+  title?: string;
+}) {
   return (
     <span
       className={
@@ -73,4 +81,3 @@ export function SuitGlyph({ suit, className, title }: { suit: Suit; className?: 
     </span>
   );
 }
-

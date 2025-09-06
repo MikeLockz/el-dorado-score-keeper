@@ -359,29 +359,33 @@ export default function CurrentGame({
                   className="contents"
                   key={`row-${round.round}`}
                 >
-                <div
-                  role="rowheader"
-                  aria-colindex={1}
-                  className={`border-b border-r transition-all duration-200 cursor-pointer ${getRoundStateStyles(state.rounds[round.round]?.state ?? 'locked')}`}
-                >
-                  <button
-                    type="button"
-                    className={`w-full h-full p-1 text-center flex flex-col justify-center outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${disableRoundStateCycling ? 'cursor-default' : 'cursor-pointer'}`}
-                    onClick={disableRoundStateCycling ? undefined : () => void cycleRoundState(round.round)}
-                    aria-label={`Round ${round.round}. ${(() => {
-                      const rState = state.rounds[round.round]?.state ?? 'locked';
-                      const showBid = rState === 'bidding' || rState === 'scored';
-                      const info = roundInfoByRound[round.round] ?? {
-                        sumBids: 0,
-                        tricks: round.tricks,
-                      };
-                      const total = showBid ? info.sumBids : 0;
-                      const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
-                      return disableRoundStateCycling
-                        ? `Current: ${label}.`
-                        : `Current: ${label}. Activate to advance state.`;
-                    })()}`}
+                  <div
+                    role="rowheader"
+                    aria-colindex={1}
+                    className={`border-b border-r transition-all duration-200 cursor-pointer ${getRoundStateStyles(state.rounds[round.round]?.state ?? 'locked')}`}
                   >
+                    <button
+                      type="button"
+                      className={`w-full h-full p-1 text-center flex flex-col justify-center outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${disableRoundStateCycling ? 'cursor-default' : 'cursor-pointer'}`}
+                      onClick={
+                        disableRoundStateCycling
+                          ? undefined
+                          : () => void cycleRoundState(round.round)
+                      }
+                      aria-label={`Round ${round.round}. ${(() => {
+                        const rState = state.rounds[round.round]?.state ?? 'locked';
+                        const showBid = rState === 'bidding' || rState === 'scored';
+                        const info = roundInfoByRound[round.round] ?? {
+                          sumBids: 0,
+                          tricks: round.tricks,
+                        };
+                        const total = showBid ? info.sumBids : 0;
+                        const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
+                        return disableRoundStateCycling
+                          ? `Current: ${label}.`
+                          : `Current: ${label}. Activate to advance state.`;
+                      })()}`}
+                    >
                       <div className="font-bold text-sm text-foreground">{round.tricks}</div>
                       {(() => {
                         const rState = state.rounds[round.round]?.state ?? 'locked';

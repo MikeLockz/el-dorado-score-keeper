@@ -16,4 +16,3 @@ This document defines minimal version negotiation and feature gating for MVP.
 
 - Introduce a `features` array in `start` to signal optional capabilities (e.g., `['resync','spectators']`).
 - Clients ignore unknown features by default.
-

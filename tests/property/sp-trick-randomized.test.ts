@@ -94,9 +94,12 @@ describe('property: randomized SP trick plays/clears preserve invariants', () =>
         // Trick is at most one card per seat
         expect(plays.length).toBeLessThanOrEqual(order.length);
         // Selector next-to-play aligns with rotated[length]
-        const expectedNext = s.sp.phase === 'playing'
-          ? (plays.length < rotated.length ? rotated[plays.length]! : null)
-          : null;
+        const expectedNext =
+          s.sp.phase === 'playing'
+            ? plays.length < rotated.length
+              ? rotated[plays.length]!
+              : null
+            : null;
         expect(selectSpNextToPlay(s)).toBe(expectedNext);
         // Round-done iff sum(trickCounts) >= tricks
         const needed = selectSpTricksForRound(s);
@@ -106,4 +109,3 @@ describe('property: randomized SP trick plays/clears preserve invariants', () =>
     }
   });
 });
-
