@@ -1,5 +1,21 @@
 'use client';
 import React from 'react';
+
+declare global {
+  // Debug globals available in development builds
+  // eslint-disable-next-line no-var
+  var __APP_STATE__: AppState | null | undefined;
+  // eslint-disable-next-line no-var
+  var __APP_HEIGHT__: number | undefined;
+  // eslint-disable-next-line no-var
+  var __append: ((e: AppEvent) => Promise<number>) | undefined;
+  // eslint-disable-next-line no-var
+  var __appendMany: ((evts: AppEvent[]) => Promise<number>) | undefined;
+  // eslint-disable-next-line no-var
+  var __dumpState: (() => void) | undefined;
+  // eslint-disable-next-line no-var
+  var __SET_TT: ((h: number | null) => void) | undefined;
+}
 import {
   createInstance,
   type AppEvent,
@@ -124,7 +140,7 @@ export function StateProvider({
       return;
     }
     let closed = false;
-    (async () => {
+    void (async () => {
       try {
         const s = await previewFromDB(dbNameRef.current, ttHeight);
         if (!closed) setTtState(s);
@@ -189,13 +205,13 @@ export function StateProvider({
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'production') return;
     try {
-      (globalThis as any).__APP_STATE__ = ttState ?? state;
-      (globalThis as any).__APP_HEIGHT__ = height;
-      (globalThis as any).__append = append;
-      (globalThis as any).__appendMany = appendMany;
-      (globalThis as any).__dumpState = () =>
+      globalThis.__APP_STATE__ = ttState ?? state;
+      globalThis.__APP_HEIGHT__ = height;
+      globalThis.__append = append;
+      globalThis.__appendMany = appendMany;
+      globalThis.__dumpState = () =>
         console.log('[app state]', JSON.parse(JSON.stringify(ttState ?? state)));
-      (globalThis as any).__SET_TT = (h: number | null) => setTtHeight(h);
+      globalThis.__SET_TT = (h: number | null) => setTtHeight(h);
     } catch {}
   }, [state, ttState, height]);
 

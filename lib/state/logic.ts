@@ -28,7 +28,7 @@ export function initialRounds(total: number = ROUNDS_TOTAL): Record<number, Roun
 export function finalizeRound(prev: AppState, round: number): AppState {
   const r = prev.rounds[round] ?? { state: 'locked', bids: {}, made: {} };
   // Idempotency: if this round is already scored, do nothing
-  if ((r.state as RoundState) === 'scored') return prev;
+  if (r.state === 'scored') return prev;
   const scores = { ...prev.scores };
   for (const pid of Object.keys(prev.players)) {
     // Only count if player is present (treat missing as present for compatibility)
@@ -37,7 +37,7 @@ export function finalizeRound(prev: AppState, round: number): AppState {
     const made = r.made[pid] ?? false;
     scores[pid] = (scores[pid] ?? 0) + roundDelta(bid, made);
   }
-  const rounds = { ...prev.rounds, [round]: { ...r, state: 'scored' as RoundState } };
+  const rounds = { ...prev.rounds, [round]: { ...r, state: 'scored' } };
   const nextRound = round + 1;
   const nr = rounds[nextRound];
   if (nr && nr.state === 'locked') {

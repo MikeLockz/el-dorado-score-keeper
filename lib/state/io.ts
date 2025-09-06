@@ -226,7 +226,10 @@ function summarizeState(s: AppState): GameRecord['summary'] {
       winnerId = pid;
     }
   }
-  const sp = s.sp || ({} as any);
+  const spUnknown = (s as unknown as { sp?: unknown }).sp;
+  const sp = (spUnknown && typeof spUnknown === 'object' ? spUnknown : {}) as Partial<
+    AppState['sp']
+  >;
   return {
     players: Object.keys(playersById).length,
     scores,

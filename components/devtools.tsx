@@ -109,12 +109,14 @@ export default function Devtools() {
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(JSON.stringify(state, null, 2));
-                } catch (e) {
-                  console.warn('copy state failed', e);
-                }
+              onClick={() => {
+                void (async () => {
+                  try {
+                    await navigator.clipboard.writeText(JSON.stringify(state, null, 2));
+                  } catch (e) {
+                    console.warn('copy state failed', e);
+                  }
+                })();
               }}
               style={{
                 fontSize: 11,
@@ -128,13 +130,15 @@ export default function Devtools() {
               Copy state JSON
             </button>
             <button
-              onClick={async () => {
-                try {
-                  const bundle = await exportBundle('app-db');
-                  await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
-                } catch (e) {
-                  console.warn('copy bundle failed', e);
-                }
+              onClick={() => {
+                void (async () => {
+                  try {
+                    const bundle = await exportBundle('app-db');
+                    await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
+                  } catch (e) {
+                    console.warn('copy bundle failed', e);
+                  }
+                })();
               }}
               style={{
                 fontSize: 11,

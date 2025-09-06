@@ -68,25 +68,7 @@ function getPlayerCellBackgroundStyles(state: RoundState) {
   }
 }
 
-function suitSymbol(suit: string): string {
-  return suit === 'spades' ? '♠' : suit === 'hearts' ? '♥' : suit === 'diamonds' ? '♦' : '♣';
-}
-function suitColorClass(suit: string): string {
-  return suit === 'hearts' || suit === 'diamonds'
-    ? 'text-red-700 dark:text-red-300'
-    : 'text-foreground';
-}
-function rankLabel(rank: number): string {
-  return rank === 14
-    ? 'A'
-    : rank === 13
-      ? 'K'
-      : rank === 12
-        ? 'Q'
-        : rank === 11
-          ? 'J'
-          : String(rank);
-}
+// (card formatting helpers removed; not used within CurrentGame)
 
 // Shrinks row text to keep everything on a single line without wrapping
 function FitRow({
