@@ -153,8 +153,11 @@ async function logClientError(payload: {
     const worker = process.env.NEXT_PUBLIC_ANALYTICS_WORKER_URL;
     const bp = process.env.NEXT_PUBLIC_BASE_PATH || '';
     const curPath = payload.path || (typeof window !== 'undefined' ? window.location.pathname : '');
-    const isSinglePlayer = !!curPath && (curPath === `${bp}/single-player/` || curPath.startsWith(`${bp}/single-player/`));
-    const isGhPages = typeof window !== 'undefined' && /\.github\.io$/i.test(window.location.hostname);
+    const isSinglePlayer =
+      !!curPath &&
+      (curPath === `${bp}/single-player/` || curPath.startsWith(`${bp}/single-player/`));
+    const isGhPages =
+      typeof window !== 'undefined' && /\.github\.io$/i.test(window.location.hostname);
 
     let endpoint: string | null = '/api/log';
     if (isSinglePlayer) {
