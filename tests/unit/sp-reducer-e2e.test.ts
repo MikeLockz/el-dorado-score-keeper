@@ -60,19 +60,21 @@ describe('SP reducer e2e: deal → play → clear → finalize', () => {
     expect(live1.cards.b).toBeNull();
     expect(selectSpIsRoundDone(s)).toBe(false);
 
-    // Second play then clear, mark leader and check counts
+    // Second play, reveal increments, then clear and set leader; counts persist
     s = replay(
       [
         ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 3 } }, 't2'),
-        ev('sp/trick/cleared', { winnerId: 'b' }, 'tc'),
-        ev('sp/leader-set', { leaderId: 'b' }, 'l2'),
+        ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rev'),
       ],
       s,
     );
     const live2 = selectSpLiveOverlay(s)!;
-    expect(live2.cards.a).toBeNull();
-    expect(live2.cards.b).toBeNull();
     expect(live2.counts.b).toBe(1);
+    s = replay([ev('sp/trick/cleared', { winnerId: 'b' }, 'tc'), ev('sp/leader-set', { leaderId: 'b' }, 'l2')], s);
+    const live3 = selectSpLiveOverlay(s)!;
+    expect(live3.cards.a).toBeNull();
+    expect(live3.cards.b).toBeNull();
+    expect(live3.counts.b).toBe(1);
     expect(selectSpTricksForRound(s)).toBe(10); // round 1 -> 10 tricks
 
     // For brevity, finalize scoring row and ensure next round set to bidding

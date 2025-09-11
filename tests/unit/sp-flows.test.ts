@@ -92,7 +92,7 @@ describe('single-player reducers + selectors flows', () => {
     expect(selectSpNextToPlay(s)).toBe('a');
   });
 
-  it('live overlay shows current trick and trick counts; clearing increments winner', () => {
+  it('live overlay shows current trick and trick counts; reveal increments winner', () => {
     let s = replay([
       ev('player/added', { id: 'a', name: 'A' }, 'p1'),
       ev('player/added', { id: 'b', name: 'B' }, 'p2'),
@@ -117,18 +117,22 @@ describe('single-player reducers + selectors flows', () => {
     expect(live1.cards.a).toEqual({ suit: 'clubs', rank: 2 });
     expect(live1.cards.b).toBeNull();
     expect(live1.counts.a ?? 0).toBe(0);
+    // Finish trick, enter reveal, then clear and set next leader
     s = replay(
       [
         ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 3 } }, 't2'),
-        ev('sp/trick/cleared', { winnerId: 'b' }, 'tc'),
-        ev('sp/leader-set', { leaderId: 'b' }, 'l2'),
+        ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rev'),
       ],
       s,
     );
     const live2 = selectSpLiveOverlay(s)!;
-    expect(live2.cards.a).toBeNull();
-    expect(live2.cards.b).toBeNull();
-    expect(live2.counts.b).toBe(1);
+    expect(live2.counts.b).toBe(1); // incremented at reveal
+    // Now clear and advance leader; counts stay the same
+    s = replay([ev('sp/trick/cleared', { winnerId: 'b' }, 'tc'), ev('sp/leader-set', { leaderId: 'b' }, 'l2')], s);
+    const live3 = selectSpLiveOverlay(s)!;
+    expect(live3.cards.a).toBeNull();
+    expect(live3.cards.b).toBeNull();
+    expect(live3.counts.b).toBe(1);
   });
 
   it('trump-broken flag toggles and round-done flips when counts meet tricks', () => {
@@ -159,6 +163,7 @@ describe('single-player reducers + selectors flows', () => {
       [
         ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 2 } }, 'tp1'),
         ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 3 } }, 'tp2'),
+        ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rv1'),
         ev('sp/trick/cleared', { winnerId: 'a' }, 'tc1'),
       ],
       s,

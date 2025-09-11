@@ -92,4 +92,39 @@ describe('SP event idempotency semantics', () => {
     s = replay([ev('sp/trick/cleared', { winnerId: 'a' }, 'rc')], s);
     expect(s).toEqual(before);
   });
+
+  it('sp/trick/reveal-set increments once; duplicate reveal ignored; clear does not change counts', () => {
+    let s = replay([
+      ev('player/added', { id: 'a', name: 'A' }, 'i1'),
+      ev('player/added', { id: 'b', name: 'B' }, 'i2'),
+      ev(
+        'sp/deal',
+        {
+          roundNo: 1,
+          dealerId: 'a',
+          order: ['a', 'b'],
+          trump: 'clubs',
+          trumpCard: { suit: 'clubs', rank: 9 },
+          hands: { a: [], b: [] },
+        },
+        'id',
+      ),
+      ev('sp/leader-set', { leaderId: 'a' }, 'il'),
+      ev('sp/phase-set', { phase: 'playing' }, 'iph'),
+      // Simulate completed trick
+      ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 2 } }, 'ip1'),
+      ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 3 } }, 'ip2'),
+    ]);
+    s = replay([ev('sp/trick/reveal-set', { winnerId: 'b' }, 'ir1')], s);
+    const afterOnce = s.sp.trickCounts['b'] ?? 0;
+    expect(afterOnce).toBe(1);
+    // Duplicate reveal (different eventId) should not double-increment
+    s = replay([ev('sp/trick/reveal-set', { winnerId: 'b' }, 'ir2')], s);
+    expect(s.sp.trickCounts['b']).toBe(afterOnce);
+    // Clear should not change counts
+    s = replay([ev('sp/trick/cleared', { winnerId: 'b' }, 'ic')], s);
+    expect(s.sp.trickCounts['b']).toBe(afterOnce);
+    // Reveal cleared
+    expect((s as any).sp.reveal).toBeNull();
+  });
 });

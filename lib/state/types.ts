@@ -324,18 +324,19 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       return { ...state, sp: { ...state.sp, trickPlays, hands } };
     }
     case 'sp/trick/cleared': {
-      const { winnerId } = event.payload as EventMap['sp/trick/cleared'];
-      // Idempotency: only clear/increment if there were plays to clear
+      // Idempotency: only clear if there were plays to clear
       if (!state.sp.trickPlays || state.sp.trickPlays.length === 0) return state;
+      return { ...state, sp: { ...state.sp, trickPlays: [], reveal: null } } as AppState;
+    }
+    case 'sp/trick/reveal-set': {
+      const { winnerId } = event.payload as EventMap['sp/trick/reveal-set'];
+      // If already revealing, ignore to avoid double increment
+      if (state.sp.reveal) return state;
       const trickCounts = {
         ...state.sp.trickCounts,
         [winnerId]: (state.sp.trickCounts[winnerId] ?? 0) + 1,
       };
-      return { ...state, sp: { ...state.sp, trickPlays: [], trickCounts } };
-    }
-    case 'sp/trick/reveal-set': {
-      const { winnerId } = event.payload as EventMap['sp/trick/reveal-set'];
-      return { ...state, sp: { ...state.sp, reveal: { winnerId } } };
+      return { ...state, sp: { ...state.sp, reveal: { winnerId }, trickCounts } };
     }
     case 'sp/trick/reveal-clear': {
       if (!state.sp.reveal) return state;

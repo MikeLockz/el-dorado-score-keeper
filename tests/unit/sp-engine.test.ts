@@ -152,36 +152,46 @@ describe('sp-engine', () => {
       ),
       ev('bid/set', { round: 1, playerId: 'a', bid: 5 }, 'b1'),
       ev('bid/set', { round: 1, playerId: 'b', bid: 5 }, 'b2'),
-      // Build 10 complete tricks (2 plays + clear each) → 5 wins each
+      // Build 10 complete tricks (2 plays + reveal + clear each) → 5 wins each
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 2 } }, 'p1a'),
       ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 3 } }, 'p1b'),
+      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw1'),
       ev('sp/trick/cleared', { winnerId: 'a' }, 'w1'),
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 4 } }, 'p2a'),
       ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 5 } }, 'p2b'),
+      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw2'),
       ev('sp/trick/cleared', { winnerId: 'a' }, 'w2'),
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 6 } }, 'p3a'),
       ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 7 } }, 'p3b'),
+      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw3'),
       ev('sp/trick/cleared', { winnerId: 'a' }, 'w3'),
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 8 } }, 'p4a'),
       ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 9 } }, 'p4b'),
+      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw4'),
       ev('sp/trick/cleared', { winnerId: 'a' }, 'w4'),
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 10 } }, 'p5a'),
       ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 11 } }, 'p5b'),
+      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw5'),
       ev('sp/trick/cleared', { winnerId: 'a' }, 'w5'),
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 2 } }, 'p6a'),
       ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 3 } }, 'p6b'),
+      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw6'),
       ev('sp/trick/cleared', { winnerId: 'b' }, 'w6'),
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 4 } }, 'p7a'),
       ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 5 } }, 'p7b'),
+      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw7'),
       ev('sp/trick/cleared', { winnerId: 'b' }, 'w7'),
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 6 } }, 'p8a'),
       ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 7 } }, 'p8b'),
+      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw8'),
       ev('sp/trick/cleared', { winnerId: 'b' }, 'w8'),
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 8 } }, 'p9a'),
       ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 9 } }, 'p9b'),
+      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw9'),
       ev('sp/trick/cleared', { winnerId: 'b' }, 'w9'),
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 10 } }, 'p10a'),
       ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 11 } }, 'p10b'),
+      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw10'),
       ev('sp/trick/cleared', { winnerId: 'b' }, 'w10'),
       ev('sp/phase-set', { phase: 'playing' }, 'ph'),
     ]);
@@ -194,6 +204,43 @@ describe('sp-engine', () => {
     expect(types).toContain('sp/deal');
     expect(types).toContain('sp/leader-set');
     expect(types).toContain('round/state-set');
+  });
+
+  it('finalizeRoundIfDone is gated by reveal; finalizes only after clear', () => {
+    // Setup two players in round 10 (1 trick total). Both bid 0. Winner revealed but not cleared.
+    let s = replay([
+      ev('player/added', { id: 'a', name: 'A' }, 'gp1'),
+      ev('player/added', { id: 'b', name: 'B' }, 'gp2'),
+      ev('round/state-set', { round: 10, state: 'playing' }, 'grs'),
+      ev(
+        'sp/deal',
+        {
+          roundNo: 10,
+          dealerId: 'a',
+          order: ['a', 'b'],
+          trump: 'hearts',
+          trumpCard: { suit: 'hearts', rank: 11 },
+          hands: { a: [], b: [] },
+        },
+        'gd',
+      ),
+      ev('bid/set', { round: 10, playerId: 'a', bid: 0 }, 'gba'),
+      ev('bid/set', { round: 10, playerId: 'b', bid: 0 }, 'gbb'),
+      ev('sp/phase-set', { phase: 'playing' }, 'gph'),
+      // Simulate last trick: plays then reveal
+      ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 2 } }, 'gp1'),
+      ev('sp/trick/played', { playerId: 'b', card: { suit: 'spades', rank: 3 } }, 'gp2'),
+      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'grev'),
+    ]);
+    // While reveal is active, finalization should be gated
+    let out = finalizeRoundIfDone(s, { now });
+    expect(out.length).toBe(0);
+    // After clear (which also clears reveal), finalization should proceed
+    s = replay([ev('sp/trick/cleared', { winnerId: 'a' }, 'gclr')], s);
+    out = finalizeRoundIfDone(s, { now });
+    const types = out.map((e) => e.type);
+    expect(types).toContain('made/set');
+    expect(types).toContain('round/finalize');
   });
 
   it("computeBotPlay returns [] when it's not the player's turn", () => {

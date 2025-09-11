@@ -43,6 +43,8 @@ describe('SP trick resolution batch', () => {
     await a.append(
       ev('sp/trick/played', { playerId: 'p2', card: { suit: 'diamonds', rank: 3 } }, id()),
     );
+    // Winner is p2; enter reveal before subscribing
+    await a.append(ev('sp/trick/reveal-set', { winnerId: 'p2' }, id()));
     await drain();
 
     let notifications = 0;
@@ -50,7 +52,7 @@ describe('SP trick resolution batch', () => {
       notifications++;
     });
 
-    // Batch: mark trump broken (optional), clear trick with winner, and update leader
+    // Batch: mark trump broken (optional), clear trick, and update leader
     await a.appendMany([
       ev('sp/trump-broken-set', { broken: true }, id()),
       ev('sp/trick/cleared', { winnerId: 'p2' }, id()),
@@ -62,7 +64,7 @@ describe('SP trick resolution batch', () => {
 
     const s = a.getState();
     const live = selectSpLiveOverlay(s)!;
-    // After clear, trick plays are reset and counts incremented for winner
+    // After clear, trick plays are reset; winner count already incremented on reveal
     expect(live.cards.p1).toBeNull();
     expect(live.cards.p2).toBeNull();
     expect(live.counts.p2).toBe(1);

@@ -79,10 +79,16 @@ describe('property: randomized SP trick plays/clears preserve invariants', () =>
           const card = hand[idx]!;
           s = replay([ev('sp/trick/played', { playerId: pid, card }, `t-${seed}-${i}`)], s);
         } else {
-          // Clear: only effective if there are plays
+          // Clear flow: reveal then clear (only effective if there are plays)
           if ((s.sp.trickPlays?.length ?? 0) > 0) {
             const winner = order[Math.floor(rnd() * order.length)]!;
-            s = replay([ev('sp/trick/cleared', { winnerId: winner }, `c-${seed}-${i}`)], s);
+            s = replay(
+              [
+                ev('sp/trick/reveal-set', { winnerId: winner }, `r-${seed}-${i}`),
+                ev('sp/trick/cleared', { winnerId: winner }, `c-${seed}-${i}`),
+              ],
+              s,
+            );
           }
         }
 

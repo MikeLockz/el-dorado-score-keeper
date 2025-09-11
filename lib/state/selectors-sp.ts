@@ -73,6 +73,7 @@ export const selectSpLiveOverlay = memo1((s: AppState): SpLiveOverlay | null => 
   > = {};
   for (const pid of order) cards[pid] = null;
   for (const p of trickPlays) cards[p.playerId] = { suit: p.card.suit, rank: p.card.rank };
+  // Live trick counts are sourced directly from state; these now increment at reveal time
   const counts: Record<string, number> = s.sp.trickCounts ?? {};
   return { round, currentPlayerId, cards, counts };
 });

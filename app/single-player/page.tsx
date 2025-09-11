@@ -404,7 +404,8 @@ export default function SinglePlayerPage() {
                   {(() => {
                     const needed = tricksForRound(spRoundNo);
                     const total = Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
-                    return total + 1 >= needed ? 'Next Round' : 'Next Hand';
+                    // After moving increment to reveal, totals already include the winning trick.
+                    return total >= needed ? 'Next Round' : 'Next Hand';
                   })()}
                 </button>
               </div>

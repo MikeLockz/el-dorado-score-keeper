@@ -108,6 +108,8 @@ export function finalizeRoundIfDone(state: AppState, opts: FinalizeOptions = {})
   if (roundNo <= 0) return [];
   // Already scored? do nothing
   if ((state.rounds[roundNo]?.state ?? 'locked') === 'scored') return [];
+  // Gate finalization until after the last clear: if reveal is active, keep the hand visible
+  if (sp.reveal) return [];
   // Check done condition
   const needed = selectSpTricksForRound(state);
   const total = Object.values(sp.trickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
