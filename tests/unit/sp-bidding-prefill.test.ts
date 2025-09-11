@@ -63,4 +63,3 @@ describe('computePrecedingBotBids', () => {
     expect(ids).toEqual(['b']);
   });
 });
-

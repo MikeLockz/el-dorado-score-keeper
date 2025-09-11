@@ -38,4 +38,3 @@ export function computePrecedingBotBids(args: PreBidArgs): PreBid[] {
   }
   return out;
 }
-
