@@ -143,11 +143,31 @@ async function logClientError(payload: {
     console.error('[ui error]', payload);
   } catch {}
   try {
-    await fetch('/api/log', {
+    // Scope: prefer Worker or no-op only for Single Player route; otherwise use default /api/log
+    const worker = process.env.NEXT_PUBLIC_ANALYTICS_WORKER_URL;
+    const bp = process.env.NEXT_PUBLIC_BASE_PATH || '';
+    const curPath = payload.path || (typeof window !== 'undefined' ? window.location.pathname : '');
+    const isSinglePlayer = !!curPath && (curPath === `${bp}/single-player/` || curPath.startsWith(`${bp}/single-player/`));
+    const isGhPages = typeof window !== 'undefined' && /\.github\.io$/i.test(window.location.hostname);
+
+    let endpoint: string | null = '/api/log';
+    if (isSinglePlayer) {
+      if (worker && typeof worker === 'string' && worker.trim().length > 0) {
+        endpoint = worker;
+      } else if (isGhPages) {
+        endpoint = null; // Avoid 405 noise on static hosting for SP page
+      }
+    }
+
+    if (!endpoint) return; // Skip network logging per scope
+    await fetch(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type: 'error', ...payload }),
+      // Include authToken passthrough for Workers that enforce it
+      body: JSON.stringify({ type: 'error', ...payload, authToken: (window as any)?.analyticsAuthToken }),
       keepalive: true,
+      // Allow posting cross-origin to Workers
+      mode: endpoint.startsWith('http') ? 'cors' : 'same-origin',
     });
   } catch {
     // Swallow logging errors

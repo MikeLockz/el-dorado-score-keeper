@@ -5,7 +5,7 @@ import CurrentGame from '@/components/views/CurrentGame';
 import { CardGlyph } from '@/components/ui';
 import type { PlayerId, Card } from '@/lib/single-player';
 import { useAppState } from '@/components/state-provider';
-import { tricksForRound } from '@/lib/state/logic';
+import { tricksForRound, ROUNDS_TOTAL } from '@/lib/state/logic';
 import {
   selectPlayersOrdered,
   events,
@@ -19,6 +19,7 @@ import {
   selectSpIsRoundDone,
   selectSpRotatedOrder,
 } from '@/lib/state';
+import { INITIAL_STATE } from '@/lib/state';
 
 export default function SinglePlayerPage() {
   const { state, append, appendMany, ready, isBatchPending } = useAppState();
@@ -26,7 +27,10 @@ export default function SinglePlayerPage() {
   const [dealerIdx, setDealerIdx] = React.useState(0);
   const [humanIdx, setHumanIdx] = React.useState(0);
   const [roundNo, setRoundNo] = React.useState(1);
-  const trickLeader = (state.sp.leaderId as PlayerId | null) ?? null;
+  // In some static-exported deployments, the state may briefly be an initial shell before
+  // the provider hydrates. Default to the known initial shape to avoid undefined access.
+  const spSafe = (state.sp ?? INITIAL_STATE.sp) as typeof state.sp;
+  const trickLeader = (spSafe?.leaderId as PlayerId | null) ?? null;
   const [saved, setSaved] = React.useState(false);
   const [selectedCard, setSelectedCard] = React.useState<Card | null>(null);
   const [initializedScoring, setInitializedScoring] = React.useState(false);
@@ -42,7 +46,7 @@ export default function SinglePlayerPage() {
   const human = players[humanIdx] ?? players[0]!;
   const tricks = selectSpTricksForRound(state);
   const useTwoDecks = playersCount > 5;
-  const sp = state.sp;
+  const sp = spSafe;
   const phase = sp.phase;
   const spRoundNo = sp.roundNo ?? roundNo;
   const spTrump = sp.trump;
@@ -246,6 +250,38 @@ export default function SinglePlayerPage() {
     return () => clearTimeout(t);
   }, [spTrickPlays, spOrder.length, spTrump, phase, trickLeader, spTrumpBroken, isBatchPending]);
 
+  // One-time cleanup: if SP session is done, normalize any stray bidding/playing rounds to 'scored'
+  const cleanedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!ready) return;
+    if (phase !== 'done') return;
+    if (isBatchPending) return;
+    if (cleanedRef.current) return;
+    const batch: any[] = [];
+    for (let r = 1; r <= ROUNDS_TOTAL; r++) {
+      const rd = state.rounds[r];
+      const st = rd?.state ?? 'locked';
+      if (st !== 'bidding' && st !== 'playing') continue;
+      // Only flip to scored if all present players have a non-null 'made' value
+      let allMarked = true;
+      for (const pid of Object.keys(state.players)) {
+        if (rd?.present?.[pid] === false) continue;
+        const m = rd?.made?.[pid];
+        if (m == null) {
+          allMarked = false;
+          break;
+        }
+      }
+      if (allMarked) batch.push(events.roundStateSet({ round: r, state: 'scored' }));
+    }
+    if (batch.length > 0) {
+      cleanedRef.current = true;
+      void appendMany(batch);
+    } else {
+      cleanedRef.current = true;
+    }
+  }, [ready, phase, isBatchPending, state.rounds, state.players, appendMany]);
+
   // Auto-sync results to scorekeeper when round ends
   React.useEffect(() => {
     if (!isRoundDone) return;
@@ -306,8 +342,7 @@ export default function SinglePlayerPage() {
           setDealerIdx(nextDealerIdx);
           setRoundNo(nextRound);
         } else {
-          // Final round: include aligning round 9 -> bidding in the same batch to avoid flicker
-          batch.push(events.roundStateSet({ round: 9, state: 'bidding' }));
+          // Final round complete: finalize only; do not mutate prior rounds' states.
           await appendMany(batch);
         }
         setSaved(true);
@@ -384,7 +419,8 @@ export default function SinglePlayerPage() {
               <CurrentGame
                 live={overlay ?? undefined}
                 biddingInteractiveIds={[human]}
-                disableInputs={isBatchPending}
+                // When SP session is done, make the grid fully read-only regardless of any row state
+                disableInputs={isBatchPending || phase === 'done'}
                 onConfirmBid={(r, pid, bid) => {
                   // Confirm this player's bid, auto-bid others if needed, then start playing
                   (async () => {
