@@ -358,7 +358,23 @@ export default function SinglePlayerPage() {
             );
           })()}
           {spPhase === 'playing' && state.sp.reveal && (
-            <div className="px-3 py-2 border-t bg-amber-50 dark:bg-amber-900/20 flex items-center justify-between">
+            <div
+              className={`px-3 py-2 border-t flex items-center justify-between ${(() => {
+                const rState = state.rounds[spRoundNo]?.state ?? 'locked';
+                switch (rState) {
+                  case 'bidding':
+                    return 'bg-sky-50 dark:bg-sky-900/30';
+                  case 'playing':
+                    return 'bg-indigo-50 dark:bg-indigo-900/30';
+                  case 'complete':
+                    return 'bg-orange-50 dark:bg-orange-900/30';
+                  case 'scored':
+                    return 'bg-emerald-50 dark:bg-emerald-900/30';
+                  default:
+                    return 'bg-muted';
+                }
+              })()}`}
+            >
               <div className="text-sm">
                 <span className="text-muted-foreground mr-2">Hand Winner:</span>
                 <span className="font-semibold text-emerald-700 dark:text-emerald-300">
