@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { botPlay } from '@/lib/single-player/bots/simple';
 import type { Card, PlayerId } from '@/lib/single-player/types';
 
-const C = (suit: 'clubs'|'diamonds'|'hearts'|'spades', rank: number): Card => ({ suit, rank });
+const C = (suit: 'clubs' | 'diamonds' | 'hearts' | 'spades', rank: number): Card => ({
+  suit,
+  rank,
+});
 
 describe('bot off-suit behavior: no forced trump', () => {
   it('easy diff can deterministically slough non-trump when off-suit (rng injected)', () => {

@@ -24,7 +24,9 @@ import { INITIAL_STATE } from '@/lib/state';
 export default function SinglePlayerPage() {
   const { state, append, appendMany, ready, isBatchPending } = useAppState();
   // Deterministic RNG per session for bots
-  const [seed, setSeed] = React.useState<string>(() => String(Math.floor(Date.now() % 1_000_000_000)));
+  const [seed, setSeed] = React.useState<string>(() =>
+    String(Math.floor(Date.now() % 1_000_000_000)),
+  );
   const rngRef = React.useRef<() => number>(() => Math.random());
   const initRng = React.useCallback((s: string) => {
     const n = Number(s);
@@ -32,7 +34,7 @@ export default function SinglePlayerPage() {
     function mulberry32(a: number) {
       let t = a >>> 0;
       return () => {
-        t += 0x6D2B79F5;
+        t += 0x6d2b79f5;
         let r = Math.imul(t ^ (t >>> 15), 1 | t);
         r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
         return ((r ^ (r >>> 14)) >>> 0) / 4294967296;

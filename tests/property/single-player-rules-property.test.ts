@@ -8,7 +8,7 @@ type Card = { suit: Suit; rank: number };
 function mulberry32(seed: number) {
   let t = seed >>> 0;
   return () => {
-    t += 0x6D2B79F5;
+    t += 0x6d2b79f5;
     let r = Math.imul(t ^ (t >>> 15), 1 | t);
     r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
@@ -30,7 +30,7 @@ function card(suit: Suit, rank: number): Card {
 
 describe('property: isLegalPlay follow/off-suit', () => {
   it('enforces follow when able; allows any card when unable (off-suit)', () => {
-    const rng = mulberry32(0xC0FFEE);
+    const rng = mulberry32(0xc0ffee);
     for (let i = 0; i < 200; i++) {
       const trump = randSuit(rng);
       const ledSuit = randSuit(rng);
@@ -67,4 +67,3 @@ describe('property: isLegalPlay follow/off-suit', () => {
     }
   });
 });
-

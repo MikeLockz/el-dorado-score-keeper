@@ -47,7 +47,6 @@ This document is the implementation plan to add a single‑player, interactive m
 ## Clarifications and Assumptions
 
 - Trump lead restriction applies only when leading a trick (not when following or sloughing).
-  
 - Aces are high. No jokers. No special bonuses.
 - Fresh shuffle each round guarantees a trump card exists to flip (deck size always exceeds total dealt by 1 under the deck rules).
 - With two decks, suits/ranks duplicate; first‑played tie breaker decides trick winner.

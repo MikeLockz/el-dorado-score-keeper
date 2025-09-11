@@ -47,7 +47,6 @@ This document is the implementation plan to add a single‑player, interactive m
 ## Clarifications and Assumptions
 
 - Trump lead restriction applies only when leading a trick (not when following or sloughing).
-  
 - Aces are high. No jokers. No special bonuses.
 - Fresh shuffle each round guarantees a trump card exists to flip (deck size always exceeds total dealt by 1 under the deck rules).
 - With two decks, suits/ranks duplicate; first‑played tie breaker decides trick winner.
@@ -112,14 +111,15 @@ This document is the implementation plan to add a single‑player, interactive m
 
 1. Engine core (types, deck, ordering, rules, trick, round) with CLI/dev harness.
 2. Bots (Normal difficulty) + made/bid extraction.
-  - Bots accept an injected RNG for deterministic runs in tests; defaults to `Math.random` in UI.
+
+- Bots accept an injected RNG for deterministic runs in tests; defaults to `Math.random` in UI.
+
 3. UI scaffolding: lobby + in‑game view; wire to engine; event integration.
 4. Additional bot difficulties; polish UX; accessibility; tests.
 
 ## Open Questions (Proposed Defaults)
 
 - Simultaneous highest cards from two decks: first played wins (default).
-  
 - Mid‑hand saving/resume: out of scope initially.
 
 ## Non‑Goals (for this iteration)

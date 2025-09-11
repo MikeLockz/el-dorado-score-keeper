@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { isLegalPlay, canLead } from '@/lib/single-player/rules';
 
-const C = (suit: 'clubs'|'diamonds'|'hearts'|'spades', rank: number) => ({ suit, rank });
+const C = (suit: 'clubs' | 'diamonds' | 'hearts' | 'spades', rank: number) => ({ suit, rank });
 
 describe('single-player rules: legality', () => {
   it('leading: cannot lead trump if holding any non-trump and trump not broken', () => {
@@ -63,4 +63,3 @@ describe('single-player rules: legality', () => {
     ).toBe(true);
   });
 });
-
