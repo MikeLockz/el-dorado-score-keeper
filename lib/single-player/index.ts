@@ -8,3 +8,4 @@ export * from './trick';
 export * from './round';
 export * as bots from './bots/simple';
 export * from './auto-bid';
+export * from './engine';
