@@ -1,5 +1,6 @@
 export * from './types';
 export * from './selectors';
+export * from './selectors-sp';
 export * from './logic';
 export * from './events';
 export * from './instance';
