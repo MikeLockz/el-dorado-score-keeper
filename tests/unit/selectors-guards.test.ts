@@ -9,7 +9,10 @@ describe('selectors guard against missing/incomplete sp', () => {
   });
 
   it('selectSpRotatedOrder returns [] when order is not an array', () => {
-    const s = { ...INITIAL_STATE, sp: { ...(INITIAL_STATE.sp as any), order: undefined } } as AppState;
+    const s = {
+      ...INITIAL_STATE,
+      sp: { ...(INITIAL_STATE.sp as any), order: undefined },
+    } as AppState;
     const out = selectSpRotatedOrder(s);
     expect(out).toEqual([]);
   });
@@ -28,4 +31,3 @@ describe('selectors guard against missing/incomplete sp', () => {
     expect(out).toEqual(['p1', 'p2', 'p3']);
   });
 });
-
