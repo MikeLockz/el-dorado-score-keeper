@@ -272,19 +272,11 @@ export default function SinglePlayerPage() {
       existingBids: bidsSoFar,
       rng: rngRef.current,
     });
-    const batch: any[] = pre.map((b) => events.bidSet({ round: roundNo, playerId: b.playerId, bid: b.bid }));
+    const batch: any[] = pre.map((b) =>
+      events.bidSet({ round: roundNo, playerId: b.playerId, bid: b.bid }),
+    );
     if (batch.length > 0) void appendMany(batch);
-  }, [
-    roundNo,
-    spOrder,
-    human,
-    spTrump,
-    spHands,
-    tricks,
-    state.rounds,
-    isBatchPending,
-    appendMany,
-  ]);
+  }, [roundNo, spOrder, human, spTrump, spHands, tricks, state.rounds, isBatchPending, appendMany]);
 
   // Resolve completed trick
   React.useEffect(() => {
