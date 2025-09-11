@@ -23,6 +23,27 @@ import { INITIAL_STATE } from '@/lib/state';
 
 export default function SinglePlayerPage() {
   const { state, append, appendMany, ready, isBatchPending } = useAppState();
+  // Deterministic RNG per session for bots
+  const [seed, setSeed] = React.useState<string>(() => String(Math.floor(Date.now() % 1_000_000_000)));
+  const rngRef = React.useRef<() => number>(() => Math.random());
+  const initRng = React.useCallback((s: string) => {
+    const n = Number(s);
+    const seedNum = Number.isFinite(n) ? Math.floor(n) : 0;
+    function mulberry32(a: number) {
+      let t = a >>> 0;
+      return () => {
+        t += 0x6D2B79F5;
+        let r = Math.imul(t ^ (t >>> 15), 1 | t);
+        r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+        return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    rngRef.current = mulberry32(seedNum);
+  }, []);
+  React.useEffect(() => {
+    initRng(seed);
+    // re-init when component mounts or seed changes
+  }, [initRng, seed]);
   const [playersCount, setPlayersCount] = React.useState(4);
   const [dealerIdx, setDealerIdx] = React.useState(0);
   const [humanIdx, setHumanIdx] = React.useState(0);
@@ -164,6 +185,8 @@ export default function SinglePlayerPage() {
     </span>
   );
 
+  const isDev = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
+
   // Advance play: bot turns and trick resolution
   React.useEffect(() => {
     if (!spTrump || phase !== 'playing' || !trickLeader) return;
@@ -192,6 +215,7 @@ export default function SinglePlayerPage() {
           tricksWonSoFar: spTrickCounts as any,
           selfId: pid,
           trumpBroken: spTrumpBroken,
+          rng: rngRef.current,
         },
         'normal',
       );
@@ -246,6 +270,7 @@ export default function SinglePlayerPage() {
       hands: spHands as any,
       tricks,
       existingBids: bidsSoFar,
+      rng: rngRef.current,
     });
     const batch: any[] = pre.map((b) => events.bidSet({ round: roundNo, playerId: b.playerId, bid: b.bid }));
     if (batch.length > 0) void appendMany(batch);
@@ -476,6 +501,7 @@ export default function SinglePlayerPage() {
                               seatIndex: spOrder.findIndex((x) => x === p),
                               bidsSoFar: (state.rounds[r]?.bids ?? {}) as any,
                               selfId: p,
+                              rng: rngRef.current,
                             },
                             'normal',
                           );
@@ -500,6 +526,32 @@ export default function SinglePlayerPage() {
 
       {spOrder.length > 0 && (
         <div className="space-y-2">
+          {isDev && (
+            <div className="flex items-center gap-2 text-xs">
+              <label className="text-muted-foreground">Seed:</label>
+              <input
+                className="px-2 py-1 border rounded bg-background"
+                value={seed}
+                onChange={(e) => setSeed(e.target.value)}
+                style={{ width: 120 }}
+              />
+              <button
+                type="button"
+                className="border rounded px-2 py-1"
+                onClick={() => setSeed(String(Math.floor(Math.random() * 1_000_000_000)))}
+              >
+                Randomize
+              </button>
+              <button
+                type="button"
+                className="border rounded px-2 py-1"
+                onClick={() => initRng(seed)}
+              >
+                Apply
+              </button>
+              <span className="text-muted-foreground">(bots use deterministic RNG)</span>
+            </div>
+          )}
           <h2 className="text-lg font-semibold">
             Your Hand ({activePlayers.find((ap) => ap.id === human)?.name ?? human})
           </h2>
@@ -537,9 +589,6 @@ export default function SinglePlayerPage() {
                       <div className="flex flex-wrap gap-1">
                         {row.map((c, idx) => {
                           const ledSuit = spTrickPlays[0]?.card.suit as any;
-                          const trickTrumped = spTrickPlays.some(
-                            (p) => (p.card as any).suit === spTrump,
-                          );
                           const canFollow = (spHands[human] ?? []).some((h) => h.suit === ledSuit);
                           let legal = true;
                           if (!ledSuit) {
@@ -549,9 +598,6 @@ export default function SinglePlayerPage() {
                             if (!spTrumpBroken && hasNonTrump && c.suit === spTrump) legal = false;
                           } else if (canFollow) {
                             legal = c.suit === ledSuit;
-                          } else if (trickTrumped) {
-                            const hasTrump = (spHands[human] ?? []).some((h) => h.suit === spTrump);
-                            if (hasTrump) legal = c.suit === spTrump;
                           }
                           const effectiveLeader =
                             (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;
@@ -576,9 +622,6 @@ export default function SinglePlayerPage() {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 const ledSuitNow = spTrickPlays[0]?.card.suit as any;
-                                const trickTrumpedNow = spTrickPlays.some(
-                                  (p) => (p.card as any).suit === spTrump,
-                                );
                                 const canFollowNow = (spHands[human] ?? []).some(
                                   (h) => h.suit === ledSuitNow,
                                 );
@@ -591,11 +634,6 @@ export default function SinglePlayerPage() {
                                     legalNow = false;
                                 } else if (canFollowNow) {
                                   legalNow = c.suit === ledSuitNow;
-                                } else if (trickTrumpedNow) {
-                                  const hasTrump = (spHands[human] ?? []).some(
-                                    (h) => h.suit === spTrump,
-                                  );
-                                  if (hasTrump) legalNow = c.suit === spTrump;
                                 }
                                 const effectiveLeaderNow =
                                   (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;
@@ -638,7 +676,6 @@ export default function SinglePlayerPage() {
                   onClick={() => {
                     if (!selectedCard) return;
                     const ledSuit = spTrickPlays[0]?.card.suit as any;
-                    const trickTrumped = spTrickPlays.some((p) => (p.card as any).suit === spTrump);
                     const canFollow = (spHands[human] ?? []).some((h) => h.suit === ledSuit);
                     let legal = true;
                     if (!ledSuit) {
@@ -647,9 +684,6 @@ export default function SinglePlayerPage() {
                         legal = false;
                     } else if (canFollow) {
                       legal = selectedCard.suit === ledSuit;
-                    } else if (trickTrumped) {
-                      const hasTrump = (spHands[human] ?? []).some((h) => h.suit === spTrump);
-                      if (hasTrump) legal = selectedCard.suit === spTrump;
                     }
                     const effectiveLeader =
                       (spTrickPlays[0]?.player as PlayerId | undefined) ?? trickLeader;

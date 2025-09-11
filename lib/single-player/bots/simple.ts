@@ -1,5 +1,5 @@
 import type { Card, PlayerId, Suit } from '../types';
-import { trickHasTrump, ledSuitOf } from '../trick';
+import { ledSuitOf } from '../trick';
 
 export type BotDifficulty = 'easy' | 'normal' | 'hard';
 
@@ -13,6 +13,7 @@ export type BotContext = Readonly<{
   tricksWonSoFar: Readonly<Record<PlayerId, number>>;
   selfId: PlayerId;
   trumpBroken?: boolean;
+  rng?: () => number; // optional RNG for deterministic testing
 }>;
 
 function handStats(hand: readonly Card[], trump: Suit) {
@@ -38,13 +39,14 @@ export function botBid(
   diff: BotDifficulty,
 ): number {
   const { trump, hand, tricksThisRound, seatIndex } = ctx;
+  const rnd = typeof ctx.rng === 'function' ? ctx.rng : Math.random;
   const s = handStats(hand, trump);
   // Heuristic base: value trump more, high cards moderate value
   let est = s.trumpHigh + 0.6 * (s.trumpCount - s.trumpHigh) + 0.35 * (s.high - s.trumpHigh);
   // Position adjustment: earlier seats bid slightly lower to avoid overcommitting
   est -= Math.max(0, 0.15 * seatIndex);
   // Difficulty noise
-  const rand = Math.random() - 0.5;
+  const rand = rnd() - 0.5;
   if (diff === 'easy') est += rand * 0.8 - 0.4;
   else if (diff === 'normal') est += rand * 0.4;
   else est += rand * 0.2 + 0.1; // hard slightly optimistic
@@ -55,10 +57,11 @@ export function botBid(
 
 export function botPlay(ctx: BotContext, diff: BotDifficulty): Card {
   const { hand, trump, trickPlays, trumpBroken } = ctx;
+  const rnd = typeof ctx.rng === 'function' ? ctx.rng : Math.random;
   const led = ledSuitOf(trickPlays);
   const hasTrump = hand.some((c) => c.suit === trump);
   const hasNonTrump = hand.some((c) => c.suit !== trump);
-  const trickTrumped = trickHasTrump(trickPlays, trump);
+  // Note: off-suit play no longer forces trump even if trick already has trump
 
   // Utilities
   const byRankAsc = (a: Card, b: Card) => a.rank - b.rank;
@@ -92,15 +95,10 @@ export function botPlay(ctx: BotContext, diff: BotDifficulty): Card {
     return highest(follow);
   }
 
-  // Off-suit
-  if (trickTrumped && hasTrump) {
-    // Must play a trump; play lowest trump
-    const tr = hand.filter((c) => c.suit === trump);
-    return lowest(tr);
-  }
+  // Off-suit: player may play any suit (no forced trump)
   if (hasTrump) {
     // Choose whether to trump in; easy ducks more often
-    if (diff === 'easy' && Math.random() < 0.7) {
+    if (diff === 'easy' && rnd() < 0.7) {
       // Slough lowest non-trump if any, else lowest trump
       const nonTr = hand.filter((c) => c.suit !== trump);
       return nonTr.length ? lowest(nonTr) : lowest(hand.slice());

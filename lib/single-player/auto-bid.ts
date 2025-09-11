@@ -9,13 +9,14 @@ export type PreBidArgs = Readonly<{
   hands: Record<PlayerId, readonly Card[]>;
   tricks: number;
   existingBids: Readonly<Record<PlayerId, number | undefined>>;
+  rng?: () => number;
 }>;
 
 export type PreBid = Readonly<{ playerId: PlayerId; bid: number; seatIndex: number }>;
 
 // Determine bids for all bot players who act before the human in the bidding order.
 export function computePrecedingBotBids(args: PreBidArgs): PreBid[] {
-  const { order, humanId, trump, hands, tricks, existingBids } = args;
+  const { order, humanId, trump, hands, tricks, existingBids, rng } = args;
   const humanPos = order.findIndex((p) => p === humanId);
   if (humanPos <= 0) return [];
   const out: PreBid[] = [];
@@ -31,6 +32,7 @@ export function computePrecedingBotBids(args: PreBidArgs): PreBid[] {
         seatIndex: i,
         bidsSoFar: existingBids as Record<PlayerId, number>,
         selfId: pid,
+        rng,
       },
       'normal',
     );
@@ -38,4 +40,3 @@ export function computePrecedingBotBids(args: PreBidArgs): PreBid[] {
   }
   return out;
 }
-

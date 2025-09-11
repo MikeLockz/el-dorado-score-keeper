@@ -33,7 +33,6 @@ This document is the implementation plan to add a single‑player, interactive m
   - Following:
     - Players must follow the led suit if able.
     - If unable to follow the led suit, they may play any card.
-    - If any trump has been played in the current trick and a player cannot follow the led suit but holds trump, they must play a trump.
   - Trick resolution:
     - Highest rank of the led suit wins unless any trump is present, in which case highest trump wins.
     - Rank order: A > K > Q > J > 10 ... > 2.
@@ -48,7 +47,7 @@ This document is the implementation plan to add a single‑player, interactive m
 ## Clarifications and Assumptions
 
 - Trump lead restriction applies only when leading a trick (not when following or sloughing).
-- “Must play trump if trump has been played” applies only when the player cannot follow the led suit.
+  
 - Aces are high. No jokers. No special bonuses.
 - Fresh shuffle each round guarantees a trump card exists to flip (deck size always exceeds total dealt by 1 under the deck rules).
 - With two decks, suits/ranks duplicate; first‑played tie breaker decides trick winner.
@@ -88,7 +87,7 @@ This document is the implementation plan to add a single‑player, interactive m
   - Clamp to [0..tricks] and add a small randomness based on difficulty and position.
 - Play baseline:
   - Follow suit highest to win when advantageous to meet bid; otherwise lowest to conserve winners.
-  - If off‑suit: prefer non‑trump unless need to secure a trick to reach bid; if trump already on trick and holding trump, comply with “must play trump” rule; choose minimal trump that wins if needed.
+  - If off‑suit: prefer non‑trump unless needing to secure a trick; consider trumping in based on difficulty/heuristics; choose minimal trump that wins if needed.
 - Difficulties:
   - Easy: +random noise, conservative bidding, straightforward play.
   - Normal: heuristic as above.
@@ -113,13 +112,14 @@ This document is the implementation plan to add a single‑player, interactive m
 
 1. Engine core (types, deck, ordering, rules, trick, round) with CLI/dev harness.
 2. Bots (Normal difficulty) + made/bid extraction.
+  - Bots accept an injected RNG for deterministic runs in tests; defaults to `Math.random` in UI.
 3. UI scaffolding: lobby + in‑game view; wire to engine; event integration.
 4. Additional bot difficulties; polish UX; accessibility; tests.
 
 ## Open Questions (Proposed Defaults)
 
 - Simultaneous highest cards from two decks: first played wins (default).
-- Trump‑already‑played rule: only constrains players who cannot follow the led suit (default).
+  
 - Mid‑hand saving/resume: out of scope initially.
 
 ## Non‑Goals (for this iteration)

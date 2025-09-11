@@ -32,11 +32,6 @@ export function isLegalPlay(card: Card, ctx: LegalityContext): boolean {
   const canFollow = hand.some((c) => c.suit === ledSuit);
   if (canFollow) return card.suit === ledSuit;
 
-  // Cannot follow led suit.
-  if (trickHasTrump) {
-    const hasTrump = hand.some((c) => c.suit === trump);
-    if (hasTrump) return card.suit === trump; // must play trump if you have it
-  }
-  // Otherwise any card allowed.
+  // Cannot follow the led suit: any card is allowed.
   return true;
 }
