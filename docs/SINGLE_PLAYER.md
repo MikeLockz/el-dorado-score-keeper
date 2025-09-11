@@ -22,11 +22,12 @@ This document is the implementation plan to add a single‑player, interactive m
   - Dealer deals 1 card at a time, starting with the next player and going around the table until each has the required count.
   - Flip the next card in the deck face up to set the trump suit for the round.
 - Bidding:
-  - First bid is from the first player dealt to (left of dealer), then proceed in table order.
+  - First bid is from the first player dealt to (left of dealer), then proceed in table order; dealer bids last.
+  - This is the same order as who leads the first trick (the player after the dealer leads first).
   - Each bid is an integer from 0 to the number of tricks for that round (inclusive).
   - No additional sum‑of‑bids restriction.
 - Trick Play:
-  - The player who made the first bid leads the first trick; trick winners lead subsequent tricks.
+  - The player who bids first (the player after the dealer) leads the first trick; trick winners lead subsequent tricks.
   - Leading restriction: a player may lead any suit except trump if they hold at least one non-trump card.
   - Breaking trump: once a trump card has been played off-suit (i.e., not led) because a player could not follow the led suit (or only had trump remaining), trump is considered "broken" and may be led on subsequent tricks of the same round.
   - Following:

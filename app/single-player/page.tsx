@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { startRound, bots, winnerOfTrick } from '@/lib/single-player';
+import { startRound, bots, winnerOfTrick, computePrecedingBotBids } from '@/lib/single-player';
 import CurrentGame from '@/components/views/CurrentGame';
 import { CardGlyph } from '@/components/ui';
 import type { PlayerId, Card } from '@/lib/single-player';
@@ -226,6 +226,40 @@ export default function SinglePlayerPage() {
 
   // Removed: store-driven auto-bid during bidding.
   // Bots will be auto-bid within onConfirmBid's batch to ensure explicit confirmation.
+
+  // During bidding, if the human is not first in order, auto-bid preceding bots so their bids are visible
+  React.useEffect(() => {
+    // Must be in bidding state for the current scoring round, and have a deal (trump/hands)
+    const rState = state.rounds[roundNo]?.state;
+    if (rState !== 'bidding') return;
+    if (!spTrump) return;
+    if (spOrder.length === 0) return;
+    if (isBatchPending) return;
+    const humanPos = spOrder.findIndex((p) => p === human);
+    if (humanPos <= 0) return; // human is first (or not found) — nothing to prefill
+    const bidsSoFar = (state.rounds[roundNo]?.bids ?? {}) as Record<string, number | undefined>;
+    const pre = computePrecedingBotBids({
+      roundNo,
+      order: spOrder as any,
+      humanId: human as any,
+      trump: spTrump as any,
+      hands: spHands as any,
+      tricks,
+      existingBids: bidsSoFar,
+    });
+    const batch: any[] = pre.map((b) => events.bidSet({ round: roundNo, playerId: b.playerId, bid: b.bid }));
+    if (batch.length > 0) void appendMany(batch);
+  }, [
+    roundNo,
+    spOrder,
+    human,
+    spTrump,
+    spHands,
+    tricks,
+    state.rounds,
+    isBatchPending,
+    appendMany,
+  ]);
 
   // Resolve completed trick
   React.useEffect(() => {
