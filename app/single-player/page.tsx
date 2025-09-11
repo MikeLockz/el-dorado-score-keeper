@@ -197,7 +197,10 @@ export default function SinglePlayerPage() {
     isBatchPending,
     rng: rngRef.current,
     onAdvance: (nextRound, nextDealerId) => {
-      const idx = Math.max(0, players.findIndex((p) => p === nextDealerId));
+      const idx = Math.max(
+        0,
+        players.findIndex((p) => p === nextDealerId),
+      );
       setDealerIdx(idx);
       setRoundNo(nextRound);
     },
@@ -296,6 +299,12 @@ export default function SinglePlayerPage() {
                     return <CardGlyph suit={lead.suit} rank={lead.rank} size="sm" />;
                   })()}
                 </div>
+                <div className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                  <span className="mr-1">Trump Played:</span>
+                  <span className={spTrumpBroken ? 'text-emerald-700 dark:text-emerald-300 font-semibold' : 'text-muted-foreground'}>
+                    {spTrumpBroken ? 'Yes' : 'No'}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -348,6 +357,43 @@ export default function SinglePlayerPage() {
               />
             );
           })()}
+          {spPhase === 'playing' && state.sp.reveal && (
+            <div className="px-3 py-2 border-t bg-amber-50 dark:bg-amber-900/20 flex items-center justify-between">
+              <div className="text-sm">
+                <span className="text-muted-foreground mr-2">Hand Winner:</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                  {(() => {
+                    const winnerId = state.sp.reveal?.winnerId as string;
+                    const p = activePlayers.find((ap) => ap.id === winnerId);
+                    return p?.name ?? winnerId;
+                  })()}
+                </span>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  className="inline-flex items-center rounded bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 text-sm"
+                  disabled={isBatchPending}
+                  onClick={() => {
+                    if (isBatchPending) return;
+                    const winnerId = state.sp.reveal?.winnerId as string;
+                    const batch: any[] = [
+                      events.spTrickCleared({ winnerId }),
+                      events.spLeaderSet({ leaderId: winnerId }),
+                      events.spTrickRevealClear({}),
+                    ];
+                    void appendMany(batch);
+                  }}
+                >
+                  {(() => {
+                    const needed = tricksForRound(spRoundNo);
+                    const total = Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
+                    return total + 1 >= needed ? 'Next Round' : 'Next Hand';
+                  })()}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -434,7 +480,7 @@ export default function SinglePlayerPage() {
                               ? spOrder
                               : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
                           const nextToPlay = rotated[spTrickPlays.length];
-                          const isHumansTurn = nextToPlay === human;
+                          const isHumansTurn = nextToPlay === human && !state.sp.reveal;
                           const isSelected = selectedCard === c;
                           return (
                             <button
@@ -499,9 +545,10 @@ export default function SinglePlayerPage() {
                 <button
                   type="button"
                   className="inline-flex items-center rounded border px-3 py-1 text-sm"
-                  disabled={!selectedCard || isBatchPending}
+                  disabled={!selectedCard || isBatchPending || !!state.sp.reveal}
                   onClick={() => {
                     if (!selectedCard) return;
+                    if (state.sp.reveal) return;
                     const ledSuit = spTrickPlays[0]?.card.suit as any;
                     const canFollow = (spHands[human] ?? []).some((h) => h.suit === ledSuit);
                     let legal = true;

@@ -34,6 +34,8 @@ export type EventMap = {
   'sp/trick/cleared': { winnerId: string };
   'sp/trump-broken-set': { broken: boolean };
   'sp/leader-set': { leaderId: string };
+  'sp/trick/reveal-set': { winnerId: string };
+  'sp/trick/reveal-clear': Record<never, never>;
 };
 
 export type AppEventType = keyof EventMap;
@@ -86,6 +88,7 @@ export type AppState = Readonly<{
     trickCounts: Record<string, number>;
     trumpBroken: boolean;
     leaderId: string | null;
+    reveal: { winnerId: string } | null;
   }>;
   // Optional dense display order per player ID. Missing entries are handled by selectors.
   display_order: Record<string, number>;
@@ -108,6 +111,7 @@ export const INITIAL_STATE: AppState = {
     trickCounts: {},
     trumpBroken: false,
     leaderId: null,
+    reveal: null,
   },
   display_order: {},
 } as const;
@@ -328,6 +332,14 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         [winnerId]: (state.sp.trickCounts[winnerId] ?? 0) + 1,
       };
       return { ...state, sp: { ...state.sp, trickPlays: [], trickCounts } };
+    }
+    case 'sp/trick/reveal-set': {
+      const { winnerId } = event.payload as EventMap['sp/trick/reveal-set'];
+      return { ...state, sp: { ...state.sp, reveal: { winnerId } } };
+    }
+    case 'sp/trick/reveal-clear': {
+      if (!state.sp.reveal) return state;
+      return { ...state, sp: { ...state.sp, reveal: null } };
     }
     case 'sp/trump-broken-set': {
       const { broken } = event.payload as EventMap['sp/trump-broken-set'];

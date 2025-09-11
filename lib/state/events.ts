@@ -47,6 +47,10 @@ export const events = {
     makeEvent('sp/trump-broken-set', p, m),
   spLeaderSet: (p: EventPayloadByType<'sp/leader-set'>, m?: Meta) =>
     makeEvent('sp/leader-set', p, m),
+  spTrickRevealSet: (p: EventPayloadByType<'sp/trick/reveal-set'>, m?: Meta) =>
+    makeEvent('sp/trick/reveal-set', p, m),
+  spTrickRevealClear: (p: EventPayloadByType<'sp/trick/reveal-clear'>, m?: Meta) =>
+    makeEvent('sp/trick/reveal-clear', p, m),
 };
 
 export type { AppEventType, EventPayloadByType, KnownAppEvent };

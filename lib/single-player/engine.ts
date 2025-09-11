@@ -37,12 +37,9 @@ export function prefillPrecedingBotBids(
 }
 
 // If it is playerId's turn and they are a bot (i.e., not the human), choose a card and emit one sp/trick/played.
-export function computeBotPlay(
-  state: AppState,
-  playerId: string,
-  rng?: () => number,
-): AppEvent[] {
+export function computeBotPlay(state: AppState, playerId: string, rng?: () => number): AppEvent[] {
   if (state.sp.phase !== 'playing') return [];
+  if (state.sp.reveal) return [];
   const next = selectSpNextToPlay(state);
   if (!next || next !== playerId) return [];
   const trump = state.sp.trump;
@@ -81,6 +78,8 @@ export function resolveCompletedTrick(state: AppState): AppEvent[] {
   const trump = state.sp.trump;
   if (!trump || plays.length === 0) return [];
   if (plays.length < order.length) return [];
+  // Already revealing? do nothing
+  if (state.sp.reveal) return [];
   const winner = winnerOfTrick(
     plays.map((p, i) => ({ player: p.playerId as string, card: p.card as any, order: i })),
     trump,
@@ -92,8 +91,8 @@ export function resolveCompletedTrick(state: AppState): AppEvent[] {
   if (!state.sp.trumpBroken && anyTrump && ledSuit && ledSuit !== trump) {
     batch.push(events.spTrumpBrokenSet({ broken: true }));
   }
-  batch.push(events.spTrickCleared({ winnerId: winner }));
-  batch.push(events.spLeaderSet({ leaderId: winner }));
+  // Enter reveal state; UI will clear and advance leader on explicit user action
+  batch.push(events.spTrickRevealSet({ winnerId: winner }));
   return batch;
 }
 
@@ -164,4 +163,3 @@ export function finalizeRoundIfDone(state: AppState, opts: FinalizeOptions = {})
   }
   return batch;
 }
-

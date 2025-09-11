@@ -35,14 +35,17 @@ Move the following from `lib/state/selectors.ts` to a new file `lib/state/select
 - `selectSpHandBySuit`
 
 Then:
+
 - Add barrel re‑exports in `lib/state/index.ts` (or existing barrel) to keep current import paths working.
 - Update any intra‑repo relative imports that directly referenced `selectors.ts` for SP selectors to use the barrel (preferred) or `selectors-sp.ts`.
 
 Validation:
+
 - Typecheck: `pnpm typecheck` (or `npm run typecheck`).
 - Unit tests: `pnpm test -w tests/unit/selectors-sp.test.ts` and a full run.
 
 Commit:
+
 - Message: "refactor(sp): move SP selectors into selectors-sp.ts and re-export"
 
 ### 2) Introduce a pure SP engine API
@@ -50,6 +53,7 @@ Commit:
 Create `lib/single-player/engine.ts` with pure functions that take `AppState` and return arrays of `AppEvent` (via `events.*`) without mutating state or dispatching:
 
 Proposed API (can evolve):
+
 - `prefillPrecedingBotBids(state: AppState, roundNo: number, humanId: string, rng: () => number): AppEvent[]`
   - Uses existing `computePrecedingBotBids` to produce `events.bidSet(...)` for bots before the human.
 - `computeBotPlay(state: AppState, playerId: string, rng: () => number): AppEvent[]`
@@ -60,77 +64,95 @@ Proposed API (can evolve):
   - When `sum(sp.trickCounts) === tricksForRound(sp.roundNo)`, generate the batch to reconcile SP -> scorekeeper: per‑player `made/set`, `round/finalize`, `sp/phase-set('done' | 'bidding')` as today’s page logic dictates; return `[]` otherwise. Keep this faithful to current implementation semantics.
 
 Notes:
+
 - All functions must be deterministic given inputs and never access timers or globals.
 - Preserve turn‑order enforcement, idempotency, and trump‑broken semantics already in the reducer.
 
 Add tests `tests/unit/sp-engine.test.ts`:
+
 - `prefillPrecedingBotBids` produces correct bids only for players before the human.
 - `computeBotPlay` returns one `sp/trick/played` with a legal card for the bot.
 - `resolveCompletedTrick` emits winner batch only when a full trick exists; includes `sp/trump-broken-set` when off‑suit trump played.
 - `finalizeRoundIfDone` emits expected scoring/finalization batch.
 
 Validation:
+
 - Typecheck and run just the new tests first, then full suite.
 
 Commit:
+
 - Message: "feat(sp-engine): add pure SP engine utilities and unit tests"
 
 ### 3) Extract orchestration into a hook
 
 Create `lib/single-player/use-engine.ts`:
+
 - Expose `useSinglePlayerEngine({ state, appendMany, rng, humanId })`.
 - Internally, replicate the three existing effects from `app/single-player/page.tsx` using the engine functions to generate batches, then dispatch via `appendMany`.
 - Guard on `state.sp.phase` and `isBatchPending` exactly as today; do not change timings except for moving setTimeout delays alongside dispatches.
 
 Refactor `app/single-player/page.tsx`:
+
 - Remove the body of the effects that coordinate bot play, trick resolution, and round finalization.
 - Call `useSinglePlayerEngine(...)` with the same inputs and keep UI intact.
 
 Validation:
+
 - Typecheck and run all unit tests.
 - Manual smoke: play a round in single‑player, observe bids, plays, trick resolution, and scoring update unchanged.
 
 Commit:
+
 - Message: "refactor(sp): extract single-player orchestration into useSinglePlayerEngine"
 
 ### 4) Naming consistency within SP UI
 
 Standardize local naming in `app/single-player/page.tsx`:
+
 - Keep `sp*` prefix for locals derived from `state.sp` when the file mixes SP and global state (e.g., `spOrder`, `spHands`, `spLeaderId`, `spTrumpBroken`).
 - Ensure dependency arrays reflect renamed identifiers.
 
 Validation:
+
 - Typecheck.
 - Quick grep for lingering old names (e.g., `trickLeader`).
 
 Commit:
+
 - Message: "chore(sp): normalize single-player local naming for clarity"
 
 ### 5) Documentation and barrels
 
 Docs:
+
 - Add a short section to this file (end) summarizing the engine, selectors split, and refactor rationale.
 
 Barrels:
+
 - Ensure `lib/state/index.ts` and `lib/single-player/index.ts` re‑export the new modules so external imports remain stable.
 
 Validation:
+
 - Typecheck.
 
 Commit:
+
 - Message: "docs(sp): document SP engine and selectors split; ensure barrels export"
 
 ### 6) Idempotency and invariants
 
 Augment tests to enforce existing guarantees:
+
 - Out‑of‑turn `sp/trick/played` remains ignored (reducer contract already enforces; add explicit engine tests).
 - Duplicate clear on empty trick is a no‑op (already enforced; test).
 - `selectSpIsRoundDone` flips true exactly when counts meet `tricksForRound(sp.roundNo)`; ensure engine doesn’t emit finalize early.
 
 Validation:
+
 - Run `pnpm test`.
 
 Commit:
+
 - Message: "test(sp): strengthen idempotency and invariant coverage"
 
 ## Rollback Plan
@@ -159,17 +181,21 @@ export function prefillPrecedingBotBids(
   roundNo: number,
   humanId: string,
   rng: () => number,
-): AppEvent[] { /* ... */ }
+): AppEvent[] {
+  /* ... */
+}
 
-export function computeBotPlay(
-  state: AppState,
-  playerId: string,
-  rng: () => number,
-): AppEvent[] { /* ... */ }
+export function computeBotPlay(state: AppState, playerId: string, rng: () => number): AppEvent[] {
+  /* ... */
+}
 
-export function resolveCompletedTrick(state: AppState): AppEvent[] { /* ... */ }
+export function resolveCompletedTrick(state: AppState): AppEvent[] {
+  /* ... */
+}
 
-export function finalizeRoundIfDone(state: AppState): AppEvent[] { /* ... */ }
+export function finalizeRoundIfDone(state: AppState): AppEvent[] {
+  /* ... */
+}
 ```
 
 ## Done Criteria

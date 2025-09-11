@@ -146,3 +146,11 @@ export const selectSpHandBySuit = memo2(
   },
 );
 
+// Reveal helpers
+export const selectSpReveal = (s: AppState) => s.sp?.reveal ?? null;
+
+export const selectSpIsLastTrick = (s: AppState): boolean => {
+  const needed = selectSpTricksForRound(s);
+  const total = Object.values(s.sp?.trickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
+  return needed > 0 && total + 1 === needed;
+};

@@ -30,6 +30,8 @@ describe('reducer contract: payload schemas', () => {
         'sp/phase-set',
         'sp/trick/played',
         'sp/trick/cleared',
+        'sp/trick/reveal-set',
+        'sp/trick/reveal-clear',
         'sp/trump-broken-set',
         'sp/leader-set',
       ].sort(),

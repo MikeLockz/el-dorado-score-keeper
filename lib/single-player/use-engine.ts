@@ -43,6 +43,7 @@ export function useSinglePlayerEngine(params: UseEngineParams): void {
     if (phase !== 'playing') return;
     if (!hasDeal) return;
     if (isBatchPending) return;
+    if (state.sp.reveal) return; // pause bot plays during reveal
     if (isRoundDone) return;
     const next = selectSpNextToPlay(state);
     if (!next || next === humanId) return;
@@ -59,7 +60,7 @@ export function useSinglePlayerEngine(params: UseEngineParams): void {
     if (isBatchPending) return;
     const batch = resolveCompletedTrick(state);
     if (batch.length === 0) return;
-    const t = setTimeout(() => void appendMany(batch), 800);
+    const t = setTimeout(() => void appendMany(batch), 400);
     return () => clearTimeout(t);
   }, [state, phase, appendMany, hasDeal, isBatchPending]);
 
@@ -80,4 +81,3 @@ export function useSinglePlayerEngine(params: UseEngineParams): void {
     })();
   }, [state, isRoundDone, isBatchPending, appendMany, onAdvance, onSaved]);
 }
-

@@ -47,6 +47,8 @@ export const payloadSchemas: Record<AppEventType, z.ZodType<unknown>> = {
   'sp/trick/cleared': z.object({ winnerId: id }),
   'sp/trump-broken-set': z.object({ broken: z.boolean() }),
   'sp/leader-set': z.object({ leaderId: id }),
+  'sp/trick/reveal-set': z.object({ winnerId: id }),
+  'sp/trick/reveal-clear': z.object({}),
 };
 
 const baseEventShape = z.object({

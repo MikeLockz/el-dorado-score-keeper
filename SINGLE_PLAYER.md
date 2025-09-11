@@ -10,6 +10,11 @@ This document is the implementation plan to add a single‑player, interactive m
 - Enforce the specified dealing, trump, bidding, and play rules; rotate dealer each round.
 - Integrate results with existing app state: record bids and whether each player “made” exactly; scoring stays unchanged.
 
+## Terminology
+
+- UI: uses “hand” to describe a single sequence of plays after which exactly one player takes one trick.
+- Engine/Code: uses “trick” (traditional card term) for the same concept. One round consists of multiple hands (tricks).
+
 ## Rules To Implement
 
 - Players: 2–10. Hidden information: players never see others’ hands.
@@ -26,14 +31,14 @@ This document is the implementation plan to add a single‑player, interactive m
   - This is the same order as who leads the first trick (the player after the dealer leads first).
   - Each bid is an integer from 0 to the number of tricks for that round (inclusive).
   - No additional sum‑of‑bids restriction.
-- Trick Play:
-  - The player who bids first (the player after the dealer) leads the first trick; trick winners lead subsequent tricks.
+- Hand Play (aka Trick Play):
+  - The player who bids first (the player after the dealer) leads the first hand; hand winners lead subsequent hands.
   - Leading restriction: a player may lead any suit except trump if they hold at least one non-trump card.
   - Breaking trump: once a trump card has been played off-suit (i.e., not led) because a player could not follow the led suit (or only had trump remaining), trump is considered "broken" and may be led on subsequent tricks of the same round.
   - Following:
     - Players must follow the led suit if able.
     - If unable to follow the led suit, they may play any card.
-  - Trick resolution:
+  - Hand resolution:
     - Highest rank of the led suit wins unless any trump is present, in which case highest trump wins.
     - Rank order: A > K > Q > J > 10 ... > 2.
     - If identical cards appear (possible with two decks), the earlier played card wins.

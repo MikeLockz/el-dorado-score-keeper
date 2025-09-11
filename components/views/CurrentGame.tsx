@@ -408,7 +408,12 @@ export default function CurrentGame({
                     const isLive = rState === 'playing' && live && live.round === round.round;
                     const liveCard = isLive ? live.cards[c.id] : null;
                     const isCurrent = isLive && live.currentPlayerId === c.id;
-                    const cellBorder = isCurrent ? 'border-2 border-indigo-500' : 'border-b';
+                    const isRevealWinner = isLive && (state.sp?.reveal?.winnerId === c.id);
+                    const cellBorder = isRevealWinner
+                      ? 'border-2 border-emerald-500'
+                      : isCurrent
+                        ? 'border-2 border-indigo-500'
+                        : 'border-b';
                     return (
                       <div
                         key={`${round.round}-${c.id}`}

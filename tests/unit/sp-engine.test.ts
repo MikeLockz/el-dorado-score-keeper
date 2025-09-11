@@ -9,7 +9,8 @@ import {
 } from '@/lib/single-player/engine';
 
 const now = 1_700_000_000_000;
-const ev = (type: any, payload: any, id: string) => makeEvent(type, payload, { eventId: id, ts: now });
+const ev = (type: any, payload: any, id: string) =>
+  makeEvent(type, payload, { eventId: id, ts: now });
 
 function replay(list: any[], base: AppState = INITIAL_STATE): AppState {
   return list.reduce((s, e) => reduce(s, e), base);
@@ -60,9 +61,7 @@ describe('sp-engine', () => {
               { suit: 'hearts', rank: 2 },
               { suit: 'clubs', rank: 3 },
             ],
-            b: [
-              { suit: 'hearts', rank: 3 },
-            ],
+            b: [{ suit: 'hearts', rank: 3 }],
           },
         },
         'bd1',
@@ -76,7 +75,7 @@ describe('sp-engine', () => {
     expect((out[0] as any).payload.playerId).toBe('a');
   });
 
-  it('resolveCompletedTrick clears and sets leader; marks trump broken on off-suit trump', () => {
+  it('resolveCompletedTrick enters reveal; marks trump broken on off-suit trump', () => {
     // Two players, hearts led by a, b trumps in with spade
     const s = replay([
       ev('player/added', { id: 'a', name: 'A' }, 'cp1'),
@@ -101,10 +100,36 @@ describe('sp-engine', () => {
     const out = resolveCompletedTrick(s);
     const types = out.map((e) => e.type);
     expect(types).toContain('sp/trump-broken-set');
-    expect(types).toContain('sp/trick/cleared');
-    expect(types).toContain('sp/leader-set');
-    const clear = out.find((e) => e.type === 'sp/trick/cleared') as any;
-    expect(clear.payload.winnerId).toBe('b');
+    expect(types).toContain('sp/trick/reveal-set');
+    const reveal = out.find((e) => e.type === 'sp/trick/reveal-set') as any;
+    expect(reveal.payload.winnerId).toBe('b');
+  });
+
+  it('computeBotPlay returns [] while reveal is active', () => {
+    const s = replay([
+      ev('player/added', { id: 'a', name: 'A' }, 'rp1'),
+      ev('player/added', { id: 'b', name: 'B' }, 'rp2'),
+      ev(
+        'sp/deal',
+        {
+          roundNo: 1,
+          dealerId: 'a',
+          order: ['a', 'b'],
+          trump: 'spades',
+          trumpCard: { suit: 'spades', rank: 10 },
+          hands: { a: [{ suit: 'hearts', rank: 2 }], b: [{ suit: 'spades', rank: 3 }] },
+        },
+        'rpd',
+      ),
+      ev('sp/leader-set', { leaderId: 'a' }, 'rplead'),
+      ev('sp/phase-set', { phase: 'playing' }, 'rpph'),
+      // Simulate completed trick reveal before any clear
+      ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 2 } }, 'rpp1'),
+      ev('sp/trick/played', { playerId: 'b', card: { suit: 'spades', rank: 3 } }, 'rpp2'),
+      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rprev'),
+    ]);
+    const out = computeBotPlay(s, 'a', () => 0.5);
+    expect(out.length).toBe(0);
   });
 
   it('finalizeRoundIfDone emits made/set and finalize; also prepares next deal when applicable', () => {
@@ -218,7 +243,10 @@ describe('sp-engine', () => {
     const s0 = replay(base);
     expect(resolveCompletedTrick(s0).length).toBe(0);
     // One play (not complete)
-    const s1 = replay([...base, ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 2 } }, 'p')]);
+    const s1 = replay([
+      ...base,
+      ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 2 } }, 'p'),
+    ]);
     expect(resolveCompletedTrick(s1).length).toBe(0);
   });
 
