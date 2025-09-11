@@ -1,6 +1,12 @@
 'use client';
 import React from 'react';
 
+declare global {
+  interface Window {
+    analyticsAuthToken?: string;
+  }
+}
+
 type ErrorInfo = {
   componentStack?: string;
 };
@@ -160,11 +166,12 @@ async function logClientError(payload: {
     }
 
     if (!endpoint) return; // Skip network logging per scope
+    const authToken = typeof window !== 'undefined' ? window.analyticsAuthToken : undefined;
     await fetch(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       // Include authToken passthrough for Workers that enforce it
-      body: JSON.stringify({ type: 'error', ...payload, authToken: (window as any)?.analyticsAuthToken }),
+      body: JSON.stringify({ type: 'error', ...payload, authToken }),
       keepalive: true,
       // Allow posting cross-origin to Workers
       mode: endpoint.startsWith('http') ? 'cors' : 'same-origin',

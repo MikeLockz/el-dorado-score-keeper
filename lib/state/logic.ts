@@ -1,4 +1,4 @@
-import type { AppState, RoundData, RoundState } from './types';
+import type { AppState, RoundData } from './types';
 
 export const ROUNDS_TOTAL = 10;
 

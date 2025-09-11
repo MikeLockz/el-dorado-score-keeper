@@ -3,17 +3,11 @@ import React from 'react';
 
 declare global {
   // Debug globals available in development builds
-  // eslint-disable-next-line no-var
   var __APP_STATE__: AppState | null | undefined;
-  // eslint-disable-next-line no-var
   var __APP_HEIGHT__: number | undefined;
-  // eslint-disable-next-line no-var
   var __append: ((e: AppEvent) => Promise<number>) | undefined;
-  // eslint-disable-next-line no-var
   var __appendMany: ((evts: AppEvent[]) => Promise<number>) | undefined;
-  // eslint-disable-next-line no-var
   var __dumpState: (() => void) | undefined;
-  // eslint-disable-next-line no-var
   var __SET_TT: ((h: number | null) => void) | undefined;
 }
 import {
