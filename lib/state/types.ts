@@ -26,7 +26,7 @@ export type EventMap = {
       Array<{ suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number }>
     >;
   };
-  'sp/phase-set': { phase: 'setup' | 'bidding' | 'playing' | 'done' };
+  'sp/phase-set': { phase: 'setup' | 'bidding' | 'playing' | 'summary' | 'game-summary' | 'done' };
   'sp/trick/played': {
     playerId: string;
     card: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number };
@@ -72,7 +72,7 @@ export type AppState = Readonly<{
   scores: Record<string, number>;
   rounds: Record<number, RoundData>;
   sp: Readonly<{
-    phase: 'setup' | 'bidding' | 'playing' | 'done';
+    phase: 'setup' | 'bidding' | 'playing' | 'summary' | 'game-summary' | 'done';
     roundNo: number | null;
     dealerId: string | null;
     order: string[];
@@ -91,6 +91,17 @@ export type AppState = Readonly<{
     leaderId: string | null;
     reveal: { winnerId: string } | null;
     finalizeHold: boolean;
+    handPhase: 'idle' | 'revealing';
+    ack: 'none' | 'hand';
+    lastTrickSnapshot: Readonly<{
+      ledBy: string;
+      plays: ReadonlyArray<{
+        playerId: string;
+        card: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number };
+      }>;
+      winnerId: string;
+    }> | null;
+    summaryEnteredAt?: number;
   }>;
   // Optional dense display order per player ID. Missing entries are handled by selectors.
   display_order: Record<string, number>;
@@ -115,6 +126,9 @@ export const INITIAL_STATE: AppState = {
     leaderId: null,
     reveal: null,
     finalizeHold: false,
+    handPhase: 'idle',
+    ack: 'none',
+    lastTrickSnapshot: null,
   },
   display_order: {},
 } as const;
@@ -292,6 +306,10 @@ export function reduce(state: AppState, event: AppEvent): AppState {
           trickPlays: [],
           trickCounts: Object.fromEntries(Object.keys(state.players).map((id) => [id, 0])),
           trumpBroken: false,
+          handPhase: 'idle',
+          ack: 'none',
+          lastTrickSnapshot: null,
+          summaryEnteredAt: undefined,
         },
       };
     }

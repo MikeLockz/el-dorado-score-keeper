@@ -42,7 +42,9 @@ export const payloadSchemas: Record<AppEventType, z.ZodType<unknown>> = {
     trumpCard: card,
     hands: z.record(z.array(card)),
   }),
-  'sp/phase-set': z.object({ phase: z.enum(['setup', 'bidding', 'playing', 'done']) }),
+  'sp/phase-set': z.object({
+    phase: z.enum(['setup', 'bidding', 'playing', 'summary', 'game-summary', 'done']),
+  }),
   'sp/trick/played': z.object({ playerId: id, card }),
   'sp/trick/cleared': z.object({ winnerId: id }),
   'sp/trump-broken-set': z.object({ broken: z.boolean() }),

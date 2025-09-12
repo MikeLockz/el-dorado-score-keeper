@@ -155,3 +155,42 @@ export const selectSpIsLastTrick = (s: AppState): boolean => {
   const total = Object.values(s.sp?.trickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
   return needed > 0 && total + 1 === needed;
 };
+
+// Phase 1 scaffolding: primary CTA and summary data stubs (no UI usage yet)
+export type SpPrimaryCTA = { label: string; kind: 'none' | 'play' | 'next' };
+
+export const selectPrimaryCTA = memo1((_s: AppState): SpPrimaryCTA => {
+  // Stub: return no-op by default; future phases compute based on engine batches
+  return { label: 'Continue', kind: 'none' };
+});
+
+export type SpSummaryData = Readonly<{
+  round: number | null;
+  dealerId: string | null;
+  trump: 'clubs' | 'diamonds' | 'hearts' | 'spades' | null;
+  nextLeaderId: string | null;
+  players: ReadonlyArray<{
+    id: string;
+    name: string;
+    bid: number | null;
+    made: boolean | null;
+    delta: number | null;
+    total: number | null;
+  }>;
+}>;
+
+export const selectSummaryData = memo1((s: AppState): SpSummaryData => {
+  const round = s.sp?.roundNo ?? null;
+  const dealerId = s.sp?.dealerId ?? null;
+  const trump = s.sp?.trump ?? null;
+  const nextLeaderId = s.sp?.leaderId ?? null;
+  const players = Object.keys(s.players).map((id) => ({
+    id,
+    name: s.players[id] ?? id,
+    bid: null,
+    made: null,
+    delta: null,
+    total: s.scores[id] ?? null,
+  }));
+  return { round, dealerId, trump, nextLeaderId, players };
+});

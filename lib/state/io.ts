@@ -24,7 +24,7 @@ export type GameRecord = {
     winnerName: string | null;
     winnerScore: number | null;
     sp?: {
-      phase: 'setup' | 'bidding' | 'playing' | 'done';
+      phase: 'setup' | 'bidding' | 'playing' | 'summary' | 'game-summary' | 'done';
       roundNo: number | null;
       dealerId: string | null;
       leaderId: string | null;
