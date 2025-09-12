@@ -9,6 +9,7 @@ import {
 import { bots, startRound, winnerOfTrick } from './index';
 import { computePrecedingBotBids } from './auto-bid';
 import type { Card } from './types';
+import { isRoundDone as rulesIsRoundDone } from '@/lib/state/spRules';
 
 // Return bid/set events for bot players who act before the human in current round order.
 export function prefillPrecedingBotBids(
@@ -39,6 +40,8 @@ export function prefillPrecedingBotBids(
 // If it is playerId's turn and they are a bot (i.e., not the human), choose a card and emit one sp/trick/played.
 export function computeBotPlay(state: AppState, playerId: string, rng?: () => number): AppEvent[] {
   if (state.sp.phase !== 'playing') return [];
+  if (state.sp.handPhase === 'revealing') return [];
+  if (state.sp.phase === 'summary') return [];
   if (state.sp.reveal) return [];
   const next = selectSpNextToPlay(state);
   if (!next || next !== playerId) return [];
@@ -171,4 +174,114 @@ export function finalizeRoundIfDone(state: AppState, opts: FinalizeOptions = {})
     batch.push(events.roundStateSet({ round: nextRound, state: 'bidding' }));
   }
   return batch;
+}
+
+export type AdvanceOpts = {
+  intent?: 'user' | 'auto';
+  now?: number;
+  summaryAutoAdvanceMs?: number; // 0 disables
+  useTwoDecks?: boolean;
+};
+
+export function computeAdvanceBatch(
+  state: AppState,
+  now: number,
+  opts: AdvanceOpts = {},
+): AppEvent[] {
+  const sp = state.sp;
+  const intent = opts.intent ?? 'user';
+  const order = sp.order ?? [];
+  const plays = sp.trickPlays ?? [];
+
+  // 1) Trick just completed → reveal batch + ack
+  if (sp.phase === 'playing' && !sp.reveal && order.length > 0 && plays.length === order.length) {
+    const batch = resolveCompletedTrick(state);
+    if (batch.length > 0) batch.push(events.spAckSet({ ack: 'hand' }));
+    return batch;
+  }
+
+  // 2) During reveal → clear + leader + reveal-clear + ack none
+  if (sp.phase === 'playing' && sp.reveal) {
+    const winnerId = sp.reveal.winnerId;
+    return [
+      events.spTrickCleared({ winnerId }),
+      events.spLeaderSet({ leaderId: winnerId }),
+      events.spTrickRevealClear({}),
+      events.spAckSet({ ack: 'none' }),
+    ];
+  }
+
+  // 3) Round finished → finalize results and enter summary
+  const roundNo = sp.roundNo ?? 0;
+  if (
+    sp.phase === 'playing' &&
+    !sp.reveal &&
+    !sp.finalizeHold &&
+    roundNo > 0 &&
+    rulesIsRoundDone(roundNo, sp.trickCounts ?? {})
+  ) {
+    const ids = (state.sp.order ?? []).slice();
+    const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<string, number | undefined>;
+    const batch: AppEvent[] = [];
+    for (const pid of ids) {
+      if (state.rounds[roundNo]?.present?.[pid] === false) continue;
+      const won = sp.trickCounts?.[pid] ?? 0;
+      const made = won === (bidsMap[pid] ?? 0);
+      batch.push(events.madeSet({ round: roundNo, playerId: pid, made }));
+    }
+    batch.push(events.spPhaseSet({ phase: 'summary' }));
+    batch.push(events.roundFinalize({ round: roundNo }));
+    batch.push(events.spSummaryEnteredSet({ at: now }));
+    return batch;
+  }
+
+  // 4) Summary → continue to next round (user intent) or when timer elapsed (auto intent)
+  if (sp.phase === 'summary') {
+    const ms = opts.summaryAutoAdvanceMs ?? 10_000;
+    if (
+      intent === 'user' ||
+      (ms > 0 && typeof sp.summaryEnteredAt === 'number' && now - sp.summaryEnteredAt >= ms)
+    ) {
+      const ids = (state.sp.order ?? []).slice();
+      const curDealerId = sp.dealerId ?? ids[0]!;
+      const curIdx = Math.max(0, ids.indexOf(curDealerId));
+      const nextDealer = ids[(curIdx + 1) % ids.length]!;
+      const nextRound = (sp.roundNo ?? 0) + 1;
+      const nextTricks = tricksForRound(nextRound);
+      const useTwoDecks = opts.useTwoDecks ?? ids.length > 5;
+      const seed = now;
+      const deal = startRound(
+        {
+          round: nextRound,
+          players: ids,
+          dealer: nextDealer,
+          tricks: nextTricks,
+          useTwoDecks,
+        },
+        seed,
+      );
+      const out: AppEvent[] = [];
+      if (nextRound <= 10) {
+        out.push(
+          events.spDeal({
+            roundNo: nextRound,
+            dealerId: nextDealer,
+            order: deal.order,
+            trump: deal.trump,
+            trumpCard: { suit: deal.trumpCard.suit, rank: deal.trumpCard.rank },
+            hands: deal.hands,
+          }),
+        );
+        out.push(events.spLeaderSet({ leaderId: deal.firstToAct }));
+        out.push(events.spPhaseSet({ phase: 'bidding' }));
+        out.push(events.roundStateSet({ round: nextRound, state: 'bidding' }));
+      } else {
+        // End of game path for now
+        out.push(events.spPhaseSet({ phase: 'done' }));
+      }
+      return out;
+    }
+  }
+
+  return [];
 }

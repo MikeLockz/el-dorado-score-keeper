@@ -37,6 +37,8 @@ export type EventMap = {
   'sp/trick/reveal-set': { winnerId: string };
   'sp/trick/reveal-clear': Record<never, never>;
   'sp/finalize-hold-set': { hold: boolean };
+  'sp/ack-set': { ack: 'none' | 'hand' };
+  'sp/summary-entered-set': { at: number };
 };
 
 export type AppEventType = keyof EventMap;
@@ -339,7 +341,7 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const trickPlays = [...state.sp.trickPlays, { playerId, card }];
       const lastTrickSnapshot =
         // If this is the first play of a new trick, clear lastTrickSnapshot
-        curPlays.length === 0 ? null : state.sp.lastTrickSnapshot ?? null;
+        curPlays.length === 0 ? null : (state.sp.lastTrickSnapshot ?? null);
       const hands = { ...state.sp.hands };
       const arr = [...(hands[playerId] ?? [])];
       const idx = arr.findIndex((c) => c && c.suit === card.suit && c.rank === card.rank);
@@ -373,15 +375,21 @@ export function reduce(state: AppState, event: AppEvent): AppState {
               plays,
               winnerId,
             }
-          : state.sp.lastTrickSnapshot ?? null;
+          : (state.sp.lastTrickSnapshot ?? null);
       return {
         ...state,
-        sp: { ...state.sp, reveal: { winnerId }, trickCounts, lastTrickSnapshot },
+        sp: {
+          ...state.sp,
+          reveal: { winnerId },
+          trickCounts,
+          lastTrickSnapshot,
+          handPhase: 'revealing',
+        },
       };
     }
     case 'sp/trick/reveal-clear': {
       if (!state.sp.reveal) return state;
-      return { ...state, sp: { ...state.sp, reveal: null } };
+      return { ...state, sp: { ...state.sp, reveal: null, handPhase: 'idle' } };
     }
     case 'sp/trump-broken-set': {
       const { broken } = event.payload as EventMap['sp/trump-broken-set'];
@@ -394,6 +402,14 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'sp/finalize-hold-set': {
       const { hold } = event.payload as EventMap['sp/finalize-hold-set'];
       return { ...state, sp: { ...state.sp, finalizeHold: !!hold } };
+    }
+    case 'sp/ack-set': {
+      const { ack } = event.payload as EventMap['sp/ack-set'];
+      return { ...state, sp: { ...state.sp, ack } };
+    }
+    case 'sp/summary-entered-set': {
+      const { at } = event.payload as EventMap['sp/summary-entered-set'];
+      return { ...state, sp: { ...state.sp, summaryEnteredAt: Math.floor(at) } };
     }
     default:
       return state;
