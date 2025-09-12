@@ -85,10 +85,33 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     'clubs',
   ];
 
-  const [selected, setSelected] = React.useState<SpCard | null>(null);
-  const isSelected = (c: SpCard) =>
-    selected && selected.suit === c.suit && selected.rank === c.rank;
+  // Summary auto-advance hooks (always declared; guarded inside effect)
+  const [autoCanceled, setAutoCanceled] = React.useState(false);
+  const [remainingMs, setRemainingMs] = React.useState<number>(0);
+  React.useEffect(() => {
+    if (spPhase !== 'summary') return;
+    const autoMs = 10_000;
+    const tick = () => {
+      const entered = sp?.summaryEnteredAt ?? Date.now();
+      const elapsed = Date.now() - entered;
+      const remaining = Math.max(0, autoMs - elapsed);
+      setRemainingMs(remaining);
+      if (!autoCanceled && remaining === 0) {
+        const batch = computeAdvanceBatch(state, Date.now(), {
+          intent: 'auto',
+          summaryAutoAdvanceMs: autoMs,
+        });
+        if (batch.length > 0) void appendMany(batch);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [state, sp?.summaryEnteredAt, spPhase, autoCanceled, appendMany]);
 
+  // Card selection and play helpers (declare before any returns)
+  const [selected, setSelected] = React.useState<SpCard | null>(null);
+  const isSelected = (c: SpCard) => selected && selected.suit === c.suit && selected.rank === c.rank;
   const canPlayCard = (c: SpCard) => {
     if (spPhase !== 'playing') return false;
     if (state.sp?.reveal) return false;
@@ -101,21 +124,101 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     } else if (canFollow) {
       legal = c.suit === ledSuit;
     }
-    // Turn check
     const leader = sp?.trickPlays?.[0]?.playerId ?? sp?.leaderId ?? null;
     const leaderIdx = spOrder.findIndex((p) => p === leader);
-    const rotatedOrder =
-      leaderIdx < 0 ? spOrder : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
+    const rotatedOrder = leaderIdx < 0 ? spOrder : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
     const nextToPlay = rotatedOrder[sp?.trickPlays?.length ?? 0];
     const isHumansTurn = nextToPlay === humanId && !state.sp?.reveal;
     return legal && isHumansTurn;
   };
-
   const playCard = async (c: SpCard) => {
     if (!canPlayCard(c)) return;
     await append(events.spTrickPlayed({ playerId: humanId, card: { suit: c.suit, rank: c.rank } }));
     setSelected(null);
   };
+
+  // Sheet state
+  type SheetState = 'peek' | 'mid' | 'full';
+  const [sheet, setSheet] = React.useState<SheetState>('peek');
+  const cycleSheet = () => setSheet((s) => (s === 'peek' ? 'mid' : s === 'mid' ? 'full' : 'peek'));
+
+  if (spPhase === 'summary') {
+    const ids = players.map((p) => p.id);
+    const bidsMap = (state.rounds[spRoundNo]?.bids ?? {}) as Record<string, number | undefined>;
+    const madeMap = (state.rounds[spRoundNo]?.made ?? {}) as Record<string, boolean | null | undefined>;
+    const perPlayer = ids.map((id) => {
+      const name = playerName(id);
+      const bid = bidsMap[id] ?? null;
+      const made = madeMap[id] ?? null;
+      const delta = bid == null ? null : roundDelta(bid, made);
+      const total = state.scores?.[id] ?? 0;
+      return { id, name, bid, made, delta, total };
+    });
+    const nextDealer = (() => {
+      const order = spOrder;
+      const curDealer = sp?.dealerId ?? order[0];
+      const idx = Math.max(0, order.indexOf(curDealer));
+      return order[(idx + 1) % order.length] ?? null;
+    })();
+    const nextLeader = (() => {
+      const order = spOrder;
+      if (!nextDealer || order.length === 0) return null;
+      const idx = Math.max(0, order.indexOf(nextDealer));
+      return order[(idx + 1) % order.length] ?? null;
+    })();
+    const isLastRound = spRoundNo >= 10;
+    const autoSecs = Math.ceil(remainingMs / 1000);
+
+    return (
+      <div className="relative min-h-[100dvh] pb-[calc(52px+env(safe-area-inset-bottom))]" onPointerDown={() => setAutoCanceled(true)}>
+        <header className="p-3 border-b">
+          <div className="text-xs text-muted-foreground">Round {spRoundNo} Summary</div>
+          <div className="text-sm flex gap-3 mt-1 text-muted-foreground">
+            <div>Trump: <span className="font-medium">{trump ?? '—'}</span></div>
+            <div>Dealer: <span className="font-medium">{dealerName ?? '—'}</span></div>
+            <div>Next Leader: <span className="font-medium">{nextLeader ? playerName(nextLeader) : '—'}</span></div>
+          </div>
+        </header>
+        <main className="p-3">
+          <div className="grid grid-cols-1 gap-2 text-sm">
+            {perPlayer.map((p) => (
+              <div key={`sum-${p.id}`} className="flex items-center justify-between rounded border px-2 py-1">
+                <div className="flex-1">
+                  <div className="font-medium">{p.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Bid {p.bid ?? '—'} · {p.made == null ? '—' : p.made ? 'Made' : 'Set'} · {p.delta == null ? '—' : (p.delta >= 0 ? `+${p.delta}` : p.delta)}
+                  </div>
+                </div>
+                <div className="text-right min-w-[3rem] tabular-nums">{p.total}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 text-xs text-muted-foreground">
+            {autoCanceled ? 'Auto-advance canceled' : `Auto-advance in ${autoSecs}s… (tap to cancel)`}
+          </div>
+        </main>
+        <nav className="fixed left-0 right-0 bottom-0 z-30 grid grid-cols-2 gap-2 px-2 py-2 border-t bg-background/85 backdrop-blur" style={{ minHeight: 52 }}>
+          <button className="text-muted-foreground" aria-label="Round details" onClick={() => setAutoCanceled(true)}>
+            Details
+          </button>
+          <button
+            className="rounded bg-primary text-primary-foreground px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => {
+              if (isBatchPending) return;
+              setAutoCanceled(true);
+              const batch = computeAdvanceBatch(state, Date.now(), { intent: 'user' });
+              if (batch.length > 0) void appendMany(batch);
+            }}
+            disabled={isBatchPending}
+          >
+            {isLastRound ? 'Finish Game' : 'Next Round'}
+          </button>
+        </nav>
+      </div>
+    );
+  }
+
+  
 
   const onConfirmBid = async (bid: number) => {
     if (isBatchPending) return;
@@ -147,9 +250,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   };
 
   // Sheet state: simple tap-to-cycle among peek/mid/full
-  type SheetState = 'peek' | 'mid' | 'full';
-  const [sheet, setSheet] = React.useState<SheetState>('peek');
-  const cycleSheet = () => setSheet((s) => (s === 'peek' ? 'mid' : s === 'mid' ? 'full' : 'peek'));
+  
 
   // No end-of-round confirmation modal; advancing clears reveal and lets engine finalize
 
