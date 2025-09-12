@@ -112,7 +112,8 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
 
   // Card selection and play helpers (declare before any returns)
   const [selected, setSelected] = React.useState<SpCard | null>(null);
-  const isSelected = (c: SpCard) => selected && selected.suit === c.suit && selected.rank === c.rank;
+  const isSelected = (c: SpCard) =>
+    selected && selected.suit === c.suit && selected.rank === c.rank;
   const canPlayCard = (c: SpCard) => {
     if (spPhase !== 'playing') return false;
     if (state.sp?.reveal) return false;
@@ -127,7 +128,8 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     }
     const leader = sp?.trickPlays?.[0]?.playerId ?? sp?.leaderId ?? null;
     const leaderIdx = spOrder.findIndex((p) => p === leader);
-    const rotatedOrder = leaderIdx < 0 ? spOrder : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
+    const rotatedOrder =
+      leaderIdx < 0 ? spOrder : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
     const nextToPlay = rotatedOrder[sp?.trickPlays?.length ?? 0];
     const isHumansTurn = nextToPlay === humanId && !state.sp?.reveal;
     return legal && isHumansTurn;
@@ -146,7 +148,10 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   if (spPhase === 'summary') {
     const ids = players.map((p) => p.id);
     const bidsMap = (state.rounds[spRoundNo]?.bids ?? {}) as Record<string, number | undefined>;
-    const madeMap = (state.rounds[spRoundNo]?.made ?? {}) as Record<string, boolean | null | undefined>;
+    const madeMap = (state.rounds[spRoundNo]?.made ?? {}) as Record<
+      string,
+      boolean | null | undefined
+    >;
     const perPlayer = ids.map((id) => {
       const name = playerName(id);
       const bid = bidsMap[id] ?? null;
@@ -171,23 +176,37 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     const autoSecs = Math.ceil(remainingMs / 1000);
 
     return (
-      <div className="relative min-h-[100dvh] pb-[calc(52px+env(safe-area-inset-bottom))]" onPointerDown={() => setAutoCanceled(true)}>
+      <div
+        className="relative min-h-[100dvh] pb-[calc(52px+env(safe-area-inset-bottom))]"
+        onPointerDown={() => setAutoCanceled(true)}
+      >
         <header className="p-3 border-b">
           <div className="text-xs text-muted-foreground">Round {spRoundNo} Summary</div>
           <div className="text-sm flex gap-3 mt-1 text-muted-foreground">
-            <div>Trump: <span className="font-medium">{trump ?? '—'}</span></div>
-            <div>Dealer: <span className="font-medium">{dealerName ?? '—'}</span></div>
-            <div>Next Leader: <span className="font-medium">{nextLeader ? playerName(nextLeader) : '—'}</span></div>
+            <div>
+              Trump: <span className="font-medium">{trump ?? '—'}</span>
+            </div>
+            <div>
+              Dealer: <span className="font-medium">{dealerName ?? '—'}</span>
+            </div>
+            <div>
+              Next Leader:{' '}
+              <span className="font-medium">{nextLeader ? playerName(nextLeader) : '—'}</span>
+            </div>
           </div>
         </header>
         <main className="p-3">
           <div className="grid grid-cols-1 gap-2 text-sm">
             {perPlayer.map((p) => (
-              <div key={`sum-${p.id}`} className="flex items-center justify-between rounded border px-2 py-1">
+              <div
+                key={`sum-${p.id}`}
+                className="flex items-center justify-between rounded border px-2 py-1"
+              >
                 <div className="flex-1">
                   <div className="font-medium">{p.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    Bid {p.bid ?? '—'} · {p.made == null ? '—' : p.made ? 'Made' : 'Set'} · {p.delta == null ? '—' : (p.delta >= 0 ? `+${p.delta}` : p.delta)}
+                    Bid {p.bid ?? '—'} · {p.made == null ? '—' : p.made ? 'Made' : 'Set'} ·{' '}
+                    {p.delta == null ? '—' : p.delta >= 0 ? `+${p.delta}` : p.delta}
                   </div>
                 </div>
                 <div className="text-right min-w-[3rem] tabular-nums">{p.total}</div>
@@ -195,11 +214,20 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             ))}
           </div>
           <div className="mt-3 text-xs text-muted-foreground">
-            {autoCanceled ? 'Auto-advance canceled' : `Auto-advance in ${autoSecs}s… (tap to cancel)`}
+            {autoCanceled
+              ? 'Auto-advance canceled'
+              : `Auto-advance in ${autoSecs}s… (tap to cancel)`}
           </div>
         </main>
-        <nav className="fixed left-0 right-0 bottom-0 z-30 grid grid-cols-2 gap-2 px-2 py-2 border-t bg-background/85 backdrop-blur" style={{ minHeight: 52 }}>
-          <button className="text-muted-foreground" aria-label="Round details" onClick={() => setAutoCanceled(true)}>
+        <nav
+          className="fixed left-0 right-0 bottom-0 z-30 grid grid-cols-2 gap-2 px-2 py-2 border-t bg-background/85 backdrop-blur"
+          style={{ minHeight: 52 }}
+        >
+          <button
+            className="text-muted-foreground"
+            aria-label="Round details"
+            onClick={() => setAutoCanceled(true)}
+          >
             Details
           </button>
           <button
@@ -225,7 +253,8 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     const totals = ids.map((id) => ({ id, name: playerName(id), total: state.scores?.[id] ?? 0 }));
     const max = totals.reduce((m, t) => Math.max(m, t.total), Number.NEGATIVE_INFINITY);
     const winners = totals.filter((t) => t.total === max).map((t) => t.name);
-    const title = winners.length > 1 ? `Winners: ${winners.join(', ')}` : `Winner: ${winners[0] ?? '-'}`;
+    const title =
+      winners.length > 1 ? `Winners: ${winners.join(', ')}` : `Winner: ${winners[0] ?? '-'}`;
 
     return (
       <div className="relative min-h-[100dvh] pb-[calc(52px+env(safe-area-inset-bottom))]">
@@ -236,14 +265,20 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         <main className="p-3">
           <div className="grid grid-cols-1 gap-2 text-sm">
             {totals.map((p) => (
-              <div key={`gsum-${p.id}`} className={`flex items-center justify-between rounded border px-2 py-2 ${p.total === max ? 'border-emerald-400' : ''}`}>
+              <div
+                key={`gsum-${p.id}`}
+                className={`flex items-center justify-between rounded border px-2 py-2 ${p.total === max ? 'border-emerald-400' : ''}`}
+              >
                 <div className="font-medium">{p.name}</div>
                 <div className="text-right min-w-[3rem] tabular-nums font-semibold">{p.total}</div>
               </div>
             ))}
           </div>
         </main>
-        <nav className="fixed left-0 right-0 bottom-0 z-30 grid grid-cols-2 gap-2 px-2 py-2 border-t bg-background/85 backdrop-blur" style={{ minHeight: 52 }}>
+        <nav
+          className="fixed left-0 right-0 bottom-0 z-30 grid grid-cols-2 gap-2 px-2 py-2 border-t bg-background/85 backdrop-blur"
+          style={{ minHeight: 52 }}
+        >
           <button className="text-muted-foreground" aria-label="Round details" onClick={() => {}}>
             Details
           </button>
@@ -261,8 +296,6 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
       </div>
     );
   }
-
-  
 
   const onConfirmBid = async (bid: number) => {
     if (isBatchPending) return;
@@ -294,7 +327,6 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   };
 
   // Sheet state: simple tap-to-cycle among peek/mid/full
-  
 
   // No end-of-round confirmation modal; advancing clears reveal and lets engine finalize
 
@@ -603,7 +635,12 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
           disabled={isBatchPending || computeAdvanceBatch(state, Date.now()).length === 0}
           aria-disabled={isBatchPending || computeAdvanceBatch(state, Date.now()).length === 0}
         >
-          {reveal ? (Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0) >= tricksThisRound ? 'Next Round' : 'Next Hand') : 'Continue'}
+          {reveal
+            ? Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0) >=
+              tricksThisRound
+              ? 'Next Round'
+              : 'Next Hand'
+            : 'Continue'}
         </button>
       </nav>
       {/* No end-of-round confirmation modal */}

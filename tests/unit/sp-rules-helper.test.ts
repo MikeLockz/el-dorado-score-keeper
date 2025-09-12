@@ -82,10 +82,7 @@ describe('spRules helpers (pure)', () => {
     // C off-suit allowed if no hearts
     const ctx3: RulesContext = {
       ...ctx2,
-      trickPlays: [
-        ...ctx2.trickPlays,
-        { playerId: 'B', card: mk('hearts', 2) },
-      ],
+      trickPlays: [...ctx2.trickPlays, { playerId: 'B', card: mk('hearts', 2) }],
     };
     expect(canPlayCard(ctx3, 'C', mk('diamonds', 8)).ok).toBe(true);
     // Not your turn

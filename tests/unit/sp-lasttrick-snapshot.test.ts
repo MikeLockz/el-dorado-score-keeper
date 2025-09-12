@@ -46,8 +46,10 @@ describe('SP lastTrickSnapshot lifecycle', () => {
     expect(s.sp.lastTrickSnapshot).not.toBeNull();
 
     // First play of next trick clears snapshot
-    s = replay([ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 12 } }, 'n1')], s);
+    s = replay(
+      [ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 12 } }, 'n1')],
+      s,
+    );
     expect(s.sp.lastTrickSnapshot).toBeNull();
   });
 });
-
