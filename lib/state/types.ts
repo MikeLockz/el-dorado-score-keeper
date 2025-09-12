@@ -36,6 +36,7 @@ export type EventMap = {
   'sp/leader-set': { leaderId: string };
   'sp/trick/reveal-set': { winnerId: string };
   'sp/trick/reveal-clear': Record<never, never>;
+  'sp/finalize-hold-set': { hold: boolean };
 };
 
 export type AppEventType = keyof EventMap;
@@ -89,6 +90,7 @@ export type AppState = Readonly<{
     trumpBroken: boolean;
     leaderId: string | null;
     reveal: { winnerId: string } | null;
+    finalizeHold: boolean;
   }>;
   // Optional dense display order per player ID. Missing entries are handled by selectors.
   display_order: Record<string, number>;
@@ -112,6 +114,7 @@ export const INITIAL_STATE: AppState = {
     trumpBroken: false,
     leaderId: null,
     reveal: null,
+    finalizeHold: false,
   },
   display_order: {},
 } as const;
@@ -349,6 +352,10 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'sp/leader-set': {
       const { leaderId } = event.payload as EventMap['sp/leader-set'];
       return { ...state, sp: { ...state.sp, leaderId } };
+    }
+    case 'sp/finalize-hold-set': {
+      const { hold } = event.payload as EventMap['sp/finalize-hold-set'];
+      return { ...state, sp: { ...state.sp, finalizeHold: !!hold } };
     }
     default:
       return state;

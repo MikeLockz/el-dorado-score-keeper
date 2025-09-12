@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Single Player — Mobile Prototype</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app" class="app">
+      <!-- Header: Round/Hand, chips -->
+      <header class="topbar" role="banner">
+        <div class="stats-line" role="group" aria-label="Round stats">
+          <div class="sl" aria-label="Round">
+            <span class="sl-k-full">Round</span><span class="sl-v" id="statRound">5</span>
+          </div>
+          <div class="sl" aria-label="Hand">
+            <span class="sl-k-full">Hand</span
+            ><span class="sl-v"
+              ><span id="statHand">3</span>/<span id="statHandTotal">10</span></span
+            >
+          </div>
+          <div class="sl" aria-label="Tricks">
+            <span class="sl-k-full">Tricks</span><span class="sl-v" id="statTricks">2</span>
+          </div>
+          <div class="sl" aria-label="Score">
+            <span class="sl-k-full">Score</span><span class="sl-v" id="statScore">38</span>
+          </div>
+          <div class="sl" aria-label="Delta">
+            <span class="sl-k-full">Delta</span><span class="sl-v" id="statDelta">+6</span>
+          </div>
+          <button
+            id="statTrump"
+            class="sl sl-btn"
+            aria-label="Trump"
+            title="Trump"
+            aria-pressed="false"
+          >
+            <span class="sl-k-full">Trump</span><span class="sl-v" id="statTrumpVal">♥</span>
+          </button>
+          <button
+            id="statBroken"
+            class="sl sl-btn"
+            aria-label="Broken"
+            title="Broken"
+            aria-pressed="false"
+          >
+            <span class="sl-k-full">Broken</span><span class="sl-v" id="statBrokenVal">No</span>
+          </button>
+        </div>
+        <!-- View is now condensed table by default; hand is docked at bottom -->
+      </header>
+
+      <!-- Card Surface -->
+      <main class="surface" role="main">
+        <!-- Condensed Table — 4 players: Name | Bid | Tricks | Card -->
+        <section class="table table-compact" id="tableView" aria-label="Current trick (4 players)">
+          <div class="trick-row trick-head" aria-hidden="true">
+            <div class="col name">Player</div>
+            <div class="col bid">Bid</div>
+            <div class="col tricks">Tricks</div>
+            <div class="col played">Card</div>
+          </div>
+          <div class="trick-row">
+            <div class="col name">You</div>
+            <div class="col bid">2</div>
+            <div class="col tricks">1</div>
+            <div class="col played">
+              <div class="table-card small" data-suit="hearts" aria-label="Ace of hearts">A ♥</div>
+            </div>
+          </div>
+          <div class="trick-row">
+            <div class="col name">Opp A</div>
+            <div class="col bid">1</div>
+            <div class="col tricks">1</div>
+            <div class="col played">
+              <div class="table-card small" data-suit="clubs" aria-label="King of clubs">K ♣</div>
+            </div>
+          </div>
+          <div class="trick-row">
+            <div class="col name">Opp B</div>
+            <div class="col bid">0</div>
+            <div class="col tricks">0</div>
+            <div class="col played">
+              <div class="table-card small" data-suit="spades" aria-label="Nine of spades">
+                9 ♠
+              </div>
+            </div>
+          </div>
+          <div class="trick-row">
+            <div class="col name">Opp C</div>
+            <div class="col bid">2</div>
+            <div class="col tricks">0</div>
+            <div class="col played">
+              <div class="table-card small" data-suit="diamonds" aria-label="Seven of diamonds">
+                7 ♦
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Bottom sheet (collapsed by default) -->
+        <aside id="sheet" class="sheet" aria-label="Round details" aria-expanded="false">
+          <div
+            id="sheetHandle"
+            class="sheet-handle"
+            role="button"
+            aria-controls="sheet"
+            aria-expanded="false"
+            tabindex="0"
+            title="Drag to expand"
+          >
+            ▄▄▄
+          </div>
+          <div class="sheet-content">
+            <div class="sheet-row">
+              <div>Score</div>
+              <div id="sheetScore">38</div>
+            </div>
+            <div class="sheet-row subtle">
+              <div>This round</div>
+              <div id="sheetDelta">+6</div>
+            </div>
+            <hr />
+            <div class="sheet-section">
+              <div class="sheet-section-title">Bids</div>
+              <div class="bids">
+                <div>You: <strong>2</strong></div>
+                <div>Opp A: <strong>1</strong></div>
+                <div>Opp B: <strong>0</strong></div>
+              </div>
+            </div>
+            <div class="sheet-section">
+              <div class="sheet-section-title">Trick Log</div>
+              <ol class="trick-log">
+                <li>Trick 1: You (♥A)</li>
+                <li>Trick 2: Opp A (♣K)</li>
+              </ol>
+            </div>
+            <div class="sheet-actions">
+              <button class="btn btn-secondary" id="editScoreBtn">Edit Score</button>
+              <button class="btn btn-secondary" id="toggleTrumpBrokenBtn">Mark Trump Broken</button>
+            </div>
+          </div>
+        </aside>
+      </main>
+
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    </div>
+
+    <!-- Hand docked at bottom -->
+    <div class="hand-dock" aria-label="Your hand">
+      <section class="cards cards-row" id="cardSurface" aria-label="Your cards">
+        <!-- Cards are face-up by default; example 10-card hand (will be sorted/grouped) -->
+        <div
+          class="card"
+          data-rank="A"
+          data-suit="hearts"
+          tabindex="0"
+          aria-pressed="false"
+          aria-label="Ace of hearts"
+        >
+          <div class="card-face">A ♥</div>
+          <div class="card-back"></div>
+        </div>
+        <div
+          class="card"
+          data-rank="K"
+          data-suit="hearts"
+          tabindex="0"
+          aria-pressed="false"
+          aria-label="King of hearts"
+        >
+          <div class="card-face">K ♥</div>
+          <div class="card-back"></div>
+        </div>
+        <div
+          class="card"
+          data-rank="Q"
+          data-suit="hearts"
+          tabindex="0"
+          aria-pressed="false"
+          aria-label="Queen of hearts"
+        >
+          <div class="card-face">Q ♥</div>
+          <div class="card-back"></div>
+        </div>
+        <div
+          class="card"
+          data-rank="J"
+          data-suit="hearts"
+          tabindex="0"
+          aria-pressed="false"
+          aria-label="Jack of hearts"
+        >
+          <div class="card-face">J ♥</div>
+          <div class="card-back"></div>
+        </div>
+        <div
+          class="card"
+          data-rank="10"
+          data-suit="clubs"
+          tabindex="0"
+          aria-pressed="false"
+          aria-label="Ten of clubs"
+        >
+          <div class="card-face">10 ♣</div>
+          <div class="card-back"></div>
+        </div>
+        <div
+          class="card"
+          data-rank="9"
+          data-suit="spades"
+          tabindex="0"
+          aria-pressed="false"
+          aria-label="Nine of spades"
+        >
+          <div class="card-face">9 ♠</div>
+          <div class="card-back"></div>
+        </div>
+        <div
+          class="card"
+          data-rank="8"
+          data-suit="spades"
+          tabindex="0"
+          aria-pressed="false"
+          aria-label="Eight of spades"
+        >
+          <div class="card-face">8 ♠</div>
+          <div class="card-back"></div>
+        </div>
+        <div
+          class="card"
+          data-rank="7"
+          data-suit="diamonds"
+          tabindex="0"
+          aria-pressed="false"
+          aria-label="Seven of diamonds"
+        >
+          <div class="card-face">7 ♦</div>
+          <div class="card-back"></div>
+        </div>
+        <div
+          class="card"
+          data-rank="6"
+          data-suit="clubs"
+          tabindex="0"
+          aria-pressed="false"
+          aria-label="Six of clubs"
+        >
+          <div class="card-face">6 ♣</div>
+          <div class="card-back"></div>
+        </div>
+        <div
+          class="card"
+          data-rank="5"
+          data-suit="hearts"
+          tabindex="0"
+          aria-pressed="false"
+          aria-label="Five of hearts"
+        >
+          <div class="card-face">5 ♥</div>
+          <div class="card-back"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Bottom actions below player cards -->
+    <nav class="actionsbar" aria-label="Primary actions">
+      <button id="detailsBtn" class="btn btn-plain" aria-label="Round details">Details</button>
+      <button id="finalizeBtn" class="btn btn-primary" aria-disabled="false">Finalize</button>
+    </nav>
+
+    <!-- Confirmation Modal -->
+    <div
+      id="modal"
+      class="modal"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modalTitle"
+    >
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div id="modalTitle" class="modal-title">Confirm Finalize Round</div>
+          <button id="modalClose" class="icon-btn" aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body">
+          <p>
+            You won <strong id="modalTricks">2</strong> tricks. Trump broken:
+            <strong id="modalTrumpBroken">No</strong>.
+          </p>
+          <p>
+            Score change: <strong id="modalDelta">+6</strong> (Total
+            <span id="modalFrom">38</span> → <span id="modalTo">44</span>).
+          </p>
+          <p>Proceed?</p>
+        </div>
+        <div class="modal-footer">
+          <button id="modalCancel" class="btn btn-plain">Cancel</button>
+          <button id="modalConfirm" class="btn btn-primary">Finalize</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

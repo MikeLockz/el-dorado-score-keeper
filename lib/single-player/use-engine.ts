@@ -9,9 +9,7 @@ import {
   finalizeRoundIfDone,
 } from './engine';
 
-function isSpDeal(
-  e: AppEvent,
-): e is Extract<KnownAppEvent, { type: 'sp/deal' }> {
+function isSpDeal(e: AppEvent): e is Extract<KnownAppEvent, { type: 'sp/deal' }> {
   return (e as { type?: string }).type === 'sp/deal';
 }
 

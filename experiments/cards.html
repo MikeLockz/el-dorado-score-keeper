@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Unicode Playing Cards — Fast Deck</title>
+    <style>
+      :root {
+        --card-w: 8.8rem;
+        --card-h: 12.4rem;
+        --radius: 0.7rem;
+        --shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        --border: #e7e7ea;
+        --bg: #f9f9fb;
+        --ink: #0e0f13;
+        --ink-muted: #5f6470;
+        --heart: #e53935; /* ♥ */
+        --diamond: #e53935; /* ♦ */
+        --spade: #131722; /* ♠ */
+        --club: #131722; /* ♣ */
+        --accent: #6b7cff; /* back pattern accent */
+      }
+      html,
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          'Helvetica Neue',
+          Arial,
+          'Apple Color Emoji',
+          'Segoe UI Emoji';
+      }
+      .deck {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr));
+        gap: 1rem;
+        padding: 2rem 1.2rem 3rem;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      /* Card shell */
+      .card {
+        width: var(--card-w);
+        height: var(--card-h);
+        perspective: 1000px;
+        margin: 0 auto;
+        cursor: pointer;
+        user-select: none;
+      }
+      .card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: var(--radius);
+        transform-style: preserve-3d;
+        transition: transform 0.35s ease;
+        box-shadow: var(--shadow);
+      }
+      .card.is-back .card-inner {
+        transform: rotateY(180deg);
+      }
+
+      .face {
+        position: absolute;
+        inset: 0;
+        border-radius: var(--radius);
+        background: white;
+        border: 1px solid var(--border);
+        backface-visibility: hidden;
+        overflow: hidden;
+      }
+
+      /* Back design */
+      .back {
+        transform: rotateY(180deg);
+        background:
+          radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 65%),
+          conic-gradient(from 0deg at 50% 50%, var(--accent), #8bb2ff, #79a0ff, var(--accent));
+      }
+      .back::before {
+        content: '';
+        position: absolute;
+        inset: 8px;
+        border-radius: calc(var(--radius) - 4px);
+        background: repeating-linear-gradient(
+          45deg,
+          rgba(255, 255, 255, 0.45) 0 6px,
+          rgba(255, 255, 255, 0.15) 6px 12px
+        );
+        mix-blend-mode: overlay;
+      }
+      .back::after {
+        /* subtle lattice */
+        content: '';
+        position: absolute;
+        inset: 12px;
+        border-radius: calc(var(--radius) - 8px);
+        border: 2px solid rgba(255, 255, 255, 0.55);
+      }
+
+      /* Front layout */
+      .front {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        padding: 0.55rem;
+        background: radial-gradient(120% 80% at 50% 0%, #ffffff 0%, #fbfbfd 60%, #f6f6fb 100%);
+      }
+
+      /* Corners (rank + suit) */
+      .corner {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.15rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .corner .rank {
+        font-size: 1.05rem;
+        letter-spacing: 0.02em;
+      }
+      .corner .suit {
+        font-size: 1.05rem;
+        transform: translateY(-1px);
+      }
+      .corner.bottom {
+        align-items: flex-end;
+        justify-self: end;
+        transform: rotate(180deg);
+      }
+      .corner .minor {
+        font-weight: 600;
+        color: var(--ink-muted);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+      }
+
+      /* Pip grid (7 x 5 gives flexible classic positions) */
+      .pips {
+        display: grid;
+        grid-template-rows: repeat(7, 1fr);
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.2rem 0.35rem;
+        align-items: center;
+        justify-items: center;
+        padding: 0.15rem 0.25rem;
+      }
+      .pip {
+        font-size: 1.35rem;
+        line-height: 1;
+        transform-origin: center;
+      }
+      .center-big {
+        font-size: 3.4rem;
+      }
+
+      /* Mini suit watermark */
+      .watermark {
+        position: absolute;
+        inset: auto auto 10px 50%;
+        transform: translateX(-50%);
+        opacity: 0.06;
+        font-size: 5.8rem;
+        line-height: 1;
+        pointer-events: none;
+        font-weight: 900;
+      }
+
+      /* Colorization by suit */
+      .front[data-suit='♠'] {
+        --suit-color: var(--spade);
+      }
+      .front[data-suit='♣'] {
+        --suit-color: var(--club);
+      }
+      .front[data-suit='♥'] {
+        --suit-color: var(--heart);
+      }
+      .front[data-suit='♦'] {
+        --suit-color: var(--diamond);
+      }
+      .front {
+        color: var(--suit-color);
+      }
+      .front .rank,
+      .front .suit,
+      .pip {
+        color: var(--suit-color);
+      }
+
+      /* Face cards: big monogram + suit motif when rank is J/Q/K */
+      .facegroup {
+        display: grid;
+        place-items: center;
+        position: relative;
+      }
+      .facegroup .mono {
+        font-size: 5.4rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        color: var(--suit-color);
+      }
+      .facegroup .halo {
+        position: absolute;
+        inset: 16% 10%;
+        border-radius: 1rem;
+        background:
+          radial-gradient(
+            closest-side,
+            color-mix(in hsl, var(--suit-color) 12%, #ffffff) 0,
+            #ffffff 75%
+          ),
+          repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.035) 0 8px, rgba(0, 0, 0, 0) 8px 16px);
+        opacity: 0.45;
+        filter: blur(1px);
+      }
+
+      /* Tiny toolbar */
+      .toolbar {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0.75rem 1.2rem 0.25rem;
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .toolbar button {
+        border: 1px solid var(--border);
+        background: white;
+        padding: 0.5rem 0.7rem;
+        border-radius: 0.55rem;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .toolbar .hint {
+        color: var(--ink-muted);
+        font-size: 0.9rem;
+      }
+
+      /* Small helper for responsive scaling (optional) */
+      @media (max-width: 520px) {
+        :root {
+          --card-w: 7.4rem;
+          --card-h: 10.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <button id="toggle-backs">Show/Hide Backs</button>
+      <button id="shuffle">Shuffle</button>
+      <button id="reset">Reset Order</button>
+      <span class="hint">Tip: click any card to flip its front/back.</span>
+    </div>
+
+    <div id="deck" class="deck" aria-label="Playing card deck"></div>
+
+    <script>
+      (function () {
+        const SUITS = ['♠', '♥', '♦', '♣'];
+        const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+        // Classic pip coordinates mapped on a 7x5 grid (row 1..7, col 1..5)
+        // Coordinates derived to approximate a standard poker layout.
+        const PIP_POSITIONS = {
+          A: [[4, 3]],
+
+          2: [
+            [2, 3],
+            [6, 3],
+          ],
+          3: [
+            [2, 3],
+            [4, 3],
+            [6, 3],
+          ],
+          4: [
+            [2, 2],
+            [2, 4],
+            [6, 2],
+            [6, 4],
+          ],
+          5: [
+            [2, 2],
+            [2, 4],
+            [4, 3],
+            [6, 2],
+            [6, 4],
+          ],
+          6: [
+            [2, 2],
+            [2, 4],
+            [4, 2],
+            [4, 4],
+            [6, 2],
+            [6, 4],
+          ],
+          7: [
+            [2, 2],
+            [2, 4],
+            [4, 2],
+            [4, 3],
+            [4, 4],
+            [6, 2],
+            [6, 4],
+          ],
+          8: [
+            [2, 2],
+            [2, 4],
+            [3, 3],
+            [4, 2],
+            [4, 4],
+            [5, 3],
+            [6, 2],
+            [6, 4],
+          ],
+          9: [
+            [2, 2],
+            [2, 3],
+            [2, 4],
+            [4, 2],
+            [4, 3],
+            [4, 4],
+            [6, 2],
+            [6, 3],
+            [6, 4],
+          ],
+          10: [
+            [2, 2],
+            [2, 3],
+            [2, 4],
+            [4, 2],
+            [4, 3],
+            [4, 4],
+            [6, 2],
+            [6, 3],
+            [6, 4],
+            [4, 3],
+          ], // center doubled for 10
+        };
+
+        // Create a card element
+        function createCard(suit, rank) {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.setAttribute('role', 'img');
+          card.setAttribute('aria-label', `${rank} of ${suitName(suit)}`);
+
+          const inner = document.createElement('div');
+          inner.className = 'card-inner';
+          card.appendChild(inner);
+
+          // Front
+          const front = document.createElement('div');
+          front.className = 'face front';
+          front.dataset.suit = suit;
+          inner.appendChild(front);
+
+          // Corners (top-left / bottom-right)
+          const cTop = corner(rank, suit);
+          const cBot = corner(rank, suit, true);
+          front.appendChild(cTop);
+          front.appendChild(cBot);
+
+          // Body: number pips or face card motif
+          if (isNumberCard(rank)) {
+            front.appendChild(buildPips(suit, rank));
+            const wm = document.createElement('div');
+            wm.className = 'watermark';
+            wm.textContent = suit;
+            front.appendChild(wm);
+          } else {
+            // Face card: bold monogram + soft halo + watermark suit
+            const fg = document.createElement('div');
+            fg.className = 'facegroup';
+            const halo = document.createElement('div');
+            halo.className = 'halo';
+            const mono = document.createElement('div');
+            mono.className = 'mono';
+            mono.textContent = rank;
+            fg.appendChild(halo);
+            fg.appendChild(mono);
+            front.appendChild(fg);
+            const wm = document.createElement('div');
+            wm.className = 'watermark';
+            wm.textContent = suit;
+            front.appendChild(wm);
+          }
+
+          // Back
+          const back = document.createElement('div');
+          back.className = 'face back';
+          inner.appendChild(back);
+
+          // Flip on click
+          card.addEventListener('click', () => card.classList.toggle('is-back'));
+
+          return card;
+        }
+
+        function corner(rank, suit, bottom = false) {
+          const wrap = document.createElement('div');
+          wrap.className = 'corner' + (bottom ? ' bottom' : '');
+          const r = document.createElement('div');
+          r.className = 'rank';
+          r.textContent = rank;
+          const s = document.createElement('div');
+          s.className = 'suit';
+          s.textContent = suit;
+          wrap.appendChild(r);
+          wrap.appendChild(s);
+          // Add tiny suit name for accessibility flavor
+          const minor = document.createElement('div');
+          minor.className = 'minor';
+          minor.textContent = suitName(suit);
+          wrap.appendChild(minor);
+          return wrap;
+        }
+
+        function buildPips(suit, rank) {
+          const grid = document.createElement('div');
+          grid.className = 'pips';
+          let coords = PIP_POSITIONS[rank];
+          if (rank === '10') {
+            // ensure exactly 10 pips; above map includes 10 entries
+            coords = coords.slice(0, 10);
+          }
+          // Fall back: if not mapped (shouldn't happen), center big
+          if (!coords) {
+            coords = [[4, 3]];
+          }
+
+          for (const [r, c] of coords) {
+            const pip = document.createElement('div');
+            pip.className = 'pip';
+            pip.textContent = suit;
+            pip.style.gridRow = r;
+            pip.style.gridColumn = c;
+            grid.appendChild(pip);
+          }
+          // Ace: make single center pip bigger
+          if (rank === 'A') {
+            grid.firstChild.classList.add('center-big');
+          }
+          return grid;
+        }
+
+        function isNumberCard(rank) {
+          return !['J', 'Q', 'K'].includes(rank);
+        }
+        function suitName(s) {
+          return { '♠': 'Spades', '♥': 'Hearts', '♦': 'Diamonds', '♣': 'Clubs' }[s];
+        }
+
+        // Render deck
+        const deckEl = document.getElementById('deck');
+        let ordered = [];
+        function renderDeck(list) {
+          deckEl.innerHTML = '';
+          const frag = document.createDocumentFragment();
+          for (const { suit, rank } of list) {
+            frag.appendChild(createCard(suit, rank));
+          }
+          deckEl.appendChild(frag);
+        }
+        function buildOrdered() {
+          const d = [];
+          for (const s of SUITS) {
+            for (const r of RANKS) {
+              d.push({ suit: s, rank: r });
+            }
+          }
+          return d;
+        }
+        function shuffleInPlace(arr) {
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = (Math.random() * (i + 1)) | 0;
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+          }
+        }
+
+        // Controls
+        const btnBacks = document.getElementById('toggle-backs');
+        const btnShuffle = document.getElementById('shuffle');
+        const btnReset = document.getElementById('reset');
+
+        btnBacks.addEventListener('click', () => {
+          deckEl.querySelectorAll('.card').forEach((card) => card.classList.toggle('is-back'));
+        });
+        btnShuffle.addEventListener('click', () => {
+          const copy = ordered.slice();
+          shuffleInPlace(copy);
+          renderDeck(copy);
+        });
+        btnReset.addEventListener('click', () => {
+          ordered = buildOrdered();
+          renderDeck(ordered);
+        });
+
+        // Initial
+        ordered = buildOrdered();
+        renderDeck(ordered);
+      })();
+    </script>
+  </body>
+</html>

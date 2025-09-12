@@ -43,6 +43,38 @@ export default function Devtools() {
   const players = Object.keys(state.players).length;
   const scores = Object.keys(state.scores).length;
 
+  const [open, setOpen] = React.useState(false);
+
+  // Collapsed floating opener button (very small)
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{
+          position: 'fixed',
+          right: 8,
+          bottom: 8,
+          zIndex: 50,
+          width: 18,
+          height: 18,
+          borderRadius: 999,
+          background: 'rgba(17,24,39,0.85)',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.25)',
+          fontSize: 10,
+          lineHeight: '16px',
+          textAlign: 'center',
+          opacity: 0.7,
+        }}
+        title="Open DevTools"
+        aria-label="Open DevTools"
+      >
+        DT
+      </button>
+    );
+  }
+
   return (
     <div style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 50 }}>
       <div
@@ -58,6 +90,23 @@ export default function Devtools() {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
           <strong>DevTools</strong>
           <span>height: {height}</span>
+        </div>
+        <div style={{ position: 'absolute', right: 8, top: 8 }}>
+          <button
+            onClick={() => setOpen(false)}
+            style={{
+              background: 'transparent',
+              color: '#fff',
+              border: 'none',
+              fontSize: 14,
+              cursor: 'pointer',
+              opacity: 0.8,
+            }}
+            aria-label="Close DevTools"
+            title="Close"
+          >
+            ✕
+          </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input

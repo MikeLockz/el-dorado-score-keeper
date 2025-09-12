@@ -51,6 +51,8 @@ export const events = {
     makeEvent('sp/trick/reveal-set', p, m),
   spTrickRevealClear: (p: EventPayloadByType<'sp/trick/reveal-clear'>, m?: Meta) =>
     makeEvent('sp/trick/reveal-clear', p, m),
+  spFinalizeHoldSet: (p: EventPayloadByType<'sp/finalize-hold-set'>, m?: Meta) =>
+    makeEvent('sp/finalize-hold-set', p, m),
 };
 
 export type { AppEventType, EventPayloadByType, KnownAppEvent };

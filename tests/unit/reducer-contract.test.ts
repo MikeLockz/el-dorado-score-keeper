@@ -34,6 +34,7 @@ describe('reducer contract: payload schemas', () => {
         'sp/trick/reveal-clear',
         'sp/trump-broken-set',
         'sp/leader-set',
+        'sp/finalize-hold-set',
       ].sort(),
     );
   });
