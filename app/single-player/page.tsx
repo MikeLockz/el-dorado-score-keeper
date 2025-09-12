@@ -301,7 +301,13 @@ export default function SinglePlayerPage() {
                 </div>
                 <div className="text-xs text-muted-foreground inline-flex items-center gap-1">
                   <span className="mr-1">Trump Played:</span>
-                  <span className={spTrumpBroken ? 'text-emerald-700 dark:text-emerald-300 font-semibold' : 'text-muted-foreground'}>
+                  <span
+                    className={
+                      spTrumpBroken
+                        ? 'text-emerald-700 dark:text-emerald-300 font-semibold'
+                        : 'text-muted-foreground'
+                    }
+                  >
                     {spTrumpBroken ? 'Yes' : 'No'}
                   </span>
                 </div>
@@ -403,7 +409,10 @@ export default function SinglePlayerPage() {
                 >
                   {(() => {
                     const needed = tricksForRound(spRoundNo);
-                    const total = Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
+                    const total = Object.values(spTrickCounts ?? {}).reduce(
+                      (a, n) => a + (n ?? 0),
+                      0,
+                    );
                     // After moving increment to reveal, totals already include the winning trick.
                     return total >= needed ? 'Next Round' : 'Next Hand';
                   })()}

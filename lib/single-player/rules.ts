@@ -24,7 +24,7 @@ export function canLead(
 }
 
 export function isLegalPlay(card: Card, ctx: LegalityContext): boolean {
-  const { trump, ledSuit, trickHasTrump, hand } = ctx;
+  const { trump, ledSuit, hand } = ctx;
 
   // Leading the trick
   if (!ledSuit) return canLead(card, trump, hand, ctx.trumpBroken);

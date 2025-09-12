@@ -1,5 +1,6 @@
 import * as React from 'react';
-import type { AppState } from '@/lib/state/types';
+import type { AppEvent, AppState } from '@/lib/state/types';
+import type { KnownAppEvent } from '@/lib/state/types';
 import { selectSpIsRoundDone, selectSpNextToPlay } from '@/lib/state/selectors-sp';
 import {
   prefillPrecedingBotBids,
@@ -8,11 +9,17 @@ import {
   finalizeRoundIfDone,
 } from './engine';
 
+function isSpDeal(
+  e: AppEvent,
+): e is Extract<KnownAppEvent, { type: 'sp/deal' }> {
+  return (e as { type?: string }).type === 'sp/deal';
+}
+
 export type UseEngineParams = {
   state: AppState;
   humanId: string;
   currentRoundNo: number;
-  appendMany: (events: any[]) => Promise<void> | void;
+  appendMany: (events: ReadonlyArray<AppEvent>) => Promise<void> | void;
   isBatchPending: boolean;
   rng?: () => number;
   onAdvance?: (nextRound: number, nextDealerId: string) => void;
@@ -73,9 +80,7 @@ export function useSinglePlayerEngine(params: UseEngineParams): void {
     void (async () => {
       await appendMany(batch);
       // Notify UI of advancement if present by inspecting the batch
-      const nextDeal = batch.find((e) => e.type === 'sp/deal') as
-        | { payload: { roundNo: number; dealerId: string } }
-        | undefined;
+      const nextDeal = batch.find(isSpDeal);
       if (nextDeal && onAdvance) onAdvance(nextDeal.payload.roundNo, nextDeal.payload.dealerId);
       if (onSaved) onSaved();
     })();

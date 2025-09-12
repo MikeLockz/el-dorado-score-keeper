@@ -128,7 +128,13 @@ describe('single-player reducers + selectors flows', () => {
     const live2 = selectSpLiveOverlay(s)!;
     expect(live2.counts.b).toBe(1); // incremented at reveal
     // Now clear and advance leader; counts stay the same
-    s = replay([ev('sp/trick/cleared', { winnerId: 'b' }, 'tc'), ev('sp/leader-set', { leaderId: 'b' }, 'l2')], s);
+    s = replay(
+      [
+        ev('sp/trick/cleared', { winnerId: 'b' }, 'tc'),
+        ev('sp/leader-set', { leaderId: 'b' }, 'l2'),
+      ],
+      s,
+    );
     const live3 = selectSpLiveOverlay(s)!;
     expect(live3.cards.a).toBeNull();
     expect(live3.cards.b).toBeNull();

@@ -70,7 +70,13 @@ describe('SP reducer e2e: deal → play → clear → finalize', () => {
     );
     const live2 = selectSpLiveOverlay(s)!;
     expect(live2.counts.b).toBe(1);
-    s = replay([ev('sp/trick/cleared', { winnerId: 'b' }, 'tc'), ev('sp/leader-set', { leaderId: 'b' }, 'l2')], s);
+    s = replay(
+      [
+        ev('sp/trick/cleared', { winnerId: 'b' }, 'tc'),
+        ev('sp/leader-set', { leaderId: 'b' }, 'l2'),
+      ],
+      s,
+    );
     const live3 = selectSpLiveOverlay(s)!;
     expect(live3.cards.a).toBeNull();
     expect(live3.cards.b).toBeNull();

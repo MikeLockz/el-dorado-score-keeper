@@ -106,14 +106,9 @@ suite('UI reveal gating', () => {
     expect(appendMany).toHaveBeenCalledTimes(1);
     const batch = appendMany.mock.calls[0]?.[0] as any[];
     const types = batch.map((e) => e.type);
-    expect(types).toEqual([
-      'sp/trick/cleared',
-      'sp/leader-set',
-      'sp/trick/reveal-clear',
-    ]);
+    expect(types).toEqual(['sp/trick/cleared', 'sp/leader-set', 'sp/trick/reveal-clear']);
 
     root.unmount();
     div.remove();
   });
 });
-

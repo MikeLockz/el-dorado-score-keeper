@@ -50,12 +50,15 @@ const appendMany = vi.fn(async (batch: any[]) => {
   const hasClear = batch.some((e) => e?.type === 'sp/trick/cleared');
   if (hasClear) {
     setTimeout(() => {
-      appendMany([
-        { type: 'made/set', payload: { round: 10, playerId: 'p1', made: true } },
-        { type: 'made/set', payload: { round: 10, playerId: 'p2', made: true } },
-        { type: 'sp/phase-set', payload: { phase: 'done' } },
-        { type: 'round/finalize', payload: { round: 10 } },
-      ] as any[], 0);
+      appendMany(
+        [
+          { type: 'made/set', payload: { round: 10, playerId: 'p1', made: true } },
+          { type: 'made/set', payload: { round: 10, playerId: 'p2', made: true } },
+          { type: 'sp/phase-set', payload: { phase: 'done' } },
+          { type: 'round/finalize', payload: { round: 10 } },
+        ] as any[],
+        0,
+      );
     });
   }
   return 1;
@@ -114,11 +117,7 @@ suite('UI reveal → clear → finalize flow', () => {
     expect(appendMany).toHaveBeenCalled();
     const first = appendMany.mock.calls[0]?.[0] as any[];
     const firstTypes = first.map((e) => e.type);
-    expect(firstTypes).toEqual([
-      'sp/trick/cleared',
-      'sp/leader-set',
-      'sp/trick/reveal-clear',
-    ]);
+    expect(firstTypes).toEqual(['sp/trick/cleared', 'sp/leader-set', 'sp/trick/reveal-clear']);
 
     // Second call: finalize batch from simulated engine
     await new Promise((r) => setTimeout(r, 0));
@@ -133,4 +132,3 @@ suite('UI reveal → clear → finalize flow', () => {
     div.remove();
   });
 });
-

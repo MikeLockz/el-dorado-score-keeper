@@ -58,6 +58,7 @@ export const selectSpIsLastTrick = (s: AppState) => {
 ```
 
 Notes
+
 - We do not snapshot the plays; the current hand remains visible in `sp.trickPlays` until `sp/trick/cleared` fires, so the UI can render them.
 - Idempotency: `reveal-clear` is a no‑op when nothing is revealed.
 
@@ -174,6 +175,7 @@ const onContinue = () => {
 ```
 
 Notes
+
 - If using Option A, the existing `use-engine` finalization effect will catch the completed round right after the batch is appended; label still reads `Next Round` and UX is correct.
 - Keep control disabled while a batch is pending (`isBatchPending === true`).
 - Accessibility: focus the Continue button when reveal appears; announce winner via an `aria-live="polite"` region.
@@ -186,11 +188,13 @@ Notes
 ## Tests
 
 Unit tests:
+
 - Reducer: `sp/trick/reveal-set` stores winner; `sp/trick/reveal-clear` removes it; idempotency on double clear.
 - Engine: `resolveCompletedTrick` yields reveal batch (and trump-broken when off‑suit trump is present) and does not emit clear/leader.
 - Engine: `computeBotPlay` returns `[]` when `reveal` is set.
 
 UI / integration tests:
+
 - Play through one trick: after the last card, reveal appears with the winner highlighted and Continue enabled.
 - Clicking Continue (non‑last trick) clears trick, sets leader, hides reveal, and next hand starts.
 - Clicking Continue on final trick advances to next round (either via immediate finalize or effect‑based finalize), with bids for the next round visible.
@@ -202,13 +206,13 @@ UI / integration tests:
 
 ## Rollout Steps
 
-1) Add validation entries for the two new events.
-2) Update reducer for `reveal` set/clear.
-3) Update engine `resolveCompletedTrick` to emit `sp/trick/reveal-set` instead of clear/leader.
-4) Gate bot play on reveal.
-5) Adjust hook effects (remove auto‑clear, add reveal effect timing).
-6) Update UI to render reveal state and Continue button; wire handler as described.
-7) Add tests for reducer/engine/UI.
+1. Add validation entries for the two new events.
+2. Update reducer for `reveal` set/clear.
+3. Update engine `resolveCompletedTrick` to emit `sp/trick/reveal-set` instead of clear/leader.
+4. Gate bot play on reveal.
+5. Adjust hook effects (remove auto‑clear, add reveal effect timing).
+6. Update UI to render reveal state and Continue button; wire handler as described.
+7. Add tests for reducer/engine/UI.
 
 ## Rationale
 

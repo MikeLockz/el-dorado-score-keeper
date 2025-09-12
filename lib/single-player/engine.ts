@@ -4,11 +4,11 @@ import { tricksForRound } from '@/lib/state/logic';
 import {
   selectSpNextToPlay,
   selectSpTricksForRound,
-  selectSpRotatedOrder,
   selectPlayersOrdered,
 } from '@/lib/state/selectors';
 import { bots, startRound, winnerOfTrick } from './index';
 import { computePrecedingBotBids } from './auto-bid';
+import type { Card } from './types';
 
 // Return bid/set events for bot players who act before the human in current round order.
 export function prefillPrecedingBotBids(
@@ -18,17 +18,17 @@ export function prefillPrecedingBotBids(
   rng?: () => number,
 ): AppEvent[] {
   const trump = state.sp.trump;
-  const order = state.sp.order ?? [];
-  const hands = state.sp.hands ?? {};
+  const order: string[] = state.sp.order ?? [];
+  const hands: Record<string, readonly Card[]> = state.sp.hands ?? {};
   if (!trump || order.length === 0) return [];
   const tricks = tricksForRound(roundNo);
   const bidsSoFar = (state.rounds[roundNo]?.bids ?? {}) as Record<string, number | undefined>;
   const pre = computePrecedingBotBids({
     roundNo,
-    order: order as string[],
+    order,
     humanId,
     trump,
-    hands: hands as Record<string, readonly any[]>,
+    hands,
     tricks,
     existingBids: bidsSoFar,
     rng,
@@ -44,11 +44,11 @@ export function computeBotPlay(state: AppState, playerId: string, rng?: () => nu
   if (!next || next !== playerId) return [];
   const trump = state.sp.trump;
   if (!trump) return [];
-  const botHand = (state.sp.hands?.[playerId] ?? []) as any[];
+  const botHand: readonly Card[] = state.sp.hands?.[playerId] ?? [];
   if (!botHand || botHand.length === 0) return [];
-  const trickPlays = (state.sp.trickPlays ?? []).map((p, i) => ({
-    player: p.playerId as string,
-    card: p.card as any,
+  const trickPlays = state.sp.trickPlays.map((p, i) => ({
+    player: p.playerId,
+    card: p.card,
     order: i,
   }));
   const ctx = {
@@ -57,15 +57,15 @@ export function computeBotPlay(state: AppState, playerId: string, rng?: () => nu
     hand: botHand,
     tricksThisRound: selectSpTricksForRound(state),
     seatIndex: (state.sp.order ?? []).indexOf(playerId),
-    bidsSoFar: (state.rounds[state.sp.roundNo ?? 0]?.bids ?? {}) as Record<string, number>,
-    tricksWonSoFar: (state.sp.trickCounts ?? {}) as Record<string, number>,
+    bidsSoFar: state.rounds[state.sp.roundNo ?? 0]?.bids ?? {},
+    tricksWonSoFar: state.sp.trickCounts ?? {},
     selfId: playerId,
     trumpBroken: !!state.sp.trumpBroken,
     rng,
-  } as const;
+  };
   const card = bots.botPlay(ctx, 'normal');
   return [
-    events.spTrickPlayed({ playerId, card: { suit: card.suit as any, rank: card.rank as any } }),
+    events.spTrickPlayed({ playerId, card: { suit: card.suit, rank: card.rank } }),
   ];
 }
 
@@ -81,12 +81,12 @@ export function resolveCompletedTrick(state: AppState): AppEvent[] {
   // Already revealing? do nothing
   if (state.sp.reveal) return [];
   const winner = winnerOfTrick(
-    plays.map((p, i) => ({ player: p.playerId as string, card: p.card as any, order: i })),
+    plays.map((p, i) => ({ player: p.playerId, card: p.card, order: i })),
     trump,
   );
   if (!winner) return [];
-  const ledSuit = plays[0]?.card?.suit as any;
-  const anyTrump = plays.some((p) => (p.card as any)?.suit === trump);
+  const ledSuit = plays[0]?.card?.suit;
+  const anyTrump = plays.some((p) => p.card?.suit === trump);
   const batch: AppEvent[] = [];
   if (!state.sp.trumpBroken && anyTrump && ledSuit && ledSuit !== trump) {
     batch.push(events.spTrumpBrokenSet({ broken: true }));
@@ -155,8 +155,8 @@ export function finalizeRoundIfDone(state: AppState, opts: FinalizeOptions = {})
         dealerId: nextDealer,
         order: deal.order,
         trump: deal.trump,
-        trumpCard: { suit: deal.trumpCard.suit as any, rank: deal.trumpCard.rank as any },
-        hands: deal.hands as any,
+        trumpCard: { suit: deal.trumpCard.suit, rank: deal.trumpCard.rank },
+        hands: deal.hands,
       }),
     );
     batch.push(events.spLeaderSet({ leaderId: deal.firstToAct }));
