@@ -229,7 +229,7 @@ export function computeAdvanceBatch(
       const made = won === (bidsMap[pid] ?? 0);
       batch.push(events.madeSet({ round: roundNo, playerId: pid, made }));
     }
-    batch.push(events.spPhaseSet({ phase: 'summary' }));
+    batch.push(events.spPhaseSet({ phase: roundNo >= 10 ? 'game-summary' : 'summary' }));
     batch.push(events.roundFinalize({ round: roundNo }));
     batch.push(events.spSummaryEnteredSet({ at: now }));
     return batch;

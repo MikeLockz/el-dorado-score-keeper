@@ -17,6 +17,7 @@ import {
 } from '@/lib/state';
 import { roundDelta, selectCumulativeScoresAllRounds, type AppEvent } from '@/lib/state';
 import { bots, computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
+import { archiveCurrentGameAndReset } from '@/lib/state';
 
 type Props = {
   humanId: string;
@@ -212,6 +213,49 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             disabled={isBatchPending}
           >
             {isLastRound ? 'Finish Game' : 'Next Round'}
+          </button>
+        </nav>
+      </div>
+    );
+  }
+
+  // Game Summary Screen (phase === 'game-summary')
+  if (spPhase === 'game-summary') {
+    const ids = players.map((p) => p.id);
+    const totals = ids.map((id) => ({ id, name: playerName(id), total: state.scores?.[id] ?? 0 }));
+    const max = totals.reduce((m, t) => Math.max(m, t.total), Number.NEGATIVE_INFINITY);
+    const winners = totals.filter((t) => t.total === max).map((t) => t.name);
+    const title = winners.length > 1 ? `Winners: ${winners.join(', ')}` : `Winner: ${winners[0] ?? '-'}`;
+
+    return (
+      <div className="relative min-h-[100dvh] pb-[calc(52px+env(safe-area-inset-bottom))]">
+        <header className="p-3 border-b">
+          <div className="text-xs text-muted-foreground">Game Summary</div>
+          <div className="text-base font-semibold mt-1">{title}</div>
+        </header>
+        <main className="p-3">
+          <div className="grid grid-cols-1 gap-2 text-sm">
+            {totals.map((p) => (
+              <div key={`gsum-${p.id}`} className={`flex items-center justify-between rounded border px-2 py-2 ${p.total === max ? 'border-emerald-400' : ''}`}>
+                <div className="font-medium">{p.name}</div>
+                <div className="text-right min-w-[3rem] tabular-nums font-semibold">{p.total}</div>
+              </div>
+            ))}
+          </div>
+        </main>
+        <nav className="fixed left-0 right-0 bottom-0 z-30 grid grid-cols-2 gap-2 px-2 py-2 border-t bg-background/85 backdrop-blur" style={{ minHeight: 52 }}>
+          <button className="text-muted-foreground" aria-label="Round details" onClick={() => {}}>
+            Details
+          </button>
+          <button
+            className="rounded bg-primary text-primary-foreground px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => {
+              if (isBatchPending) return;
+              void archiveCurrentGameAndReset();
+            }}
+            disabled={isBatchPending}
+          >
+            Play Again
           </button>
         </nav>
       </div>
