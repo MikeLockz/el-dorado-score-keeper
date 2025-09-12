@@ -78,11 +78,36 @@ Goals: simplify and harden end‑of‑hand and end‑of‑round logic so UI alwa
 - Purpose: centralize pure rule checks used by the engine (and optionally reducer dev assertions). No UI/engine imports.
 - Suggested API:
   - `canPlayCard(state, playerId, card)` → boolean | { ok: boolean, reason?: string }
+
+## Implementation Summary (as built)
+
+- State and Events
+  - Added fields: `sp.handPhase`, `sp.ack`, `sp.lastTrickSnapshot`, `sp.summaryEnteredAt?`; extended `sp.phase` with `'summary' | 'game-summary'`.
+  - Added events and validation: `sp/ack-set`, `sp/summary-entered-set`.
+  - Files: `lib/state/types.ts`, `lib/state/events.ts`, `lib/state/validation.ts`.
+
+- Rules
+  - `lib/state/spRules.ts`: `nextToAct`, `isTrickComplete`, `isRoundDone`, `mustFollowSuit`, `canLeadTrump`, `canPlayCard`.
+
+- Engine
+  - `lib/single-player/engine.ts`:
+    - `computeAdvanceBatch(state, now, opts?)` implements on-trick-complete, on-hand-acknowledge, on-finalize-round → `summary | game-summary`, and on-summary-continue.
+    - Bot plays pause during reveal/summary.
+
+- UI
+  - `components/views/SinglePlayerMobile.tsx` uses a single CTA wired to `computeAdvanceBatch(...)`.
+  - Adds round summary screen (mobile-first) and small "Last Trick" banner.
+  - Adds game summary screen with "Play Again" (archives and resets).
+
+- Tests
+  - New unit tests for rules, reducer snapshot lifecycle, engine advance logic, and UI summary flows.
+
   - `isTrickComplete(state)` → boolean
   - `isRoundDone(state)` → boolean
   - `nextToAct(state)` → playerId
   - `mustFollowSuit(state, card)` → boolean
   - `canLeadTrump(state, playerId)` → boolean
+
 - Properties: stateless, deterministic, thoroughly unit‑tested.
 
 ## UI Changes

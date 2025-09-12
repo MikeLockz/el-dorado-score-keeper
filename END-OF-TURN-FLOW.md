@@ -17,20 +17,15 @@ sequenceDiagram
   Red-->>Store: trick complete
   Hook->>Eng: resolveCompletedTrick
   Eng-->>Hook: maybe sp/trump-broken-set
-  Eng-->>Hook: maybe sp/finalize-hold-set hold true
   Eng-->>Hook: sp/trick/reveal-set winnerId
+  Eng-->>Hook: sp/ack-set ack='hand'
   Hook-->>Store: appendMany batch
   Store-->>Red: reduce events
   Red-->>Store: apply state updates
-  U->>UI: if last trick click Continue
-  UI->>Store: finalize-hold false
-  UI->>Store: trick cleared winnerId
-  UI->>Store: leader set winnerId
-  UI->>Store: reveal clear
-  U->>UI: if not last trick click Next Hand
-  UI->>Store: trick cleared winnerId
-  UI->>Store: leader set winnerId
-  UI->>Store: reveal clear
+  U->>UI: Click CTA (Next Hand or Next Round)
+  UI->>Eng: computeAdvanceBatch(state, now)
+  Eng-->>UI: [sp/trick/cleared, sp/leader-set, sp/trick/reveal-clear, sp/ack-set('none')]
+  UI-->>Store: appendMany batch
   Store-->>Red: reduce
   Red-->>Store: apply state updates
   Hook->>Eng: engine resumes bot may play
@@ -46,31 +41,24 @@ sequenceDiagram
   participant Eng as Engine
   participant Store as State_Store
   participant Red as Reducer
-  Hook->>Hook: guard round done and no reveal and no hold
-  Hook->>Eng: finalizeRoundIfDone
-  Eng-->>Hook: made set for each player
-  Eng-->>Hook: sp/phase-set done
-  Eng-->>Hook: round finalize current round
-  Eng-->>Hook: optional sp/deal nextRound
-  Eng-->>Hook: optional sp/leader-set firstToAct
-  Eng-->>Hook: optional sp/phase-set bidding
-  Eng-->>Hook: optional round/state-set nextRound bidding
-  Hook-->>Store: appendMany batch
+  Hook->>Hook: guard round done (no reveal, no hold)
+  UI->>Eng: computeAdvanceBatch(state, now)
+  Eng-->>UI: [made/set xN, round/finalize, sp/phase-set('summary'|'game-summary'), sp/summary-entered-set]
+  UI-->>Store: appendMany batch
   Store-->>Red: reduce events
   Red-->>Store: apply state updates
-  Hook-->>UI: onAdvance with nextRound and dealerId if dealt
-  UI->>UI: update local round dealer view state
-  Hook->>Eng: if reveal or hold active return empty
-  U->>UI: if reveal shown click Continue
-  UI->>Store: finalize-hold false
-  UI->>Store: trick cleared
-  UI->>Store: leader set
-  UI->>Store: reveal clear
-  Hook->>Hook: next effect passes guards finalize proceeds
+  Note over UI: If phase === 'summary', show Round Summary
+  U->>UI: Click CTA (Next Round) or wait for auto-advance
+  UI->>Eng: computeAdvanceBatch(state, now, { intent: 'user'|'auto' })
+  Eng-->>UI: [sp/deal, sp/leader-set, sp/phase-set('bidding'), round/state-set('bidding')] or [sp/phase-set('done')]
+  UI-->>Store: appendMany batch
+  Store-->>Red: reduce events
+  Red-->>Store: apply
 ```
 
 ## Notes
 
-- Bot plays pause during reveal; resume after `sp/trick/cleared` and `sp/trick/reveal-clear`.
+- Bot plays pause during reveal and while in summary; resume after `sp/trick/cleared`/`sp/trick/reveal-clear` or when leaving summary.
 - Round finalization is idempotent and gated by `sp.reveal == null` and `sp.finalizeHold == false`.
+- On entering summary, reducer stores `sp.summaryEnteredAt`; UI auto-advance may call `computeAdvanceBatch(..., { intent: 'auto' })` after the configured timeout.
 - `round/finalize` scores the row and flips the next row to `'bidding'` if it was `'locked'`.
