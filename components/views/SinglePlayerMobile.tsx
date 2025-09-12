@@ -16,7 +16,7 @@ import {
   selectSpIsRoundDone,
 } from '@/lib/state';
 import { roundDelta, selectCumulativeScoresAllRounds, type AppEvent } from '@/lib/state';
-import { bots, finalizeRoundIfDone, type Card as SpCard } from '@/lib/single-player';
+import { bots, computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
 
 type Props = {
   humanId: string;
@@ -45,7 +45,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   const tricksThisRound = selectSpTricksForRound(state);
   const { trump, trumpCard } = selectSpTrumpInfo(state);
   const dealerName = selectSpDealerName(state);
-  const isRoundDone = selectSpIsRoundDone(state);
+  const _isRoundDone = selectSpIsRoundDone(state); // used via computeAdvanceBatch button state/label
   // tricksThisRound used directly where needed
 
   const totalsByRound = React.useMemo(() => selectCumulativeScoresAllRounds(state), [state]);
@@ -297,13 +297,9 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
                   className="rounded bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 text-sm"
                   disabled={isBatchPending}
                   onClick={() => {
-                    const winnerId = reveal.winnerId;
-                    void appendMany([
-                      events.spFinalizeHoldSet({ hold: false }),
-                      events.spTrickCleared({ winnerId }),
-                      events.spLeaderSet({ leaderId: winnerId }),
-                      events.spTrickRevealClear({}),
-                    ]);
+                    if (isBatchPending) return;
+                    const batch = computeAdvanceBatch(state, Date.now());
+                    if (batch.length > 0) void appendMany(batch);
                   }}
                 >
                   {(() => {
@@ -330,6 +326,19 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
           </div>
         </aside>
       </main>
+
+      {/* Last Trick banner (after clear, before next trick starts) */}
+      {(() => {
+        const snap = sp?.lastTrickSnapshot ?? null;
+        const trickIdle = (sp?.trickPlays?.length ?? 0) === 0;
+        if (!snap || reveal || !trickIdle) return null;
+        return (
+          <div className="fixed left-0 right-0 bottom-[calc(52px+3rem)] z-30 mx-2 mb-2 rounded border bg-card px-3 py-2 text-xs shadow">
+            <span className="text-muted-foreground">Last Trick:</span>{' '}
+            <span className="font-semibold">{playerName(snap.winnerId)}</span>
+          </div>
+        );
+      })()}
 
       {/* Hand Dock */}
       <section
@@ -443,24 +452,13 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
           className="rounded bg-primary text-primary-foreground px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={() => {
             if (isBatchPending) return;
-            // If reveal is active, clear it first; engine will then finalize automatically
-            if (reveal) {
-              const winnerId = reveal.winnerId;
-              void appendMany([
-                events.spFinalizeHoldSet({ hold: false }),
-                events.spTrickCleared({ winnerId }),
-                events.spLeaderSet({ leaderId: winnerId }),
-                events.spTrickRevealClear({}),
-              ]);
-              return;
-            }
-            const batch = finalizeRoundIfDone(state, { now: Date.now() });
+            const batch = computeAdvanceBatch(state, Date.now());
             if (batch.length > 0) void appendMany(batch);
           }}
-          disabled={isBatchPending || (!reveal && !isRoundDone)}
-          aria-disabled={isBatchPending || (!reveal && !isRoundDone) ? true : false}
+          disabled={isBatchPending || computeAdvanceBatch(state, Date.now()).length === 0}
+          aria-disabled={isBatchPending || computeAdvanceBatch(state, Date.now()).length === 0}
         >
-          Finalize
+          {reveal ? (Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0) >= tricksThisRound ? 'Next Round' : 'Next Hand') : 'Continue'}
         </button>
       </nav>
       {/* No end-of-round confirmation modal */}
