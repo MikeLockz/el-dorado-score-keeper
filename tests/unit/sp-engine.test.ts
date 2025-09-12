@@ -132,6 +132,54 @@ describe('sp-engine', () => {
     expect(out.length).toBe(0);
   });
 
+  it("computeBotPlay returns [] while handPhase === 'revealing'", () => {
+    const s = replay([
+      ev('player/added', { id: 'a', name: 'A' }, 'hh1'),
+      ev('player/added', { id: 'b', name: 'B' }, 'hh2'),
+      ev(
+        'sp/deal',
+        {
+          roundNo: 1,
+          dealerId: 'a',
+          order: ['a', 'b'],
+          trump: 'spades',
+          trumpCard: { suit: 'spades', rank: 10 },
+          hands: { a: [{ suit: 'hearts', rank: 2 }], b: [{ suit: 'spades', rank: 3 }] },
+        },
+        'hhd',
+      ),
+      ev('sp/leader-set', { leaderId: 'a' }, 'hhlead'),
+      ev('sp/phase-set', { phase: 'playing' }, 'hhph'),
+      ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 2 } }, 'hhp1'),
+      ev('sp/trick/played', { playerId: 'b', card: { suit: 'spades', rank: 3 } }, 'hhp2'),
+      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'hhrev'),
+    ]);
+    // handPhase toggles to 'revealing' on reveal-set; ensure computeBotPlay is paused
+    const out = computeBotPlay(s, 'a', () => 0.5);
+    expect(out.length).toBe(0);
+  });
+
+  it("computeBotPlay returns [] while phase === 'summary'", () => {
+    const s = replay([
+      ev('player/added', { id: 'a', name: 'A' }, 'sy1'),
+      ev(
+        'sp/deal',
+        {
+          roundNo: 1,
+          dealerId: 'a',
+          order: ['a'],
+          trump: 'hearts',
+          trumpCard: { suit: 'hearts', rank: 10 },
+          hands: { a: [{ suit: 'hearts', rank: 2 }] },
+        },
+        'syd',
+      ),
+      ev('sp/phase-set', { phase: 'summary' }, 'syph'),
+    ]);
+    const out = computeBotPlay(s, 'a', () => 0.5);
+    expect(out.length).toBe(0);
+  });
+
   it('finalizeRoundIfDone emits made/set and finalize; also prepares next deal when applicable', () => {
     // Round 1: two players, 10 tricks total; both bid 5 and both win 5
     const s0 = replay([

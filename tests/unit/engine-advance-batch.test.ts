@@ -110,4 +110,30 @@ describe('computeAdvanceBatch', () => {
     expect(types).toContain('sp/phase-set');
     expect(types).toContain('round/state-set');
   });
+
+  it('auto-advances summary after threshold when intent=auto', () => {
+    const s: AppState = {
+      ...base,
+      rounds: { 1: { state: 'scored', bids: { a: 1, b: 0 }, made: { a: true, b: false } } },
+      sp: { ...base.sp, phase: 'summary', summaryEnteredAt: 1000 },
+    };
+    // At t=6000 with threshold 5000 -> auto allowed
+    const out = computeAdvanceBatch(s, 6000, { intent: 'auto', summaryAutoAdvanceMs: 5000 });
+    const types = out.map((e) => e.type);
+    expect(types).toContain('sp/deal');
+  });
+
+  it('does not auto-advance if below threshold or disabled', () => {
+    const s: AppState = {
+      ...base,
+      rounds: { 1: { state: 'scored', bids: { a: 1, b: 0 }, made: { a: true, b: false } } },
+      sp: { ...base.sp, phase: 'summary', summaryEnteredAt: 1000 },
+    };
+    // Below threshold
+    const out1 = computeAdvanceBatch(s, 4000, { intent: 'auto', summaryAutoAdvanceMs: 5000 });
+    expect(out1.length).toBe(0);
+    // Disabled (0 ms)
+    const out2 = computeAdvanceBatch(s, 100000, { intent: 'auto', summaryAutoAdvanceMs: 0 });
+    expect(out2.length).toBe(0);
+  });
 });

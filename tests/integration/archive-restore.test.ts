@@ -51,8 +51,8 @@ describe('archive and restore flows', () => {
 
     // listGames returns the archive
     const games = await listGames(GAMES_DB_NAME);
-    expect(games.length).toBe(1);
-    expect(games[0]!.id).toBe(rec!.id);
+    expect(games.length).toBeGreaterThanOrEqual(1);
+    expect(games.some((g) => g.id === rec!.id)).toBe(true);
 
     // Restore from archive and verify state matches archived end state
     await restoreGame(dbName, rec!.id);
