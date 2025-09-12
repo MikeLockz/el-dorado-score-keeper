@@ -36,7 +36,6 @@ export type EventMap = {
   'sp/leader-set': { leaderId: string };
   'sp/trick/reveal-set': { winnerId: string };
   'sp/trick/reveal-clear': Record<never, never>;
-  'sp/finalize-hold-set': { hold: boolean };
   'sp/ack-set': { ack: 'none' | 'hand' };
   'sp/summary-entered-set': { at: number };
 };
@@ -92,7 +91,6 @@ export type AppState = Readonly<{
     trumpBroken: boolean;
     leaderId: string | null;
     reveal: { winnerId: string } | null;
-    finalizeHold: boolean;
     handPhase: 'idle' | 'revealing';
     ack: 'none' | 'hand';
     lastTrickSnapshot: Readonly<{
@@ -127,7 +125,6 @@ export const INITIAL_STATE: AppState = {
     trumpBroken: false,
     leaderId: null,
     reveal: null,
-    finalizeHold: false,
     handPhase: 'idle',
     ack: 'none',
     lastTrickSnapshot: null,
@@ -398,10 +395,6 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'sp/leader-set': {
       const { leaderId } = event.payload as EventMap['sp/leader-set'];
       return { ...state, sp: { ...state.sp, leaderId } };
-    }
-    case 'sp/finalize-hold-set': {
-      const { hold } = event.payload as EventMap['sp/finalize-hold-set'];
-      return { ...state, sp: { ...state.sp, finalizeHold: !!hold } };
     }
     case 'sp/ack-set': {
       const { ack } = event.payload as EventMap['sp/ack-set'];

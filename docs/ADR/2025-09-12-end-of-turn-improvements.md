@@ -12,7 +12,7 @@ We will implement end-of-turn improvements for single player to simplify flows a
 
 Current state and selectors relevant to end-of-turn:
 
-- State fields: `sp.phase`, `sp.trickPlays`, `sp.trickCounts`, `sp.trumpBroken`, `sp.leaderId`, `sp.reveal`, `sp.finalizeHold`, and round data in `rounds`.
+- State fields: `sp.phase`, `sp.trickPlays`, `sp.trickCounts`, `sp.trumpBroken`, `sp.leaderId`, `sp.reveal`, `sp.ack`, and round data in `rounds`.
 - Selectors touched by turn boundaries: `selectSpIsRoundDone`, `selectSpIsLastTrick`, `selectSpNextToPlay`, `selectSpRotatedOrder`.
 
 ## Decision

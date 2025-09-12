@@ -22,7 +22,6 @@ const baseGameSummaryState: AppState = {
     trumpBroken: false,
     leaderId: 'p1',
     reveal: null,
-    finalizeHold: false,
     handPhase: 'idle',
     ack: 'none',
     lastTrickSnapshot: null,
@@ -95,7 +94,9 @@ suite('Game Summary UI', () => {
     expect(text).toMatch(/Winner/);
 
     const btns = Array.from(div.querySelectorAll('button'));
-    const playAgain = btns.find((b) => /Play Again/i.test(b.textContent || '')) as HTMLButtonElement;
+    const playAgain = btns.find((b) =>
+      /Play Again/i.test(b.textContent || ''),
+    ) as HTMLButtonElement;
     expect(playAgain).toBeTruthy();
     playAgain.click();
 
@@ -107,4 +108,3 @@ suite('Game Summary UI', () => {
     div.remove();
   });
 });
-

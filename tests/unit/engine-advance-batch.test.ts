@@ -22,7 +22,6 @@ const base: AppState = {
     trumpBroken: false,
     leaderId: 'a',
     reveal: null,
-    finalizeHold: false,
     handPhase: 'idle',
     ack: 'none',
     lastTrickSnapshot: null,

@@ -26,7 +26,6 @@ const baseSummaryState = (roundNo = 1): AppState => ({
     trumpBroken: false,
     leaderId: 'p1',
     reveal: null,
-    finalizeHold: false,
     handPhase: 'idle',
     ack: 'none',
     lastTrickSnapshot: null,
@@ -69,7 +68,17 @@ vi.mock('@/lib/single-player', async () => {
     })),
     winnerOfTrick: vi.fn(),
     computeAdvanceBatch: (s: AppState) => [
-      { type: 'sp/deal', payload: { roundNo: (s.sp.roundNo ?? 0) + 1, dealerId: 'p2', order: ['p1','p2'], trump: 'hearts', trumpCard: { suit: 'hearts', rank: 12 }, hands: { p1: [], p2: [] } } },
+      {
+        type: 'sp/deal',
+        payload: {
+          roundNo: (s.sp.roundNo ?? 0) + 1,
+          dealerId: 'p2',
+          order: ['p1', 'p2'],
+          trump: 'hearts',
+          trumpCard: { suit: 'hearts', rank: 12 },
+          hands: { p1: [], p2: [] },
+        },
+      },
       { type: 'sp/leader-set', payload: { leaderId: 'p1' } },
       { type: 'sp/phase-set', payload: { phase: 'bidding' } },
       { type: 'round/state-set', payload: { round: (s.sp.roundNo ?? 0) + 1, state: 'bidding' } },
@@ -115,4 +124,3 @@ suite('Summary UI', () => {
     div.remove();
   });
 });
-

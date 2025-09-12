@@ -92,13 +92,6 @@ export function resolveCompletedTrick(state: AppState): AppEvent[] {
   if (!state.sp.trumpBroken && anyTrump && ledSuit && ledSuit !== trump) {
     batch.push(events.spTrumpBrokenSet({ broken: true }));
   }
-  // If this completes the last required trick, set a finalize-hold to require a user action
-  const needed = selectSpTricksForRound(state);
-  const totalSoFar = Object.values(state.sp.trickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
-  const totalAfter = totalSoFar + 1; // include this completed trick
-  if (needed > 0 && totalAfter >= needed) {
-    batch.push(events.spFinalizeHoldSet({ hold: true }));
-  }
   // Enter reveal state; UI will clear and advance leader on explicit user action
   batch.push(events.spTrickRevealSet({ winnerId: winner }));
   return batch;
@@ -119,7 +112,7 @@ export function finalizeRoundIfDone(state: AppState, opts: FinalizeOptions = {})
   // Gate finalization until after the last clear: if reveal is active, keep the hand visible
   if (sp.reveal) return [];
   // UI-gated: if a hold is set (end-of-round confirmation), do not auto-finalize
-  if (sp.finalizeHold) return [];
+  // finalizeHold removed; ack/reveal gating are sufficient
   // Check done condition
   const needed = selectSpTricksForRound(state);
   const total = Object.values(sp.trickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
@@ -216,7 +209,7 @@ export function computeAdvanceBatch(
   if (
     sp.phase === 'playing' &&
     !sp.reveal &&
-    !sp.finalizeHold &&
+    // finalizeHold removed; rely on reveal gating
     roundNo > 0 &&
     rulesIsRoundDone(roundNo, sp.trickCounts ?? {})
   ) {
