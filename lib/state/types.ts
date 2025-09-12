@@ -337,12 +337,15 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         }
       }
       const trickPlays = [...state.sp.trickPlays, { playerId, card }];
+      const lastTrickSnapshot =
+        // If this is the first play of a new trick, clear lastTrickSnapshot
+        curPlays.length === 0 ? null : state.sp.lastTrickSnapshot ?? null;
       const hands = { ...state.sp.hands };
       const arr = [...(hands[playerId] ?? [])];
       const idx = arr.findIndex((c) => c && c.suit === card.suit && c.rank === card.rank);
       if (idx >= 0) arr.splice(idx, 1);
       hands[playerId] = arr;
-      return { ...state, sp: { ...state.sp, trickPlays, hands } };
+      return { ...state, sp: { ...state.sp, trickPlays, hands, lastTrickSnapshot } };
     }
     case 'sp/trick/cleared': {
       // Idempotency: only clear if there were plays to clear
@@ -357,7 +360,24 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         ...state.sp.trickCounts,
         [winnerId]: (state.sp.trickCounts[winnerId] ?? 0) + 1,
       };
-      return { ...state, sp: { ...state.sp, reveal: { winnerId }, trickCounts } };
+      // Snapshot the just-completed trick for UI display in the next trick
+      const plays = (state.sp.trickPlays ?? []).map((p) => ({
+        playerId: p.playerId,
+        card: { suit: p.card.suit, rank: p.card.rank },
+      }));
+      const ledBy = plays[0]?.playerId ?? state.sp.leaderId ?? null;
+      const lastTrickSnapshot =
+        ledBy && plays.length > 0
+          ? {
+              ledBy,
+              plays,
+              winnerId,
+            }
+          : state.sp.lastTrickSnapshot ?? null;
+      return {
+        ...state,
+        sp: { ...state.sp, reveal: { winnerId }, trickCounts, lastTrickSnapshot },
+      };
     }
     case 'sp/trick/reveal-clear': {
       if (!state.sp.reveal) return state;
