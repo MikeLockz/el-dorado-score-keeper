@@ -1,6 +1,6 @@
 import type { AppState, AppEvent } from '@/lib/state/types';
 import { events } from '@/lib/state/events';
-import { tricksForRound } from '@/lib/state/logic';
+import { tricksForRound, ROUNDS_TOTAL } from '@/lib/state/logic';
 import {
   selectSpNextToPlay,
   selectSpTricksForRound,
@@ -133,7 +133,7 @@ export function finalizeRoundIfDone(state: AppState, opts: FinalizeOptions = {})
   batch.push(events.roundFinalize({ round: roundNo }));
 
   // If more rounds remain, prepare next deal
-  if (roundNo < 10) {
+  if (roundNo < ROUNDS_TOTAL) {
     const nextRound = roundNo + 1;
     const ordered = ids;
     const curDealerId = sp.dealerId ?? ordered[0]!;
@@ -186,6 +186,12 @@ export function computeAdvanceBatch(
   const order = sp.order ?? [];
   const plays = sp.trickPlays ?? [];
 
+  // 0) Safety: if we're not revealing and there are no plays, but handPhase is still 'revealing',
+  // normalize back to idle so play can resume (handles rare mismatch states)
+  if (sp.phase === 'playing' && !sp.reveal && plays.length === 0 && sp.handPhase === 'revealing') {
+    return [events.spTrickRevealClear({})];
+  }
+
   // 1) Trick just completed → reveal batch + ack
   if (sp.phase === 'playing' && !sp.reveal && order.length > 0 && plays.length === order.length) {
     const batch = resolveCompletedTrick(state);
@@ -222,7 +228,7 @@ export function computeAdvanceBatch(
       const made = won === (bidsMap[pid] ?? 0);
       batch.push(events.madeSet({ round: roundNo, playerId: pid, made }));
     }
-    batch.push(events.spPhaseSet({ phase: roundNo >= 10 ? 'game-summary' : 'summary' }));
+    batch.push(events.spPhaseSet({ phase: roundNo >= ROUNDS_TOTAL ? 'game-summary' : 'summary' }));
     batch.push(events.roundFinalize({ round: roundNo }));
     batch.push(events.spSummaryEnteredSet({ at: now }));
     return batch;
@@ -254,7 +260,7 @@ export function computeAdvanceBatch(
         seed,
       );
       const out: AppEvent[] = [];
-      if (nextRound <= 10) {
+      if (nextRound <= ROUNDS_TOTAL) {
         out.push(
           events.spDeal({
             roundNo: nextRound,
@@ -269,8 +275,8 @@ export function computeAdvanceBatch(
         out.push(events.spPhaseSet({ phase: 'bidding' }));
         out.push(events.roundStateSet({ round: nextRound, state: 'bidding' }));
       } else {
-        // End of game path for now
-        out.push(events.spPhaseSet({ phase: 'done' }));
+        // End of game: enter game summary
+        out.push(events.spPhaseSet({ phase: 'game-summary' }));
       }
       return out;
     }

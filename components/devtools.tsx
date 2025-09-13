@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { useAppState } from '@/components/state-provider';
-import type { AppState } from '@/lib/state';
+import type { AppState, RoundState } from '@/lib/state';
 import { exportBundle } from '@/lib/state';
 import { formatTime } from '@/lib/format';
 
@@ -44,6 +44,24 @@ export default function Devtools() {
   const scores = Object.keys(state.scores).length;
 
   const [open, setOpen] = React.useState(false);
+
+  // Helper: readable label for a round state
+  function labelForRoundState(s: RoundState): string {
+    switch (s) {
+      case 'locked':
+        return 'Locked';
+      case 'bidding':
+        return 'Active';
+      case 'playing':
+        return 'Playing';
+      case 'complete':
+        return 'Complete';
+      case 'scored':
+        return 'Scored';
+      default:
+        return String(s);
+    }
+  }
 
   // Collapsed floating opener button (very small)
   if (!open) {
@@ -152,6 +170,15 @@ export default function Devtools() {
               : preview
                 ? `players ${Object.keys(preview.players).length}, scores ${Object.keys(preview.scores).length}, sp round ${preview.sp?.roundNo ?? '—'} phase ${preview.sp?.phase ?? '—'}`
                 : '—'}
+          </div>
+          <div style={{ marginTop: 4 }}>
+            {(() => {
+              const r = state.sp?.roundNo ?? null;
+              const st = (r ? state.rounds[r]?.state : undefined) as RoundState | undefined;
+              return r && st
+                ? `round ${r} state: ${labelForRoundState(st)} (${st})`
+                : 'round state: —';
+            })()}
           </div>
           <div style={{ fontSize: 11, marginTop: 4, opacity: 0.85 }}>
             mode: {timeTraveling ? `time-travel @ ${timeTravelHeight}` : 'live'}

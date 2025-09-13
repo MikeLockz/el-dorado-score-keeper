@@ -15,7 +15,7 @@ import {
   selectSpReveal,
   selectSpIsRoundDone,
 } from '@/lib/state';
-import { roundDelta, selectCumulativeScoresAllRounds, type AppEvent } from '@/lib/state';
+import { roundDelta, selectCumulativeScoresAllRounds, type AppEvent, ROUNDS_TOTAL } from '@/lib/state';
 import { bots, computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
 import { archiveCurrentGameAndReset } from '@/lib/state';
 
@@ -56,22 +56,14 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   const humanBid = rd?.bids?.[humanId] ?? 0;
   const humanMade = rd?.made?.[humanId] ?? null;
   const humanDelta = humanMade == null ? 0 : roundDelta(humanBid, humanMade);
+  const isFinalRound = spRoundNo >= ROUNDS_TOTAL;
   const roundState = (state.rounds[spRoundNo]?.state ?? 'locked') as
     | 'locked'
     | 'bidding'
     | 'playing'
     | 'complete'
     | 'scored';
-  const labelForRoundState = (s: typeof roundState) =>
-    s === 'locked'
-      ? 'Locked'
-      : s === 'bidding'
-        ? 'Active'
-        : s === 'playing'
-          ? 'Playing'
-          : s === 'complete'
-            ? 'Complete'
-            : 'Scored';
+  // Round state label moved to Devtools for debugging visibility
 
   const handsCompleted = Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
   // Count the current hand in-progress only when not revealing; during reveal the trick has
@@ -248,7 +240,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   }
 
   // Game Summary Screen (phase === 'game-summary')
-  if (spPhase === 'game-summary') {
+  if (spPhase === 'game-summary' || spPhase === 'done') {
     const ids = players.map((p) => p.id);
     const totals = ids.map((id) => ({ id, name: playerName(id), total: state.scores?.[id] ?? 0 }));
     const max = totals.reduce((m, t) => Math.max(m, t.total), Number.NEGATIVE_INFINITY);
@@ -335,10 +327,11 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
       {/* Top Bar */}
       <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b px-2 py-1">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <div>
-            <span className="mr-2">Round {spRoundNo}</span>
-            <span className="mx-1">•</span>
-            <span>Dealer: {dealerName ?? '—'}</span>
+          <div className="inline-grid grid-flow-col items-baseline gap-1">
+            <span className="text-muted-foreground">Hand:</span>
+            <span className="font-semibold text-sm">
+              {handNow}/{tricksThisRound}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1">
@@ -349,44 +342,18 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
                 '—'
               )}
             </span>
-            <button
-              type="button"
-              className={`px-2 py-0.5 rounded border text-xs ${state.sp?.trumpBroken ? 'border-emerald-500 text-emerald-600 dark:text-emerald-300' : 'text-muted-foreground'}`}
-              onClick={() =>
-                void append(events.spTrumpBrokenSet({ broken: !state.sp?.trumpBroken }))
-              }
-              aria-pressed={state.sp?.trumpBroken ? 'true' : 'false'}
-              aria-label="Toggle trump broken"
-            >
-              Broken: {state.sp?.trumpBroken ? 'Yes' : 'No'}
-            </button>
           </div>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <div className="inline-grid grid-flow-col items-baseline gap-1">
-            <span className="text-[10px] text-muted-foreground">Hand</span>
-            <span className="font-semibold text-sm">
-              {handNow}/{tricksThisRound}
+            <span className="text-[10px] text-muted-foreground">Dealer: {dealerName ?? '—'}</span>
+          </div>
+          <span className="inline-flex items-center">
+            <span className="text-[10px] text-muted-foreground">
+              Broken: {state.sp?.trumpBroken ? 'Yes' : 'No'}
             </span>
-          </div>
-          <div className="inline-grid grid-flow-col items-baseline gap-1">
-            <span className="text-[10px] text-muted-foreground">Tricks</span>
-            <span className="font-semibold text-sm">{handsCompleted}</span>
-          </div>
-          <div className="inline-grid grid-flow-col items-baseline gap-1">
-            <span className="text-[10px] text-muted-foreground">Score</span>
-            <span className="font-semibold text-sm tabular-nums">{humanScore}</span>
-          </div>
-          <div className="inline-grid grid-flow-col items-baseline gap-1">
-            <span className="text-[10px] text-muted-foreground">Delta</span>
-            <span className="font-semibold text-sm tabular-nums">
-              {humanDelta >= 0 ? `+${humanDelta}` : humanDelta}
-            </span>
-          </div>
-          <div className="inline-grid grid-flow-col items-baseline gap-1">
-            <span className="text-[10px] text-muted-foreground">State</span>
-            <span className="font-semibold text-sm">{labelForRoundState(roundState)}</span>
-          </div>
+          </span>
+          {/* Round state label removed from UI; available in Devtools */}
         </div>
         {/* Bidding controls moved near hand dock */}
       </header>
@@ -409,7 +376,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             return (
               <div
                 key={pid}
-                className={`grid grid-cols-[minmax(64px,1fr)_36px_52px_64px] items-center gap-1 rounded px-1 py-0.5 border ${isWinner ? 'border-emerald-500 bg-emerald-500/5' : 'border-border bg-card/60'}`}
+                className={`grid grid-cols-[minmax(64px,1fr)_36px_52px_64px] items-center gap-1 rounded py-0.5 ${isWinner ? 'border-emerald-500 bg-emerald-500/15' : 'border-border bg-card/60'}`}
               >
                 <div className="truncate text-sm">{playerName(pid)}</div>
                 <div className="text-sm tabular-nums text-center">{bid}</div>
@@ -428,12 +395,12 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
 
         {/* Bottom Sheet */}
         <aside
-          className={`fixed left-0 right-0 bottom-0 z-30 bg-card border-t transition-transform ${
+          className={`fixed left-0 right-0 bottom-0 z-50 bg-card border-t transition-transform ${
             sheet === 'peek'
               ? 'translate-y-full'
               : sheet === 'mid'
                 ? 'translate-y-[40dvh]'
-                : 'translate-y-[6dvh]'
+                : 'translate-y-0'
           }`}
         >
           <div
@@ -443,21 +410,20 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
           >
             ▄▄▄
           </div>
-          <div className="max-h-[80dvh] overflow-auto p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-            <div className="flex items-center justify-between py-1">
-              <div>Score</div>
-              <div className="tabular-nums">{humanScore}</div>
-            </div>
-            <div className="flex items-center justify-between py-1 text-muted-foreground">
-              <div>This round</div>
-              <div className="tabular-nums">{humanDelta >= 0 ? `+${humanDelta}` : humanDelta}</div>
-            </div>
-            <hr className="my-2" />
+          <div className="max-h-[calc(100dvh-3rem)] overflow-auto p-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <div className="text-xs text-muted-foreground mb-1">Bids</div>
             <div className="flex flex-wrap gap-3">
               {spOrder.map((pid) => (
                 <div key={`bid-${pid}`}>
                   {playerName(pid)}: <strong>{state.rounds[spRoundNo]?.bids?.[pid] ?? 0}</strong>
+                </div>
+              ))}
+            </div>
+            <div className="text-xs text-muted-foreground mt-3 mb-1">Scores</div>
+            <div className="flex flex-wrap gap-3">
+              {spOrder.map((pid) => (
+                <div key={`score-${pid}`}>
+                  {playerName(pid)}: <strong>{roundTotals[pid] ?? 0}</strong>
                 </div>
               ))}
             </div>
@@ -472,10 +438,8 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
                 <button
                   type="button"
                   className="rounded bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 text-sm"
-                  disabled={isBatchPending}
                   onClick={() => {
-                    if (isBatchPending) return;
-                    const batch = computeAdvanceBatch(state, Date.now());
+                    const batch = computeAdvanceBatch(state, Date.now(), { intent: 'user' });
                     if (batch.length > 0) void appendMany(batch);
                   }}
                 >
@@ -484,7 +448,8 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
                       (a, n) => a + (n ?? 0),
                       0,
                     );
-                    return total >= tricksThisRound ? 'Next Round' : 'Next Hand';
+                    if (total >= tricksThisRound) return isFinalRound ? 'New Game' : 'Next Round';
+                    return 'Next Hand';
                   })()}
                 </button>
               </div>
@@ -492,7 +457,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
-                className="rounded border px-2 py-1 text-sm"
+                className="rounded border px-2 py-1 text-sm hover:bg-muted/20"
                 onClick={() =>
                   void append(events.spTrumpBrokenSet({ broken: !state.sp?.trumpBroken }))
                 }
@@ -528,7 +493,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             <span className="text-xs text-muted-foreground">Your bid</span>
             <button
               type="button"
-              className="h-7 w-7 rounded border bg-sky-700 text-white"
+              className="h-7 w-7 rounded border bg-sky-700 text-white hover:bg-sky-800"
               onClick={() =>
                 void append(
                   events.bidSet({
@@ -546,7 +511,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             <span className="font-bold text-base min-w-[1.5rem] text-center">{humanBid}</span>
             <button
               type="button"
-              className="h-7 w-7 rounded border bg-sky-700 text-white"
+              className="h-7 w-7 rounded border bg-sky-700 text-white hover:bg-sky-800"
               onClick={() =>
                 void append(
                   events.bidSet({
@@ -563,7 +528,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             </button>
             <button
               type="button"
-              className="ml-1 h-7 px-2 rounded border bg-emerald-700 text-white"
+              className="ml-1 h-7 px-2 rounded border bg-emerald-700 text-white hover:bg-emerald-800"
               onClick={() => void onConfirmBid(humanBid)}
               disabled={isBatchPending}
             >
@@ -588,9 +553,12 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
                     {humanBySuit[s].map((c, i) => (
                       <button
                         key={`card-${s}-${c.rank}-${i}`}
-                        className={`h-14 w-10 rounded border flex items-center justify-center font-bold select-none ${
+                        className={`h-14 w-10 rounded border flex items-center justify-center font-bold select-none transition-shadow ${
                           s === 'hearts' || s === 'diamonds' ? 'text-red-600 dark:text-red-300' : ''
-                        } ${isSelected(c) ? 'ring-2 ring-sky-500' : ''} ${canPlayCard(c) ? '' : 'opacity-40'}`}
+                        } ${isSelected(c) ? 'ring-2 ring-sky-500' : 'hover:ring-1 hover:ring-sky-400'} ${
+                          // Keep cards fully visible during bidding, but dim non-interactable cards while playing
+                          spPhase === 'playing' && !canPlayCard(c) ? 'opacity-40' : ''
+                        }`}
                         onClick={() =>
                           setSelected((prev) =>
                             prev && prev.suit === c.suit && prev.rank === c.rank ? null : c,
@@ -622,24 +590,24 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         style={{ minHeight: 52 }}
         aria-label="Primary actions"
       >
-        <button className="text-muted-foreground" onClick={cycleSheet} aria-label="Round details">
+        <button className="text-muted-foreground hover:text-foreground hover:underline" onClick={cycleSheet} aria-label="Round details">
           Details
         </button>
         <button
-          className="rounded bg-primary text-primary-foreground px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded bg-primary text-primary-foreground px-3 py-2 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={() => {
-            if (isBatchPending) return;
-            const batch = computeAdvanceBatch(state, Date.now());
+            const batch = computeAdvanceBatch(state, Date.now(), { intent: 'user' });
             if (batch.length > 0) void appendMany(batch);
           }}
-          disabled={isBatchPending || computeAdvanceBatch(state, Date.now()).length === 0}
-          aria-disabled={isBatchPending || computeAdvanceBatch(state, Date.now()).length === 0}
+          disabled={computeAdvanceBatch(state, Date.now(), { intent: 'user' }).length === 0}
+          aria-disabled={computeAdvanceBatch(state, Date.now(), { intent: 'user' }).length === 0}
         >
           {reveal
-            ? Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0) >=
-              tricksThisRound
-              ? 'Next Round'
-              : 'Next Hand'
+            ? (() => {
+                const total = Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
+                if (total >= tricksThisRound) return isFinalRound ? 'New Game' : 'Next Round';
+                return 'Next Hand';
+              })()
             : 'Continue'}
         </button>
       </nav>

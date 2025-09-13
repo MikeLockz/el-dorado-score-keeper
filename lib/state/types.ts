@@ -349,7 +349,11 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'sp/trick/cleared': {
       // Idempotency: only clear if there were plays to clear
       if (!state.sp.trickPlays || state.sp.trickPlays.length === 0) return state;
-      return { ...state, sp: { ...state.sp, trickPlays: [], reveal: null } } as AppState;
+      // Ensure we leave reveal mode and return to idle hand phase so bots can resume
+      return {
+        ...state,
+        sp: { ...state.sp, trickPlays: [], reveal: null, handPhase: 'idle' },
+      } as AppState;
     }
     case 'sp/trick/reveal-set': {
       const { winnerId } = event.payload as EventMap['sp/trick/reveal-set'];
@@ -385,7 +389,7 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       };
     }
     case 'sp/trick/reveal-clear': {
-      if (!state.sp.reveal) return state;
+      // Always ensure we leave reveal mode and reset hand phase, even if reveal was already null
       return { ...state, sp: { ...state.sp, reveal: null, handPhase: 'idle' } };
     }
     case 'sp/trump-broken-set': {
