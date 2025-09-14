@@ -48,6 +48,12 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
   },
+  async redirects() {
+    return [
+      { source: '/single', destination: '/single-player', permanent: true },
+      { source: '/how-to', destination: '/rules', permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

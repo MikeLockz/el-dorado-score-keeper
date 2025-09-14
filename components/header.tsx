@@ -42,11 +42,11 @@ export default function Header() {
               asChild
               className={cn(
                 itemBase,
-                isActive('/') &&
+                isActive('/scorecard') &&
                   'bg-accent text-accent-foreground font-semibold -mb-px relative z-10',
               )}
             >
-              <Link href="/">Current Game</Link>
+              <Link href="/scorecard">Score Card</Link>
             </DropdownMenu.Item>
             <DropdownMenu.Item
               asChild
