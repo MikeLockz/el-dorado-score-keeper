@@ -61,18 +61,9 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
 
   const totalsByRound = React.useMemo(() => selectCumulativeScoresAllRounds(state), [state]);
   const roundTotals = totalsByRound[spRoundNo] ?? {};
-  const humanScore = roundTotals[humanId] ?? 0;
   const rd = state.rounds[spRoundNo];
   const humanBid = rd?.bids?.[humanId] ?? 0;
-  const humanMade = rd?.made?.[humanId] ?? null;
-  const humanDelta = humanMade == null ? 0 : roundDelta(humanBid, humanMade);
   const isFinalRound = spRoundNo >= ROUNDS_TOTAL;
-  const roundState = (state.rounds[spRoundNo]?.state ?? 'locked') as
-    | 'locked'
-    | 'bidding'
-    | 'playing'
-    | 'complete'
-    | 'scored';
   // Round state label moved to Devtools for debugging visibility
 
   const handsCompleted = Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
@@ -91,6 +82,11 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     'diamonds',
     'clubs',
   ];
+  // Memoized user-intent advance batch computed at top level per render
+  const userAdvanceBatch = React.useMemo(
+    () => computeAdvanceBatch(state, Date.now(), { intent: 'user' }),
+    [state],
+  );
 
   // Summary auto-advance hooks (always declared; guarded inside effect)
   const [autoCanceled, setAutoCanceled] = React.useState(false);
@@ -425,16 +421,14 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         )}
         <SpHandDock
           suitOrder={suitOrder}
-          humanBySuit={humanBySuit as any}
+          humanBySuit={humanBySuit}
           isPlaying={spPhase === 'playing'}
-          isSelected={(c) => isSelected(c as any)}
-          canPlayCard={(c) => canPlayCard(c as any)}
+          isSelected={isSelected}
+          canPlayCard={canPlayCard}
           onToggleSelect={(c) =>
-            setSelected((prev) =>
-              prev && prev.suit === c.suit && prev.rank === c.rank ? null : (c as any),
-            )
+            setSelected((prev) => (prev && prev.suit === c.suit && prev.rank === c.rank ? null : c))
           }
-          onPlayCard={(c) => void playCard(c as any)}
+          onPlayCard={(c) => void playCard(c)}
         />
       </section>
 
@@ -444,42 +438,32 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         style={{ minHeight: 52 }}
         aria-label="Primary actions"
       >
-        {(() => {
-          // Memoize user-intent advance batch to avoid recomputing per attribute
-          const advanceBatch = React.useMemo(
-            () => computeAdvanceBatch(state, Date.now(), { intent: 'user' }),
-            [state],
-          );
-          const disabled = advanceBatch.length === 0;
-          return (
-            <>
-              <button
-                className="text-muted-foreground hover:text-foreground hover:underline"
-                onClick={cycleSheet}
-                aria-label="Round details"
-              >
-                Details
-              </button>
-              <button
-                className="rounded bg-primary text-primary-foreground px-3 py-2 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => {
-                  if (disabled) return;
-                  void appendMany(advanceBatch);
-                }}
-                disabled={disabled}
-                aria-disabled={disabled}
-              >
-                {reveal
-                  ? totalTricksSoFar >= tricksThisRound
-                    ? isFinalRound
-                      ? 'New Game'
-                      : 'Next Round'
-                    : 'Next Hand'
-                  : 'Continue'}
-              </button>
-            </>
-          );
-        })()}
+        <>
+          <button
+            className="text-muted-foreground hover:text-foreground hover:underline"
+            onClick={cycleSheet}
+            aria-label="Round details"
+          >
+            Details
+          </button>
+          <button
+            className="rounded bg-primary text-primary-foreground px-3 py-2 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => {
+              if (userAdvanceBatch.length === 0) return;
+              void appendMany(userAdvanceBatch);
+            }}
+            disabled={userAdvanceBatch.length === 0}
+            aria-disabled={userAdvanceBatch.length === 0}
+          >
+            {reveal
+              ? totalTricksSoFar >= tricksThisRound
+                ? isFinalRound
+                  ? 'New Game'
+                  : 'Next Round'
+                : 'Next Hand'
+              : 'Continue'}
+          </button>
+        </>
       </nav>
       {/* No end-of-round confirmation modal */}
     </div>

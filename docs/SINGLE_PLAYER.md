@@ -91,7 +91,7 @@ This document is the implementation plan to add a single‑player, interactive m
   - Clamp to [0..tricks] and add a small randomness based on difficulty and position.
 - Play baseline:
   - Follow suit highest to win when advantageous to meet bid; otherwise lowest to conserve winners.
-  - If off‑suit: prefer non‑trump unless needing to secure a trick; consider trumping in based on difficulty/heuristics; choose minimal trump that wins if needed.
+  - If off‑suit: prefer non‑trump unless need to secure a trick to reach bid; consider trumping in based on difficulty/strategy; choose minimal trump that wins if needed.
 - Difficulties:
   - Easy: +random noise, conservative bidding, straightforward play.
   - Normal: heuristic as above.
@@ -115,16 +115,14 @@ This document is the implementation plan to add a single‑player, interactive m
 ## Phased Delivery
 
 1. Engine core (types, deck, ordering, rules, trick, round) with CLI/dev harness.
-2. Bots (Normal difficulty) + made/bid extraction.
-
-- Bots accept an injected RNG for deterministic runs in tests; defaults to `Math.random` in UI.
-
+2. Bots (Normal difficulty) + made/bid extraction. Bots accept an injected RNG for deterministic runs in tests; defaults to Math.random in UI.
 3. UI scaffolding: lobby + in‑game view; wire to engine; event integration.
 4. Additional bot difficulties; polish UX; accessibility; tests.
 
 ## Open Questions (Proposed Defaults)
 
 - Simultaneous highest cards from two decks: first played wins (default).
+- Off‑suit play: no forced trump when a player cannot follow the led suit.
 - Mid‑hand saving/resume: out of scope initially.
 
 ## Non‑Goals (for this iteration)

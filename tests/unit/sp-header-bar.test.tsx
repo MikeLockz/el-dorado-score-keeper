@@ -31,4 +31,3 @@ suite('SpHeaderBar', () => {
     div.remove();
   });
 });
-

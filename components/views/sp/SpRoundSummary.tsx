@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Suit, Rank } from '@/lib/single-player/types';
+import type { Suit } from '@/lib/single-player/types';
 
 export type PlayerSummary = Readonly<{
   id: string;

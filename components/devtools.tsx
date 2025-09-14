@@ -174,7 +174,7 @@ export default function Devtools() {
           <div style={{ marginTop: 4 }}>
             {(() => {
               const r = state.sp?.roundNo ?? null;
-              const st = (r ? state.rounds[r]?.state : undefined) as RoundState | undefined;
+              const st: RoundState | undefined = r ? state.rounds[r]?.state : undefined;
               return r && st
                 ? `round ${r} state: ${labelForRoundState(st)} (${st})`
                 : 'round state: —';

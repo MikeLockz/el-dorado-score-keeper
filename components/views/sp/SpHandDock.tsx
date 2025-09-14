@@ -6,10 +6,10 @@ export default function SpHandDock(props: {
   suitOrder: ReadonlyArray<Suit>;
   humanBySuit: Record<Suit, ReadonlyArray<{ suit: Suit; rank: Rank }>>;
   isPlaying: boolean;
-  isSelected: (c: { suit: Suit; rank: Rank }) => boolean;
-  canPlayCard: (c: { suit: Suit; rank: Rank }) => boolean;
-  onToggleSelect: (c: { suit: Suit; rank: Rank }) => void;
-  onPlayCard: (c: { suit: Suit; rank: Rank }) => void;
+  isSelected: (c: Card) => boolean;
+  canPlayCard: (c: Card) => boolean;
+  onToggleSelect: (c: Card) => void;
+  onPlayCard: (c: Card) => void;
 }) {
   const { suitOrder, humanBySuit, isPlaying, isSelected, canPlayCard, onToggleSelect, onPlayCard } =
     props;

@@ -53,4 +53,3 @@ suite('SpHandDock', () => {
     div.remove();
   });
 });
-
