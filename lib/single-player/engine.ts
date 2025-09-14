@@ -32,7 +32,7 @@ export function prefillPrecedingBotBids(
     hands,
     tricks,
     existingBids: bidsSoFar,
-    rng,
+    ...(rng ? { rng } : {}),
   });
   return pre.map((b) => events.bidSet({ round: roundNo, playerId: b.playerId, bid: b.bid }));
 }
@@ -41,7 +41,7 @@ export function prefillPrecedingBotBids(
 export function computeBotPlay(state: AppState, playerId: string, rng?: () => number): AppEvent[] {
   if (state.sp.phase !== 'playing') return [];
   if (state.sp.handPhase === 'revealing') return [];
-  if (state.sp.phase === 'summary') return [];
+  // phase check for 'summary' redundant due to guard above
   if (state.sp.reveal) return [];
   const next = selectSpNextToPlay(state);
   if (!next || next !== playerId) return [];
@@ -64,7 +64,7 @@ export function computeBotPlay(state: AppState, playerId: string, rng?: () => nu
     tricksWonSoFar: state.sp.trickCounts ?? {},
     selfId: playerId,
     trumpBroken: !!state.sp.trumpBroken,
-    rng,
+    ...(rng ? { rng } : {}),
   };
   const card = bots.botPlay(ctx, 'normal');
   return [events.spTrickPlayed({ playerId, card: { suit: card.suit, rank: card.rank } })];

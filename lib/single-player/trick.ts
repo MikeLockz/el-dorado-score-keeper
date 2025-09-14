@@ -36,5 +36,5 @@ export function winnerOfTrick(plays: ReadonlyArray<TrickPlay>, trump: Suit): Pla
 export function closeTrick(plays: ReadonlyArray<TrickPlay>, trump: Suit): Trick {
   const ledBy = plays[0]?.player as PlayerId;
   const winner = winnerOfTrick(plays, trump);
-  return { ledBy, plays: [...plays], winner };
+  return { ledBy, plays: [...plays], ...(winner ? { winner } : {}) };
 }

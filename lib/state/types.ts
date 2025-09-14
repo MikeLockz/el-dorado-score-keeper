@@ -1,4 +1,5 @@
 export type UUID = string;
+import type { Rank, Suit } from '@/lib/single-player/types';
 
 // Event catalog mapping type -> payload shape
 export type EventMap = {
@@ -19,17 +20,14 @@ export type EventMap = {
     roundNo: number;
     dealerId: string;
     order: string[];
-    trump: 'clubs' | 'diamonds' | 'hearts' | 'spades';
-    trumpCard: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number };
-    hands: Record<
-      string,
-      Array<{ suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number }>
-    >;
+    trump: Suit;
+    trumpCard: { suit: Suit; rank: Rank };
+    hands: Record<string, Array<{ suit: Suit; rank: Rank }>>;
   };
   'sp/phase-set': { phase: 'setup' | 'bidding' | 'playing' | 'summary' | 'game-summary' | 'done' };
   'sp/trick/played': {
     playerId: string;
-    card: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number };
+    card: { suit: Suit; rank: Rank };
   };
   'sp/trick/cleared': { winnerId: string };
   'sp/trump-broken-set': { broken: boolean };
@@ -77,15 +75,12 @@ export type AppState = Readonly<{
     roundNo: number | null;
     dealerId: string | null;
     order: string[];
-    trump: 'clubs' | 'diamonds' | 'hearts' | 'spades' | null;
-    trumpCard: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null;
-    hands: Record<
-      string,
-      Array<{ suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number }>
-    >;
+    trump: Suit | null;
+    trumpCard: { suit: Suit; rank: Rank } | null;
+    hands: Record<string, Array<{ suit: Suit; rank: Rank }>>;
     trickPlays: Array<{
       playerId: string;
-      card: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number };
+      card: { suit: Suit; rank: Rank };
     }>;
     trickCounts: Record<string, number>;
     trumpBroken: boolean;
@@ -97,7 +92,7 @@ export type AppState = Readonly<{
       ledBy: string;
       plays: ReadonlyArray<{
         playerId: string;
-        card: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number };
+        card: { suit: Suit; rank: Rank };
       }>;
       winnerId: string;
     }> | null;

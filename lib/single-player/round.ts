@@ -52,9 +52,9 @@ export function validatePlay(
   const led = ledSuitOf(playsSoFar);
   const legal = isLegalPlay(play.card, {
     trump,
-    ledSuit: led,
     trickHasTrump: trickHasTrump(playsSoFar, trump),
     hand,
+    ...(led ? { ledSuit: led } : {}),
   });
   if (!legal) return { reason: 'Illegal play per rules' };
   return true;
@@ -63,7 +63,7 @@ export function validatePlay(
 export function resolveTrick(plays: ReadonlyArray<TrickPlay>, trump: Suit): Trick {
   // winner determined; attach winner and return Trick
   const winner = winnerOfTrick(plays, trump);
-  return { ledBy: plays[0]!.player, plays: [...plays], winner };
+  return { ledBy: plays[0]!.player, plays: [...plays], ...(winner ? { winner } : {}) };
 }
 
 export function summarizeRound(bids: Bid[], tricks: Trick[]): RoundResult {

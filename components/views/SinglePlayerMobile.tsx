@@ -39,7 +39,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   const spPhase = sp?.phase ?? 'setup';
   const spRoundNo = sp?.roundNo ?? 0;
   const spOrder: string[] = sp?.order ?? [];
-  const spHands = (sp?.hands ?? {}) as Record<string, SpCard[]>;
+  const spHands = sp?.hands ?? {};
   const spTrickCounts: Record<string, number> = React.useMemo(
     () => sp?.trickCounts ?? {},
     [sp?.trickCounts],
@@ -161,7 +161,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     });
     const nextDealer = (() => {
       const order = spOrder;
-      const curDealer = sp?.dealerId ?? order[0];
+      const curDealer = sp?.dealerId ?? order[0] ?? '';
       const idx = Math.max(0, order.indexOf(curDealer));
       return order[(idx + 1) % order.length] ?? null;
     })();

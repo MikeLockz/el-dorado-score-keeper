@@ -56,10 +56,9 @@ export default function SinglePlayerPage() {
   const spTrump = sp.trump;
   const spTrumpCard = sp.trumpCard;
   const spOrder = sp.order;
-  const spHands = sp.hands as Record<PlayerId, Card[]>;
   const spTrickPlays = (sp.trickPlays ?? []).map((p, i) => ({
     player: p.playerId as PlayerId,
-    card: p.card as any as Card,
+    card: { suit: p.card.suit, rank: p.card.rank } as Card,
     order: i,
   }));
   const spTrickCounts = sp.trickCounts as Record<PlayerId, number>;
@@ -86,8 +85,8 @@ export default function SinglePlayerPage() {
           dealerId: dealer,
           order: deal.order,
           trump: deal.trump,
-          trumpCard: { suit: deal.trumpCard.suit as any, rank: deal.trumpCard.rank as any },
-          hands: deal.hands as any,
+          trumpCard: { suit: deal.trumpCard.suit, rank: deal.trumpCard.rank },
+          hands: deal.hands,
         }),
         events.spLeaderSet({ leaderId: deal.firstToAct }),
         events.roundStateSet({ round: roundNo, state: 'bidding' }),
@@ -118,7 +117,7 @@ export default function SinglePlayerPage() {
     const haveDeal =
       !!spTrump &&
       (spOrder?.length ?? 0) > 0 &&
-      Object.values(spHands ?? {}).some((arr) => (arr?.length ?? 0) > 0);
+      Object.values(sp.hands ?? {}).some((arr) => (arr?.length ?? 0) > 0);
     if (haveDeal) return;
     const rState = state.rounds[roundNo]?.state ?? 'locked';
     if (rState !== 'bidding' && rState !== 'playing') return;
@@ -131,7 +130,7 @@ export default function SinglePlayerPage() {
     isBatchPending,
     spTrump,
     spOrder,
-    spHands,
+    sp.hands,
     sp.trickPlays,
     sp.reveal,
     state.rounds,
@@ -178,7 +177,10 @@ export default function SinglePlayerPage() {
     state,
     humanId: human,
     currentRoundNo: roundNo,
-    appendMany,
+    appendMany: (evts) => {
+      // adapt to engine's readonly signature and void return type
+      return Promise.resolve(appendMany([...evts])).then(() => undefined);
+    },
     isBatchPending,
     rng: rngRef.current,
     onAdvance: (nextRound, nextDealerId) => {

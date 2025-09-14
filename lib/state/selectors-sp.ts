@@ -1,4 +1,5 @@
 import type { AppState } from './types';
+import type { Suit, Rank } from '@/lib/single-player/types';
 import { tricksForRound } from './logic';
 
 // Simple memo helpers keyed by object identity and primitive args.
@@ -57,7 +58,7 @@ export const selectSpLeader = memo1((s: AppState): string | null => {
 export type SpLiveOverlay = {
   round: number;
   currentPlayerId: string | null;
-  cards: Record<string, { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null>;
+  cards: Record<string, { suit: Suit; rank: Rank } | null>;
   counts: Record<string, number>;
 };
 
@@ -67,10 +68,7 @@ export const selectSpLiveOverlay = memo1((s: AppState): SpLiveOverlay | null => 
   const currentPlayerId = selectSpNextToPlay(s);
   const order: string[] = s.sp.order ?? [];
   const trickPlays = s.sp.trickPlays ?? [];
-  const cards: Record<
-    string,
-    { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null
-  > = {};
+  const cards: Record<string, { suit: Suit; rank: Rank } | null> = {};
   for (const pid of order) cards[pid] = null;
   for (const p of trickPlays) cards[p.playerId] = { suit: p.card.suit, rank: p.card.rank };
   // Live trick counts are sourced directly from state; these now increment at reveal time
@@ -81,8 +79,8 @@ export const selectSpLiveOverlay = memo1((s: AppState): SpLiveOverlay | null => 
 export type SpTrumpInfo = {
   round: number;
   leaderId: string | null;
-  trump: 'clubs' | 'diamonds' | 'hearts' | 'spades' | null;
-  trumpCard: { suit: 'clubs' | 'diamonds' | 'hearts' | 'spades'; rank: number } | null;
+  trump: Suit | null;
+  trumpCard: { suit: Suit; rank: Rank } | null;
 };
 
 export const selectSpTrumpInfo = memo1((s: AppState): SpTrumpInfo => {
@@ -116,12 +114,12 @@ export const selectSpIsRoundDone = memo1((s: AppState): boolean => {
   return total >= needed && needed > 0;
 });
 
-export type SpSuit = 'clubs' | 'diamonds' | 'hearts' | 'spades';
-export type SpCard = { suit: SpSuit; rank: number };
+export type SpSuit = Suit;
+export type SpCard = { suit: Suit; rank: Rank };
 
 export const selectSpHandBySuit = memo2(
   (s: AppState, playerId: string): Record<SpSuit, SpCard[]> => {
-    const hand: SpCard[] = (s.sp?.hands?.[playerId] ?? []) as SpCard[];
+    const hand = s.sp?.hands?.[playerId] ?? [];
     const out: Record<SpSuit, SpCard[]> = {
       spades: [],
       hearts: [],
