@@ -102,6 +102,46 @@ export type FinalizeOptions = {
   useTwoDecks?: boolean; // override; defaults to players.length > 5
 };
 
+// Helper: constructs the next-round deal batch in a single place.
+// Returns [sp/deal, sp/leader-set, sp/phase-set('bidding'), round/state-set('bidding')]
+export function buildNextRoundDealBatch(
+  state: AppState,
+  now: number,
+  useTwoDecksOverride?: boolean,
+): AppEvent[] {
+  const ids = (state.sp.order ?? []).slice();
+  const curDealerId = state.sp.dealerId ?? ids[0]!;
+  const curIdx = Math.max(0, ids.indexOf(curDealerId));
+  const nextDealer = ids[(curIdx + 1) % ids.length]!;
+  const nextRound = (state.sp.roundNo ?? 0) + 1;
+  const nextTricks = tricksForRound(nextRound);
+  const useTwoDecks = useTwoDecksOverride ?? ids.length > 5;
+  const seed = now;
+  const deal = startRound(
+    {
+      round: nextRound,
+      players: ids,
+      dealer: nextDealer,
+      tricks: nextTricks,
+      useTwoDecks,
+    },
+    seed,
+  );
+  return [
+    events.spDeal({
+      roundNo: nextRound,
+      dealerId: nextDealer,
+      order: deal.order,
+      trump: deal.trump,
+      trumpCard: { suit: deal.trumpCard.suit, rank: deal.trumpCard.rank },
+      hands: deal.hands,
+    }),
+    events.spLeaderSet({ leaderId: deal.firstToAct }),
+    events.spPhaseSet({ phase: 'bidding' }),
+    events.roundStateSet({ round: nextRound, state: 'bidding' }),
+  ];
+}
+
 // If the round is done and not already scored, emit scoring + (optional) next round deal batch.
 export function finalizeRoundIfDone(state: AppState, opts: FinalizeOptions = {}): AppEvent[] {
   const sp = state.sp;
@@ -134,37 +174,7 @@ export function finalizeRoundIfDone(state: AppState, opts: FinalizeOptions = {})
 
   // If more rounds remain, prepare next deal
   if (roundNo < ROUNDS_TOTAL) {
-    const nextRound = roundNo + 1;
-    const ordered = ids;
-    const curDealerId = sp.dealerId ?? ordered[0]!;
-    const curIdx = Math.max(0, ordered.indexOf(curDealerId));
-    const nextDealer = ordered[(curIdx + 1) % ordered.length]!;
-    const nextTricks = tricksForRound(nextRound);
-    const useTwoDecks = opts.useTwoDecks ?? ordered.length > 5;
-    const seed = opts.now ?? Date.now();
-    const deal = startRound(
-      {
-        round: nextRound,
-        players: ordered,
-        dealer: nextDealer,
-        tricks: nextTricks,
-        useTwoDecks,
-      },
-      seed,
-    );
-    batch.push(
-      events.spDeal({
-        roundNo: nextRound,
-        dealerId: nextDealer,
-        order: deal.order,
-        trump: deal.trump,
-        trumpCard: { suit: deal.trumpCard.suit, rank: deal.trumpCard.rank },
-        hands: deal.hands,
-      }),
-    );
-    batch.push(events.spLeaderSet({ leaderId: deal.firstToAct }));
-    batch.push(events.spPhaseSet({ phase: 'bidding' }));
-    batch.push(events.roundStateSet({ round: nextRound, state: 'bidding' }));
+    batch.push(...buildNextRoundDealBatch(state, opts.now ?? Date.now(), opts.useTwoDecks));
   }
   return batch;
 }
@@ -241,39 +251,10 @@ export function computeAdvanceBatch(
       intent === 'user' ||
       (ms > 0 && typeof sp.summaryEnteredAt === 'number' && now - sp.summaryEnteredAt >= ms)
     ) {
-      const ids = (state.sp.order ?? []).slice();
-      const curDealerId = sp.dealerId ?? ids[0]!;
-      const curIdx = Math.max(0, ids.indexOf(curDealerId));
-      const nextDealer = ids[(curIdx + 1) % ids.length]!;
       const nextRound = (sp.roundNo ?? 0) + 1;
-      const nextTricks = tricksForRound(nextRound);
-      const useTwoDecks = opts.useTwoDecks ?? ids.length > 5;
-      const seed = now;
-      const deal = startRound(
-        {
-          round: nextRound,
-          players: ids,
-          dealer: nextDealer,
-          tricks: nextTricks,
-          useTwoDecks,
-        },
-        seed,
-      );
       const out: AppEvent[] = [];
       if (nextRound <= ROUNDS_TOTAL) {
-        out.push(
-          events.spDeal({
-            roundNo: nextRound,
-            dealerId: nextDealer,
-            order: deal.order,
-            trump: deal.trump,
-            trumpCard: { suit: deal.trumpCard.suit, rank: deal.trumpCard.rank },
-            hands: deal.hands,
-          }),
-        );
-        out.push(events.spLeaderSet({ leaderId: deal.firstToAct }));
-        out.push(events.spPhaseSet({ phase: 'bidding' }));
-        out.push(events.roundStateSet({ round: nextRound, state: 'bidding' }));
+        out.push(...buildNextRoundDealBatch(state, now, opts.useTwoDecks));
       } else {
         // End of game: enter game summary
         out.push(events.spPhaseSet({ phase: 'game-summary' }));

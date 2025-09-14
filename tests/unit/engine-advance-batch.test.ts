@@ -104,10 +104,8 @@ describe('computeAdvanceBatch', () => {
     };
     const out = computeAdvanceBatch(s, 2000, { intent: 'user' });
     const types = out.map((e) => e.type);
-    expect(types).toContain('sp/deal');
-    expect(types).toContain('sp/leader-set');
-    expect(types).toContain('sp/phase-set');
-    expect(types).toContain('round/state-set');
+    // Ensure event order remains stable
+    expect(types).toEqual(['sp/deal', 'sp/leader-set', 'sp/phase-set', 'round/state-set']);
   });
 
   it('auto-advances summary after threshold when intent=auto', () => {
