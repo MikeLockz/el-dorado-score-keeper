@@ -15,7 +15,12 @@ import {
   selectSpReveal,
   selectSpIsRoundDone,
 } from '@/lib/state';
-import { roundDelta, selectCumulativeScoresAllRounds, type AppEvent, ROUNDS_TOTAL } from '@/lib/state';
+import {
+  roundDelta,
+  selectCumulativeScoresAllRounds,
+  type AppEvent,
+  ROUNDS_TOTAL,
+} from '@/lib/state';
 import { bots, computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
 import { archiveCurrentGameAndReset } from '@/lib/state';
 
@@ -590,7 +595,11 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         style={{ minHeight: 52 }}
         aria-label="Primary actions"
       >
-        <button className="text-muted-foreground hover:text-foreground hover:underline" onClick={cycleSheet} aria-label="Round details">
+        <button
+          className="text-muted-foreground hover:text-foreground hover:underline"
+          onClick={cycleSheet}
+          aria-label="Round details"
+        >
           Details
         </button>
         <button
