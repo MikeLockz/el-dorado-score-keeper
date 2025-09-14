@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createInstance } from '@/lib/state/instance';
 import { events } from '@/lib/state/events';
-import { archiveCurrentGameAndReset, getGame, GAMES_DB_NAME } from '@/lib/state/io';
+import { archiveCurrentGameAndReset, getGame, deleteGame, GAMES_DB_NAME } from '@/lib/state/io';
 
 function makeDbName(prefix = 'arch-sp') {
   return `${prefix}-${Math.random().toString(36).slice(2)}`;
@@ -36,6 +36,8 @@ describe('archive SP snapshot metadata', () => {
     expect(got?.summary.sp?.trump).toBe('hearts');
     expect(got?.summary.sp?.trumpCard).toEqual({ suit: 'hearts', rank: 12 });
 
+    // Cleanup archived record to avoid interference with other tests
+    await deleteGame(GAMES_DB_NAME, rec!.id);
     inst.close();
   });
 });
