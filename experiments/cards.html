@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Single-Orientation Playing Cards</title>
+<title>Single-Orientation Playing Cards (Safe Index)</title>
 <style>
   :root{
     --card-w: 180px;
@@ -101,7 +101,7 @@
 <body>
 
 <header>
-  <h1>Single-Orientation Playing Cards</h1>
+  <h1>Single-Orientation Playing Cards (Safe Index)</h1>
   <div class="controls">
     <label>Width:
       <input type="range" min="120" max="280" value="180"
@@ -116,6 +116,7 @@
 const SUITS = { hearts:"♥", diamonds:"♦", clubs:"♣", spades:"♠" };
 const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
+/* Anchors tuned to look full, but we’ll auto-nudge away from the index if needed */
 const ROWS = { top2:12, top:20, upper:32, mid:50, lower:68, bot:80, bot2:88 };
 const COLS = { left:26, center:50, right:74 };
 
@@ -132,17 +133,65 @@ const layouts = {
   "10":()=> [[COLS.left,ROWS.top2],[COLS.right,ROWS.top2],[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.left,ROWS.mid],[COLS.right,ROWS.mid],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower],[COLS.left,ROWS.bot2],[COLS.right,ROWS.bot2]]
 };
 
+/* Compute and enforce a “safe zone” around the top-left index */
+function getSafeZone(card){
+  const cs = getComputedStyle(document.documentElement);
+  const pad = parseFloat(cs.getPropertyValue('--safe-pad'));     // px
+  const idx = parseFloat(cs.getPropertyValue('--index-size'));   // px
+  const gap = parseFloat(cs.getPropertyValue('--index-gap'));    // px
+  const pip = parseFloat(cs.getPropertyValue('--pip-size'));     // px
+
+  // Rank height ≈ idx, suit ≈ 0.85*idx + gap. Add a little breathing room (0.2*pip)
+  const safeW = pad + Math.max(idx, pip*0.8);
+  const safeH = pad + (idx + gap + idx*0.85) + pip*0.2;
+
+  return { x: safeW, y: safeH }; // rectangle from (0,0) to (x,y)
+}
+
+function percentToPx(card, xPct, yPct){
+  const w = card.clientWidth, h = card.clientHeight;
+  return { x: (xPct/100)*w, y: (yPct/100)*h, w, h };
+}
+
+/* If a pip would land inside the safe zone, push it right/down just enough */
+function avoidIndexCollision(card, xPct, yPct){
+  const { x, y, w, h } = percentToPx(card, xPct, yPct);
+  const { x: sx, y: sy } = getSafeZone(card);
+
+  let nx = x, ny = y;
+
+  // If its center position falls inside the safe rect, nudge out.
+  if (x < sx && y < sy){
+    // Prefer nudging downward first (keeps column feel), then slight right if still tight.
+    ny = sy;
+    // extra right nudge for very dense ranks (10, 9) where top2 is close to the index
+    if (xPct <= 28) nx = Math.max(x, sx * 1.02);
+  }
+
+  // Convert back to percentages
+  return { xPct: (nx / w) * 100, yPct: (ny / h) * 100 };
+}
+
 function makeCard(suit, rank){
   const c = document.createElement("div");
   c.className="card"; c.dataset.suit=suit;
+
+  // index
   const idx=document.createElement("div");
   idx.className="index"; idx.innerHTML=`${rank}<span class="suit">${SUITS[suit]}</span>`;
   c.appendChild(idx);
+
+  // pips or face
   if(layouts[rank]){
+    // Create first, then position with collision-avoidance
     layouts[rank]().forEach(([x,y])=>{
       const pip=document.createElement("span");
       pip.className="pip"; pip.textContent=SUITS[suit];
-      pip.style.left=x+"%"; pip.style.top=y+"%";
+
+      const pos = avoidIndexCollision(c, x, y);
+      pip.style.left = pos.xPct + "%";
+      pip.style.top  = pos.yPct + "%";
+
       c.appendChild(pip);
     });
   } else {
