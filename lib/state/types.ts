@@ -34,7 +34,6 @@ export type EventMap = {
   'sp/leader-set': { leaderId: string };
   'sp/trick/reveal-set': { winnerId: string };
   'sp/trick/reveal-clear': Record<never, never>;
-  'sp/ack-set': { ack: 'none' | 'hand' };
   'sp/summary-entered-set': { at: number };
 };
 
@@ -87,7 +86,6 @@ export type AppState = Readonly<{
     leaderId: string | null;
     reveal: { winnerId: string } | null;
     handPhase: 'idle' | 'revealing';
-    ack: 'none' | 'hand';
     lastTrickSnapshot: Readonly<{
       ledBy: string;
       plays: ReadonlyArray<{
@@ -121,7 +119,6 @@ export const INITIAL_STATE: AppState = {
     leaderId: null,
     reveal: null,
     handPhase: 'idle',
-    ack: 'none',
     lastTrickSnapshot: null,
   },
   display_order: {},
@@ -301,7 +298,6 @@ export function reduce(state: AppState, event: AppEvent): AppState {
           trickCounts: Object.fromEntries(Object.keys(state.players).map((id) => [id, 0])),
           trumpBroken: false,
           handPhase: 'idle',
-          ack: 'none',
           lastTrickSnapshot: null,
           summaryEnteredAt: undefined,
         },
@@ -394,10 +390,6 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'sp/leader-set': {
       const { leaderId } = event.payload as EventMap['sp/leader-set'];
       return { ...state, sp: { ...state.sp, leaderId } };
-    }
-    case 'sp/ack-set': {
-      const { ack } = event.payload as EventMap['sp/ack-set'];
-      return { ...state, sp: { ...state.sp, ack } };
     }
     case 'sp/summary-entered-set': {
       const { at } = event.payload as EventMap['sp/summary-entered-set'];

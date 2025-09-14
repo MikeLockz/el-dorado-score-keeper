@@ -44,7 +44,7 @@ vi.mock('@/lib/single-player', async () => {
 });
 
 describe('computeAdvanceBatch', () => {
-  it('returns reveal batch with ack when trick completes', () => {
+  it('returns reveal batch when trick completes', () => {
     const s: AppState = {
       ...base,
       sp: {
@@ -58,7 +58,6 @@ describe('computeAdvanceBatch', () => {
     const out = computeAdvanceBatch(s, Date.now());
     const types = out.map((e) => e.type);
     expect(types).toContain('sp/trick/reveal-set');
-    expect(types).toContain('sp/ack-set');
   });
 
   it('returns clear + leader + reveal-clear during reveal', () => {
@@ -78,7 +77,6 @@ describe('computeAdvanceBatch', () => {
       'sp/trick/cleared',
       'sp/leader-set',
       'sp/trick/reveal-clear',
-      'sp/ack-set',
     ]);
   });
 

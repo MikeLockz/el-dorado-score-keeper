@@ -202,21 +202,19 @@ export function computeAdvanceBatch(
     return [events.spTrickRevealClear({})];
   }
 
-  // 1) Trick just completed → reveal batch + ack
+  // 1) Trick just completed → reveal batch
   if (sp.phase === 'playing' && !sp.reveal && order.length > 0 && plays.length === order.length) {
     const batch = resolveCompletedTrick(state);
-    if (batch.length > 0) batch.push(events.spAckSet({ ack: 'hand' }));
     return batch;
   }
 
-  // 2) During reveal → clear + leader + reveal-clear + ack none
+  // 2) During reveal → clear + leader + reveal-clear
   if (sp.phase === 'playing' && sp.reveal) {
     const winnerId = sp.reveal.winnerId;
     return [
       events.spTrickCleared({ winnerId }),
       events.spLeaderSet({ leaderId: winnerId }),
       events.spTrickRevealClear({}),
-      events.spAckSet({ ack: 'none' }),
     ];
   }
 

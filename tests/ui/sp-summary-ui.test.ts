@@ -27,7 +27,6 @@ const baseSummaryState = (roundNo = 1): AppState => ({
     leaderId: 'p1',
     reveal: null,
     handPhase: 'idle',
-    ack: 'none',
     lastTrickSnapshot: null,
     summaryEnteredAt: Date.now(),
   },

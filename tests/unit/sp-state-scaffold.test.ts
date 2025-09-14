@@ -10,7 +10,6 @@ describe('SP Phase 1 scaffolding', () => {
   it('adds new sp fields with sensible defaults', () => {
     const s: AppState = INITIAL_STATE;
     expect(s.sp.handPhase).toBe('idle');
-    expect(s.sp.ack).toBe('none');
     expect(s.sp.lastTrickSnapshot).toBeNull();
     // optional timestamp should be absent by default
     expect('summaryEnteredAt' in s.sp ? s.sp.summaryEnteredAt : undefined).toBeUndefined();
