@@ -77,6 +77,10 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   // Count the current hand in-progress only when not revealing; during reveal the trick has
   // already been counted in trickCounts.
   const handNow = handsCompleted + (!reveal && (sp?.trickPlays?.length ?? 0) > 0 ? 1 : 0);
+  const totalTricksSoFar = React.useMemo(
+    () => Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0),
+    [spTrickCounts],
+  );
 
   const humanBySuit = selectSpHandBySuit(state, humanId);
   const suitOrder: Array<'spades' | 'hearts' | 'diamonds' | 'clubs'> = [
@@ -545,14 +549,11 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
                 aria-disabled={disabled}
               >
                 {reveal
-                  ? (() => {
-                      const total = Object.values(spTrickCounts ?? {}).reduce(
-                        (a, n) => a + (n ?? 0),
-                        0,
-                      );
-                      if (total >= tricksThisRound) return isFinalRound ? 'New Game' : 'Next Round';
-                      return 'Next Hand';
-                    })()
+                  ? totalTricksSoFar >= tricksThisRound
+                    ? isFinalRound
+                      ? 'New Game'
+                      : 'Next Round'
+                    : 'Next Hand'
                   : 'Continue'}
               </button>
             </>
