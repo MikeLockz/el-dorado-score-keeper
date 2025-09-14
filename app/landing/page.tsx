@@ -3,7 +3,6 @@ import ModeCard from '@/components/landing/ModeCard';
 import { Compass, Users, Calculator } from 'lucide-react';
 import QuickLinks from '@/components/landing/QuickLinks';
 import HeroCtas from '@/components/landing/HeroCtas';
-import { logEvent } from '@/lib/client-log';
 
 export default function LandingPage() {
   return (
@@ -34,7 +33,7 @@ export default function LandingPage() {
           title="Multiplayer"
           description="Host a room or join with a code. Cross‑device, real‑time play."
           primary={{ label: 'Host', href: '/rules', ariaLabel: 'Host Game (coming soon)' }}
-          onPrimaryClick={() => logEvent('mode_multiplayer_host_clicked')}
+          primaryEvent="mode_multiplayer_host_clicked"
           secondary={{ label: 'Join by code', href: '/rules' }}
           ariaLabel="Open multiplayer — host a room or join by code."
         />
@@ -42,8 +41,8 @@ export default function LandingPage() {
           icon={<Calculator className="h-5 w-5" />}
           title="Score Card"
           description="Track scores for in‑person sessions. Share and export results."
-          primary={{ label: 'Open', href: '/', ariaLabel: 'Open Score Card' }}
-          onPrimaryClick={() => logEvent('mode_scorecard_open_clicked')}
+          primary={{ label: 'Open', href: '/scorecard', ariaLabel: 'Open Score Card' }}
+          primaryEvent="mode_scorecard_open_clicked"
           secondary={null}
           ariaLabel="Open score card for in‑person tallying."
         />

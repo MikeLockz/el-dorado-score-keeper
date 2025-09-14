@@ -2,6 +2,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Card, Button } from '@/components/ui';
+import { logEvent } from '@/lib/client-log';
 
 export type ModeCardProps = {
   icon: React.ReactNode;
@@ -10,10 +11,10 @@ export type ModeCardProps = {
   primary: { label: string; href: string; ariaLabel?: string };
   secondary?: { label: string; href: string } | null;
   ariaLabel: string;
-  onPrimaryClick?: () => void;
+  primaryEvent?: string;
 };
 
-export function ModeCard({ icon, title, description, primary, secondary, ariaLabel, onPrimaryClick }: ModeCardProps) {
+export function ModeCard({ icon, title, description, primary, secondary, ariaLabel, primaryEvent }: ModeCardProps) {
   return (
     <Card className="h-full p-4 flex flex-col gap-3 bg-card text-card-foreground border">
       <section aria-label={ariaLabel}>
@@ -29,7 +30,7 @@ export function ModeCard({ icon, title, description, primary, secondary, ariaLab
             <Link
               href={primary.href}
               aria-label={primary.ariaLabel ?? primary.label}
-              onClick={onPrimaryClick}
+              onClick={primaryEvent ? () => logEvent(primaryEvent) : undefined}
             >
               {primary.label}
             </Link>

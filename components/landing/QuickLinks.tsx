@@ -37,7 +37,7 @@ export default function QuickLinks() {
           </Link>
           {showResume ? (
             <Button asChild size="sm" variant="outline">
-              <Link href="/" aria-label="Resume current game">
+              <Link href="/scorecard" aria-label="Resume current game">
                 Resume current game
               </Link>
             </Button>

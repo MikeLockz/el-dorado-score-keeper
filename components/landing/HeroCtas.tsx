@@ -22,11 +22,10 @@ export default function HeroCtas() {
         </Link>
       </Button>
       <Button asChild variant="secondary">
-        <Link href="/" aria-label="Open Score Card">
+        <Link href="/scorecard" aria-label="Open Score Card">
           Open Score Card
         </Link>
       </Button>
     </div>
   );
 }
-
