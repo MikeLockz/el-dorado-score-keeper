@@ -3,38 +3,48 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Single-Orientation Playing Cards (Safe Index)</title>
+<title>Playing Cards — Non-overlapping Indices & Pips</title>
 <style>
   :root{
+    /* Resize the whole deck by changing --card-w */
     --card-w: 180px;
-    --ratio: 1.4;                 /* 2.5x3.5 proportion */
+    --ratio: 1.4; /* ~2.5×3.5 */
     --card-h: calc(var(--card-w) * var(--ratio));
 
+    /* Proportional metrics */
     --radius: calc(var(--card-w) * 0.07);
     --border-w: calc(var(--card-w) * 0.006);
     --safe-pad: calc(var(--card-w) * 0.06);
-    --index-size: calc(var(--card-w) * 0.155);
-    --index-gap: calc(var(--card-w) * 0.02);
-    --pip-size: calc(var(--card-w) * 0.20);
-    --shadow: 0 calc(var(--card-w) * 0.02) calc(var(--card-w) * 0.1) rgba(0,0,0,.18);
+    --index-col-w: calc(var(--card-w) * 0.22); /* reserved column for index (rank+suit) */
+    --index-gap: calc(var(--card-w) * 0.03);   /* gutter between index and playfield */
 
-    --back-line: calc(var(--card-w) * 0.035);
+    /* Compute playfield box (where pips live) */
+    --play-left: calc(var(--safe-pad) + var(--index-col-w) + var(--index-gap));
+    --play-right: var(--safe-pad);
+    --play-top: var(--safe-pad);
+    --play-bottom: var(--safe-pad);
+    --play-w: calc(var(--card-w) - var(--play-left) - var(--play-right));
+    --play-h: calc(var(--card-h) - var(--play-top) - var(--play-bottom));
 
-    --ink-black: #111;
-    --ink-red: #d0122b;
-    --edge: #dcdde1;
-    --paper: #fff;
+    /* Sizes derived from areas (stay proportional) */
+    --index-size: calc(var(--index-col-w) * 0.68);
+    --index-gap-inner: calc(var(--index-col-w) * 0.10);
+    --pip-size: calc(var(--play-w) * 0.20);
+    --shadow: 0 calc(var(--card-w) * 0.02) calc(var(--card-w) * 0.10) rgba(0,0,0,.18);
+
+    --ink-black:#111; --ink-red:#d0122b; --edge:#dcdde1; --paper:#fff;
   }
 
-  body{margin:0;background:#f6f7fb;font-family:system-ui, sans-serif}
+  body{margin:0;background:#f6f7fb;font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial}
   header{padding:16px 20px}
-  header h1{margin:0 0 6px;font-size:1.2rem}
-  header .controls{display:flex;gap:12px;align-items:center;font-size:.9rem}
+  header h1{margin:0 0 8px;font-size:clamp(18px,3.4vw,24px)}
+  .controls{display:flex;gap:14px;align-items:center;font-size:.95rem;opacity:.9}
 
   .deck{
     display:grid;
     grid-template-columns:repeat(auto-fill, minmax(var(--card-w),1fr));
-    gap:14px; padding:20px;
+    gap: clamp(10px,2vw,16px);
+    padding: 16px 20px 28px;
   }
 
   .card{
@@ -45,167 +55,145 @@
     border-radius:var(--radius);
     box-shadow:var(--shadow);
     overflow:hidden;
+    user-select:none;
   }
 
-  /* Corner index (only top-left) */
+  /* Index column (top-left only) */
   .index{
-    position:absolute; left:var(--safe-pad); top:var(--safe-pad);
-    font-weight:700; line-height:1.0;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: var(--index-size);
-    text-align:left;
+    position:absolute;
+    left:var(--safe-pad); top:var(--safe-pad);
+    width:var(--index-col-w);
+    text-align:left; line-height:1;
+    color:var(--ink-black);
   }
-  .index .suit{display:block; font-size: calc(var(--index-size) * 0.85); margin-top: var(--index-gap);}
+  .index .rank{display:block; font-weight:800; font-size:var(--index-size)}
+  .index .suit{display:block; margin-top:var(--index-gap-inner); font-size:calc(var(--index-size) * 0.85)}
 
-  /* Pip styling */
+  /* Playfield — all pips live here, so they never overlap the index column */
+  .pips{
+    position:absolute;
+    left:var(--play-left); right:var(--play-right);
+    top:var(--play-top); bottom:var(--play-bottom);
+    overflow:hidden; /* keep everything inside the card */
+  }
+
   .pip{
-    position:absolute; display:grid; place-items:center;
+    position:absolute;
     width:var(--pip-size); height:var(--pip-size);
     font-size:var(--pip-size);
-    transform: translate(-50%,-50%); /* upright, no tilt */
+    display:grid; place-items:center;
+    transform: translate(-50%,-50%); /* upright, no rotation */
+  }
+
+  /* Face placeholder (centered within playfield) */
+  .face{
+    position:absolute; inset:0; display:grid; place-items:center;
+    font-size: calc(var(--play-w) * 0.55);
+    font-weight: 800; opacity:.9;
   }
 
   /* Suit colors */
-  .card[data-suit="hearts"] .pip,
-  .card[data-suit="diamonds"] .pip,
-  .card[data-suit="hearts"] .index,
-  .card[data-suit="diamonds"] .index{ color: var(--ink-red); }
+  .card[data-suit="hearts"] .index, .card[data-suit="hearts"] .pip { color: var(--ink-red) }
+  .card[data-suit="diamonds"] .index, .card[data-suit="diamonds"] .pip { color: var(--ink-red) }
+  .card[data-suit="spades"] .index, .card[data-suit="spades"] .pip { color: var(--ink-black) }
+  .card[data-suit="clubs"] .index,  .card[data-suit="clubs"] .pip  { color: var(--ink-black) }
 
-  .card[data-suit="spades"] .pip,
-  .card[data-suit="clubs"] .pip,
-  .card[data-suit="spades"] .index,
-  .card[data-suit="clubs"] .index{ color: var(--ink-black); }
-
-  /* Simple placeholder for J/Q/K */
-  .face{
-    position:absolute; inset:0; display:grid; place-items:center;
-    font-size: calc(var(--card-w) * 0.55);
-    font-weight:700; opacity:.9;
-  }
-
-  /* Card back */
+  /* Back design (for completeness) */
   .back{
     background:
-      repeating-linear-gradient(45deg,
-        #0a5635, #0a5635 var(--back-line),
-        #0e7448 var(--back-line), #0e7448 calc(var(--back-line) * 2));
+      repeating-linear-gradient(45deg,#0a5635,#0a5635 6px,#0e7448 6px,#0e7448 12px);
     border-color:#0a5635;
   }
   .back::after{
     content:""; position:absolute; inset:calc(var(--safe-pad) * 0.7);
     border-radius:calc(var(--radius) * 0.7);
-    border:calc(var(--border-w) * 2) solid rgba(255,255,255,.65);
+    border: calc(var(--border-w) * 2) solid rgba(255,255,255,.65);
   }
 </style>
 </head>
 <body>
+  <header>
+    <h1>Non-overlapping Indices & Pips</h1>
+    <div class="controls">
+      <label>Card width:
+        <input type="range" min="120" max="300" step="1" value="180"
+               oninput="document.documentElement.style.setProperty('--card-w', this.value + 'px')">
+      </label>
+      <label>Height ratio:
+        <input id="ratio" type="range" min="120" max="160" step="1" value="140"
+               oninput="document.documentElement.style.setProperty('--ratio', (this.value/100))">
+        <span id="rval" style="opacity:.65">1.40</span>
+      </label>
+    </div>
+  </header>
 
-<header>
-  <h1>Single-Orientation Playing Cards (Safe Index)</h1>
-  <div class="controls">
-    <label>Width:
-      <input type="range" min="120" max="280" value="180"
-        oninput="document.documentElement.style.setProperty('--card-w', this.value + 'px')">
-    </label>
-  </div>
-</header>
-
-<section class="deck" id="deck"></section>
+  <section class="deck" id="deck"></section>
 
 <script>
+/* ===== Base data ===== */
 const SUITS = { hearts:"♥", diamonds:"♦", clubs:"♣", spades:"♠" };
 const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
-/* Anchors tuned to look full, but we’ll auto-nudge away from the index if needed */
-const ROWS = { top2:12, top:20, upper:32, mid:50, lower:68, bot:80, bot2:88 };
-const COLS = { left:26, center:50, right:74 };
+/* Percent anchors INSIDE the playfield (so nothing enters the index column) */
+const ROWS = { top2:10, top:18, upper:30, mid:50, lower:70, bot:82, bot2:90 };
+const COLS = { left:15, center:50, right:85 }; // generous side padding so pips never clip
 
+/* Standard (double-symmetry) pip maps, but rendered in a single orientation */
 const layouts = {
-  "A": () => [[COLS.center, ROWS.mid]],
-  "2": () => [[COLS.center, ROWS.upper],[COLS.center, ROWS.lower]],
-  "3": () => [[COLS.center, ROWS.upper],[COLS.center, ROWS.mid],[COLS.center, ROWS.lower]],
-  "4": () => [[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower]],
-  "5": () => [[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.center,ROWS.mid],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower]],
-  "6": () => [[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.left,ROWS.mid],[COLS.right,ROWS.mid],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower]],
-  "7": () => [[COLS.center,ROWS.top],[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.left,ROWS.mid],[COLS.right,ROWS.mid],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower]],
-  "8": () => [[COLS.left,ROWS.top2],[COLS.right,ROWS.top2],[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower],[COLS.left,ROWS.bot2],[COLS.right,ROWS.bot2]],
-  "9": () => [[COLS.left,ROWS.top2],[COLS.right,ROWS.top2],[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.center,ROWS.mid],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower],[COLS.left,ROWS.bot2],[COLS.right,ROWS.bot2]],
-  "10":()=> [[COLS.left,ROWS.top2],[COLS.right,ROWS.top2],[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.left,ROWS.mid],[COLS.right,ROWS.mid],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower],[COLS.left,ROWS.bot2],[COLS.right,ROWS.bot2]]
+  "A":  () => [[COLS.center, ROWS.mid]],
+  "2":  () => [[COLS.center, ROWS.upper],[COLS.center, ROWS.lower]],
+  "3":  () => [[COLS.center, ROWS.upper],[COLS.center, ROWS.mid],[COLS.center, ROWS.lower]],
+  "4":  () => [[COLS.left, ROWS.upper],[COLS.right, ROWS.upper],[COLS.left, ROWS.lower],[COLS.right, ROWS.lower]],
+  "5":  () => [[COLS.left, ROWS.upper],[COLS.right, ROWS.upper],[COLS.center, ROWS.mid],[COLS.left, ROWS.lower],[COLS.right, ROWS.lower]],
+  "6":  () => [[COLS.left, ROWS.upper],[COLS.right, ROWS.upper],[COLS.left, ROWS.mid],[COLS.right, ROWS.mid],[COLS.left, ROWS.lower],[COLS.right, ROWS.lower]],
+  "7":  () => [[COLS.center, ROWS.top],[COLS.left, ROWS.upper],[COLS.right, ROWS.upper],[COLS.left, ROWS.mid],[COLS.right, ROWS.mid],[COLS.left, ROWS.lower],[COLS.right, ROWS.lower]],
+  "8":  () => [[COLS.left, ROWS.top2],[COLS.right, ROWS.top2],[COLS.left, ROWS.upper],[COLS.right, ROWS.upper],[COLS.left, ROWS.lower],[COLS.right, ROWS.lower],[COLS.left, ROWS.bot2],[COLS.right, ROWS.bot2]],
+  "9":  () => [[COLS.left, ROWS.top2],[COLS.right, ROWS.top2],[COLS.left, ROWS.upper],[COLS.right, ROWS.upper],[COLS.center, ROWS.mid],[COLS.left, ROWS.lower],[COLS.right, ROWS.lower],[COLS.left, ROWS.bot2],[COLS.right, ROWS.bot2]],
+  "10": () => [[COLS.left, ROWS.top2],[COLS.right, ROWS.top2],[COLS.left, ROWS.upper],[COLS.right, ROWS.upper],[COLS.left, ROWS.mid],[COLS.right, ROWS.mid],[COLS.left, ROWS.lower],[COLS.right, ROWS.lower],[COLS.left, ROWS.bot2],[COLS.right, ROWS.bot2]]
 };
 
-/* Compute and enforce a “safe zone” around the top-left index */
-function getSafeZone(card){
-  const cs = getComputedStyle(document.documentElement);
-  const pad = parseFloat(cs.getPropertyValue('--safe-pad'));     // px
-  const idx = parseFloat(cs.getPropertyValue('--index-size'));   // px
-  const gap = parseFloat(cs.getPropertyValue('--index-gap'));    // px
-  const pip = parseFloat(cs.getPropertyValue('--pip-size'));     // px
-
-  // Rank height ≈ idx, suit ≈ 0.85*idx + gap. Add a little breathing room (0.2*pip)
-  const safeW = pad + Math.max(idx, pip*0.8);
-  const safeH = pad + (idx + gap + idx*0.85) + pip*0.2;
-
-  return { x: safeW, y: safeH }; // rectangle from (0,0) to (x,y)
-}
-
-function percentToPx(card, xPct, yPct){
-  const w = card.clientWidth, h = card.clientHeight;
-  return { x: (xPct/100)*w, y: (yPct/100)*h, w, h };
-}
-
-/* If a pip would land inside the safe zone, push it right/down just enough */
-function avoidIndexCollision(card, xPct, yPct){
-  const { x, y, w, h } = percentToPx(card, xPct, yPct);
-  const { x: sx, y: sy } = getSafeZone(card);
-
-  let nx = x, ny = y;
-
-  // If its center position falls inside the safe rect, nudge out.
-  if (x < sx && y < sy){
-    // Prefer nudging downward first (keeps column feel), then slight right if still tight.
-    ny = sy;
-    // extra right nudge for very dense ranks (10, 9) where top2 is close to the index
-    if (xPct <= 28) nx = Math.max(x, sx * 1.02);
-  }
-
-  // Convert back to percentages
-  return { xPct: (nx / w) * 100, yPct: (ny / h) * 100 };
-}
+/* ===== DOM helpers ===== */
+const el = (t,c,h)=>{const n=document.createElement(t); if(c) n.className=c; if(h!=null) n.innerHTML=h; return n;};
 
 function makeCard(suit, rank){
-  const c = document.createElement("div");
-  c.className="card"; c.dataset.suit=suit;
+  const card = el("div","card"); card.dataset.suit = suit;
 
-  // index
-  const idx=document.createElement("div");
-  idx.className="index"; idx.innerHTML=`${rank}<span class="suit">${SUITS[suit]}</span>`;
-  c.appendChild(idx);
+  // Index column (rank + suit), single orientation
+  const idx = el("div","index");
+  idx.innerHTML = `<span class="rank">${rank}</span><span class="suit">${SUITS[suit]}</span>`;
+  card.appendChild(idx);
 
-  // pips or face
-  if(layouts[rank]){
-    // Create first, then position with collision-avoidance
+  // Playfield container prevents any overlap with index column
+  const field = el("div","pips");
+  card.appendChild(field);
+
+  if (layouts[rank]) {
+    const glyph = SUITS[suit];
     layouts[rank]().forEach(([x,y])=>{
-      const pip=document.createElement("span");
-      pip.className="pip"; pip.textContent=SUITS[suit];
-
-      const pos = avoidIndexCollision(c, x, y);
-      pip.style.left = pos.xPct + "%";
-      pip.style.top  = pos.yPct + "%";
-
-      c.appendChild(pip);
+      const pip = el("span","pip", glyph);
+      pip.style.left = x + "%";
+      pip.style.top  = y + "%";
+      field.appendChild(pip);
     });
   } else {
-    const f=document.createElement("div");
-    f.className="face"; f.textContent=rank;
-    c.appendChild(f);
+    const face = el("div","face", rank); // placeholder; swap with art if desired
+    field.appendChild(face);
   }
-  return c;
+
+  return card;
 }
 
-const deck=document.getElementById("deck");
-["spades","hearts","clubs","diamonds"].forEach(s=>RANKS.forEach(r=>deck.appendChild(makeCard(s,r))));
-deck.appendChild(document.createElement("div")).className="card back";
-deck.appendChild(document.createElement("div")).className="card back";
+/* Build full deck + a couple of backs */
+const deck = document.getElementById("deck");
+["spades","hearts","clubs","diamonds"].forEach(suit =>
+  RANKS.forEach(rank => deck.appendChild(makeCard(suit, rank)))
+);
+deck.appendChild(el("div","card back"));
+deck.appendChild(el("div","card back"));
+
+/* Ratio readout */
+const r = document.getElementById("ratio"), rv = document.getElementById("rval");
+r.addEventListener("input", ()=> rv.textContent = (r.value/100).toFixed(2));
 </script>
 </body>
 </html>

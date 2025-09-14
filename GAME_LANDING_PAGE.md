@@ -1,6 +1,6 @@
 # Game Landing Page — Design Recommendations
 
-A welcoming, mode-driven hub that lets players quickly choose how they want to play: Single Player, Multiplayer, or Score Card for in‑person score keeping. The look and feel riff on an “El Dorado expedition” vibe: warm golds, lush greens, parchment textures, and sturdy typography.
+A welcoming, mode-driven hub that lets players quickly choose how they want to play: Single Player, Multiplayer, or Score Card for in‑person score keeping.
 
 ---
 
@@ -9,7 +9,7 @@ A welcoming, mode-driven hub that lets players quickly choose how they want to p
 - Clarity: Make the three core modes unmistakable and one tap/click away.
 - Invitation: Use engaging icons/visuals and action-oriented copy to encourage exploration.
 - Speed: Provide “Quick Actions” (resume last game, join by code) from the hero.
-- Cohesion: Unify color, type, iconography with an “adventure” theme.
+- Cohesion: Use existing color, type, iconography.
 - Accessibility: AA contrast, keyboard-first navigability, screen reader clarity.
 
 ---
@@ -31,38 +31,6 @@ Suggested routes:
 
 ---
 
-## Visual Design
-
-- Color Palette
-  - Jungle Green: `#1F6F50` (primary)
-  - Deep Emerald: `#2E8B57` (hover/active)
-  - El Dorado Gold: `#D4A72C` (accents/CTAs)
-  - Parchment: `#F5F0E6` (background surface)
-  - Stone Gray: `#4B5563` (text, borders)
-  - Charcoal: `#222831` (headlines, high-contrast text)
-  - Optional Accent (Teal): `#2D7D9A` (links, focus states)
-
-- Typography
-  - Headings: a sturdy display with adventure tone (e.g., `Oswald`, `Cinzel`) with fallback: `Georgia, 'Times New Roman', serif` for classical gravitas or `Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif` for a rugged feel.
-  - Body: modern, readable sans (e.g., `Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`).
-  - Scale: H1 40–48, H2 28–32, body 16–18; line-height 1.4–1.6.
-
-- Iconography & Imagery
-  - Duotone line icons with gold highlights; rounded corners for friendliness.
-  - Subtle parchment paper texture in hero; faint map grid/jungle leaves as a barely‑there background pattern (low contrast, 3–4% opacity).
-  - Use gentle, short-distance parallax for background pattern on desktop; disable with `prefers-reduced-motion`.
-
----
-
-## Interactions & Motion
-
-- Cards elevate 2–4px and slightly tilt on hover; gold accent intensifies.
-- Buttons use a quick 120–160ms ease-out scale to 1.02 on hover.
-- Focus states are highly visible: 2px teal outline with 4px offset shadow.
-- Mode card icons can have subtle ambient motion (e.g., torch flicker, compass sway) within reduced-motion rules.
-
----
-
 ## Accessibility
 
 - Color contrast: All text ≥ AA (4.5:1); large text ≥ 3:1.
@@ -77,17 +45,17 @@ Suggested routes:
 
 Each card contains: icon, title, 1–2 line description, primary CTA, and a lighter secondary link.
 
-1) Single Player — icon: 🧭/compass or explorer helm
+1) Single Player
 - Description: “Play solo against adaptive AI. Practice strategies and unlock achievements.”
 - Primary CTA: “Start Single Player” → `/single`
 - Secondary: “Continue last run” (if available)
 
-2) Multiplayer — icon: 🔥/campfire or linked tokens
+2) Multiplayer
 - Description: “Host a room or join with a code. Cross‑device, real‑time play.”
 - Primary CTA: “Host Game” → `/multi/host`
 - Secondary: “Join by code” → `/multi/join`
 
-3) Score Card — icon: 🧮/ledger or clipboard
+3) Score Card
 - Description: “Track scores for in‑person sessions. Share and export results.”
 - Primary CTA: “Open Score Card” → `/scorecard`
 - Secondary: “Import previous scores”
@@ -101,7 +69,7 @@ Secondary quick links (below grid): Recent Sessions, How to Play, Import/Export.
 - Hero Title: “Set Out for El Dorado”
 - Subcopy: “Choose your path: practice solo, gather your party, or tally scores on the go.”
 - CTAs: “Start Single Player” • “Host Game” • “Open Score Card”
-- Empty recents: “No expeditions yet — your adventures will appear here.”
+- Empty recents: “No games.”
 
 ---
 
@@ -187,11 +155,11 @@ Labels:
 │ └──────────────────────────────────┘ │
 │ ┌──────────────────────────────────┐ │
 │ │ 🧮  Score Card                   │ │
-│ │ Keep scores in person.          │ │
-│ │ [ Open ]                        │ │
+│ │ Keep scores in person.           │ │
+│ │ [ Open ]                         │ │
 │ └──────────────────────────────────┘ │
 ├──────────────────────────────────────┤
-│ Recent Sessions • River Run • Temple Dash   │
+│ Recent Sessions                      │
 └──────────────────────────────────────┘
 ```
 
@@ -228,7 +196,7 @@ Example ModeCard anatomy:
 
 ## States & Edge Cases
 
-- Empty State: Hide recents; show “Your adventures will appear here.”
+- Empty State: Hide recents; show “Your games will appear here.”
 - Offline: Multiplayer card explains limited functionality; disable Host/Join.
 - Loading: Skeleton cards for recents; shimmer on buttons.
 - Error: Toast near top (non-blocking) with retry affordance.
@@ -254,40 +222,9 @@ Example ModeCard anatomy:
 
 ---
 
-## Quick Style Tokens (suggested)
-
-```
-:root {
-  --color-bg: #F5F0E6;
-  --color-text: #222831;
-  --color-muted: #4B5563;
-  --color-primary: #1F6F50;
-  --color-primary-strong: #2E8B57;
-  --color-accent: #D4A72C;
-  --color-focus: #2D7D9A;
-
-  --radius: 14px;
-  --elev-1: 0 2px 6px rgba(0,0,0,.08);
-  --elev-2: 0 6px 18px rgba(0,0,0,.12);
-}
-```
-
----
-
-## Icon Suggestions
-
-- Single Player: compass (🧭), explorer hat, lone pawn/token.
-- Multiplayer: campfire (🔥), two interlocking tokens, linked circles.
-- Score Card: abacus (🧮), clipboard, ledger book.
-
-Use a consistent line weight; apply gold accent for highlights and green for outlines.
-
----
-
 ## Success Criteria Checklist
 
 - Landing clearly shows three modes with strong CTAs.
-- Inviting visuals support the El Dorado theme.
 - Fully responsive with accessible focus and contrast.
 - Quick paths (resume/join) reduce friction.
 - Empty, loading, and offline states feel intentional.
