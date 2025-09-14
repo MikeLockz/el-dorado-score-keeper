@@ -3,325 +3,160 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Unicode Playing Card Pips — Standard & Single Orientation</title>
+<title>Single-Orientation Playing Cards</title>
 <style>
-  :root {
+  :root{
     --card-w: 180px;
-    --card-h: 252px; /* 1:1.4-ish ratio */
-    --radius: 12px;
-    --border: #ddd;
-    --shadow: 0 4px 18px rgba(0,0,0,.14);
-    --pip-size: 20px;      /* size of pip symbols */
-    --index-size: 18px;    /* corner rank/suit size */
-    --safe-pad: 8px;       /* safe text padding */
+    --ratio: 1.4;                 /* 2.5x3.5 proportion */
+    --card-h: calc(var(--card-w) * var(--ratio));
+
+    --radius: calc(var(--card-w) * 0.07);
+    --border-w: calc(var(--card-w) * 0.006);
+    --safe-pad: calc(var(--card-w) * 0.06);
+    --index-size: calc(var(--card-w) * 0.155);
+    --index-gap: calc(var(--card-w) * 0.02);
+    --pip-size: calc(var(--card-w) * 0.20);
+    --shadow: 0 calc(var(--card-w) * 0.02) calc(var(--card-w) * 0.1) rgba(0,0,0,.18);
+
+    --back-line: calc(var(--card-w) * 0.035);
+
+    --ink-black: #111;
+    --ink-red: #d0122b;
+    --edge: #dcdde1;
+    --paper: #fff;
   }
 
-  body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
-         background: #f6f7fb; margin: 24px; color: #111; }
-  h2 { margin: 16px 0 8px; font-size: 1rem; font-weight: 600; opacity: .8; }
-  .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+  body{margin:0;background:#f6f7fb;font-family:system-ui, sans-serif}
+  header{padding:16px 20px}
+  header h1{margin:0 0 6px;font-size:1.2rem}
+  header .controls{display:flex;gap:12px;align-items:center;font-size:.9rem}
 
-  .card {
-    position: relative;
-    width: var(--card-w); height: var(--card-h);
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-    user-select: none;
+  .deck{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(var(--card-w),1fr));
+    gap:14px; padding:20px;
   }
 
-  /* Corner indices */
-  .index {
-    position: absolute; left: var(--safe-pad); top: var(--safe-pad);
-    text-align: left; line-height: 1.05;
-    font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  .card{
+    position:relative;
+    width:var(--card-w); height:var(--card-h);
+    background:var(--paper);
+    border:var(--border-w) solid var(--edge);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+
+  /* Corner index (only top-left) */
+  .index{
+    position:absolute; left:var(--safe-pad); top:var(--safe-pad);
+    font-weight:700; line-height:1.0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: var(--index-size);
+    text-align:left;
   }
-  .index .suit { display: block; font-size: calc(var(--index-size) * .95); }
-
-  /* For double-oriented cards, mirror a bottom-right index */
-  .card[data-orientation="double"] .index.mirror {
-    left: auto; right: var(--safe-pad); top: auto; bottom: var(--safe-pad);
-    transform: rotate(180deg);
-  }
+  .index .suit{display:block; font-size: calc(var(--index-size) * 0.85); margin-top: var(--index-gap);}
 
   /* Pip styling */
-  .pip {
-    position: absolute;
-    width: var(--pip-size); height: var(--pip-size);
-    font-size: var(--pip-size);
-    display: grid; place-items: center;
-    transform: translate(-50%, -50%);
-    /* Optional slight inward tilt for outer pips on double orientation is skipped for simplicity.
-       If you want it, apply rotate() per position. */
+  .pip{
+    position:absolute; display:grid; place-items:center;
+    width:var(--pip-size); height:var(--pip-size);
+    font-size:var(--pip-size);
+    transform: translate(-50%,-50%); /* upright, no tilt */
   }
 
-  /* Suit coloring */
+  /* Suit colors */
   .card[data-suit="hearts"] .pip,
   .card[data-suit="diamonds"] .pip,
   .card[data-suit="hearts"] .index,
-  .card[data-suit="diamonds"] .index { color: #d1122e; }
+  .card[data-suit="diamonds"] .index{ color: var(--ink-red); }
 
   .card[data-suit="spades"] .pip,
   .card[data-suit="clubs"] .pip,
   .card[data-suit="spades"] .index,
-  .card[data-suit="clubs"] .index { color: #111; }
+  .card[data-suit="clubs"] .index{ color: var(--ink-black); }
 
-  /* Simple card back (uniform so cards are indistinguishable) */
-  .back {
+  /* Simple placeholder for J/Q/K */
+  .face{
+    position:absolute; inset:0; display:grid; place-items:center;
+    font-size: calc(var(--card-w) * 0.55);
+    font-weight:700; opacity:.9;
+  }
+
+  /* Card back */
+  .back{
     background:
-      radial-gradient(circle at 25% 30%, rgba(255,255,255,.18), transparent 32%),
-      radial-gradient(circle at 75% 70%, rgba(0,0,0,.05), transparent 35%),
-      repeating-linear-gradient(45deg, #254, #254 6px, #275 6px, #275 12px);
-    border: 1px solid #083;
+      repeating-linear-gradient(45deg,
+        #0a5635, #0a5635 var(--back-line),
+        #0e7448 var(--back-line), #0e7448 calc(var(--back-line) * 2));
+    border-color:#0a5635;
   }
-  .back::after {
-    content: "";
-    position: absolute; inset: 8px;
-    border-radius: calc(var(--radius) - 6px);
-    border: 2px solid rgba(255,255,255,.6);
+  .back::after{
+    content:""; position:absolute; inset:calc(var(--safe-pad) * 0.7);
+    border-radius:calc(var(--radius) * 0.7);
+    border:calc(var(--border-w) * 2) solid rgba(255,255,255,.65);
   }
-  .caption { font-size: .9rem; opacity: .75; margin-top: -8px; margin-bottom: 8px; }
 </style>
 </head>
 <body>
 
-<h2>Standard (double-orientation) pip layouts — examples</h2>
-<div class="row" id="standard"></div>
-<p class="caption">Ace, 2–10 for each suit can be generated. Below are a few examples.</p>
+<header>
+  <h1>Single-Orientation Playing Cards</h1>
+  <div class="controls">
+    <label>Width:
+      <input type="range" min="120" max="280" value="180"
+        oninput="document.documentElement.style.setProperty('--card-w', this.value + 'px')">
+    </label>
+  </div>
+</header>
 
-<h2>Single-orientation pip layouts — examples</h2>
-<div class="row" id="single"></div>
-<p class="caption">Single orientation stacks extra pips toward the top (no mirrored bottom).</p>
-
-<h2>Card backs</h2>
-<div class="row" id="backs">
-  <div class="card back" title="Back design"></div>
-  <div class="card back" title="Back design"></div>
-</div>
+<section class="deck" id="deck"></section>
 
 <script>
-/* Unicode suit glyphs */
-const SUITS = {
-  hearts:   "♥",
-  diamonds: "♦",
-  clubs:    "♣",
-  spades:   "♠",
-};
+const SUITS = { hearts:"♥", diamonds:"♦", clubs:"♣", spades:"♠" };
+const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
-/* Corner index text per rank */
-const RANKS = ["A","2","3","4","5","6","7","8","9","10"];
+const ROWS = { top2:12, top:20, upper:32, mid:50, lower:68, bot:80, bot2:88 };
+const COLS = { left:26, center:50, right:74 };
 
-/* Normalized y “rows” commonly used in standard layouts (percent of height).
-   These roughly match where pips sit on classic cards. */
-const ROWS = {
-  top2:   16,      /* very top for dense ranks */
-  top:    22,
-  upper:  33,
-  mid:    50,
-  lower:  67,
-  bot:    78,
-  bot2:   84
-};
-
-/* Normalized x columns (percent of width) */
-const COLS = {
-  left:   28,
-  center: 50,
-  right:  72
-};
-
-/* Standard double-orientation layouts (A–10).
-   Each entry returns a set of (x,y) positions.
-   For symmetry, many are constructed by mirroring across the center.
-*/
-const standardLayouts = {
+const layouts = {
   "A": () => [[COLS.center, ROWS.mid]],
-
-  "2": () => [
-    [COLS.center, ROWS.upper],
-    [COLS.center, ROWS.lower],
-  ],
-
-  "3": () => [
-    [COLS.center, ROWS.upper],
-    [COLS.center, ROWS.mid],
-    [COLS.center, ROWS.lower],
-  ],
-
-  "4": () => [
-    [COLS.left,  ROWS.upper], [COLS.right, ROWS.upper],
-    [COLS.left,  ROWS.lower], [COLS.right, ROWS.lower],
-  ],
-
-  "5": () => [
-    [COLS.left,  ROWS.upper], [COLS.right, ROWS.upper],
-    [COLS.center, ROWS.mid],
-    [COLS.left,  ROWS.lower], [COLS.right, ROWS.lower],
-  ],
-
-  "6": () => [
-    [COLS.left,  ROWS.upper], [COLS.right, ROWS.upper],
-    [COLS.left,  ROWS.mid],   [COLS.right, ROWS.mid],
-    [COLS.left,  ROWS.lower], [COLS.right, ROWS.lower],
-  ],
-
-  "7": () => [
-    /* 6 layout plus a center-top */
-    [COLS.center, ROWS.top],
-    [COLS.left,  ROWS.upper], [COLS.right, ROWS.upper],
-    [COLS.left,  ROWS.mid],   [COLS.right, ROWS.mid],
-    [COLS.left,  ROWS.lower], [COLS.right, ROWS.lower],
-  ],
-
-  "8": () => [
-    /* two columns of four (top, upper-mid, lower-mid, bottom) */
-    [COLS.left,  ROWS.top2], [COLS.right, ROWS.top2],
-    [COLS.left,  ROWS.upper], [COLS.right, ROWS.upper],
-    [COLS.left,  ROWS.lower], [COLS.right, ROWS.lower],
-    [COLS.left,  ROWS.bot2], [COLS.right, ROWS.bot2],
-  ],
-
-  "9": () => [
-    /* 8 plus a center mid */
-    [COLS.left,  ROWS.top2], [COLS.right, ROWS.top2],
-    [COLS.left,  ROWS.upper], [COLS.right, ROWS.upper],
-    [COLS.center, ROWS.mid],
-    [COLS.left,  ROWS.lower], [COLS.right, ROWS.lower],
-    [COLS.left,  ROWS.bot2], [COLS.right, ROWS.bot2],
-  ],
-
-  "10": () => [
-    /* two columns of five, dense top & bottom rows */
-    [COLS.left,  ROWS.top2], [COLS.right, ROWS.top2],
-    [COLS.left,  ROWS.upper],[COLS.right, ROWS.upper],
-    [COLS.left,  ROWS.mid],  [COLS.right, ROWS.mid],
-    [COLS.left,  ROWS.lower],[COLS.right, ROWS.lower],
-    [COLS.left,  ROWS.bot2], [COLS.right, ROWS.bot2],
-  ],
+  "2": () => [[COLS.center, ROWS.upper],[COLS.center, ROWS.lower]],
+  "3": () => [[COLS.center, ROWS.upper],[COLS.center, ROWS.mid],[COLS.center, ROWS.lower]],
+  "4": () => [[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower]],
+  "5": () => [[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.center,ROWS.mid],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower]],
+  "6": () => [[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.left,ROWS.mid],[COLS.right,ROWS.mid],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower]],
+  "7": () => [[COLS.center,ROWS.top],[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.left,ROWS.mid],[COLS.right,ROWS.mid],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower]],
+  "8": () => [[COLS.left,ROWS.top2],[COLS.right,ROWS.top2],[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower],[COLS.left,ROWS.bot2],[COLS.right,ROWS.bot2]],
+  "9": () => [[COLS.left,ROWS.top2],[COLS.right,ROWS.top2],[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.center,ROWS.mid],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower],[COLS.left,ROWS.bot2],[COLS.right,ROWS.bot2]],
+  "10":()=> [[COLS.left,ROWS.top2],[COLS.right,ROWS.top2],[COLS.left,ROWS.upper],[COLS.right,ROWS.upper],[COLS.left,ROWS.mid],[COLS.right,ROWS.mid],[COLS.left,ROWS.lower],[COLS.right,ROWS.lower],[COLS.left,ROWS.bot2],[COLS.right,ROWS.bot2]]
 };
 
-/* Single-orientation variant:
-   We bias extra pips toward the top half and avoid mirroring.
-   These are tasteful approximations that keep readability and spacing.
-*/
-const singleLayouts = {
-  "A": () => [[COLS.center, 40]],
-
-  "2": () => [
-    [COLS.center, 30],
-    [COLS.center, 45],
-  ],
-
-  "3": () => [
-    [COLS.center, 26],
-    [COLS.center, 38],
-    [COLS.center, 50],
-  ],
-
-  "4": () => [
-    [COLS.left,  28], [COLS.right, 28],
-    [COLS.left,  44], [COLS.right, 44],
-  ],
-
-  "5": () => [
-    [COLS.left,  26], [COLS.right, 26],
-    [COLS.center, 38],
-    [COLS.left,  50], [COLS.right, 50],
-  ],
-
-  "6": () => [
-    [COLS.left,  24], [COLS.right, 24],
-    [COLS.left,  36], [COLS.right, 36],
-    [COLS.left,  48], [COLS.right, 48],
-  ],
-
-  "7": () => [
-    [COLS.center, 20],
-    [COLS.left,  28], [COLS.right, 28],
-    [COLS.left,  36], [COLS.right, 36],
-    [COLS.left,  48], [COLS.right, 48],
-  ],
-
-  "8": () => [
-    [COLS.left,  18], [COLS.right, 18],
-    [COLS.left,  28], [COLS.right, 28],
-    [COLS.left,  38], [COLS.right, 38],
-    [COLS.left,  48], [COLS.right, 48],
-  ],
-
-  "9": () => [
-    [COLS.left,  16], [COLS.right, 16],
-    [COLS.left,  26], [COLS.right, 26],
-    [COLS.center, 34],
-    [COLS.left,  42], [COLS.right, 42],
-    [COLS.left,  50], [COLS.right, 50],
-  ],
-
-  "10": () => [
-    [COLS.left,  12], [COLS.right, 12],
-    [COLS.left,  22], [COLS.right, 22],
-    [COLS.left,  32], [COLS.right, 32],
-    [COLS.left,  42], [COLS.right, 42],
-    [COLS.left,  52], [COLS.right, 52],
-  ],
-};
-
-/* Helpers */
-function makeCard({ suit, rank, orientation = "double" }) {
-  const card = document.createElement("div");
-  card.className = "card";
-  card.setAttribute("data-suit", suit);
-  card.setAttribute("data-orientation", orientation);
-
-  // Corner index(es)
-  const idxTL = document.createElement("div");
-  idxTL.className = "index";
-  idxTL.innerHTML = `${rank}<span class="suit">${SUITS[suit]}</span>`;
-  card.appendChild(idxTL);
-
-  if (orientation === "double") {
-    const idxBR = idxTL.cloneNode(true);
-    idxBR.classList.add("mirror");
-    card.appendChild(idxBR);
+function makeCard(suit, rank){
+  const c = document.createElement("div");
+  c.className="card"; c.dataset.suit=suit;
+  const idx=document.createElement("div");
+  idx.className="index"; idx.innerHTML=`${rank}<span class="suit">${SUITS[suit]}</span>`;
+  c.appendChild(idx);
+  if(layouts[rank]){
+    layouts[rank]().forEach(([x,y])=>{
+      const pip=document.createElement("span");
+      pip.className="pip"; pip.textContent=SUITS[suit];
+      pip.style.left=x+"%"; pip.style.top=y+"%";
+      c.appendChild(pip);
+    });
+  } else {
+    const f=document.createElement("div");
+    f.className="face"; f.textContent=rank;
+    c.appendChild(f);
   }
-
-  // Pip positions
-  const layouts = (orientation === "double") ? standardLayouts : singleLayouts;
-  const coords = layouts[rank]();
-  const glyph = SUITS[suit];
-
-  coords.forEach(([x, y]) => {
-    const pip = document.createElement("span");
-    pip.className = "pip";
-    pip.textContent = glyph;
-    pip.style.left = x + "%";
-    pip.style.top  = y + "%";
-    card.appendChild(pip);
-  });
-
-  return card;
+  return c;
 }
 
-/* Demo: a few standard and single-orientation examples */
-const stdMount = document.getElementById("standard");
-["hearts","diamonds","clubs","spades"].forEach((s, i) => {
-  ["A","2","3","4","5","6","7","8","9","10"].forEach((r, j) => {
-    if ((i === 0 && ["A","5","7","10"].includes(r)) ||
-        (i === 1 && ["3","6"].includes(r))) {
-      stdMount.appendChild(makeCard({ suit: s, rank: r, orientation: "double" }));
-    }
-  });
-});
-
-const singleMount = document.getElementById("single");
-["spades","hearts"].forEach(s => {
-  ["A","3","5","7","9","10"].forEach(r => {
-    singleMount.appendChild(makeCard({ suit: s, rank: r, orientation: "single" }));
-  });
-});
+const deck=document.getElementById("deck");
+["spades","hearts","clubs","diamonds"].forEach(s=>RANKS.forEach(r=>deck.appendChild(makeCard(s,r))));
+deck.appendChild(document.createElement("div")).className="card back";
+deck.appendChild(document.createElement("div")).className="card back";
 </script>
 </body>
 </html>

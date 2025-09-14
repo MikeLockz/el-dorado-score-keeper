@@ -25,7 +25,7 @@ export default function SpHandDock(props: {
             {(humanBySuit[s] ?? []).map((c, i) => (
               <button
                 key={`card-${s}-${c.rank}-${i}`}
-                className={`h-14 w-10 rounded border flex items-center justify-center font-bold select-none transition-shadow ${
+                className={`h-14 w-10 rounded border flex items-stretch justify-center font-bold select-none transition-shadow [&>*]:h-full ${
                   s === 'hearts' || s === 'diamonds' ? 'text-red-600 dark:text-red-300' : ''
                 } ${isSelected(c) ? 'ring-2 ring-sky-500' : 'hover:ring-1 hover:ring-sky-400'} ${
                   isPlaying && !canPlayCard(c) ? 'opacity-40' : ''

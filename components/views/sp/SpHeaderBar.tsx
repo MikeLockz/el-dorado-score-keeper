@@ -23,7 +23,11 @@ export default function SpHeaderBar(props: {
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1">
             <span className="text-muted-foreground">Trump:</span>
-            {trump && trumpCard ? <CardGlyph suit={trump} rank={trumpCard.rank} size="sm" /> : '—'}
+            {trump && trumpCard ? (
+              <CardGlyph suit={trump} rank={trumpCard.rank} size="sm" padded />
+            ) : (
+              '—'
+            )}
           </span>
         </div>
       </div>
