@@ -41,6 +41,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
 
   const sp = state.sp;
   const spPhase = sp?.phase ?? 'setup';
+  // Use store-driven round number for all indexing
   const spRoundNo = sp?.roundNo ?? 0;
   const spOrder: string[] = sp?.order ?? [];
   const spHands = sp?.hands ?? {};
@@ -53,6 +54,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
 
   const overlay = spPhase === 'playing' ? selectSpLiveOverlay(state) : null;
   const rotated = selectSpRotatedOrder(state);
+  // Derive tricks using selector tied to store state
   const tricksThisRound = selectSpTricksForRound(state);
   const { trump, trumpCard } = selectSpTrumpInfo(state);
   const dealerName = selectSpDealerName(state);

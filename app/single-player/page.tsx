@@ -5,7 +5,7 @@ import { startRound, mulberry32 } from '@/lib/single-player';
 import SinglePlayerMobile from '@/components/views/SinglePlayerMobile';
 import type { PlayerId, Card } from '@/lib/single-player';
 import { useAppState } from '@/components/state-provider';
-import { tricksForRound, ROUNDS_TOTAL } from '@/lib/state/logic';
+import { ROUNDS_TOTAL } from '@/lib/state/logic';
 import {
   selectPlayersOrdered,
   events,
@@ -33,7 +33,7 @@ export default function SinglePlayerPage() {
   }, [initRng, seed]);
   const [dealerIdx, setDealerIdx] = React.useState(0);
   const [humanIdx, setHumanIdx] = React.useState(0);
-  const [roundNo, setRoundNo] = React.useState(1);
+  // Round is authoritative in store (state.sp.roundNo); default to 1 at startup
   // In some static-exported deployments, the state may briefly be an initial shell before
   // the provider hydrates. Default to the known initial shape to avoid undefined access.
   const spSafe = (state.sp ?? INITIAL_STATE.sp) as typeof state.sp;
@@ -52,7 +52,7 @@ export default function SinglePlayerPage() {
   const useTwoDecks = activePlayers.length > 5;
   const sp = spSafe;
   const spPhase = sp.phase;
-  const spRoundNo = sp.roundNo ?? roundNo;
+  const spRoundNo = sp.roundNo ?? 1;
   const spTrump = sp.trump;
   const spTrumpCard = sp.trumpCard;
   const spOrder = sp.order;
@@ -69,7 +69,7 @@ export default function SinglePlayerPage() {
     setSelectedCard(null);
     const deal = startRound(
       {
-        round: roundNo,
+        round: spRoundNo,
         players,
         dealer,
         tricks: spTricks,
@@ -81,7 +81,7 @@ export default function SinglePlayerPage() {
     try {
       await appendMany([
         events.spDeal({
-          roundNo: roundNo,
+          roundNo: spRoundNo,
           dealerId: dealer,
           order: deal.order,
           trump: deal.trump,
@@ -89,7 +89,7 @@ export default function SinglePlayerPage() {
           hands: deal.hands,
         }),
         events.spLeaderSet({ leaderId: deal.firstToAct }),
-        events.roundStateSet({ round: roundNo, state: 'bidding' }),
+        events.roundStateSet({ round: spRoundNo, state: 'bidding' }),
       ]);
     } catch (e) {
       console.warn('Failed to persist deal', e);
@@ -119,7 +119,7 @@ export default function SinglePlayerPage() {
       (spOrder?.length ?? 0) > 0 &&
       Object.values(sp.hands ?? {}).some((arr) => (arr?.length ?? 0) > 0);
     if (haveDeal) return;
-    const rState = state.rounds[roundNo]?.state ?? 'locked';
+    const rState = state.rounds[spRoundNo]?.state ?? 'locked';
     if (rState !== 'bidding' && rState !== 'playing') return;
     const trickInProgress = (sp.trickPlays?.length ?? 0) > 0;
     if (trickInProgress || sp.reveal) return;
@@ -134,7 +134,7 @@ export default function SinglePlayerPage() {
     sp.trickPlays,
     sp.reveal,
     state.rounds,
-    roundNo,
+    spRoundNo,
     activePlayers.length,
   ]);
 
@@ -176,20 +176,19 @@ export default function SinglePlayerPage() {
   useSinglePlayerEngine({
     state,
     humanId: human,
-    currentRoundNo: roundNo,
+    currentRoundNo: spRoundNo,
     appendMany: (evts) => {
       // adapt to engine's readonly signature and void return type
       return Promise.resolve(appendMany([...evts])).then(() => undefined);
     },
     isBatchPending,
     rng: rngRef.current,
-    onAdvance: (nextRound, nextDealerId) => {
+    onAdvance: (_nextRound, nextDealerId) => {
       const idx = Math.max(
         0,
         players.findIndex((p) => p === nextDealerId),
       );
       setDealerIdx(idx);
-      setRoundNo(nextRound);
     },
     onSaved: () => setSaved(true),
   });
