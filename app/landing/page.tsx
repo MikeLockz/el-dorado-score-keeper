@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { Button, Card } from '@/components/ui';
+import { Button } from '@/components/ui';
 import ModeCard from '@/components/landing/ModeCard';
 import { Compass, Users, Calculator } from 'lucide-react';
+import QuickLinks from '@/components/landing/QuickLinks';
 
 export default function LandingPage() {
   return (
@@ -61,19 +62,8 @@ export default function LandingPage() {
         />
       </section>
 
-      {/* Quick Links (shell) */}
-      <section className="space-y-2">
-        <h2 className="text-base font-semibold">Quick Links</h2>
-        <Card className="p-3 text-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <Link href="/rules" className="text-primary underline-offset-4 hover:underline">
-              How To Play
-            </Link>
-            {/* Recents and resume will be added in Phase 2 */}
-          </div>
-        </Card>
-      </section>
+      {/* Quick Links */}
+      <QuickLinks />
     </div>
   );
 }
-
