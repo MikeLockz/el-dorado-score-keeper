@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useAppState } from '@/components/state-provider';
-import { CardGlyph } from '@/components/ui';
 import {
   events,
   selectPlayersOrdered,
@@ -26,6 +25,9 @@ import { canPlayCard as ruleCanPlayCard } from '@/lib/rules/sp';
 import { archiveCurrentGameAndReset } from '@/lib/state';
 import SpRoundSummary from './sp/SpRoundSummary';
 import SpGameSummary from './sp/SpGameSummary';
+import SpHeaderBar from './sp/SpHeaderBar';
+import SpTrickTable from './sp/SpTrickTable';
+import SpHandDock from './sp/SpHandDock';
 
 type Props = {
   humanId: string;
@@ -257,74 +259,26 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
 
   return (
     <div className="min-h-dvh flex flex-col bg-background text-foreground">
-      {/* Top Bar */}
-      <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b px-2 py-1">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <div className="inline-grid grid-flow-col items-baseline gap-1">
-            <span className="text-muted-foreground">Hand:</span>
-            <span className="font-semibold text-sm">
-              {handNow}/{tricksThisRound}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1">
-              <span className="text-muted-foreground">Trump:</span>
-              {trump && trumpCard ? (
-                <CardGlyph suit={trump} rank={trumpCard.rank} size="sm" />
-              ) : (
-                '—'
-              )}
-            </span>
-          </div>
-        </div>
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <div className="inline-grid grid-flow-col items-baseline gap-1">
-            <span className="text-[10px] text-muted-foreground">Dealer: {dealerName ?? '—'}</span>
-          </div>
-          <span className="inline-flex items-center">
-            <span className="text-[10px] text-muted-foreground">
-              Broken: {state.sp?.trumpBroken ? 'Yes' : 'No'}
-            </span>
-          </span>
-          {/* Round state label removed from UI; available in Devtools */}
-        </div>
-        {/* Bidding controls moved near hand dock */}
-      </header>
+      <SpHeaderBar
+        handNow={handNow}
+        tricksThisRound={tricksThisRound}
+        trump={trump}
+        trumpCard={trumpCard}
+        dealerName={dealerName}
+        trumpBroken={!!state.sp?.trumpBroken}
+      />
 
       {/* Surface: Compact Trick Table + Bottom Sheet (overlayed) */}
       <main className="relative flex-1">
         {/* Compact Table */}
-        <section className="grid gap-1 p-2 pb-28" aria-label="Current trick">
-          <div className="grid grid-cols-[minmax(64px,1fr)_36px_52px_64px] text-[10px] text-muted-foreground">
-            <div>Player</div>
-            <div>Bid</div>
-            <div>Tricks</div>
-            <div className="text-right">Card</div>
-          </div>
-          {rotated.map((pid) => {
-            const bid = state.rounds[spRoundNo]?.bids?.[pid] ?? 0;
-            const tricks = spTrickCounts?.[pid] ?? 0;
-            const played = overlay?.cards?.[pid] ?? null;
-            const isWinner = reveal && reveal.winnerId === pid;
-            return (
-              <div
-                key={pid}
-                className={`grid grid-cols-[minmax(64px,1fr)_36px_52px_64px] items-center gap-1 rounded py-0.5 ${isWinner ? 'border-emerald-500 bg-emerald-500/15' : 'border-border bg-card/60'}`}
-              >
-                <div className="truncate text-sm">{playerName(pid)}</div>
-                <div className="text-sm tabular-nums text-center">{bid}</div>
-                <div className="text-sm tabular-nums text-center">{tricks}</div>
-                <div className="text-sm text-right">
-                  {played ? (
-                    <CardGlyph suit={played.suit} rank={played.rank} size="sm" />
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </section>
+        <SpTrickTable
+          rotated={rotated}
+          playerName={playerName}
+          bids={state.rounds[spRoundNo]?.bids ?? {}}
+          trickCounts={spTrickCounts}
+          playedCards={overlay?.cards ?? null}
+          winnerId={reveal ? reveal.winnerId : null}
+        />
 
         {/* Bottom Sheet */}
         <aside
@@ -469,52 +423,19 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             </button>
           </div>
         )}
-        {(() => {
-          const totalCards = suitOrder.reduce((acc, s) => acc + (humanBySuit[s]?.length ?? 0), 0);
-          if (totalCards === 0) {
-            return (
-              <div className="p-2 text-center text-xs text-muted-foreground">
-                No cards dealt yet
-              </div>
-            );
+        <SpHandDock
+          suitOrder={suitOrder}
+          humanBySuit={humanBySuit as any}
+          isPlaying={spPhase === 'playing'}
+          isSelected={(c) => isSelected(c as any)}
+          canPlayCard={(c) => canPlayCard(c as any)}
+          onToggleSelect={(c) =>
+            setSelected((prev) =>
+              prev && prev.suit === c.suit && prev.rank === c.rank ? null : (c as any),
+            )
           }
-          return (
-            <div className="p-1">
-              <div className="flex flex-wrap gap-3">
-                {suitOrder.map((s) => (
-                  <div key={`suit-group-${s}`} className="flex gap-1">
-                    {humanBySuit[s].map((c, i) => (
-                      <button
-                        key={`card-${s}-${c.rank}-${i}`}
-                        className={`h-14 w-10 rounded border flex items-center justify-center font-bold select-none transition-shadow ${
-                          s === 'hearts' || s === 'diamonds' ? 'text-red-600 dark:text-red-300' : ''
-                        } ${isSelected(c) ? 'ring-2 ring-sky-500' : 'hover:ring-1 hover:ring-sky-400'} ${
-                          // Keep cards fully visible during bidding, but dim non-interactable cards while playing
-                          spPhase === 'playing' && !canPlayCard(c) ? 'opacity-40' : ''
-                        }`}
-                        onClick={() =>
-                          setSelected((prev) =>
-                            prev && prev.suit === c.suit && prev.rank === c.rank ? null : c,
-                          )
-                        }
-                        onDoubleClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          void playCard(c);
-                        }}
-                        aria-pressed={isSelected(c) ? 'true' : 'false'}
-                        aria-label={`${c.rank} of ${c.suit}`}
-                        disabled={!canPlayCard(c)}
-                      >
-                        <CardGlyph suit={c.suit} rank={c.rank} size="sm" />
-                      </button>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+          onPlayCard={(c) => void playCard(c as any)}
+        />
       </section>
 
       {/* Actions Bar */}
