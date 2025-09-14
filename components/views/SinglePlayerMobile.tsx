@@ -595,30 +595,45 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         style={{ minHeight: 52 }}
         aria-label="Primary actions"
       >
-        <button
-          className="text-muted-foreground hover:text-foreground hover:underline"
-          onClick={cycleSheet}
-          aria-label="Round details"
-        >
-          Details
-        </button>
-        <button
-          className="rounded bg-primary text-primary-foreground px-3 py-2 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-          onClick={() => {
-            const batch = computeAdvanceBatch(state, Date.now(), { intent: 'user' });
-            if (batch.length > 0) void appendMany(batch);
-          }}
-          disabled={computeAdvanceBatch(state, Date.now(), { intent: 'user' }).length === 0}
-          aria-disabled={computeAdvanceBatch(state, Date.now(), { intent: 'user' }).length === 0}
-        >
-          {reveal
-            ? (() => {
-                const total = Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
-                if (total >= tricksThisRound) return isFinalRound ? 'New Game' : 'Next Round';
-                return 'Next Hand';
-              })()
-            : 'Continue'}
-        </button>
+        {(() => {
+          // Memoize user-intent advance batch to avoid recomputing per attribute
+          const advanceBatch = React.useMemo(
+            () => computeAdvanceBatch(state, Date.now(), { intent: 'user' }),
+            [state],
+          );
+          const disabled = advanceBatch.length === 0;
+          return (
+            <>
+              <button
+                className="text-muted-foreground hover:text-foreground hover:underline"
+                onClick={cycleSheet}
+                aria-label="Round details"
+              >
+                Details
+              </button>
+              <button
+                className="rounded bg-primary text-primary-foreground px-3 py-2 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => {
+                  if (disabled) return;
+                  void appendMany(advanceBatch);
+                }}
+                disabled={disabled}
+                aria-disabled={disabled}
+              >
+                {reveal
+                  ? (() => {
+                      const total = Object.values(spTrickCounts ?? {}).reduce(
+                        (a, n) => a + (n ?? 0),
+                        0,
+                      );
+                      if (total >= tricksThisRound) return isFinalRound ? 'New Game' : 'Next Round';
+                      return 'Next Hand';
+                    })()
+                  : 'Continue'}
+              </button>
+            </>
+          );
+        })()}
       </nav>
       {/* No end-of-round confirmation modal */}
     </div>
