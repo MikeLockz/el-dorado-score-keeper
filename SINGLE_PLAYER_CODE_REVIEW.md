@@ -198,6 +198,25 @@ This review covers the single-player implementation across `lib/single-player/*`
 
 - **Effect Boundaries / Ownership:** `useSinglePlayerEngine` handles bot bidding, bot play, trick resolution, and round finalization; `SinglePlayerMobile` also uses `computeAdvanceBatch` timer and CTA. Keep ownership clear:
   - Engine: deterministic transitions and batch creation; idempotent where possible.
+
+---
+
+Implementation Status (Phased)
+
+- RNG reuse: `app/single-player/page.tsx` now imports `mulberry32` from `lib/single-player` and removes the inline PRNG.
+- Advance batch memoization: `components/views/SinglePlayerMobile.tsx` computes the user-intent advance batch once via `useMemo` and reuses it across onClick/disabled/aria.
+- Next-round helper: `lib/single-player/engine.ts` exposes `buildNextRoundDealBatch(...)`, and both `computeAdvanceBatch` and `finalizeRoundIfDone` call it.
+- Rules facade: `lib/rules/sp.ts` centralizes exports; UI legality checks now import `canPlayCard` from the facade.
+- Types tightened: `lib/state/types.ts` uses `Suit`/`Rank` from SP types for `sp.trumpCard`, `sp.hands`, and `sp.trickPlays`; casts removed in page/mobile where applicable.
+- Ack removed: the vestigial `sp/ack-set` event and `sp.ack` state were removed; reveal gating drives the flow.
+- UI modularization: round summary and game summary extracted into `components/views/sp/SpRoundSummary.tsx` and `components/views/sp/SpGameSummary.tsx`; parent orchestrates data and actions.
+- Perf tweaks: small memoization for repeated derived values (e.g., total tricks used by CTA label).
+
+Pointers
+
+- Rules entrypoint: `lib/rules/sp`
+- Engine helper: `buildNextRoundDealBatch` in `lib/single-player/engine.ts`
+- Summary components: `components/views/sp/SpRoundSummary.tsx`, `components/views/sp/SpGameSummary.tsx`
   - UI: presenting state and issuing high-level intents (advance, bid, play card).
     Move auto-advance countdown state to a tiny hook that reads `sp.summaryEnteredAt` and yields remaining time and a boolean for “should auto-advance now.”
 

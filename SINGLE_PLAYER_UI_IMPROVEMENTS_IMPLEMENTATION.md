@@ -28,6 +28,22 @@ Notes vs prototype:
 - UI atoms: `components/ui` (e.g., `CardGlyph`, `Button`)
 - Optional (nice to have): small local components inside `app/single-player/` for Sheet, Toast, and Modal using Tailwind utilities.
 
+Current Structure (post-refactor)
+
+- Orchestrator: `components/views/SinglePlayerMobile.tsx` (state wiring, effects, actions)
+- Summary screens (extracted):
+  - `components/views/sp/SpRoundSummary.tsx`
+  - `components/views/sp/SpGameSummary.tsx`
+- Planned further extractions (optional, non-blocking):
+  - `components/views/sp/SpHeaderBar.tsx`
+  - `components/views/sp/SpTrickTable.tsx`
+  - `components/views/sp/SpHandDock.tsx`
+
+Notes:
+
+- Legality checks route through the rules facade `lib/rules/sp` to avoid UI-side drift.
+- The primary CTA uses a memoized advance batch to avoid redundant compute.
+
 No global CSS is required; implement styling with existing Tailwind classes. Respect safe‑area insets and prefers‑reduced‑motion where possible.
 
 ## Data & Selectors You’ll Need
