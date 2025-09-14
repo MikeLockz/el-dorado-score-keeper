@@ -47,6 +47,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans">
+        {/* Skip link for keyboard/screen reader users */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-white dark:focus:bg-slate-900 focus:text-slate-900 dark:focus:text-white focus:px-3 focus:py-2 focus:rounded-md focus:shadow"
+        >
+          Skip to content
+        </a>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -56,7 +63,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AppErrorBoundary>
             <StateRoot>
               <Header />
-              <main className="min-h-screen bg-background">{children}</main>
+              <main id="main" className="min-h-screen bg-background">
+                {children}
+              </main>
               {process.env.NODE_ENV !== 'production' ? <Devtools /> : null}
             </StateRoot>
           </AppErrorBoundary>
