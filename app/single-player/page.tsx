@@ -1,9 +1,8 @@
 'use client';
 import React from 'react';
-import { startRound, bots } from '@/lib/single-player';
+import { startRound, mulberry32 } from '@/lib/single-player';
 // import CurrentGame from '@/components/views/CurrentGame';
 import SinglePlayerMobile from '@/components/views/SinglePlayerMobile';
-import { CardGlyph } from '@/components/ui';
 import type { PlayerId, Card } from '@/lib/single-player';
 import { useAppState } from '@/components/state-provider';
 import { tricksForRound, ROUNDS_TOTAL } from '@/lib/state/logic';
@@ -26,22 +25,12 @@ export default function SinglePlayerPage() {
   const initRng = React.useCallback((s: string) => {
     const n = Number(s);
     const seedNum = Number.isFinite(n) ? Math.floor(n) : 0;
-    function mulberry32(a: number) {
-      let t = a >>> 0;
-      return () => {
-        t += 0x6d2b79f5;
-        let r = Math.imul(t ^ (t >>> 15), 1 | t);
-        r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-        return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-      };
-    }
     rngRef.current = mulberry32(seedNum);
   }, []);
   React.useEffect(() => {
     initRng(seed);
     // re-init when component mounts or seed changes
   }, [initRng, seed]);
-  const [playersCount, setPlayersCount] = React.useState(4); // legacy; not used for slicing
   const [dealerIdx, setDealerIdx] = React.useState(0);
   const [humanIdx, setHumanIdx] = React.useState(0);
   const [roundNo, setRoundNo] = React.useState(1);
