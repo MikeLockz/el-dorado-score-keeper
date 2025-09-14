@@ -9,7 +9,7 @@ import {
 import { bots, startRound, winnerOfTrick } from './index';
 import { computePrecedingBotBids } from './auto-bid';
 import type { Card } from './types';
-import { isRoundDone as rulesIsRoundDone } from '@/lib/state/spRules';
+import { isRoundDone as rulesIsRoundDone } from '@/lib/rules/sp';
 
 // Return bid/set events for bot players who act before the human in current round order.
 export function prefillPrecedingBotBids(

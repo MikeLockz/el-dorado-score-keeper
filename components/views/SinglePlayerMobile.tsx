@@ -22,6 +22,7 @@ import {
   ROUNDS_TOTAL,
 } from '@/lib/state';
 import { bots, computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
+import { canPlayCard as ruleCanPlayCard } from '@/lib/rules/sp';
 import { archiveCurrentGameAndReset } from '@/lib/state';
 
 type Props = {
@@ -114,22 +115,23 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   const canPlayCard = (c: SpCard) => {
     if (spPhase !== 'playing') return false;
     if (state.sp?.reveal) return false;
-    const ledSuit = sp?.trickPlays?.[0]?.card?.suit;
-    const canFollow = (spHands[humanId] ?? []).some((h) => h.suit === ledSuit);
-    let legal = true;
-    if (!ledSuit) {
-      const hasNonTrump = (spHands[humanId] ?? []).some((h) => h.suit !== spTrump);
-      if (!sp?.trumpBroken && hasNonTrump && c.suit === spTrump) legal = false;
-    } else if (canFollow) {
-      legal = c.suit === ledSuit;
-    }
-    const leader = sp?.trickPlays?.[0]?.playerId ?? sp?.leaderId ?? null;
-    const leaderIdx = spOrder.findIndex((p) => p === leader);
-    const rotatedOrder =
-      leaderIdx < 0 ? spOrder : [...spOrder.slice(leaderIdx), ...spOrder.slice(0, leaderIdx)];
-    const nextToPlay = rotatedOrder[sp?.trickPlays?.length ?? 0];
-    const isHumansTurn = nextToPlay === humanId && !state.sp?.reveal;
-    return legal && isHumansTurn;
+    if (!spTrump) return false;
+    const ok = ruleCanPlayCard(
+      {
+        order: spOrder,
+        leaderId: sp?.leaderId ?? null,
+        trickPlays: (sp?.trickPlays ?? []).map((p) => ({
+          playerId: p.playerId,
+          card: { suit: p.card.suit, rank: p.card.rank },
+        })),
+        hands: spHands,
+        trump: spTrump,
+        trumpBroken: !!sp?.trumpBroken,
+      },
+      humanId,
+      { suit: c.suit, rank: c.rank },
+    );
+    return ok.ok;
   };
   const playCard = async (c: SpCard) => {
     if (!canPlayCard(c)) return;
