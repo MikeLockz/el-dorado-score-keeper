@@ -1,8 +1,9 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui';
+// no-op
 import ModeCard from '@/components/landing/ModeCard';
 import { Compass, Users, Calculator } from 'lucide-react';
 import QuickLinks from '@/components/landing/QuickLinks';
+import HeroCtas from '@/components/landing/HeroCtas';
+import { logEvent } from '@/lib/client-log';
 
 export default function LandingPage() {
   return (
@@ -15,23 +16,7 @@ export default function LandingPage() {
         <p className="text-sm sm:text-base text-muted-foreground">
           Choose your path: practice solo, gather your party, or tally scores in person.
         </p>
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-          <Button asChild>
-            <Link href="/single-player" aria-label="Start Single Player">
-              Start Single Player
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/rules" aria-label="Host Game (coming soon)">
-              Host Game
-            </Link>
-          </Button>
-          <Button asChild variant="secondary">
-            <Link href="/" aria-label="Open Score Card">
-              Open Score Card
-            </Link>
-          </Button>
-        </div>
+        <HeroCtas />
       </section>
 
       {/* Modes Grid */}
@@ -49,6 +34,7 @@ export default function LandingPage() {
           title="Multiplayer"
           description="Host a room or join with a code. Cross‑device, real‑time play."
           primary={{ label: 'Host', href: '/rules', ariaLabel: 'Host Game (coming soon)' }}
+          onPrimaryClick={() => logEvent('mode_multiplayer_host_clicked')}
           secondary={{ label: 'Join by code', href: '/rules' }}
           ariaLabel="Open multiplayer — host a room or join by code."
         />
@@ -57,6 +43,7 @@ export default function LandingPage() {
           title="Score Card"
           description="Track scores for in‑person sessions. Share and export results."
           primary={{ label: 'Open', href: '/', ariaLabel: 'Open Score Card' }}
+          onPrimaryClick={() => logEvent('mode_scorecard_open_clicked')}
           secondary={null}
           ariaLabel="Open score card for in‑person tallying."
         />

@@ -1,3 +1,4 @@
+"use client";
 import * as React from 'react';
 import Link from 'next/link';
 import { Card, Button } from '@/components/ui';
@@ -9,9 +10,10 @@ export type ModeCardProps = {
   primary: { label: string; href: string; ariaLabel?: string };
   secondary?: { label: string; href: string } | null;
   ariaLabel: string;
+  onPrimaryClick?: () => void;
 };
 
-export function ModeCard({ icon, title, description, primary, secondary, ariaLabel }: ModeCardProps) {
+export function ModeCard({ icon, title, description, primary, secondary, ariaLabel, onPrimaryClick }: ModeCardProps) {
   return (
     <Card className="h-full p-4 flex flex-col gap-3 bg-card text-card-foreground border">
       <section aria-label={ariaLabel}>
@@ -24,7 +26,11 @@ export function ModeCard({ icon, title, description, primary, secondary, ariaLab
         <p className="text-sm text-muted-foreground mt-1">{description}</p>
         <div className="mt-3 flex items-center gap-3">
           <Button asChild>
-            <Link href={primary.href} aria-label={primary.ariaLabel ?? primary.label}>
+            <Link
+              href={primary.href}
+              aria-label={primary.ariaLabel ?? primary.label}
+              onClick={onPrimaryClick}
+            >
               {primary.label}
             </Link>
           </Button>
