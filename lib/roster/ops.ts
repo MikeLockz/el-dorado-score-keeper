@@ -52,9 +52,17 @@ export function addPlayer(
 ): AppState {
   const r = ensureRoster(state, p.rosterId);
   if (!r) return state;
+  const currentCount = Object.keys(r.playersById).length;
+  if (currentCount >= 10) return state;
+  const trimmed = String(p.name).trim();
+  if (!trimmed) return state;
+  const existsByName = Object.values(r.playersById).some(
+    (n) => (n ?? '').trim().toLowerCase() === trimmed.toLowerCase(),
+  );
+  if (existsByName) return state;
   if (r.playersById[p.id]) return state;
   const playersById = clone(r.playersById);
-  playersById[p.id] = String(p.name);
+  playersById[p.id] = trimmed;
   const displayOrder = clone(r.displayOrder);
   const nextIdx =
     Math.max(-1, ...Object.values(displayOrder).map((n) => (Number.isFinite(n) ? n : -1))) + 1;
@@ -70,8 +78,14 @@ export function renamePlayer(
 ): AppState {
   const r = ensureRoster(state, p.rosterId);
   if (!r || !r.playersById[p.id]) return state;
+  const trimmed = String(p.name).trim();
+  if (!trimmed) return state;
+  const existsByName = Object.entries(r.playersById).some(
+    ([id, n]) => id !== p.id && (n ?? '').trim().toLowerCase() === trimmed.toLowerCase(),
+  );
+  if (existsByName) return state;
   const playersById = clone(r.playersById);
-  playersById[p.id] = String(p.name);
+  playersById[p.id] = trimmed;
   const rosters = clone(state.rosters);
   rosters[p.rosterId] = Object.assign({}, r, { playersById });
   return Object.assign({}, state, { rosters });
@@ -80,6 +94,8 @@ export function renamePlayer(
 export function removePlayer(state: AppState, p: { rosterId: UUID; id: UUID }): AppState {
   const r = ensureRoster(state, p.rosterId);
   if (!r || !r.playersById[p.id]) return state;
+  const currentCount = Object.keys(r.playersById).length;
+  if (currentCount <= 2) return state;
   const playersById = clone(r.playersById);
   delete playersById[p.id];
   const entries = Object.entries(r.displayOrder).filter(([id]) => id !== p.id);
