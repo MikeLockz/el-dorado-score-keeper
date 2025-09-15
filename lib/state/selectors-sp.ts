@@ -95,8 +95,15 @@ export const selectSpTrumpInfo = memo1((s: AppState): SpTrumpInfo => {
 export const selectSpDealerName = memo1((s: AppState): string | null => {
   const dealerId = s.sp?.dealerId ?? null;
   if (!dealerId) return null;
-  const name = s.players?.[dealerId] ?? null;
-  return name ?? dealerId;
+  // Prefer friendly name from active Single Player roster
+  const rid = s.activeSingleRosterId;
+  const fromRoster = rid ? s.rosters?.[rid]?.playersById?.[dealerId] ?? null : null;
+  if (fromRoster) return fromRoster;
+  // Fallback to legacy players mapping
+  const legacy = s.players?.[dealerId] ?? null;
+  if (legacy) return legacy;
+  const DEV = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
+  return DEV ? dealerId : 'Unknown';
 });
 
 // Single-player round completion and helpers
@@ -182,9 +189,12 @@ export const selectSummaryData = memo1((s: AppState): SpSummaryData => {
   const dealerId = s.sp?.dealerId ?? null;
   const trump = s.sp?.trump ?? null;
   const nextLeaderId = s.sp?.leaderId ?? null;
+  const rid = s.activeSingleRosterId;
+  const namesById: Record<string, string> = rid ? s.rosters?.[rid]?.playersById ?? {} : {};
+  const DEV = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
   const players = Object.keys(s.players).map((id) => ({
     id,
-    name: s.players[id] ?? id,
+    name: namesById[id] ?? s.players[id] ?? (DEV ? id : 'Unknown'),
     bid: null,
     made: null,
     delta: null,

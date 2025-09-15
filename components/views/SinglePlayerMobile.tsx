@@ -37,7 +37,9 @@ type Props = {
 export default function SinglePlayerMobile({ humanId, rng }: Props) {
   const { state, append, appendMany, isBatchPending } = useAppState();
   const players = selectPlayersOrderedFor(state, 'single');
-  const playerName = (pid: string) => players.find((p) => p.id === pid)?.name ?? pid;
+  const isDev = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
+  const playerName = (pid: string) =>
+    players.find((p) => p.id === pid)?.name ?? (isDev ? pid : 'Unknown');
 
   const sp = state.sp;
   const spPhase = sp?.phase ?? 'setup';
