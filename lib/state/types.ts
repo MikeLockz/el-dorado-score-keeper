@@ -35,6 +35,7 @@ export type EventMap = {
   'sp/trick/reveal-set': { winnerId: string };
   'sp/trick/reveal-clear': Record<never, never>;
   'sp/summary-entered-set': { at: number };
+  'sp/seed-set': { seed: number };
 };
 
 export type AppEventType = keyof EventMap;
@@ -95,6 +96,7 @@ export type AppState = Readonly<{
       winnerId: string;
     }> | null;
     summaryEnteredAt?: number;
+    sessionSeed?: number | null;
   }>;
   // Optional dense display order per player ID. Missing entries are handled by selectors.
   display_order: Record<string, number>;
@@ -120,6 +122,7 @@ export const INITIAL_STATE: AppState = {
     reveal: null,
     handPhase: 'idle',
     lastTrickSnapshot: null,
+    sessionSeed: null,
   },
   display_order: {},
 };
@@ -396,6 +399,11 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'sp/summary-entered-set': {
       const { at } = event.payload as EventMap['sp/summary-entered-set'];
       return { ...state, sp: { ...state.sp, summaryEnteredAt: Math.floor(at) } };
+    }
+    case 'sp/seed-set': {
+      const { seed } = event.payload as EventMap['sp/seed-set'];
+      const n = Math.floor(seed);
+      return { ...state, sp: { ...state.sp, sessionSeed: Number.isFinite(n) ? n : 0 } };
     }
     default:
       return state;

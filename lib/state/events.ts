@@ -53,6 +53,7 @@ export const events = {
     makeEvent('sp/trick/reveal-clear', p, m),
   spSummaryEnteredSet: (p: EventPayloadByType<'sp/summary-entered-set'>, m?: Meta) =>
     makeEvent('sp/summary-entered-set', p, m),
+  spSeedSet: (p: EventPayloadByType<'sp/seed-set'>, m?: Meta) => makeEvent('sp/seed-set', p, m),
 };
 
 export type { AppEventType, EventPayloadByType, KnownAppEvent };

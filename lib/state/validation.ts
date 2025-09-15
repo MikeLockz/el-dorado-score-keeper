@@ -52,6 +52,7 @@ export const payloadSchemas: Record<AppEventType, z.ZodType<unknown>> = {
   'sp/trick/reveal-set': z.object({ winnerId: id }),
   'sp/trick/reveal-clear': z.object({}),
   'sp/summary-entered-set': z.object({ at: z.number().int().nonnegative() }),
+  'sp/seed-set': z.object({ seed: z.number().int() }),
 };
 
 const baseEventShape = z.object({
