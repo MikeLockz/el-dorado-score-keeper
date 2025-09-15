@@ -21,6 +21,19 @@ const suit = z.enum(['clubs', 'diamonds', 'hearts', 'spades']);
 const card = z.object({ suit, rank: z.number().int().min(2).max(14) });
 
 export const payloadSchemas: Record<AppEventType, z.ZodType<unknown>> = {
+  // roster model
+  'roster/created': z.object({
+    rosterId: id,
+    name: nonEmpty,
+    type: z.enum(['scorecard', 'single']),
+  }),
+  'roster/renamed': z.object({ rosterId: id, name: nonEmpty }),
+  'roster/activated': z.object({ rosterId: id, mode: z.enum(['scorecard', 'single']) }),
+  'roster/player/added': z.object({ rosterId: id, id, name: nonEmpty }),
+  'roster/player/renamed': z.object({ rosterId: id, id, name: nonEmpty }),
+  'roster/player/removed': z.object({ rosterId: id, id }),
+  'roster/players/reordered': z.object({ rosterId: id, order: z.array(id) }),
+  'roster/reset': z.object({ rosterId: id }),
   'player/added': z.object({ id, name: nonEmpty }),
   'player/renamed': z.object({ id, name: nonEmpty }),
   'player/removed': z.object({ id }),

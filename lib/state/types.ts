@@ -3,6 +3,15 @@ import type { Rank, Suit } from '@/lib/single-player/types';
 
 // Event catalog mapping type -> payload shape
 export type EventMap = {
+  // Roster model events
+  'roster/created': { rosterId: string; name: string; type: 'scorecard' | 'single' };
+  'roster/renamed': { rosterId: string; name: string };
+  'roster/activated': { rosterId: string; mode: 'scorecard' | 'single' };
+  'roster/player/added': { rosterId: string; id: string; name: string };
+  'roster/player/renamed': { rosterId: string; id: string; name: string };
+  'roster/player/removed': { rosterId: string; id: string };
+  'roster/players/reordered': { rosterId: string; order: string[] };
+  'roster/reset': { rosterId: string };
   'player/added': { id: string; name: string };
   'player/renamed': { id: string; name: string };
   'player/removed': { id: string };
@@ -116,6 +125,7 @@ export type AppState = Readonly<{
   display_order: Record<string, number>;
 }>;
 import { initialRounds, clampBid, finalizeRound } from './logic';
+import * as rosterOps from '@/lib/roster/ops';
 
 export const INITIAL_STATE: AppState = {
   players: {},
@@ -147,6 +157,43 @@ export const INITIAL_STATE: AppState = {
 
 export function reduce(state: AppState, event: AppEvent): AppState {
   switch (event.type) {
+    // Roster model reducers (delegate to pure ops)
+    case 'roster/created': {
+      const p = event.payload as EventMap['roster/created'];
+      return rosterOps.createRoster(state, {
+        rosterId: p.rosterId,
+        name: p.name,
+        type: p.type,
+      });
+    }
+    case 'roster/renamed': {
+      const p = event.payload as EventMap['roster/renamed'];
+      return rosterOps.renameRoster(state, { rosterId: p.rosterId, name: p.name });
+    }
+    case 'roster/activated': {
+      const p = event.payload as EventMap['roster/activated'];
+      return rosterOps.activateRoster(state, { rosterId: p.rosterId, mode: p.mode });
+    }
+    case 'roster/player/added': {
+      const p = event.payload as EventMap['roster/player/added'];
+      return rosterOps.addPlayer(state, { rosterId: p.rosterId, id: p.id, name: p.name });
+    }
+    case 'roster/player/renamed': {
+      const p = event.payload as EventMap['roster/player/renamed'];
+      return rosterOps.renamePlayer(state, { rosterId: p.rosterId, id: p.id, name: p.name });
+    }
+    case 'roster/player/removed': {
+      const p = event.payload as EventMap['roster/player/removed'];
+      return rosterOps.removePlayer(state, { rosterId: p.rosterId, id: p.id });
+    }
+    case 'roster/players/reordered': {
+      const p = event.payload as EventMap['roster/players/reordered'];
+      return rosterOps.reorderPlayers(state, { rosterId: p.rosterId, order: p.order });
+    }
+    case 'roster/reset': {
+      const p = event.payload as EventMap['roster/reset'];
+      return rosterOps.resetRoster(state, { rosterId: p.rosterId });
+    }
     case 'player/added': {
       const { id, name } = event.payload as EventMap['player/added'];
       if (state.players[id]) return state;

@@ -13,6 +13,14 @@ describe('reducer contract: payload schemas', () => {
     // sanity: ensure we didn't forget to cover a new type
     expect(types.sort()).toEqual(
       [
+        'roster/activated',
+        'roster/created',
+        'roster/player/added',
+        'roster/player/removed',
+        'roster/player/renamed',
+        'roster/players/reordered',
+        'roster/renamed',
+        'roster/reset',
         'bid/set',
         'made/set',
         'player/added',

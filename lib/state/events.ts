@@ -17,6 +17,22 @@ export function makeEvent<T extends AppEventType>(
 }
 
 export const events = {
+  // roster
+  rosterCreated: (p: EventPayloadByType<'roster/created'>, m?: Meta) =>
+    makeEvent('roster/created', p, m),
+  rosterRenamed: (p: EventPayloadByType<'roster/renamed'>, m?: Meta) =>
+    makeEvent('roster/renamed', p, m),
+  rosterActivated: (p: EventPayloadByType<'roster/activated'>, m?: Meta) =>
+    makeEvent('roster/activated', p, m),
+  rosterPlayerAdded: (p: EventPayloadByType<'roster/player/added'>, m?: Meta) =>
+    makeEvent('roster/player/added', p, m),
+  rosterPlayerRenamed: (p: EventPayloadByType<'roster/player/renamed'>, m?: Meta) =>
+    makeEvent('roster/player/renamed', p, m),
+  rosterPlayerRemoved: (p: EventPayloadByType<'roster/player/removed'>, m?: Meta) =>
+    makeEvent('roster/player/removed', p, m),
+  rosterPlayersReordered: (p: EventPayloadByType<'roster/players/reordered'>, m?: Meta) =>
+    makeEvent('roster/players/reordered', p, m),
+  rosterReset: (p: EventPayloadByType<'roster/reset'>, m?: Meta) => makeEvent('roster/reset', p, m),
   playerAdded: (p: EventPayloadByType<'player/added'>, m?: Meta) => makeEvent('player/added', p, m),
   playerRenamed: (p: EventPayloadByType<'player/renamed'>, m?: Meta) =>
     makeEvent('player/renamed', p, m),
