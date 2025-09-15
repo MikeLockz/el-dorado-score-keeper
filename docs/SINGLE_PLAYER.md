@@ -71,7 +71,10 @@ This document is the implementation plan to add a single‑player, interactive m
   - `game.ts`: 10‑round lifecycle; seat management; dealer rotation; summary extraction.
   - `bots/`: Bid and play policies; difficulty presets.
 - UI in `app/single-player/`:
-  - `page.tsx`: Lobby to configure game (players count up to 10, human seat, bot difficulty, seed).
+  - `page.tsx`: Lobby to configure game (players count up to 10, human seat, bot difficulty).
+    Session reproducibility is controlled by a stored `sessionSeed` set via the
+    `sp/seed-set { seed }` event; the page and engine derive per‑round seeds
+    from this base.
   - `game.tsx`: In‑round view: your hand, current trick, trump indicator, bids, trick counts, whose turn, and play controls; others’ hands hidden.
   - Minimal accessibility: clear turn prompts; keyboard play for hand; readable trick history.
 
@@ -99,7 +102,13 @@ This document is the implementation plan to add a single‑player, interactive m
 
 ## Persistence & Reproducibility
 
-- Seedable RNG in the engine; persist seed with game setup for reproducible runs.
+- Seedable RNG in the engine; full‑session reproducibility is achieved via a
+  persisted `sessionSeed` in state (`sp/seed-set`). Per‑round seeds are derived
+  deterministically using `deriveSeed(base, round, stream)`, where:
+  - stream 0 → deal/shuffle seeds
+  - stream 1 → bot RNG seeds
+    If `sessionSeed` is absent, a per‑mount fallback is used, so setting
+    `sp/seed-set` is recommended for replay/debug.
 - Optionally log compact per‑trick history to a debug panel (not stored in scorekeeper state).
 
 ## Validation & Tests

@@ -21,7 +21,7 @@ This document outlines changes to make the single‑player (SP) runtime fully re
 
 - Single source of truth: remove remaining local mirrors for SP runtime (hands, trickPlays, trickCounts, trumpBroken, leader, phase). Keep only transient UI state (e.g., `selectedCard`).
 - Remove localStorage snapshot (temporary stopgap) now that SP is in the store.
-- Deterministic deals (optional): add `sp/seed-set { seed }` to record an RNG seed per session; use it to reproduce deals if you opt not to store hands. (Today hands are persisted, so seed helps primarily for debug/replay.)
+- Deterministic deals (implemented): `sp/seed-set { seed }` records an RNG base per session; deals use `deriveSeed(base, round, 0)` and bot RNG uses `deriveSeed(base, round, 1)`.
 - Session identity (optional): `sp/session-started { id, startedAt }` for archive/analytics.
 
 ### 2) Events & Reducers

@@ -105,6 +105,15 @@
 - Avoid using the same RNG for both shuffles and bots to prevent subtle coupling: a slightly different play path could shift bot RNG consumption and change future deals if they shared a generator.
 - Keep seed derivation stable. If you ever need to change the derivation, bump a `rulesVersion` or a `seedVersion` and include it in the mix to avoid silent drift in historical replays.
 
+**Status**
+
+- Implemented Phases 1–5:
+  - Seed derivation util + tests
+  - Session seed event/state + validation
+  - Page wiring for deals/bots from `sessionSeed` (fallback‑safe)
+  - Engine next‑round deal seeding from `sessionSeed`
+  - Archive reset includes `sp/seed-set` before roster reseed
+
 **Example Snippets**
 
 - `lib/single-player/seed.ts`
