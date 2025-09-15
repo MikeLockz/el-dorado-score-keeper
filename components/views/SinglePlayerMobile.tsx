@@ -4,7 +4,7 @@ import React from 'react';
 import { useAppState } from '@/components/state-provider';
 import {
   events,
-  selectPlayersOrdered,
+  selectPlayersOrderedFor,
   selectSpRotatedOrder,
   selectSpLiveOverlay,
   selectSpTrumpInfo,
@@ -36,7 +36,7 @@ type Props = {
 
 export default function SinglePlayerMobile({ humanId, rng }: Props) {
   const { state, append, appendMany, isBatchPending } = useAppState();
-  const players = selectPlayersOrdered(state);
+  const players = selectPlayersOrderedFor(state, 'single');
   const playerName = (pid: string) => players.find((p) => p.id === pid)?.name ?? pid;
 
   const sp = state.sp;

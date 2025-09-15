@@ -7,11 +7,13 @@ import type { PlayerId, Card } from '@/lib/single-player';
 import { useAppState } from '@/components/state-provider';
 import { ROUNDS_TOTAL } from '@/lib/state/logic';
 import {
-  selectPlayersOrdered,
+  selectPlayersOrderedFor,
+  selectActiveRoster,
   events,
   selectSpTricksForRound,
   selectSpHandBySuit,
 } from '@/lib/state';
+import { uuid } from '@/lib/utils';
 import { useSinglePlayerEngine } from '@/lib/single-player/use-engine';
 import { INITIAL_STATE } from '@/lib/state';
 
@@ -39,9 +41,8 @@ export default function SinglePlayerPage() {
   const [selectedCard, setSelectedCard] = React.useState<Card | null>(null);
   const [autoDealt, setAutoDealt] = React.useState(false);
 
-  const appPlayers = React.useMemo(() => selectPlayersOrdered(state), [state]);
-  // Use full roster for single-player; manage seat order via Players screen
-  const activePlayers = appPlayers;
+  // Single-player roster (mode-aware); falls back to empty when not set up yet
+  const activePlayers = React.useMemo(() => selectPlayersOrderedFor(state, 'single'), [state]);
   const players = React.useMemo(() => activePlayers.map((p) => p.id), [activePlayers]);
   const dealer = players[dealerIdx] ?? players[0]!;
   const human = players[humanIdx] ?? players[0]!;
@@ -223,6 +224,97 @@ export default function SinglePlayerPage() {
   }, [ready, spPhase, isBatchPending, state.rounds, state.players, appendMany]);
 
   // Round finalization now handled by useSinglePlayerEngine
+  // First-run modal: prompt to create an SP roster if none exists
+  const spRoster = React.useMemo(() => selectActiveRoster(state, 'single'), [state]);
+  const scRoster = React.useMemo(() => selectActiveRoster(state, 'scorecard'), [state]);
+  const [quickCount, setQuickCount] = React.useState<number>(2);
+
+  if (!spRoster) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center p-4">
+        <div className="max-w-md w-full rounded border bg-card p-4 shadow">
+          <h1 className="text-xl font-semibold mb-2">Set up Single Player</h1>
+          <p className="text-sm text-muted-foreground mb-4">
+            Choose players for Single Player. You can copy your Score Card players or start a quick
+            game.
+          </p>
+          <div className="space-y-3">
+            <button
+              className="w-full rounded bg-primary text-primary-foreground px-3 py-2 hover:bg-primary/90 disabled:opacity-50"
+              disabled={!scRoster}
+              onClick={async () => {
+                const rid = uuid();
+                const name = 'Single Player';
+                const order = Object.entries(scRoster?.displayOrder ?? {})
+                  .sort((a, b) => a[1] - b[1])
+                  .map(([id]) => id);
+                await appendMany([
+                  events.rosterCreated({ rosterId: rid, name, type: 'single' }),
+                  ...order.map((id) =>
+                    events.rosterPlayerAdded({
+                      rosterId: rid,
+                      id,
+                      name: scRoster!.playersById[id] ?? id,
+                    }),
+                  ),
+                  events.rosterPlayersReordered({ rosterId: rid, order }),
+                  events.rosterActivated({ rosterId: rid, mode: 'single' }),
+                ]);
+              }}
+              aria-label="Use Score Card players"
+            >
+              Use Score Card players
+            </button>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Quick start</div>
+              <div className="flex gap-2 mb-2">
+                {[2, 3, 4, 5, 6].map((n) => (
+                  <button
+                    key={`qc-${n}`}
+                    className={`h-8 w-8 rounded border text-sm ${quickCount === n ? 'bg-muted' : ''}`}
+                    onClick={() => setQuickCount(n)}
+                    aria-label={`Set players to ${n}`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <button
+                className="w-full rounded border px-3 py-2 hover:bg-muted/20"
+                onClick={async () => {
+                  const rid = uuid();
+                  const name = 'Single Player';
+                  const ids: string[] = [];
+                  // First is the human
+                  const humanId = uuid();
+                  ids.push(humanId);
+                  const evts = [events.rosterCreated({ rosterId: rid, name, type: 'single' })];
+                  evts.push(events.rosterPlayerAdded({ rosterId: rid, id: humanId, name: 'You' }));
+                  for (let i = 1; i < quickCount; i++) {
+                    const id = uuid();
+                    ids.push(id);
+                    evts.push(
+                      events.rosterPlayerAdded({
+                        rosterId: rid,
+                        id,
+                        name: `Bot ${i}`,
+                      }),
+                    );
+                  }
+                  evts.push(events.rosterPlayersReordered({ rosterId: rid, order: ids }));
+                  evts.push(events.rosterActivated({ rosterId: rid, mode: 'single' }));
+                  await appendMany(evts);
+                }}
+                aria-label="Quick start"
+              >
+                Start with {quickCount} players
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return <SinglePlayerMobile humanId={human} rng={rngRef.current} />;
 }
