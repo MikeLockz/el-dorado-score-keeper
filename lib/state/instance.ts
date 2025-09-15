@@ -1,6 +1,7 @@
 import { openDB, storeNames, tx } from './db';
-import { AppEvent, AppState, INITIAL_STATE, reduce } from './types';
+import { AppEvent, AppState, INITIAL_STATE, reduce, type UUID } from './types';
 import { validateEventStrict } from './validation';
+import { uuid } from '@/lib/utils';
 
 export type Instance = {
   append: (event: AppEvent) => Promise<number>;
@@ -184,6 +185,58 @@ export async function createInstance(opts?: {
     for (const k of Object.keys(scoresObj)) if (typeof scoresObj[k] !== 'number') return false;
     return true;
   }
+  function upgradeState(s: AppState): AppState {
+    // Ensure new roster keys exist with safe defaults without using any
+    type BootFields = Partial<
+      Pick<
+        AppState,
+        'rosters' | 'activeScorecardRosterId' | 'activeSingleRosterId' | 'humanByMode'
+      >
+    >;
+    const boot = s as unknown as BootFields;
+    const rosters: AppState['rosters'] = boot.rosters ?? {};
+    const activeScorecardRosterId: UUID | null =
+      typeof boot.activeScorecardRosterId === 'string' ? boot.activeScorecardRosterId : null;
+    const activeSingleRosterId: UUID | null =
+      typeof boot.activeSingleRosterId === 'string' ? boot.activeSingleRosterId : null;
+    const humanByMode: AppState['humanByMode'] =
+      boot.humanByMode && typeof boot.humanByMode === 'object' ? boot.humanByMode : {};
+
+    let next: AppState = Object.assign({}, s, {
+      rosters,
+      activeScorecardRosterId,
+      activeSingleRosterId,
+      humanByMode,
+    });
+
+    // Bootstrap default scorecard roster from legacy players if rosters are empty
+    const hasAnyRoster = Object.keys(next.rosters ?? {}).length > 0;
+    const hasLegacyPlayers = next.players && Object.keys(next.players).length > 0;
+    if (!hasAnyRoster && hasLegacyPlayers) {
+      const rid: UUID = uuid();
+      // Build display order from legacy mapping with dense fallback
+      const legacyOrderEntries = Object.entries(next.display_order ?? {}).sort(
+        (a, b) => a[1] - b[1],
+      );
+      const orderedIds = legacyOrderEntries.map(([pid]) => pid);
+      for (const pid of Object.keys(next.players))
+        if (!orderedIds.includes(pid)) orderedIds.push(pid);
+      const displayOrder: Record<string, number> = {};
+      for (let i = 0; i < orderedIds.length; i++) displayOrder[orderedIds[i]!] = i;
+      const createdAt = Date.now();
+      const playersById: Record<string, string> = { ...next.players };
+      const roster = {
+        name: 'Score Card',
+        playersById,
+        displayOrder,
+        type: 'scorecard' as const,
+        createdAt,
+      };
+      const newRosters: AppState['rosters'] = { [rid]: roster };
+      next = Object.assign({}, next, { rosters: newRosters, activeScorecardRosterId: rid });
+    }
+    return next;
+  }
   function isValidSnapshot(rec: unknown): rec is { height: number; state: AppState } {
     if (!isPlainObject(rec)) return false;
     const obj = rec;
@@ -211,11 +264,11 @@ export async function createInstance(opts?: {
     const t1 = tx(db, 'readonly', [storeNames.STATE]);
     const req = t1.objectStore(storeNames.STATE).get('current');
     const rec = await new Promise<CurrentStateRecord | undefined>((res, rej) => {
-      req.onsuccess = () => res(req.result as unknown as CurrentStateRecord | undefined);
+      req.onsuccess = () => res(req.result as CurrentStateRecord | undefined);
       req.onerror = () => rej(asError(req.error, 'Failed to load current state'));
     });
     if (isValidStateRecord(rec)) {
-      memoryState = rec.state;
+      memoryState = upgradeState(rec.state);
       height = rec.height;
       return;
     }
@@ -282,7 +335,7 @@ export async function createInstance(opts?: {
     } catch {
       // ignore snapshot failures; continue with initial
     }
-    memoryState = INITIAL_STATE;
+    memoryState = upgradeState(INITIAL_STATE);
     height = 0;
     devLog('rehydrate.fallback_initial');
   }
@@ -368,6 +421,8 @@ export async function createInstance(opts?: {
     await initSnapshotStrategy();
     await loadCurrent();
     await applyTail(height);
+    // Ensure any missing roster scaffolding is bootstrapped before persisting
+    memoryState = upgradeState(memoryState);
     await persistCurrent();
     notify();
   }

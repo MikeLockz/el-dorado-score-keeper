@@ -193,7 +193,7 @@ export function AppErrorBoundary({ children }: { children: React.ReactNode }) {
       onError={(error, info) => {
         const errMsg = (() => {
           const e = error as { message?: unknown; toString?: (() => string) | undefined };
-          if (typeof e?.message === 'string') return e.message as string;
+          if (typeof e?.message === 'string') return e.message;
           if (typeof e?.toString === 'function') {
             try {
               return e.toString() || 'Unknown error';

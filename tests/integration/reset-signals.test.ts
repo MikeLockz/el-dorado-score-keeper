@@ -22,7 +22,14 @@ describe('reset signals', () => {
     bc.close();
 
     expect(a.getHeight()).toBe(beforeH);
-    expect(a.getState()).toEqual(beforeState);
+    const strip = (s: any) => ({
+      players: s.players,
+      scores: s.scores,
+      rounds: s.rounds,
+      display_order: s.display_order,
+      sp: s.sp,
+    });
+    expect(strip(a.getState())).toEqual(strip(beforeState));
     a.close();
   });
 
@@ -49,7 +56,14 @@ describe('reset signals', () => {
     await drain();
 
     expect(a.getHeight()).toBe(beforeH);
-    expect(a.getState()).toEqual(beforeState);
+    const strip = (s: any) => ({
+      players: s.players,
+      scores: s.scores,
+      rounds: s.rounds,
+      display_order: s.display_order,
+      sp: s.sp,
+    });
+    expect(strip(a.getState())).toEqual(strip(beforeState));
     a.close();
   });
 });

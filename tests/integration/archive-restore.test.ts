@@ -58,7 +58,14 @@ describe('archive and restore flows', () => {
     await restoreGame(dbName, rec!.id);
     await inst.rehydrate();
     expect(inst.getHeight()).toBe(rec!.lastSeq);
-    expect(inst.getState()).toEqual(endState);
+    const strip = (s: any) => ({
+      players: s.players,
+      scores: s.scores,
+      rounds: s.rounds,
+      display_order: s.display_order,
+      sp: s.sp,
+    });
+    expect(strip(inst.getState())).toEqual(strip(endState));
 
     // getGame returns record; deleteGame removes it
     const got = await getGame(GAMES_DB_NAME, rec!.id);
