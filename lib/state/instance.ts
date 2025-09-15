@@ -384,8 +384,8 @@ export async function createInstance(opts?: {
       event = validateEventStrict(event);
     } catch (err: unknown) {
       const info = (err as { info?: unknown } | null)?.info;
-      const code =
-        (info && (info as { code?: string } | null)?.code) || 'append.invalid_event_shape';
+      const codeFromInfo = (info as { code?: string } | null)?.code;
+      const code: string = codeFromInfo ?? 'append.invalid_event_shape';
       warn(code, info);
       const ex: Error & { code: string; info?: unknown } = Object.assign(
         new Error('InvalidEvent'),
@@ -488,8 +488,10 @@ export async function createInstance(opts?: {
         localStorage.setItem(key, val);
         // In some environments, 'storage' may not fire across contexts. Best-effort dispatch.
         try {
-          // @ts-expect-error - StorageEvent may not be fully typed in Node
-          const ev = new StorageEvent('storage', { key, newValue: val, storageArea: localStorage });
+          const EvCtor = StorageEvent as unknown as {
+            new (type: string, eventInitDict?: StorageEventInit): StorageEvent;
+          };
+          const ev = new EvCtor('storage', { key, newValue: val, storageArea: localStorage });
           dispatchEvent(ev);
         } catch {}
       } catch {}
@@ -507,8 +509,8 @@ export async function createInstance(opts?: {
       validated = batch.map((e) => validateEventStrict(e));
     } catch (err: unknown) {
       const info = (err as { info?: unknown } | null)?.info;
-      const code =
-        (info && (info as { code?: string } | null)?.code) || 'append.invalid_event_shape';
+      const codeFromInfo = (info as { code?: string } | null)?.code;
+      const code: string = codeFromInfo ?? 'append.invalid_event_shape';
       warn(code, info);
       const ex: Error & { code: string; info?: unknown } = Object.assign(
         new Error('InvalidEvent'),
@@ -612,8 +614,10 @@ export async function createInstance(opts?: {
         const val = String(lastSeq);
         localStorage.setItem(key, val);
         try {
-          // @ts-expect-error - StorageEvent may not be fully typed in Node
-          const ev = new StorageEvent('storage', { key, newValue: val, storageArea: localStorage });
+          const EvCtor = StorageEvent as unknown as {
+            new (type: string, eventInitDict?: StorageEventInit): StorageEvent;
+          };
+          const ev = new EvCtor('storage', { key, newValue: val, storageArea: localStorage });
           dispatchEvent(ev);
         } catch {}
       } catch {}

@@ -32,7 +32,7 @@ export function computePrecedingBotBids(args: PreBidArgs): PreBid[] {
         seatIndex: i,
         bidsSoFar: existingBids as Record<PlayerId, number>,
         selfId: pid,
-        rng,
+        ...(rng ? { rng } : {}),
       },
       'normal',
     );

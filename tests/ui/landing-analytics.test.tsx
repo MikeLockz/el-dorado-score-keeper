@@ -24,7 +24,9 @@ suite('Landing analytics', () => {
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
 
-    const start = Array.from(div.querySelectorAll('a')).find((a) => /Start Single Player/i.test(a.textContent || '')) as HTMLAnchorElement;
+    const start = Array.from(div.querySelectorAll('a')).find((a) =>
+      /Start Single Player/i.test(a.textContent || ''),
+    ) as HTMLAnchorElement;
     start.click();
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
@@ -51,15 +53,21 @@ suite('Landing analytics', () => {
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
 
-    const host = Array.from(div.querySelectorAll('a')).find((a) => a.textContent?.trim() === 'Host') as HTMLAnchorElement;
-    const open = Array.from(div.querySelectorAll('a')).find((a) => a.textContent?.trim() === 'Open') as HTMLAnchorElement;
+    const host = Array.from(div.querySelectorAll('a')).find(
+      (a) => a.textContent?.trim() === 'Host',
+    ) as HTMLAnchorElement;
+    const open = Array.from(div.querySelectorAll('a')).find(
+      (a) => a.textContent?.trim() === 'Open',
+    ) as HTMLAnchorElement;
 
     host.click();
     open.click();
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
 
-    const bodies = ((globalThis.fetch as any as ReturnType<typeof vi.fn>).mock.calls).map((c: any[]) => String(c?.[1]?.body || ''));
+    const bodies = (globalThis.fetch as any as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c: any[]) => String(c?.[1]?.body || ''),
+    );
     expect(bodies.some((b: string) => /mode_multiplayer_host_clicked/.test(b))).toBe(true);
     expect(bodies.some((b: string) => /mode_scorecard_open_clicked/.test(b))).toBe(true);
 
@@ -67,4 +75,3 @@ suite('Landing analytics', () => {
     div.remove();
   });
 });
-

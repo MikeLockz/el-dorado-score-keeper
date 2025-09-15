@@ -122,7 +122,7 @@ export const INITIAL_STATE: AppState = {
     lastTrickSnapshot: null,
   },
   display_order: {},
-} as const;
+};
 
 export function reduce(state: AppState, event: AppEvent): AppState {
   switch (event.type) {
@@ -251,12 +251,14 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     }
     case 'round/state-set': {
       const { round, state: rState } = event.payload as EventMap['round/state-set'];
-      const r = state.rounds[round] ?? { state: 'locked', bids: {}, made: {} };
+      const r: RoundData =
+        state.rounds[round] ?? ({ state: 'locked', bids: {}, made: {} } as RoundData);
       return { ...state, rounds: { ...state.rounds, [round]: { ...r, state: rState } } };
     }
     case 'bid/set': {
       const { round, playerId, bid } = event.payload as EventMap['bid/set'];
-      const r = state.rounds[round] ?? { state: 'locked', bids: {}, made: {} };
+      const r: RoundData =
+        state.rounds[round] ?? ({ state: 'locked', bids: {}, made: {} } as RoundData);
       if (r.present?.[playerId] === false) return state;
       const clamped = clampBid(round, bid);
       return {
@@ -266,7 +268,8 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     }
     case 'made/set': {
       const { round, playerId, made } = event.payload as EventMap['made/set'];
-      const r = state.rounds[round] ?? { state: 'locked', bids: {}, made: {} };
+      const r: RoundData =
+        state.rounds[round] ?? ({ state: 'locked', bids: {}, made: {} } as RoundData);
       if (r.present?.[playerId] === false) return state;
       return {
         ...state,
@@ -299,7 +302,6 @@ export function reduce(state: AppState, event: AppEvent): AppState {
           trumpBroken: false,
           handPhase: 'idle',
           lastTrickSnapshot: null,
-          summaryEnteredAt: undefined,
         },
       };
     }

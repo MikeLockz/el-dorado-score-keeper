@@ -21,13 +21,19 @@ suite('Layout skip link', () => {
       AppErrorBoundary: ({ children }: any) => React.createElement(React.Fragment, null, children),
     }));
     vi.mock('@/components/devtools', async () => ({ default: () => null }));
-    vi.mock('@/components/header', async () => ({ default: () => React.createElement('div', null) }));
+    vi.mock('@/components/header', async () => ({
+      default: () => React.createElement('div', null),
+    }));
 
     const { default: RootLayout } = await import('@/app/layout');
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = ReactDOM.createRoot(div);
-    root.render(React.createElement(RootLayout as any, { children: React.createElement('div', null, 'Hello') }));
+    root.render(
+      React.createElement(RootLayout as any, {
+        children: React.createElement('div', null, 'Hello'),
+      }),
+    );
 
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
@@ -41,4 +47,3 @@ suite('Layout skip link', () => {
     div.remove();
   });
 });
-

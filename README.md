@@ -2,9 +2,6 @@
 
 Simple score keeper for the card game El Dorado.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/budgetflowr-4480s-projects/v0-mobile-friendly-score-interface)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/TyFuAeQ3Y59)
-
 ## Quickstart
 
 Requirements:
@@ -133,9 +130,7 @@ Notes:
 
 ## Deployment
 
-Deployed on Vercel: https://vercel.com/budgetflowr-4480s-projects/v0-mobile-friendly-score-interface
-
-You can also continue building from v0.app if you use it for deployments: https://v0.app/chat/projects/TyFuAeQ3Y59
+Github Actions workflow deploys to GitHub Pages on push to `main`.
 
 ## Analytics Relay (Cloudflare Worker)
 

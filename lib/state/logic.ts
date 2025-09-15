@@ -26,7 +26,7 @@ export function initialRounds(total: number = ROUNDS_TOTAL): Record<number, Roun
 }
 
 export function finalizeRound(prev: AppState, round: number): AppState {
-  const r = prev.rounds[round] ?? { state: 'locked', bids: {}, made: {} };
+  const r: RoundData = prev.rounds[round] ?? ({ state: 'locked', bids: {}, made: {} } as RoundData);
   // Idempotency: if this round is already scored, do nothing
   if (r.state === 'scored') return prev;
   const scores = { ...prev.scores };
@@ -37,7 +37,10 @@ export function finalizeRound(prev: AppState, round: number): AppState {
     const made = r.made[pid] ?? false;
     scores[pid] = (scores[pid] ?? 0) + roundDelta(bid, made);
   }
-  const rounds = { ...prev.rounds, [round]: { ...r, state: 'scored' } };
+  const rounds: Record<number, RoundData> = {
+    ...prev.rounds,
+    [round]: { ...r, state: 'scored' } as RoundData,
+  };
   const nextRound = round + 1;
   const nr = rounds[nextRound];
   if (nr && nr.state === 'locked') {

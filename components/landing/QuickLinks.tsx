@@ -16,7 +16,7 @@ export default function QuickLinks() {
       try {
         const all = await listGames();
         if (!closed) setRecents(all.slice(0, 3));
-      } catch (_err) {
+      } catch {
         if (!closed) setRecents([]);
       }
     })();
@@ -57,9 +57,7 @@ export default function QuickLinks() {
                   >
                     {g.title || 'Untitled'}
                   </Link>
-                  {i < recents.length - 1 ? (
-                    <span className="text-muted-foreground">•</span>
-                  ) : null}
+                  {i < recents.length - 1 ? <span className="text-muted-foreground">•</span> : null}
                 </React.Fragment>
               ))}
               <span className="grow" />

@@ -73,17 +73,19 @@ export function validateEventStrict(e: AppEvent): KnownAppEvent {
       code: 'append.invalid_event_shape',
       details: base.error.flatten(),
     };
-    const ex: Error & { info: ValidationFailure } = new Error('InvalidEventShape');
-    ex.name = 'InvalidEventShape';
-    ex.info = err;
+    const ex = Object.assign(new Error('InvalidEventShape'), {
+      name: 'InvalidEventShape',
+      info: err,
+    }) as Error & { info: ValidationFailure };
     throw ex;
   }
   const t = base.data.type;
   if (!(t in payloadSchemas)) {
     const err: ValidationFailure = { code: 'append.unknown_event_type', details: { type: t } };
-    const ex: Error & { info: ValidationFailure } = new Error('UnknownEventType');
-    ex.name = 'UnknownEventType';
-    ex.info = err;
+    const ex = Object.assign(new Error('UnknownEventType'), {
+      name: 'UnknownEventType',
+      info: err,
+    }) as Error & { info: ValidationFailure };
     throw ex;
   }
   const schema = payloadSchemas[t as AppEventType];
@@ -93,9 +95,10 @@ export function validateEventStrict(e: AppEvent): KnownAppEvent {
       code: 'append.invalid_payload',
       details: payload.error.flatten(),
     };
-    const ex: Error & { info: ValidationFailure } = new Error('InvalidEventPayload');
-    ex.name = 'InvalidEventPayload';
-    ex.info = err;
+    const ex = Object.assign(new Error('InvalidEventPayload'), {
+      name: 'InvalidEventPayload',
+      info: err,
+    }) as Error & { info: ValidationFailure };
     throw ex;
   }
   return { ...base.data, payload: payload.data, type: t as AppEventType } as KnownAppEvent;

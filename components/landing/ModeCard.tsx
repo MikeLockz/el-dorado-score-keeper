@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import * as React from 'react';
 import Link from 'next/link';
 import { Card, Button } from '@/components/ui';
@@ -14,12 +14,20 @@ export type ModeCardProps = {
   primaryEvent?: string;
 };
 
-export function ModeCard({ icon, title, description, primary, secondary, ariaLabel, primaryEvent }: ModeCardProps) {
+export function ModeCard({
+  icon,
+  title,
+  description,
+  primary,
+  secondary,
+  ariaLabel,
+  primaryEvent,
+}: ModeCardProps) {
   return (
-    <Card className="h-full p-4 flex flex-col gap-3 bg-card text-card-foreground border">
+    <Card className="h-full p-5 sm:p-6 flex flex-col gap-3 bg-card text-card-foreground border">
       <section aria-label={ariaLabel}>
         <div className="flex items-center gap-3">
-          <div className="inline-flex items-center justify-center h-8 w-8 rounded-md border bg-muted text-muted-foreground">
+          <div className="inline-flex items-center justify-center h-8 w-8 rounded-xl border bg-muted text-muted-foreground">
             {icon}
           </div>
           <h3 className="text-base font-semibold leading-tight">{title}</h3>
@@ -30,7 +38,7 @@ export function ModeCard({ icon, title, description, primary, secondary, ariaLab
             <Link
               href={primary.href}
               aria-label={primary.ariaLabel ?? primary.label}
-              onClick={primaryEvent ? () => logEvent(primaryEvent) : undefined}
+              {...(primaryEvent ? { onClick: () => logEvent(primaryEvent) } : {})}
             >
               {primary.label}
             </Link>

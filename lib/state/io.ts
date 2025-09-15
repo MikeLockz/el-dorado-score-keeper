@@ -405,8 +405,10 @@ export async function archiveCurrentGameAndReset(
     localStorage.setItem(`app-events:signal:${dbName}`, 'reset');
     try {
       // best-effort self-dispatch for same-tab listeners
-      // @ts-expect-error - StorageEvent may not be fully available in all environments
-      const ev = new StorageEvent('storage', {
+      const EvCtor = StorageEvent as unknown as {
+        new (type: string, eventInitDict?: StorageEventInit): StorageEvent;
+      };
+      const ev = new EvCtor('storage', {
         key: `app-events:signal:${dbName}`,
         newValue: 'reset',
         storageArea: localStorage,
@@ -431,8 +433,10 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
     localStorage.setItem(`app-events:signal:${dbName}`, 'reset');
     try {
       // best-effort self-dispatch for same-tab listeners
-      // @ts-expect-error - StorageEvent may not be fully available in all environments
-      const ev = new StorageEvent('storage', {
+      const EvCtor = StorageEvent as unknown as {
+        new (type: string, eventInitDict?: StorageEventInit): StorageEvent;
+      };
+      const ev = new EvCtor('storage', {
         key: `app-events:signal:${dbName}`,
         newValue: 'reset',
         storageArea: localStorage,

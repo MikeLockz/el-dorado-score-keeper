@@ -27,7 +27,7 @@ type ErrorBoundaryState = {
 export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   override state: ErrorBoundaryState = { hasError: false, error: null, errorId: null };
 
-  static override getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
@@ -35,7 +35,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     const errorId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     this.setState({ errorId });
     try {
-      this.props.onError?.(error, { componentStack: info?.componentStack, errorId });
+      const infoArg = info?.componentStack
+        ? ({ componentStack: info.componentStack, errorId } as const)
+        : ({ errorId } as const);
+      this.props.onError?.(error, infoArg as ErrorInfo & { errorId: string });
     } catch {}
   }
 
@@ -188,25 +191,32 @@ export function AppErrorBoundary({ children }: { children: React.ReactNode }) {
   return (
     <ErrorBoundary
       onError={(error, info) => {
-        const base: {
+        const payload: {
           errorId: string;
           message: string;
-          stack?: string;
-          path?: string;
-          ua?: string;
-          componentStack?: string;
+          stack?: string | undefined;
+          path?: string | undefined;
+          ua?: string | undefined;
+          componentStack?: string | undefined;
         } = {
           errorId: info.errorId,
-          message: String(error?.message || error),
-          stack: (() => {
-            const maybeStack: unknown = (error as { stack?: unknown })?.stack;
-            return typeof maybeStack === 'string' ? maybeStack : undefined;
-          })(),
-          path: typeof window !== 'undefined' ? window.location?.pathname : undefined,
-          ua: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+          message:
+            typeof (error as { message?: unknown })?.message === 'string'
+              ? ((error as { message?: unknown }).message as string)
+              : typeof (error as { toString?: () => string })?.toString === 'function'
+                ? (error as { toString?: () => string }).toString() || 'Unknown error'
+                : 'Unknown error',
         };
-        if (info.componentStack) base.componentStack = info.componentStack;
-        void logClientError(base);
+        const maybeStack: unknown = (error as { stack?: unknown })?.stack;
+        if (typeof maybeStack === 'string') payload.stack = maybeStack;
+        if (typeof window !== 'undefined' && typeof window.location?.pathname === 'string') {
+          payload.path = window.location.pathname;
+        }
+        if (typeof navigator !== 'undefined' && typeof navigator.userAgent === 'string') {
+          payload.ua = navigator.userAgent;
+        }
+        if (info.componentStack) payload.componentStack = info.componentStack;
+        void logClientError(payload);
       }}
     >
       {children}

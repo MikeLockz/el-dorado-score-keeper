@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Playing Cards — Non-overlapping Indices & Pips</title>
+<title>Playing Cards — 3 Columns (Index • Playfield • Mirrored Index)</title>
 <style>
   :root{
     /* Resize the whole deck by changing --card-w */
@@ -15,23 +15,27 @@
     --radius: calc(var(--card-w) * 0.07);
     --border-w: calc(var(--card-w) * 0.006);
     --safe-pad: calc(var(--card-w) * 0.06);
-    --index-col-w: calc(var(--card-w) * 0.22); /* reserved column for index (rank+suit) */
-    --index-gap: calc(var(--card-w) * 0.03);   /* gutter between index and playfield */
 
-    /* Compute playfield box (where pips live) */
-    --play-left: calc(var(--safe-pad) + var(--index-col-w) + var(--index-gap));
-    --play-right: var(--safe-pad);
-    --play-top: var(--safe-pad);
-    --play-bottom: var(--safe-pad);
-    --play-w: calc(var(--card-w) - var(--play-left) - var(--play-right));
-    --play-h: calc(var(--card-h) - var(--play-top) - var(--play-bottom));
+    /* Symmetric index columns left & right */
+    --index-col-w: calc(var(--card-w) * 0.22);
+    --index-gap:   calc(var(--card-w) * 0.03);
+
+    /* Compute playfield box (center column where pips live) */
+    --play-left:  calc(var(--safe-pad) + var(--index-col-w) + var(--index-gap));
+    --play-right: calc(var(--safe-pad) + var(--index-col-w) + var(--index-gap));
+    --play-top:   var(--safe-pad);
+    --play-bot:   var(--safe-pad);
+    --play-w:     calc(var(--card-w) - var(--play-left) - var(--play-right));
+    --play-h:     calc(var(--card-h) - var(--play-top) - var(--play-bot));
 
     /* Sizes derived from areas (stay proportional) */
-    --index-size: calc(var(--index-col-w) * 0.68);
+    /* Slightly conservative index size so "10" fits without overflow */
+    --index-size: clamp(10px, calc(var(--index-col-w) * 0.62), 48px);
     --index-gap-inner: calc(var(--index-col-w) * 0.10);
-    --pip-size: calc(var(--play-w) * 0.20);
-    --shadow: 0 calc(var(--card-w) * 0.02) calc(var(--card-w) * 0.10) rgba(0,0,0,.18);
+    /* Pip size based on the playfield width */
+    --pip-size: clamp(12px, calc(var(--play-w) * 0.20), 56px);
 
+    --shadow: 0 calc(var(--card-w) * 0.02) calc(var(--card-w) * 0.10) rgba(0,0,0,.18);
     --ink-black:#111; --ink-red:#d0122b; --edge:#dcdde1; --paper:#fff;
   }
 
@@ -58,23 +62,38 @@
     user-select:none;
   }
 
-  /* Index column (top-left only) */
-  .index{
+  /* LEFT index column (upright) */
+  .index-left{
     position:absolute;
     left:var(--safe-pad); top:var(--safe-pad);
     width:var(--index-col-w);
     text-align:left; line-height:1;
     color:var(--ink-black);
+    white-space:nowrap;
   }
-  .index .rank{display:block; font-weight:800; font-size:var(--index-size)}
-  .index .suit{display:block; margin-top:var(--index-gap-inner); font-size:calc(var(--index-size) * 0.85)}
+  .index-left .rank{display:block; font-weight:800; font-size:var(--index-size)}
+  .index-left .suit{display:block; margin-top:var(--index-gap-inner); font-size:calc(var(--index-size) * 0.85)}
 
-  /* Playfield — all pips live here, so they never overlap the index column */
+  /* RIGHT index column (mirrored/upside down) */
+  .index-right{
+    position:absolute;
+    right:var(--safe-pad); bottom:var(--safe-pad);
+    width:var(--index-col-w);
+    text-align:right; line-height:1;
+    color:var(--ink-black);
+    white-space:nowrap;
+    transform: rotate(180deg);
+    transform-origin: center;
+  }
+  .index-right .rank{display:block; font-weight:800; font-size:var(--index-size)}
+  .index-right .suit{display:block; margin-top:var(--index-gap-inner); font-size:calc(var(--index-size) * 0.85)}
+
+  /* Center playfield — all pips live here */
   .pips{
     position:absolute;
     left:var(--play-left); right:var(--play-right);
-    top:var(--play-top); bottom:var(--play-bottom);
-    overflow:hidden; /* keep everything inside the card */
+    top:var(--play-top); bottom:var(--play-bot);
+    overflow:hidden;
   }
 
   .pip{
@@ -85,20 +104,31 @@
     transform: translate(-50%,-50%); /* upright, no rotation */
   }
 
-  /* Face placeholder (centered within playfield) */
+  /* Faces placeholder (centered in playfield) */
   .face{
     position:absolute; inset:0; display:grid; place-items:center;
     font-size: calc(var(--play-w) * 0.55);
     font-weight: 800; opacity:.9;
   }
 
-  /* Suit colors */
-  .card[data-suit="hearts"] .index, .card[data-suit="hearts"] .pip { color: var(--ink-red) }
-  .card[data-suit="diamonds"] .index, .card[data-suit="diamonds"] .pip { color: var(--ink-red) }
-  .card[data-suit="spades"] .index, .card[data-suit="spades"] .pip { color: var(--ink-black) }
-  .card[data-suit="clubs"] .index,  .card[data-suit="clubs"] .pip  { color: var(--ink-black) }
+  /* Suit colors (apply to indices & pips) */
+  .card[data-suit="hearts"] .index-left,
+  .card[data-suit="hearts"] .index-right,
+  .card[data-suit="hearts"] .pip { color: var(--ink-red) }
 
-  /* Back design (for completeness) */
+  .card[data-suit="diamonds"] .index-left,
+  .card[data-suit="diamonds"] .index-right,
+  .card[data-suit="diamonds"] .pip { color: var(--ink-red) }
+
+  .card[data-suit="spades"] .index-left,
+  .card[data-suit="spades"] .index-right,
+  .card[data-suit="spades"] .pip { color: var(--ink-black) }
+
+  .card[data-suit="clubs"] .index-left,
+  .card[data-suit="clubs"] .index-right,
+  .card[data-suit="clubs"] .pip { color: var(--ink-black) }
+
+  /* Card back */
   .back{
     background:
       repeating-linear-gradient(45deg,#0a5635,#0a5635 6px,#0e7448 6px,#0e7448 12px);
@@ -113,7 +143,7 @@
 </head>
 <body>
   <header>
-    <h1>Non-overlapping Indices & Pips</h1>
+    <h1>Three-Column Playing Cards</h1>
     <div class="controls">
       <label>Card width:
         <input type="range" min="120" max="300" step="1" value="180"
@@ -123,6 +153,11 @@
         <input id="ratio" type="range" min="120" max="160" step="1" value="140"
                oninput="document.documentElement.style.setProperty('--ratio', (this.value/100))">
         <span id="rval" style="opacity:.65">1.40</span>
+      </label>
+      <label>Index width:
+        <input id="icol" type="range" min="14" max="28" step="1" value="22"
+               oninput="document.documentElement.style.setProperty('--index-col-w', this.value + '%')">
+        <span id="icolv" style="opacity:.65">22%</span>
       </label>
     </div>
   </header>
@@ -134,11 +169,11 @@
 const SUITS = { hearts:"♥", diamonds:"♦", clubs:"♣", spades:"♠" };
 const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
-/* Percent anchors INSIDE the playfield (so nothing enters the index column) */
+/* Percent anchors INSIDE the playfield (so nothing enters either index column) */
 const ROWS = { top2:10, top:18, upper:30, mid:50, lower:70, bot:82, bot2:90 };
-const COLS = { left:15, center:50, right:85 }; // generous side padding so pips never clip
+const COLS = { left:15, center:50, right:85 }; // relative to playfield width
 
-/* Standard (double-symmetry) pip maps, but rendered in a single orientation */
+/* Standard pip maps (A–10), rendered upright in the playfield */
 const layouts = {
   "A":  () => [[COLS.center, ROWS.mid]],
   "2":  () => [[COLS.center, ROWS.upper],[COLS.center, ROWS.lower]],
@@ -158,12 +193,17 @@ const el = (t,c,h)=>{const n=document.createElement(t); if(c) n.className=c; if(
 function makeCard(suit, rank){
   const card = el("div","card"); card.dataset.suit = suit;
 
-  // Index column (rank + suit), single orientation
-  const idx = el("div","index");
-  idx.innerHTML = `<span class="rank">${rank}</span><span class="suit">${SUITS[suit]}</span>`;
-  card.appendChild(idx);
+  // LEFT index (upright)
+  const idxL = el("div","index-left");
+  idxL.innerHTML = `<span class="rank">${rank}</span><span class="suit">${SUITS[suit]}</span>`;
+  card.appendChild(idxL);
 
-  // Playfield container prevents any overlap with index column
+  // RIGHT index (mirrored/upside-down)
+  const idxR = el("div","index-right");
+  idxR.innerHTML = `<span class="rank">${rank}</span><span class="suit">${SUITS[suit]}</span>`;
+  card.appendChild(idxR);
+
+  // Center playfield (pips)
   const field = el("div","pips");
   card.appendChild(field);
 
@@ -191,9 +231,11 @@ const deck = document.getElementById("deck");
 deck.appendChild(el("div","card back"));
 deck.appendChild(el("div","card back"));
 
-/* Ratio readout */
+/* Slider readouts */
 const r = document.getElementById("ratio"), rv = document.getElementById("rval");
 r.addEventListener("input", ()=> rv.textContent = (r.value/100).toFixed(2));
+const icol = document.getElementById("icol"), icolv = document.getElementById("icolv");
+icol.addEventListener("input", ()=> icolv.textContent = icol.value + "%");
 </script>
 </body>
 </html>

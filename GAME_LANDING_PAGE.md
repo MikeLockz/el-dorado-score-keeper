@@ -23,6 +23,7 @@ A welcoming, mode-driven hub that lets players quickly choose how they want to p
 - Footer: Credits, version, privacy/help links.
 
 Suggested routes:
+
 - `/single` — Start or continue single player.
 - `/multi/host` and `/multi/join` — Multiplayer paths.
 - `/scorecard` — In‑person score keeping.
@@ -45,17 +46,20 @@ Suggested routes:
 
 Each card contains: icon, title, 1–2 line description, primary CTA, and a lighter secondary link.
 
-1) Single Player
+1. Single Player
+
 - Description: “Play solo against adaptive AI. Practice strategies and unlock achievements.”
 - Primary CTA: “Start Single Player” → `/single`
 - Secondary: “Continue last run” (if available)
 
-2) Multiplayer
+2. Multiplayer
+
 - Description: “Host a room or join with a code. Cross‑device, real‑time play.”
 - Primary CTA: “Host Game” → `/multi/host`
 - Secondary: “Join by code” → `/multi/join`
 
-3) Score Card
+3. Score Card
+
 - Description: “Track scores for in‑person sessions. Share and export results.”
 - Primary CTA: “Open Score Card” → `/scorecard`
 - Secondary: “Import previous scores”
@@ -103,6 +107,7 @@ Use these ASCII wireframes as structure guides. They show layout, hierarchy, and
 ```
 
 Labels:
+
 - Hero CTAs are the fastest routes to each mode.
 - Modes Grid uses equal-height cards; primary action visually dominant.
 - Secondary area lists recents and learning resources.
@@ -228,4 +233,3 @@ Example ModeCard anatomy:
 - Fully responsive with accessible focus and contrast.
 - Quick paths (resume/join) reduce friction.
 - Empty, loading, and offline states feel intentional.
-

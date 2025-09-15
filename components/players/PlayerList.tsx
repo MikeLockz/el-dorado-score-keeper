@@ -72,6 +72,7 @@ export default function PlayerList() {
                       if (from < 0 || to < 0 || from === to) return prev;
                       const next = prev.slice();
                       const [moved] = next.splice(from, 1);
+                      if (!moved) return prev;
                       next.splice(to, 0, moved);
                       return next;
                     });

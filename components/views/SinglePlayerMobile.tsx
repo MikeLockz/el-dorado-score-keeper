@@ -117,7 +117,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   // Card selection and play helpers (declare before any returns)
   const [selected, setSelected] = React.useState<SpCard | null>(null);
   const isSelected = (c: SpCard) =>
-    selected && selected.suit === c.suit && selected.rank === c.rank;
+    !!selected && selected.suit === c.suit && selected.rank === c.rank;
   const canPlayCard = (c: SpCard) => {
     if (spPhase !== 'playing') return false;
     if (state.sp?.reveal) return false;

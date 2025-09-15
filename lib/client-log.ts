@@ -26,4 +26,3 @@ export function logEvent(type: string, extra?: Record<string, unknown>) {
     // Swallow logging errors; never block navigation/UI
   }
 }
-

@@ -107,6 +107,7 @@ export default {
     }
 
     const okHeaders = allowed ? corsHeaders(allowed) : undefined;
-    return new Response(null, { status: 204, headers: okHeaders });
+    const init: ResponseInit = okHeaders ? { status: 204, headers: okHeaders } : { status: 204 };
+    return new Response(null, init);
   },
 };

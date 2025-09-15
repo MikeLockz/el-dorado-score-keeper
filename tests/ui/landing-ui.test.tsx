@@ -77,9 +77,54 @@ suite('Landing Page UI', () => {
     }));
     vi.mock('@/lib/state/io', async () => ({
       listGames: async () => [
-        { id: 'a', title: 'Alpha', createdAt: 1, finishedAt: 2, lastSeq: 1, summary: { players: 0, scores: {}, playersById: {}, winnerId: null, winnerName: null, winnerScore: null }, bundle: { latestSeq: 0, events: [] } },
-        { id: 'b', title: 'Beta', createdAt: 3, finishedAt: 4, lastSeq: 1, summary: { players: 0, scores: {}, playersById: {}, winnerId: null, winnerName: null, winnerScore: null }, bundle: { latestSeq: 0, events: [] } },
-        { id: 'c', title: 'Gamma', createdAt: 5, finishedAt: 6, lastSeq: 1, summary: { players: 0, scores: {}, playersById: {}, winnerId: null, winnerName: null, winnerScore: null }, bundle: { latestSeq: 0, events: [] } },
+        {
+          id: 'a',
+          title: 'Alpha',
+          createdAt: 1,
+          finishedAt: 2,
+          lastSeq: 1,
+          summary: {
+            players: 0,
+            scores: {},
+            playersById: {},
+            winnerId: null,
+            winnerName: null,
+            winnerScore: null,
+          },
+          bundle: { latestSeq: 0, events: [] },
+        },
+        {
+          id: 'b',
+          title: 'Beta',
+          createdAt: 3,
+          finishedAt: 4,
+          lastSeq: 1,
+          summary: {
+            players: 0,
+            scores: {},
+            playersById: {},
+            winnerId: null,
+            winnerName: null,
+            winnerScore: null,
+          },
+          bundle: { latestSeq: 0, events: [] },
+        },
+        {
+          id: 'c',
+          title: 'Gamma',
+          createdAt: 5,
+          finishedAt: 6,
+          lastSeq: 1,
+          summary: {
+            players: 0,
+            scores: {},
+            playersById: {},
+            winnerId: null,
+            winnerName: null,
+            winnerScore: null,
+          },
+          bundle: { latestSeq: 0, events: [] },
+        },
       ],
     }));
     const { default: LandingPage } = await import('@/app/landing/page');
@@ -91,7 +136,9 @@ suite('Landing Page UI', () => {
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
 
-    const resume = Array.from(div.querySelectorAll('a')).find((a) => /Resume current game/i.test(a.textContent || '')) as HTMLAnchorElement;
+    const resume = Array.from(div.querySelectorAll('a')).find((a) =>
+      /Resume current game/i.test(a.textContent || ''),
+    ) as HTMLAnchorElement;
     expect(resume).toBeTruthy();
     expect(resume.getAttribute('href')).toBe('/');
 
