@@ -7,13 +7,17 @@ export default function SpGameSummary(props: {
   players: ReadonlyArray<GameTotal>;
   onPlayAgain: () => void;
   disabled?: boolean;
+  seed?: number | null;
 }) {
-  const { title, players, onPlayAgain, disabled } = props;
+  const { title, players, onPlayAgain, disabled, seed } = props;
   return (
     <div className="relative min-h-[100dvh] pb-[calc(52px+env(safe-area-inset-bottom))]">
       <header className="p-3 border-b">
         <div className="text-xs text-muted-foreground">Game Summary</div>
         <div className="text-base font-semibold mt-1">{title}</div>
+        {typeof seed === 'number' && Number.isFinite(seed) && (
+          <div className="mt-1 text-xs text-muted-foreground">Seed: {seed}</div>
+        )}
       </header>
       <main className="p-3">
         <div className="grid grid-cols-1 gap-2 text-sm">

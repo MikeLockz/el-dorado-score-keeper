@@ -213,6 +213,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
       <SpGameSummary
         title={title}
         players={totals.map((t) => ({ ...t, isWinner: t.total === max }))}
+        seed={state.sp?.sessionSeed ?? null}
         onPlayAgain={() => {
           if (isBatchPending) return;
           void archiveCurrentGameAndReset();
