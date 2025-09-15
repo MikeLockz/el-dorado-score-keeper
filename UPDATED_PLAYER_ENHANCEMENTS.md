@@ -162,6 +162,10 @@
 - **Phase 4: Cleanup**
   - Remove `players`/`display_order` from new snapshots after deprecation window; keep reducer shims for import of old bundles.
 
+—
+
+Note: Implementation followed this plan in phases. See docs/ROSTERS.md for the roster model, events and selectors, and migration notes. Legacy `player/*` writes are currently mapped into the active Score Card roster for backward compatibility.
+
 **File and Code Touchpoints**
 
 - `lib/state/types.ts`:
