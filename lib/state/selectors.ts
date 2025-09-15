@@ -66,6 +66,62 @@ export const selectPlayersOrdered = memo1((s: AppState): PlayerItem[] => {
   return sortedIds.map((id) => ({ id, name: s.players[id]! }));
 });
 
+// Roster-aware adapters
+export type Mode = 'scorecard' | 'single';
+export type ActiveRosterView = Readonly<{
+  rosterId: string | null;
+  name: string;
+  playersById: Record<string, string>;
+  displayOrder: Record<string, number>;
+}>;
+
+function denseOrderFrom(playersById: Record<string, string>, order?: Record<string, number>) {
+  const entries = Object.entries(order ?? {}).filter(([id]) => id in playersById);
+  entries.sort((a, b) => (a[1] ?? 0) - (b[1] ?? 0));
+  const ordered = entries.map(([id]) => id);
+  for (const id of Object.keys(playersById)) if (!ordered.includes(id)) ordered.push(id);
+  const out: Record<string, number> = {};
+  for (let i = 0; i < ordered.length; i++) out[ordered[i]!] = i;
+  return out;
+}
+
+export const selectActiveRoster = memo2((s: AppState, mode: Mode): ActiveRosterView | null => {
+  const rid = mode === 'scorecard' ? s.activeScorecardRosterId : s.activeSingleRosterId;
+  if (rid) {
+    const rr = s.rosters[rid];
+    if (rr) {
+      return {
+        rosterId: rid,
+        name: rr.name,
+        playersById: rr.playersById,
+        displayOrder: rr.displayOrder,
+      };
+    }
+  }
+  // Legacy fallback for scorecard mode only
+  if (mode === 'scorecard') {
+    const playersById = s.players ?? {};
+    if (Object.keys(playersById).length === 0) return null;
+    const displayOrder = denseOrderFrom(playersById, s.display_order);
+    return { rosterId: null, name: 'Score Card', playersById, displayOrder };
+  }
+  return null;
+});
+
+export const selectPlayersOrderedFor = memo2((s: AppState, mode: Mode): PlayerItem[] => {
+  const r = selectActiveRoster(s, mode);
+  if (!r) return [];
+  const entries = Object.entries(r.displayOrder).sort((a, b) => a[1] - b[1]);
+  const ids = entries.map(([id]) => id);
+  for (const id of Object.keys(r.playersById)) if (!ids.includes(id)) ids.push(id);
+  return ids.map((id) => ({ id, name: r.playersById[id] ?? id }));
+});
+
+export const selectHumanIdFor = memo2((s: AppState, mode: Mode): string | null => {
+  if (mode === 'single') return s.humanByMode?.single ?? null;
+  return null;
+});
+
 export type RoundRow = {
   id: string;
   name: string;
