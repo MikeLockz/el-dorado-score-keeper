@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { startRound, mulberry32 } from '@/lib/single-player';
+import { startRound, mulberry32, deriveSeed } from '@/lib/single-player';
 // import CurrentGame from '@/components/views/CurrentGame';
 import SinglePlayerMobile from '@/components/views/SinglePlayerMobile';
 import type { PlayerId, Card } from '@/lib/single-player';
@@ -17,20 +17,17 @@ import { INITIAL_STATE } from '@/lib/state';
 
 export default function SinglePlayerPage() {
   const { state, append, appendMany, ready, isBatchPending } = useAppState();
-  // Deterministic RNG per session for bots
-  const [seed, setSeed] = React.useState<string>(() =>
-    String(Math.floor(Date.now() % 1_000_000_000)),
-  );
+  // Deterministic RNG per session/round for bots, derived from session seed
   const rngRef = React.useRef<() => number>(() => Math.random());
-  const initRng = React.useCallback((s: string) => {
-    const n = Number(s);
-    const seedNum = Number.isFinite(n) ? Math.floor(n) : 0;
-    rngRef.current = mulberry32(seedNum);
-  }, []);
+  // Stable base when sessionSeed is absent: capture once per mount
+  const baseFallbackRef = React.useRef<number>(Math.floor(Date.now()));
+  const sessionSeed = state.sp.sessionSeed ?? null;
+  const baseSeed = (sessionSeed ?? baseFallbackRef.current) as number;
   React.useEffect(() => {
-    initRng(seed);
-    // re-init when component mounts or seed changes
-  }, [initRng, seed]);
+    const roundNo = (state.sp?.roundNo as number | null) ?? 1;
+    const botSeed = deriveSeed(baseSeed, roundNo, 1);
+    rngRef.current = mulberry32(botSeed);
+  }, [baseSeed, state.sp?.roundNo]);
   const [dealerIdx, setDealerIdx] = React.useState(0);
   const [humanIdx, setHumanIdx] = React.useState(0);
   // Round is authoritative in store (state.sp.roundNo); default to 1 at startup
@@ -75,7 +72,7 @@ export default function SinglePlayerPage() {
         tricks: spTricks,
         useTwoDecks,
       },
-      Date.now(),
+      deriveSeed(baseSeed, spRoundNo, 0),
     );
     // Persist deal + leader + set current scoring round to bidding atomically
     try {
