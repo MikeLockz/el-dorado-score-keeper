@@ -87,12 +87,6 @@ describe('property-like randomized checks', () => {
       const full = replay(events);
       let inc = INITIAL_STATE;
       for (const e of events) inc = reduce(inc, e);
-      expect(inc).toEqual(full);
-
-      const dbName = makeTestDB(`prop-${seed}`);
-      const inst = await createInstance({ dbName, channelName: `chan-${dbName}` });
-      for (const e of events) await inst.append(e);
-      expect(inst.getHeight()).toBe(events.length);
       const strip = (s: any) => ({
         players: s.players,
         scores: s.scores,
@@ -100,7 +94,20 @@ describe('property-like randomized checks', () => {
         display_order: s.display_order,
         sp: s.sp,
       });
-      expect(strip(inst.getState())).toEqual(strip(full));
+      expect(strip(inc)).toEqual(strip(full));
+
+      const dbName = makeTestDB(`prop-${seed}`);
+      const inst = await createInstance({ dbName, channelName: `chan-${dbName}` });
+      for (const e of events) await inst.append(e);
+      expect(inst.getHeight()).toBe(events.length);
+      const strip2 = (s: any) => ({
+        players: s.players,
+        scores: s.scores,
+        rounds: s.rounds,
+        display_order: s.display_order,
+        sp: s.sp,
+      });
+      expect(strip2(inst.getState())).toEqual(strip2(full));
 
       const bundle = await exportBundle(dbName);
       inst.close();

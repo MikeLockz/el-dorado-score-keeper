@@ -125,6 +125,7 @@ export type AppState = Readonly<{
   display_order: Record<string, number>;
 }>;
 import { initialRounds, clampBid, finalizeRound } from './logic';
+import { uuid } from '@/lib/utils';
 import * as rosterOps from '@/lib/roster/ops';
 
 export const INITIAL_STATE: AppState = {
@@ -229,12 +230,65 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         present[id] = rn >= joinIndex;
         rounds[rn] = { ...r, present } as RoundData;
       }
-      return { ...state, players: { ...state.players, [id]: name }, display_order, rounds };
+      let nextState: AppState = {
+        ...state,
+        players: { ...state.players, [id]: name },
+        display_order,
+        rounds,
+      };
+      // Map legacy write to active scorecard roster
+      const rid =
+        nextState.activeScorecardRosterId ??
+        (() => {
+          const nrid = 'scorecard-default';
+          const createdAt = (event as KnownAppEvent).ts ?? 0;
+          const roster = {
+            name: 'Score Card',
+            playersById: {} as Record<string, string>,
+            displayOrder: {} as Record<string, number>,
+            type: 'scorecard' as const,
+            createdAt,
+          };
+          nextState = {
+            ...nextState,
+            rosters: { ...nextState.rosters, [nrid]: roster },
+            activeScorecardRosterId: nrid,
+          };
+          return nrid;
+        })();
+      const r = nextState.rosters[rid]!;
+      const scPlayers = { ...r.playersById, [id]: String(name) };
+      // derive dense order by appending new id
+      const entries = Object.entries(r.displayOrder).sort((a, b) => a[1] - b[1]);
+      const ordered = entries.map(([pid]) => pid);
+      if (!ordered.includes(id)) ordered.push(id);
+      const scOrder: Record<string, number> = {};
+      for (let i = 0; i < ordered.length; i++) scOrder[ordered[i]!] = i;
+      nextState = {
+        ...nextState,
+        rosters: {
+          ...nextState.rosters,
+          [rid]: { ...r, playersById: scPlayers, displayOrder: scOrder },
+        },
+      };
+      return nextState;
     }
     case 'player/renamed': {
       const { id, name } = event.payload as EventMap['player/renamed'];
       if (!state.players[id]) return state;
-      return { ...state, players: { ...state.players, [id]: String(name) } };
+      let nextState: AppState = { ...state, players: { ...state.players, [id]: String(name) } };
+      const rid = nextState.activeScorecardRosterId;
+      if (rid && nextState.rosters[rid]) {
+        const r = nextState.rosters[rid]!;
+        if (r.playersById[id] != null) {
+          const scPlayers = { ...r.playersById, [id]: String(name) };
+          nextState = {
+            ...nextState,
+            rosters: { ...nextState.rosters, [rid]: { ...r, playersById: scPlayers } },
+          };
+        }
+      }
+      return nextState;
     }
     case 'player/removed': {
       const { id } = event.payload as EventMap['player/removed'];
@@ -258,7 +312,34 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       entries.sort((a, b) => (a[1] ?? 0) - (b[1] ?? 0));
       const display_order: Record<string, number> = {};
       for (let i = 0; i < entries.length; i++) display_order[entries[i]![0]] = i;
-      return { ...state, players: restPlayers, scores: restScores, rounds, display_order };
+      let nextState: AppState = {
+        ...state,
+        players: restPlayers,
+        scores: restScores,
+        rounds,
+        display_order,
+      };
+      const rid = nextState.activeScorecardRosterId;
+      if (rid && nextState.rosters[rid]) {
+        const r = nextState.rosters[rid]!;
+        if (r.playersById[id] != null) {
+          const scPlayers = { ...r.playersById };
+          delete scPlayers[id];
+          const entries = Object.entries(r.displayOrder)
+            .filter(([pid]) => pid !== id)
+            .sort((a, b) => a[1] - b[1]);
+          const scOrder: Record<string, number> = {};
+          for (let i = 0; i < entries.length; i++) scOrder[entries[i]![0]] = i;
+          nextState = {
+            ...nextState,
+            rosters: {
+              ...nextState.rosters,
+              [rid]: { ...r, playersById: scPlayers, displayOrder: scOrder },
+            },
+          };
+        }
+      }
+      return nextState;
     }
     case 'players/reordered': {
       // Build dense mapping from provided order, ignoring unknown IDs, appending any missing known players
@@ -274,7 +355,22 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       for (const pid of Object.keys(state.players)) if (!filtered.includes(pid)) filtered.push(pid);
       const display_order: Record<string, number> = {};
       for (let i = 0; i < filtered.length; i++) display_order[filtered[i]!] = i;
-      return { ...state, display_order };
+      let nextState: AppState = { ...state, display_order };
+      const rid = nextState.activeScorecardRosterId;
+      if (rid && nextState.rosters[rid]) {
+        const r = nextState.rosters[rid]!;
+        const known = new Set(Object.keys(r.playersById));
+        const scFiltered = filtered.filter((id) => known.has(id));
+        for (const id of Object.keys(r.playersById))
+          if (!scFiltered.includes(id)) scFiltered.push(id);
+        const scOrder: Record<string, number> = {};
+        for (let i = 0; i < scFiltered.length; i++) scOrder[scFiltered[i]!] = i;
+        nextState = {
+          ...nextState,
+          rosters: { ...nextState.rosters, [rid]: { ...r, displayOrder: scOrder } },
+        };
+      }
+      return nextState;
     }
     case 'player/dropped': {
       const { id, fromRound } = event.payload as EventMap['player/dropped'];

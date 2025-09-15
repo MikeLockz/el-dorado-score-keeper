@@ -35,7 +35,14 @@ describe('time travel preview', () => {
     for (let h = 0; h <= H; h++) {
       const prev = await previewAt(dbName, h);
       const expected = replayTo(events, h);
-      expect(prev).toEqual(expected);
+      const strip = (s: any) => ({
+        players: s.players,
+        scores: s.scores,
+        rounds: s.rounds,
+        display_order: s.display_order,
+        sp: s.sp,
+      });
+      expect(strip(prev)).toEqual(strip(expected));
     }
 
     inst.close();

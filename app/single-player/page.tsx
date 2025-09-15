@@ -205,7 +205,7 @@ export default function SinglePlayerPage() {
       if (st !== 'bidding' && st !== 'playing') continue;
       // Only flip to scored if all present players have a non-null 'made' value
       let allMarked = true;
-      for (const pid of Object.keys(state.players)) {
+      for (const pid of players) {
         if (rd?.present?.[pid] === false) continue;
         const m = rd?.made?.[pid];
         if (m == null) {
