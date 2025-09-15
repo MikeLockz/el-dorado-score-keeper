@@ -84,6 +84,7 @@ Notes:
 - `app/`: App Router pages, layout, and styles.
 - `components/`: UI components and state provider.
 - `lib/`: State management, storage, and selectors.
+- `docs/ROSTERS.md`: Roster model (mode-scoped players), events, selectors, and migration notes.
 - `public/`: Static assets and PWA icons/manifest.
 - `styles/`: Global styles.
 - `tests/`: Unit, integration, and property tests (Vitest).
@@ -97,9 +98,8 @@ Notes:
 
 ### Players (`/players`) details
 
-- Add players: type a name and press Add; empty/whitespace is ignored.
-- Manage players: rename and remove actions per player.
-- Reset players: clear all players (and their scores/round data) for a fresh start.
+- Score Card players (legacy): add/rename/soft-drop and reset; persists scores/round data.
+- Single Player roster: separate, mode-scoped roster with its own add/rename/reorder/remove/reset; can clone Score Card.
 - Empty state: friendly prompt when no players exist.
 - Persistence: data saved locally (IndexedDB) and synced across tabs.
 - Devtools (development only): floating panel for event height, time‑travel preview, and recent warnings.

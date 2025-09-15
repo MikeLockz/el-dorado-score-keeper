@@ -20,6 +20,10 @@ This is a simpler plan that still delivers: durability, replay/time‑travel, re
 - `snapshots` (store)
   - key: `height` → `{ height, state }` (optional)
 
+Note on Rosters
+
+- The app models players as mode-scoped rosters. See `docs/ROSTERS.md` for the roster model and events. The `state['current']` snapshot contains both legacy fields (`players`, `display_order`) and roster structures to keep replay/import/back-compat safe during migration.
+
 ## Event Shape
 
 \`\`\`ts
