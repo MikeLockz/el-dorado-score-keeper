@@ -6,7 +6,7 @@ import {
   selectSpTricksForRound,
   selectPlayersOrdered,
 } from '@/lib/state/selectors';
-import { bots, startRound, winnerOfTrick } from './index';
+import { bots, startRound, winnerOfTrick, deriveSeed } from './index';
 import { computePrecedingBotBids } from './auto-bid';
 import type { Card } from './types';
 import { isRoundDone as rulesIsRoundDone } from '@/lib/rules/sp';
@@ -116,7 +116,9 @@ export function buildNextRoundDealBatch(
   const nextRound = (state.sp.roundNo ?? 0) + 1;
   const nextTricks = tricksForRound(nextRound);
   const useTwoDecks = useTwoDecksOverride ?? ids.length > 5;
-  const seed = now;
+  // Derive shuffle seed from session seed if present; fall back to provided timestamp
+  const base = state.sp.sessionSeed ?? now;
+  const seed = deriveSeed(Number(base) || 0, nextRound, 0);
   const deal = startRound(
     {
       round: nextRound,
