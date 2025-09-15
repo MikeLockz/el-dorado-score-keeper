@@ -345,9 +345,17 @@ export async function archiveCurrentGameAndReset(
     summary,
     bundle,
   };
-  const seedEvents: AppEvent[] = Object.entries(endState.players).map(([id, name], idx) =>
-    events.playerAdded({ id, name }, { ts: finishedAt + idx + 1 }),
+  // Prepare seed events for new session: include a session seed for reproducible deals, then roster.
+  const baseSeedEvent: AppEvent = events.spSeedSet(
+    { seed: Math.floor(finishedAt) },
+    { ts: finishedAt },
   );
+  const seedEvents: AppEvent[] = [
+    baseSeedEvent,
+    ...Object.entries(endState.players).map(([id, name], idx) =>
+      events.playerAdded({ id, name }, { ts: finishedAt + idx + 1 }),
+    ),
+  ];
 
   // Error helpers with surface codes
   function fail(code: string, info?: unknown): never {
