@@ -191,6 +191,16 @@ export function AppErrorBoundary({ children }: { children: React.ReactNode }) {
   return (
     <ErrorBoundary
       onError={(error, info) => {
+        const errMsg = (() => {
+          const e = error as { message?: unknown; toString?: (() => string) | undefined };
+          if (typeof e?.message === 'string') return e.message as string;
+          if (typeof e?.toString === 'function') {
+            try {
+              return e.toString() || 'Unknown error';
+            } catch {}
+          }
+          return 'Unknown error';
+        })();
         const payload: {
           errorId: string;
           message: string;
@@ -200,12 +210,7 @@ export function AppErrorBoundary({ children }: { children: React.ReactNode }) {
           componentStack?: string | undefined;
         } = {
           errorId: info.errorId,
-          message:
-            typeof (error as { message?: unknown })?.message === 'string'
-              ? ((error as { message?: unknown }).message as string)
-              : typeof (error as { toString?: () => string })?.toString === 'function'
-                ? (error as { toString?: () => string }).toString() || 'Unknown error'
-                : 'Unknown error',
+          message: errMsg,
         };
         const maybeStack: unknown = (error as { stack?: unknown })?.stack;
         if (typeof maybeStack === 'string') payload.stack = maybeStack;
