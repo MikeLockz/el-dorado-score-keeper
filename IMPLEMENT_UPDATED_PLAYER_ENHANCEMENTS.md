@@ -73,7 +73,7 @@ Tests
 Run & Commit
 
 - `pnpm format:write && pnpm lint && pnpm typecheck && pnpm test`
-- Commit: "state: add roster/* events, schemas, and reducers via lib/roster"
+- Commit: "state: add roster/\* events, schemas, and reducers via lib/roster"
 
 —
 
@@ -205,7 +205,7 @@ Tests
 Run & Commit
 
 - `pnpm format:write && pnpm lint && pnpm typecheck && pnpm test`
-- Commit: "state: map legacy player/* to active scorecard roster; enforce adapter reads"
+- Commit: "state: map legacy player/\* to active scorecard roster; enforce adapter reads"
 
 —
 
@@ -272,4 +272,3 @@ Run & Commit
   - Min/max and validation enforced; SP deal blocked `< 2` players.
   - New events/selectors are type-safe and covered by tests.
   - All phases landed with green format/lint/types/tests and updated docs.
-

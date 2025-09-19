@@ -4,7 +4,6 @@ Purpose: Build a robust v2 front-end from scratch while reusing existing domain/
 
 Scope: Parallel UI delivered under `/v2/*` while legacy UI remains functional. Reuse `lib/state` (event-sourced) and existing UI primitives, add adapters/selectors as needed. Multiplayer is phased; Scorecard and Single Player reach parity first.
 
-
 Principles
 
 - Modular by domain: Feature folders and shared primitives reduce duplication.
@@ -14,7 +13,6 @@ Principles
 - Accessibility and mobile-first: Keyboard, ARIA, high contrast, thumb-friendly, predictable nav.
 - Snapshot fidelity: Immutable per-game settings captured at creation for stable UI/exports.
 - Parallel rollout: v2 behind flags; safe rollback; analytics-tagged adoption.
-
 
 Architecture Overview
 
@@ -31,7 +29,6 @@ Architecture Overview
   - `context/` (EntitiesProvider, UiStateProvider, AnalyticsProvider)
   - `lib/models`, `lib/state`, `lib/api`, `lib/utils`
 
-
 Technology Choices
 
 - Keep: Next.js App Router, TypeScript, Tailwind v4, shadcn + Radix, existing event-sourced `lib/state`, Cloudflare analytics relay.
@@ -43,25 +40,22 @@ Technology Choices
   - Animations: Motion One for transitions; dynamic Framer Motion only for complex cases.
   - i18n later: `next-intl` gated; begin with v2-only string extraction post-GA.
 
-
 Information Architecture (IA v2)
 
 Top-level nav:
 
-1) Landing — Primary CTAs (Start SP, Open Scorecard, Join/Host MP), Continue Last Game, Recents, How to Play.
-2) Play — Tabs: Single Player, Multiplayer, Scorecard. Shared recents/resume banner and Start New.
-3) Players & Rosters — Unified CRUD and import/export, seat order defaults.
-4) Games (History) — Unified archive with filters, details, resume, export/duplicate.
-5) Stats — Cross-game aggregates with filters and exports.
-6) Settings — App Settings vs Game Defaults.
-7) Help & About — Rules, tutorials, changelog, license, contact.
-
+1. Landing — Primary CTAs (Start SP, Open Scorecard, Join/Host MP), Continue Last Game, Recents, How to Play.
+2. Play — Tabs: Single Player, Multiplayer, Scorecard. Shared recents/resume banner and Start New.
+3. Players & Rosters — Unified CRUD and import/export, seat order defaults.
+4. Games (History) — Unified archive with filters, details, resume, export/duplicate.
+5. Stats — Cross-game aggregates with filters and exports.
+6. Settings — App Settings vs Game Defaults.
+7. Help & About — Rules, tutorials, changelog, license, contact.
 
 Game Snapshots
 
 - Emit `game/created` first with immutable `GameSnapshot` containing: `id`, `mode`, `startedAt`, `rulesVersion`, `scoring: 'el_dorado'`, `roundsTotal`, roster snapshot, and mode-specific settings (SP seed/bots; Scorecard dealer sequence; MP privacy/limits).
 - Store read-only `state.game.settings` for UI; include `summary.settings` in archives. For legacy games without snapshots, infer minimal settings in selectors.
-
 
 Migration Strategy (Parallel UI)
 
@@ -71,7 +65,6 @@ Migration Strategy (Parallel UI)
 - Styling isolation: `[data-ui=v2]` root attribute; avoid global overrides.
 - Testing: Duplicate E2E for legacy and v2; parity checklists per feature.
 - Telemetry: Add `ui_version` to all analytics events; monitor adoption and regressions.
-
 
 Testing, Linting, and Formatting Gates
 
@@ -91,7 +84,6 @@ pnpm test
 # or
 pnpm check
 ```
-
 
 Phased Implementation Plan (Commit-Gated)
 
@@ -168,7 +160,6 @@ M10 — GA & Legacy Deprecation Plan
 - Plan legacy removal; remove links after stability window.
 - Gate: format/lint/typecheck/tests; update docs; commit: "M10: GA + deprecation plan".
 
-
 Per-Feature Migration Template (for PRs)
 
 - Scope: e.g., "V2 Single Player wizard Confirm step".
@@ -186,14 +177,12 @@ Per-Feature Migration Template (for PRs)
 - Rollback:
   - Disable via env or settings toggle; legacy routes remain.
 
-
 Component Contracts (selected)
 
 - StartNewWizard: `mode`, `defaults`, `onCancel`, `onComplete(snapshot)`; uses `WizardSessionContext`.
 - GameHeader: `gameId`, `mode`, `snapshot`, `scores`, `onOpenPause`.
 - PhaseController (SP): `gameId` → renders `BiddingPanel` | `HandDock + TrickTable` | `RoundSummary`.
 - Scorecard Grid: `rows`, `players`, `onEdit(roundIdx, playerId, { bid, made })`, `onFinalizeRound(roundIdx)`.
-
 
 Testing Strategy (concrete)
 
@@ -202,16 +191,14 @@ Testing Strategy (concrete)
 - E2E: Legacy vs v2 parity runs in CI matrix.
 - Visual: AppShell, PlayTabs, Scorecard grid (optional but recommended pre-GA).
 
-
 Developer Workflow
 
-1) Implement feature in v2 directory with collocated tests and schemas.
-2) Reuse existing selectors/events; only add selectors; avoid changing event shapes pre-GA.
-3) Run `pnpm check` (or individual format/lint/typecheck/test commands).
-4) Update docs (this file + relevant feature docs under `docs/`).
-5) Commit with clear message referencing milestone and scope.
-6) Only then start the next phase.
-
+1. Implement feature in v2 directory with collocated tests and schemas.
+2. Reuse existing selectors/events; only add selectors; avoid changing event shapes pre-GA.
+3. Run `pnpm check` (or individual format/lint/typecheck/test commands).
+4. Update docs (this file + relevant feature docs under `docs/`).
+5. Commit with clear message referencing milestone and scope.
+6. Only then start the next phase.
 
 Mapping Old → New (high-level)
 
@@ -224,7 +211,6 @@ Mapping Old → New (high-level)
 - Settings (scattered) → `/v2/settings` with App vs Game Defaults.
 - Help/About (scattered) → `/v2/help` merged.
 
-
 Guardrails & Risks
 
 - CSS bleed: enforce `[data-ui=v2]` scoping; avoid editing legacy globals.
@@ -234,7 +220,6 @@ Guardrails & Risks
 - i18n churn: stage v2-only strings later; don’t block GA.
 - PII in monitoring: scrub Sentry payloads; minimal analytics; honor DNT.
 
-
 Appendix: Commands and Checks
 
 - Dev: `pnpm dev` → visit `/` (legacy) and `/v2` (new) or add `?ui=v2` to toggle.
@@ -243,4 +228,3 @@ Appendix: Commands and Checks
 - Typecheck: `pnpm typecheck`.
 - Test: `pnpm test` or `pnpm coverage`.
 - Full check: `pnpm check`.
-

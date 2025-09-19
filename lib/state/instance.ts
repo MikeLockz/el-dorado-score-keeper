@@ -188,10 +188,7 @@ export async function createInstance(opts?: {
   function upgradeState(s: AppState): AppState {
     // Ensure new roster keys exist with safe defaults without using any
     type BootFields = Partial<
-      Pick<
-        AppState,
-        'rosters' | 'activeScorecardRosterId' | 'activeSingleRosterId' | 'humanByMode'
-      >
+      Pick<AppState, 'rosters' | 'activeScorecardRosterId' | 'activeSingleRosterId' | 'humanByMode'>
     >;
     const boot = s as unknown as BootFields;
     const rosters: AppState['rosters'] = boot.rosters ?? {};

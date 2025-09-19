@@ -140,6 +140,25 @@ export default function Devtools() {
         <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
           <button
             onClick={() => {
+              const nextHeight = Math.max(0, cursor - 1);
+              if (nextHeight === cursor) return;
+              onChange(nextHeight);
+            }}
+            disabled={cursor === 0}
+            style={{
+              fontSize: 11,
+              padding: '2px 6px',
+              background: '#334155',
+              color: '#fff',
+              borderRadius: 4,
+              opacity: cursor === 0 ? 0.6 : 1,
+            }}
+            title="Step back one event height"
+          >
+            Undo
+          </button>
+          <button
+            onClick={() => {
               setFollowLive(true);
               setCursor(height);
               setPreview(null);
