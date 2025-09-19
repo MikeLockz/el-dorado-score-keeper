@@ -106,6 +106,12 @@ This rollout plan translates the product/documentation requirements from `CONTIN
 - Update release notes / CHANGELOG if required.
 - Remove deprecated code paths or feature flags related to legacy new-game triggers.
 
+### Outcomes
+
+- UI (`tests/ui/sp-game-summary-ui.test.ts`, `tests/ui/games-page-ui.test.tsx`) and unit (`tests/unit/game-flow/useNewGameRequest.test.tsx`) coverage now exercise confirm, cancel, skip, telemetry, and failure flows.
+- `CHANGELOG.md` and `CONTINUE_GAME_OR_START_NEW.md` include rollout verification notes and guidance for future surfaces.
+- Direct UI calls to `archiveCurrentGameAndReset` have been replaced by `useNewGameRequest`, leaving legacy references only in historical documentation.
+
 ### Validation & Commit
 
 - Final `pnpm format`, `pnpm lint`, `pnpm test` sweep.
@@ -114,7 +120,7 @@ This rollout plan translates the product/documentation requirements from `CONTIN
 ## Phase Completion Checklist
 
 - [x] Phase 1 commit merged (helpers + tests)
-- [ ] Phase 2 commit merged (UI integrations + tests)
-- [ ] Phase 3 commit merged (hardening + telemetry)
-- [ ] Phase 4 commit merged (verification + cleanup)
-- [ ] Stakeholders notified and documentation updated (README/CHANGELOG as appropriate)
+- [x] Phase 2 commit merged (UI integrations + tests)
+- [x] Phase 3 commit merged (hardening + telemetry)
+- [x] Phase 4 commit merged (verification + cleanup)
+- [x] Stakeholders notified and documentation updated (README/CHANGELOG as appropriate)

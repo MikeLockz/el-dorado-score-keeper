@@ -6,6 +6,10 @@ All notable changes related to End-of-Turn Improvements are documented here.
 
 ### Added
 
+- Continue Game or Start New rollout
+  - Shared `useNewGameRequest` helper with confirmation dialog and telemetry hooks
+  - Single-player **Play Again** and `/games` **New Game** actions now route through the shared workflow
+  - Broadcast/pending guards to protect multi-tab sessions and expose dev `__START_NEW_GAME__` escape hatch
 - Phase 1: State scaffolding
   - Added `sp.phase: 'summary' | 'game-summary'` entries
   - Added `sp.handPhase`, `sp.ack`, `sp.lastTrickSnapshot`, `sp.summaryEnteredAt?`

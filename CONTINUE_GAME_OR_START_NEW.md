@@ -6,12 +6,12 @@
 - Align every entry point (scorecard, single-player, future multiplayer, admin tools) to the same confirmation, archival, and reset pipeline.
 - Document state persistence mechanics so new implementations reuse the existing event-store guarantees instead of inventing ad-hoc resets.
 
-## Current "Start New Game" Entry Points
+## Unified "Start New Game" Entry Points
 
-- Single-player game summary CTA – `components/views/SinglePlayerMobile.tsx:205` renders `SpGameSummary` and currently calls `archiveCurrentGameAndReset()` directly when the player taps **Play Again**.
-- Games dashboard – `/games` route (`app/games/page.tsx:43`) exposes a **New Game** button that archives/reset without any guard.
+- Single-player game summary CTA – `components/views/SinglePlayerMobile.tsx:205` renders `SpGameSummary` and now forwards **Play Again** requests to `useNewGameRequest({ requireIdle: true })`, skipping confirmation only when the match is already in the summary/done states.
+- Games dashboard – `/games` route (`app/games/page.tsx:43`) calls `startNewGame()` from the same hook before routing back to `/`, ensuring in-progress sessions are confirmed before archival.
 
-Everything funnels through `lib/state/io.ts:316` (`archiveCurrentGameAndReset`) which is the canonical archival + reset routine. Any new entry point must use the same helper.
+Everything still funnels through `lib/state/io.ts:316` (`archiveCurrentGameAndReset`), but UI surfaces now rely on the shared helper for confirmation, telemetry, and reset broadcasts. Any new entry point must import the helper instead of calling the archival routine directly.
 
 ## Persisted State Primer
 
@@ -107,7 +107,13 @@ UI layers can then wire `startNewGame` to buttons, and optionally inspect the bo
 - **Single-player summary** (`components/views/SinglePlayerMobile.tsx:205`): inject the hook, and allow **Play Again** to skip confirmation only when `state.sp.phase === 'game-summary' || state.sp.phase === 'done'`. If the player opens the menu mid-round (future UI) the shared guard still protects progress.
 - **Games dashboard** (`app/games/page.tsx:43`): replace the bare call with the helper so the “New Game” button confirms when there is active progress (e.g., the player navigated to `/games` mid-hand).
 - **Scorecard / future nav items**: whenever we add a toolbar action like “New Match” on the scorecard or multi-player lobby, consume the same helper.
-- **Devtools / scripts**: expose a `window.__START_NEW_GAME__` in development that also routes through the helper for parity during manual testing.
+- **Devtools / scripts**: the hook registers `globalThis.__START_NEW_GAME__` automatically when `NODE_ENV !== 'production'`, keeping manual testing flows aligned with the UI helpers.
+
+## Instrumentation & Debug Hooks
+
+- `useNewGameRequest` accepts a `telemetry` option so surfaces can opt into analytics. When enabled, the hook emits `new_game_confirmed`, `new_game_cancelled`, `new_game_skipped`, and `new_game_error` events via `logEvent` by default, or through a custom `track` callback.
+- The telemetry payload includes contextual flags (`skipConfirm`, `hasProgress`, `timeTraveling`) plus archival timing to help identify slow IndexedDB interactions.
+- The global `__START_NEW_GAME__` helper mirrors the hook’s behavior, making it easy to trigger resets from the console or automated debugging scripts without bypassing telemetry or safety checks.
 
 ## Edge Cases & Safeguards
 
@@ -126,11 +132,17 @@ UI layers can then wire `startNewGame` to buttons, and optionally inspect the bo
   - Multi-tab: start new in tab A, verify tab B receives reset and no stale confirmation hangs.
 - Regression tests for archival failure handling (simulate IndexedDB error, ensure warning surface + no partial reset).
 
+## Phase 4 Verification Notes
+
+- Automated UI coverage exercises both primary surfaces: `tests/ui/sp-game-summary-ui.test.ts` validates the confirmation modal and archival call, while `tests/ui/games-page-ui.test.tsx` performs cancel/confirm checks for the `/games` dashboard CTA.
+- `tests/unit/game-flow/useNewGameRequest.test.tsx` now simulates telemetry, broadcast resets, and failure modes to confirm pending state clears and errors surface without data loss.
+- Local spot-check guidance: exercise responsive (mobile + desktop) layouts to confirm the modal copy, disabled states, and navigation back to the dashboard after archival via `startNewGame()`.
+- When debugging IndexedDB failures, use DevTools > Application to break `archiveCurrentGameAndReset`; the hook surfaces errors via `onError`/telemetry and leaves the dialog open for retrial.
+
 ## Next Steps
 
-1. Implement `hasInProgressGame` and `useNewGameRequest` (or equivalent module) under `lib/game-flow/`.
-2. Replace direct uses of `archiveCurrentGameAndReset` in the UI with the new helper.
-3. Add shared confirmation UI (ShadCN dialog or native confirm fallback) styled consistently with the rest of the app.
-4. Backfill automated coverage listed above so future entry points continue to respect the guard.
+1. Extend the helper to upcoming scorecard or multiplayer entry points as those surfaces arrive.
+2. Evaluate enriching the dialog with last-save metadata once we persist timestamps on archives.
+3. Monitor telemetry for `new_game_error` spikes to identify IndexedDB regressions early.
 
 Following this plan keeps save data intact, makes the UX predictable, and ensures every new game request—no matter where it originates—funnels through the same hardened pipeline.
