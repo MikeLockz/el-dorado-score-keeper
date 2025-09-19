@@ -1,7 +1,11 @@
+'use client';
+
 import * as React from 'react';
 import { archiveCurrentGameAndReset } from '@/lib/state';
 import type { AppState } from '@/lib/state';
+import { logEvent } from '@/lib/client-log';
 import { useAppState } from '@/components/state-provider';
+import { useNewGameConfirm } from '@/components/dialogs/NewGameConfirm';
 
 const DEFAULT_CONFIRM_MESSAGE =
   'You have an in-progress game. Starting a new one will archive current progress and reset scores.';
@@ -37,11 +41,52 @@ export type UseNewGameRequestOptions = {
   onCancelled?: () => void;
   /** Invoked when the archive/reset rejects. */
   onError?: (error: unknown) => void;
+  /** Optional telemetry configuration for confirm/cancel metrics. */
+  telemetry?: NewGameTelemetryConfig;
+};
+
+export type StartNewGameOptions = {
+  /**
+   * Skip the confirmation dialog even when in-progress state is detected.
+   * Useful for completed sessions where the next game starts immediately.
+   */
+  skipConfirm?: boolean;
 };
 
 export type StartNewGameResult = {
-  startNewGame: () => Promise<boolean>;
+  startNewGame: (options?: StartNewGameOptions) => Promise<boolean>;
   pending: boolean;
+};
+
+export type NewGameTelemetryEvent = 'confirm' | 'cancel' | 'skip' | 'error';
+
+export type NewGameTelemetryPayload = {
+  dbName: string;
+  requireIdle: boolean;
+  skipConfirm: boolean;
+  hasProgress: boolean;
+  timeTraveling: boolean;
+  result: 'confirmed' | 'cancelled' | 'skipped' | 'error';
+  durationMs?: number;
+  errorName?: string;
+  errorMessage?: string;
+  skipReason?: 'explicit' | 'no-progress';
+};
+
+export type NewGameTelemetryConfig = {
+  /** When false, suppresses telemetry even if provided. Defaults to true when config exists. */
+  enabled?: boolean;
+  /** Override event names when falling back to the default tracker. */
+  events?: Partial<Record<NewGameTelemetryEvent, string | null>>;
+  /** Custom tracker invoked instead of `logEvent`. */
+  track?: (event: NewGameTelemetryEvent, payload: NewGameTelemetryPayload) => void;
+};
+
+const DEFAULT_TELEMETRY_EVENT_NAMES: Record<NewGameTelemetryEvent, string> = {
+  confirm: 'new_game_confirmed',
+  cancel: 'new_game_cancelled',
+  skip: 'new_game_skipped',
+  error: 'new_game_error',
 };
 
 export function hasInProgressGame(state: AppState): boolean {
@@ -91,11 +136,18 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
     onSuccess,
     onCancelled,
     onError,
+    telemetry,
   } = options;
   const app = useAppState();
+  const confirmController = useNewGameConfirm();
   const { state, timeTraveling, isBatchPending } = app;
   const [pending, setPending] = React.useState(false);
   const liveStateRef = React.useRef<AppState>(state);
+  const telemetryRef = React.useRef<NewGameTelemetryConfig | undefined>(telemetry);
+
+  React.useEffect(() => {
+    telemetryRef.current = telemetry;
+  }, [telemetry]);
 
   React.useEffect(() => {
     if (!timeTraveling) {
@@ -106,6 +158,34 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
   const resetPending = React.useCallback(() => {
     setPending((prev) => (prev ? false : prev));
   }, []);
+
+  const emitTelemetry = React.useCallback(
+    (
+      event: NewGameTelemetryEvent,
+      details: Omit<NewGameTelemetryPayload, 'dbName' | 'requireIdle'>,
+    ) => {
+      const config = telemetryRef.current;
+      if (!config) return;
+      if (config.enabled === false) return;
+
+      const payload: NewGameTelemetryPayload = {
+        dbName,
+        requireIdle,
+        ...details,
+      };
+
+      try {
+        if (config.track) {
+          config.track(event, payload);
+          return;
+        }
+        const eventName = config.events?.[event] ?? DEFAULT_TELEMETRY_EVENT_NAMES[event];
+        if (!eventName) return;
+        logEvent(eventName, payload);
+      } catch {}
+    },
+    [dbName, requireIdle],
+  );
 
   React.useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -153,53 +233,153 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
     };
   }, [dbName, resetPending]);
 
-  const startNewGame = React.useCallback(async () => {
-    if (pending) return false;
-    if (requireIdle && isBatchPending) return false;
+  const startNewGame = React.useCallback(
+    async (requestOptions: StartNewGameOptions = {}) => {
+      const { skipConfirm = false } = requestOptions;
+      if (pending) return false;
+      if (requireIdle && isBatchPending) return false;
 
-    const effectiveState = timeTraveling ? liveStateRef.current : state;
-    const needsConfirmation = hasInProgressGame(effectiveState);
+      const effectiveState = timeTraveling ? liveStateRef.current : state;
+      const hasProgress = hasInProgressGame(effectiveState);
+      const needsConfirmation = !skipConfirm && hasProgress;
+      let skipReason: NewGameTelemetryPayload['skipReason'] | null = null;
 
-    if (needsConfirmation) {
-      const handler = confirm ?? (() => defaultConfirm(confirmMessage));
-      let allowed = false;
+      if (needsConfirmation) {
+        const handler: ConfirmHandler =
+          confirm ??
+          (confirmController
+            ? () =>
+                confirmController.show({
+                  copy: {
+                    description: confirmMessage,
+                  },
+                })
+            : () => defaultConfirm(confirmMessage));
+        let allowed = false;
+        try {
+          allowed = await Promise.resolve(
+            handler({ reason: 'in-progress', state: effectiveState }),
+          );
+        } catch (error) {
+          onError?.(error);
+          const details: Omit<NewGameTelemetryPayload, 'dbName' | 'requireIdle'> = {
+            skipConfirm,
+            hasProgress,
+            timeTraveling,
+            result: 'error',
+            errorMessage: error instanceof Error ? error.message : String(error),
+          };
+          if (error instanceof Error && error.name) {
+            details.errorName = error.name;
+          }
+          emitTelemetry('error', details);
+          return false;
+        }
+        if (!allowed) {
+          onCancelled?.();
+          emitTelemetry('cancel', {
+            skipConfirm,
+            hasProgress,
+            timeTraveling,
+            result: 'cancelled',
+          });
+          return false;
+        }
+      } else {
+        skipReason = skipConfirm && hasProgress ? 'explicit' : 'no-progress';
+      }
+
       try {
-        allowed = await Promise.resolve(handler({ reason: 'in-progress', state: effectiveState }));
+        setPending(true);
+        await onBeforeStart?.();
+        const mark = () => {
+          if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+            return performance.now();
+          }
+          return Date.now();
+        };
+        const startedAt = mark();
+        await archiveCurrentGameAndReset();
+        const finishedAt = mark();
+        const durationMs = Math.max(0, finishedAt - startedAt);
+
+        if (skipReason) {
+          emitTelemetry('skip', {
+            skipConfirm,
+            hasProgress,
+            timeTraveling,
+            result: 'skipped',
+            durationMs,
+            skipReason,
+          });
+        } else {
+          emitTelemetry('confirm', {
+            skipConfirm,
+            hasProgress,
+            timeTraveling,
+            result: 'confirmed',
+            durationMs,
+          });
+        }
+        onSuccess?.();
+        return true;
       } catch (error) {
         onError?.(error);
+        const details: Omit<NewGameTelemetryPayload, 'dbName' | 'requireIdle'> = {
+          skipConfirm,
+          hasProgress,
+          timeTraveling,
+          result: 'error',
+          errorMessage: error instanceof Error ? error.message : String(error),
+        };
+        if (skipReason) {
+          details.skipReason = skipReason;
+        }
+        if (error instanceof Error && error.name) {
+          details.errorName = error.name;
+        }
+        emitTelemetry('error', details);
         return false;
+      } finally {
+        setPending(false);
       }
-      if (!allowed) {
-        onCancelled?.();
-        return false;
-      }
-    }
+    },
+    [
+      isBatchPending,
+      confirm,
+      confirmMessage,
+      onBeforeStart,
+      onCancelled,
+      onError,
+      onSuccess,
+      pending,
+      requireIdle,
+      state,
+      timeTraveling,
+      confirmController,
+      emitTelemetry,
+    ],
+  );
 
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    const globalTarget = globalThis as typeof globalThis & {
+      __START_NEW_GAME__?: ((options?: StartNewGameOptions) => Promise<boolean>) | undefined;
+    };
+    const delegate = (options?: StartNewGameOptions) => startNewGame(options);
     try {
-      setPending(true);
-      await onBeforeStart?.();
-      await archiveCurrentGameAndReset();
-      onSuccess?.();
-      return true;
-    } catch (error) {
-      onError?.(error);
-      return false;
-    } finally {
-      setPending(false);
-    }
-  }, [
-    isBatchPending,
-    confirm,
-    confirmMessage,
-    onBeforeStart,
-    onCancelled,
-    onError,
-    onSuccess,
-    pending,
-    requireIdle,
-    state,
-    timeTraveling,
-  ]);
+      globalTarget.__START_NEW_GAME__ = delegate;
+    } catch {}
+    return () => {
+      if (globalTarget.__START_NEW_GAME__ === delegate) {
+        try {
+          delete globalTarget.__START_NEW_GAME__;
+        } catch {
+          globalTarget.__START_NEW_GAME__ = undefined;
+        }
+      }
+    };
+  }, [startNewGame]);
 
   return { startNewGame, pending };
 }

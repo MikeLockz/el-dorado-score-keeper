@@ -37,6 +37,27 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --surface-subtle: oklch(0.985 0 0);
+  --surface-subtle-foreground: oklch(0.305 0 0);
+  --surface-muted: oklch(0.938 0 0);
+  --surface-muted-foreground: oklch(0.45 0 0);
+  --surface-accent: oklch(0.93 0.03 210);
+  --surface-accent-foreground: oklch(0.24 0.02 210);
+  --status-locked: oklch(0.94 0 0);
+  --status-locked-foreground: oklch(0.35 0 0);
+  --status-locked-surface: oklch(0.975 0 0);
+  --status-bidding: oklch(0.78 0.09 210);
+  --status-bidding-foreground: oklch(0.985 0 0);
+  --status-bidding-surface: oklch(0.92 0.04 210);
+  --status-playing: oklch(0.74 0.1 275);
+  --status-playing-foreground: oklch(0.985 0 0);
+  --status-playing-surface: oklch(0.9 0.05 275);
+  --status-complete: oklch(0.8 0.14 55);
+  --status-complete-foreground: oklch(0.985 0 0);
+  --status-complete-surface: oklch(0.94 0.05 55);
+  --status-scored: oklch(0.78 0.13 150);
+  --status-scored-foreground: oklch(0.985 0 0);
+  --status-scored-surface: oklch(0.92 0.05 150);
 }
 
 .dark {
@@ -72,6 +93,27 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+  --surface-subtle: oklch(0.22 0 0);
+  --surface-subtle-foreground: oklch(0.9 0 0);
+  --surface-muted: oklch(0.28 0 0);
+  --surface-muted-foreground: oklch(0.83 0 0);
+  --surface-accent: oklch(0.35 0.03 210);
+  --surface-accent-foreground: oklch(0.9 0.02 210);
+  --status-locked: oklch(0.3 0 0);
+  --status-locked-foreground: oklch(0.87 0 0);
+  --status-locked-surface: oklch(0.2 0 0);
+  --status-bidding: oklch(0.55 0.12 210);
+  --status-bidding-foreground: oklch(0.1 0.02 210);
+  --status-bidding-surface: oklch(0.28 0.04 210);
+  --status-playing: oklch(0.52 0.14 275);
+  --status-playing-foreground: oklch(0.1 0.02 275);
+  --status-playing-surface: oklch(0.27 0.05 275);
+  --status-complete: oklch(0.54 0.16 55);
+  --status-complete-foreground: oklch(0.1 0.03 55);
+  --status-complete-surface: oklch(0.28 0.06 55);
+  --status-scored: oklch(0.52 0.17 150);
+  --status-scored-foreground: oklch(0.1 0.03 150);
+  --status-scored-surface: oklch(0.27 0.07 150);
 }
 
 @theme inline {
@@ -111,6 +153,27 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-subtle-foreground: var(--surface-subtle-foreground);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-muted-foreground: var(--surface-muted-foreground);
+  --color-surface-accent: var(--surface-accent);
+  --color-surface-accent-foreground: var(--surface-accent-foreground);
+  --color-status-locked: var(--status-locked);
+  --color-status-locked-foreground: var(--status-locked-foreground);
+  --color-status-locked-surface: var(--status-locked-surface);
+  --color-status-bidding: var(--status-bidding);
+  --color-status-bidding-foreground: var(--status-bidding-foreground);
+  --color-status-bidding-surface: var(--status-bidding-surface);
+  --color-status-playing: var(--status-playing);
+  --color-status-playing-foreground: var(--status-playing-foreground);
+  --color-status-playing-surface: var(--status-playing-surface);
+  --color-status-complete: var(--status-complete);
+  --color-status-complete-foreground: var(--status-complete-foreground);
+  --color-status-complete-surface: var(--status-complete-surface);
+  --color-status-scored: var(--status-scored);
+  --color-status-scored-foreground: var(--status-scored-foreground);
+  --color-status-scored-surface: var(--status-scored-surface);
 }
 
 @layer base {

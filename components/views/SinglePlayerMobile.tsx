@@ -22,7 +22,7 @@ import {
 } from '@/lib/state';
 import { bots, computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
 import { canPlayCard as ruleCanPlayCard } from '@/lib/rules/sp';
-import { archiveCurrentGameAndReset } from '@/lib/state';
+import { useNewGameRequest } from '@/lib/game-flow';
 import SpRoundSummary from './sp/SpRoundSummary';
 import SpGameSummary from './sp/SpGameSummary';
 import SpHeaderBar from './sp/SpHeaderBar';
@@ -36,6 +36,7 @@ type Props = {
 
 export default function SinglePlayerMobile({ humanId, rng }: Props) {
   const { state, append, appendMany, isBatchPending } = useAppState();
+  const { startNewGame, pending: newGamePending } = useNewGameRequest({ requireIdle: true });
   const players = selectPlayersOrderedFor(state, 'single');
   const isDev = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
   const playerName = (pid: string) =>
@@ -217,10 +218,10 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         players={totals.map((t) => ({ ...t, isWinner: t.total === max }))}
         seed={state.sp?.sessionSeed ?? null}
         onPlayAgain={() => {
-          if (isBatchPending) return;
-          void archiveCurrentGameAndReset();
+          if (isBatchPending || newGamePending) return;
+          void startNewGame({ skipConfirm: true });
         }}
-        disabled={isBatchPending}
+        disabled={isBatchPending || newGamePending}
       />
     );
   }

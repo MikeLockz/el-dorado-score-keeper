@@ -50,8 +50,8 @@ RICE score = `(Reach × Impact × Confidence) ÷ Effort`. Higher scores land ear
 
 **Scope**
 
-1. Refactor reducer into domain slices and extract roster operations service (`lib/state/types.ts`, `lib/roster`).
-2. Introduce generated event catalog (`zod` or similar) powering both client validation and worker DTOs.
+1. Refactor reducer into domain slices and extract roster operations service (`lib/state/reducer.ts`, `lib/roster`).
+2. Introduce generated event catalog (`zod`) powering both client validation and worker DTOs.
 3. Convert single-player orchestration to `useSinglePlayerSession` hook; update `SinglePlayerMobile`/future desktop view.
 4. Batch default player seeding, add migration script, and expose onboarding flag.
 5. Instrument snapshot tuning, memoize heavy selectors.
@@ -110,18 +110,14 @@ RICE score = `(Reach × Impact × Confidence) ÷ Effort`. Higher scores land ear
 **Scope**
 
 1. Add `pnpm typecheck` and `pnpm build` steps to CI; share pnpm cache across jobs.
-2. Establish Playwright E2E suite (score round, single-player run, game archive/restore).
-3. Create reducer snapshot fixtures + worker contract tests; integrate into Vitest.
-4. Add generator scripts, import-boundary ESLint rule, and debug documentation.
-5. Launch Storybook with initial stories for shared components (backfills Phase 2 skeleton coverage).
+2. Create reducer snapshot fixtures + worker contract tests; integrate into Vitest.
+3. Add generator scripts, import-boundary ESLint rule, and debug documentation.
 
 **Deliverables**
 
 - Updated `.github/workflows/test.yml` plus cache strategy.
-- `tests/e2e/*` Playwright runs with seeded fixtures and CI integration.
 - Snapshot fixture directory with baseline JSON; contract tests for analytics payload.
 - Generator CLI under `tools/` with unit tests; documentation in `docs/dev-experience.md`.
-- Storybook config with minimum one story per shared component.
 
 **Validation Checklist**
 
@@ -130,8 +126,6 @@ RICE score = `(Reach × Impact × Confidence) ÷ Effort`. Higher scores land ear
 - `pnpm test`
 - `pnpm typecheck`
 - `pnpm build`
-- `pnpm e2e` (headless Playwright)
-- `pnpm storybook --smoke-test`
 - Commit: `chore(tooling): phase-3 ci-and-tests`
 
 ### Phase 4 – Analytics, Product Insights, and Performance Budgets (Weeks 8–10)
@@ -140,15 +134,12 @@ RICE score = `(Reach × Impact × Confidence) ÷ Effort`. Higher scores land ear
 
 **Scope**
 
-1. Introduce guided onboarding flow leveraging roster service (Phase 1 dependency).
-2. Implement session analytics + offline export UX using the validated event catalog and worker contract tests.
-3. Add worker deployment changelog and release checklist.
-4. Integrate Lighthouse CI preview gating with agreed budgets.
-5. Pilot mutation testing for single-player logic as ongoing quality experiment.
+1. Add worker deployment changelog and release checklist.
+2. Integrate Lighthouse CI preview
+3. Pilot mutation testing for single-player logic as ongoing quality experiment.
 
 **Deliverables**
 
-- Onboarding screens/components with behavioral tests.
 - Analytics payloads dispatched through worker; dashboards/alerts configured.
 - Export/import UI in settings with integration tests covering IndexedDB round-trip.
 - `docs/releases/worker.md` + GitHub Action checklists.
@@ -169,30 +160,10 @@ RICE score = `(Reach × Impact × Confidence) ÷ Effort`. Higher scores land ear
 
 ## Phase Transitions & Governance
 
-- **Exit Criteria**: Each phase requires all validation checks green, documentation updated, and a code review sign-off from the Staff Engineer + product counterpart.
-- **Rollback Plan**: Maintain feature flags or config toggles for user-facing changes (onboarding, analytics) to disable rapidly if regressions surface.
-- **Knowledge Share**: Host a short tech talk after Phase 1 and 3 to acclimate the team to new architecture/tooling.
+- **Exit Criteria**: Each phase requires all validation checks green, documentation updated, and a commit
 
 ## Ongoing Maintenance
 
 - Monitor snapshot timing metrics weekly; adjust heuristics when average apply time > 30 ms.
 - Re-run accessibility audits every release cycle.
-- Keep Storybook and generator templates updated as new UI/state patterns emerge.
 - Review analytics worker changelog before each deploy to ensure environment parity.
-
-## Appendix – Mapping Back to Recommendations
-
-| Recommendation                                                                           | Phase              |
-| ---------------------------------------------------------------------------------------- | ------------------ |
-| Modular reducer, roster promotion                                                        | Phase 1            |
-| Event catalog generation                                                                 | Phase 1            |
-| Single-player session hook                                                               | Phase 1            |
-| Batched seeding, snapshot tuning, memoized selectors                                     | Phase 1            |
-| Score grid virtualization                                                                | Phase 2 (optional) |
-| Responsive nav, modal confirmations, skeleton loading, color tokens, accessibility audit | Phase 2            |
-| Domain generators, ESLint rule, Storybook, debug docs                                    | Phase 3            |
-| Playwright E2E, reducer snapshots, worker contract tests, mutation pilot                 | Phase 3/4          |
-| CI typecheck/build, pnpm cache                                                           | Phase 3            |
-| Lighthouse CI gating                                                                     | Phase 4            |
-| Guided onboarding, session analytics, offline export                                     | Phase 4            |
-| Worker deployment safety                                                                 | Phase 4            |

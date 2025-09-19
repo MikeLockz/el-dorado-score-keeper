@@ -41,30 +41,30 @@ function labelForRoundState(s: RoundState) {
 function getRoundStateStyles(state: RoundState) {
   switch (state) {
     case 'locked':
-      return 'bg-muted text-muted-foreground';
+      return 'bg-status-locked text-status-locked-foreground';
     case 'bidding':
-      return 'bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-200';
+      return 'bg-status-bidding text-status-bidding-foreground';
     case 'playing':
-      return 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-200';
+      return 'bg-status-playing text-status-playing-foreground';
     case 'complete':
-      return 'bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-200';
+      return 'bg-status-complete text-status-complete-foreground';
     case 'scored':
-      return 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200';
+      return 'bg-status-scored text-status-scored-foreground';
   }
 }
 
 function getPlayerCellBackgroundStyles(state: RoundState) {
   switch (state) {
     case 'locked':
-      return 'bg-muted';
+      return 'bg-status-locked-surface';
     case 'bidding':
-      return 'bg-sky-50 dark:bg-sky-900/30';
+      return 'bg-status-bidding-surface';
     case 'playing':
-      return 'bg-indigo-50 dark:bg-indigo-900/30';
+      return 'bg-status-playing-surface';
     case 'complete':
-      return 'bg-orange-50 dark:bg-orange-900/30';
+      return 'bg-status-complete-surface';
     case 'scored':
-      return 'bg-emerald-50 dark:bg-emerald-900/30';
+      return 'bg-status-scored-surface';
   }
 }
 
@@ -446,19 +446,19 @@ export default function CurrentGame({
                         {c.placeholder || isAbsent ? (
                           <>
                             <div className="border-b flex items-center justify-center px-1 py-0.5">
-                              <span className="text-[0.6rem] text-gray-500">-</span>
+                              <span className="text-[0.6rem] text-surface-muted-foreground">-</span>
                             </div>
                             <div className="flex items-center justify-center px-1 py-0.5">
-                              <span className="text-[0.6rem] text-gray-500">-</span>
+                              <span className="text-[0.6rem] text-surface-muted-foreground">-</span>
                             </div>
                           </>
                         ) : rState === 'locked' ? (
                           <>
                             <div className="border-b flex items-center justify-center px-1 py-0.5">
-                              <span className="text-[0.6rem] text-gray-500">-</span>
+                              <span className="text-[0.6rem] text-surface-muted-foreground">-</span>
                             </div>
                             <div className="flex items-center justify-center px-1 py-0.5">
-                              <span className="text-[0.6rem] text-gray-500">-</span>
+                              <span className="text-[0.6rem] text-surface-muted-foreground">-</span>
                             </div>
                           </>
                         ) : rState === 'bidding' ? (
@@ -468,7 +468,7 @@ export default function CurrentGame({
                             if (!canBid) {
                               return (
                                 <div className="flex items-center justify-center px-1">
-                                  <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-foreground bg-secondary/50 dark:bg-secondary/20 px-1.5 rounded">
+                                  <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-status-bidding-foreground bg-status-bidding-surface px-1.5 rounded">
                                     {bid}
                                   </span>
                                 </div>
@@ -479,20 +479,20 @@ export default function CurrentGame({
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
+                                  className="h-6 w-6 p-0 border border-status-bidding bg-status-bidding text-status-bidding-foreground hover:bg-[color-mix(in_oklch,_var(--color-status-bidding)_90%,_black_10%)] focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                                   onClick={() => void decrementBid(round.round, c.id)}
                                   aria-label={`Decrease bid for ${c.name} in round ${round.round}`}
                                   disabled={disableInputs || bid <= 0}
                                 >
                                   <Minus className="h-3 w-3" />
                                 </Button>
-                                <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-foreground bg-secondary/70 dark:bg-secondary/30 px-1.5 rounded">
+                                <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-status-bidding-foreground bg-status-bidding-surface px-1.5 rounded">
                                   {bid}
                                 </span>
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="h-6 w-6 p-0 bg-sky-700 hover:bg-sky-800 dark:bg-sky-700 dark:hover:bg-sky-600 border-sky-700 dark:border-sky-600 text-white"
+                                  className="h-6 w-6 p-0 border border-status-bidding bg-status-bidding text-status-bidding-foreground hover:bg-[color-mix(in_oklch,_var(--color-status-bidding)_90%,_black_10%)] focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                                   onClick={() => void incrementBid(round.round, c.id, max)}
                                   aria-label={`Increase bid for ${c.name} in round ${round.round}`}
                                   disabled={disableInputs || bid >= max}
@@ -503,7 +503,7 @@ export default function CurrentGame({
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-6 w-6 p-0 ml-1 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 border-emerald-700 dark:border-emerald-600 text-white"
+                                    className="h-6 w-6 p-0 ml-1 border border-status-scored bg-status-scored text-status-scored-foreground hover:bg-[color-mix(in_oklch,_var(--color-status-scored)_88%,_black_12%)] focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                                     onClick={() => onConfirmBid(round.round, c.id, bid)}
                                     aria-label={`Confirm bid for ${c.name} and start round`}
                                     disabled={disableInputs}

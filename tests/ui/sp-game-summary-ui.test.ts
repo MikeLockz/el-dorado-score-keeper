@@ -33,19 +33,37 @@ const append = vi.fn(async () => 1);
 const appendMany = vi.fn(async () => 1);
 const archiveCurrentGameAndReset = vi.fn(async () => {});
 
+type StateHook = {
+  state: AppState;
+  height: number;
+  ready: boolean;
+  append: typeof append;
+  appendMany: typeof appendMany;
+  isBatchPending: boolean;
+  previewAt: (height: number) => Promise<AppState>;
+  warnings: [];
+  clearWarnings: () => void;
+  timeTraveling: boolean;
+};
+
+const defaultHookValue: StateHook = {
+  state: baseGameSummaryState,
+  height: 0,
+  ready: true,
+  append,
+  appendMany,
+  isBatchPending: false,
+  previewAt: async () => baseGameSummaryState,
+  warnings: [],
+  clearWarnings: () => {},
+  timeTraveling: false,
+};
+
+const useAppStateMock = vi.fn(() => defaultHookValue);
+
 vi.mock('@/components/state-provider', async () => {
   return {
-    useAppState: () => ({
-      state: baseGameSummaryState,
-      height: 0,
-      ready: true,
-      append,
-      appendMany,
-      isBatchPending: false,
-      previewAt: async () => baseGameSummaryState,
-      warnings: [],
-      clearWarnings: () => {},
-    }),
+    useAppState: useAppStateMock,
   };
 });
 
@@ -76,6 +94,7 @@ suite('Game Summary UI', () => {
     append.mockClear();
     appendMany.mockClear();
     archiveCurrentGameAndReset.mockClear();
+    useAppStateMock.mockReturnValue(defaultHookValue);
   });
 
   it('renders totals and triggers Play Again', async () => {
@@ -105,5 +124,112 @@ suite('Game Summary UI', () => {
 
     root.unmount();
     div.remove();
+  });
+
+  it('shows confirmation dialog when starting a new game mid-progress', async () => {
+    const { useNewGameRequest } = await import('@/lib/game-flow');
+    const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
+
+    const inProgressState: AppState = {
+      ...baseGameSummaryState,
+      scores: { p1: 10, p2: 5 },
+      rounds: {
+        10: {
+          state: 'playing',
+          bids: { p1: 2, p2: 1 },
+          made: { p1: null, p2: null },
+        },
+      } as any,
+      sp: {
+        ...baseGameSummaryState.sp,
+        phase: 'playing',
+        trickPlays: [
+          {
+            playerId: 'p1',
+            card: { suit: 'spades', rank: 10 },
+          },
+        ],
+        hands: {
+          p1: [
+            { suit: 'spades', rank: 9 },
+            { suit: 'hearts', rank: 12 },
+          ],
+        },
+      },
+    };
+
+    useAppStateMock.mockReturnValue({
+      ...defaultHookValue,
+      state: inProgressState,
+      previewAt: async () => inProgressState,
+    });
+
+    function Trigger() {
+      const { startNewGame, pending } = useNewGameRequest();
+      return React.createElement(
+        'button',
+        {
+          'data-testid': 'launch',
+          disabled: pending,
+          onClick: () => {
+            void startNewGame();
+          },
+        },
+        'Launch',
+      );
+    }
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = ReactDOM.createRoot(container);
+    root.render(React.createElement(NewGameConfirmProvider, null, React.createElement(Trigger)));
+
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+
+    const launch = container.querySelector('[data-testid="launch"]') as HTMLButtonElement;
+    expect(launch).toBeTruthy();
+    launch.click();
+
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+
+    const dialogContent = document.querySelector(
+      '[data-slot="dialog-content"]',
+    ) as HTMLElement | null;
+    expect(dialogContent?.textContent || '').toMatch(/Start a new game/i);
+
+    const [cancelButton, confirmButton] = Array.from(
+      dialogContent!.querySelectorAll('button'),
+    ) as HTMLButtonElement[];
+
+    cancelButton.click();
+
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(archiveCurrentGameAndReset).not.toHaveBeenCalled();
+
+    // Trigger again and confirm
+    launch.click();
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+
+    const dialogContent2 = document.querySelector(
+      '[data-slot="dialog-content"]',
+    ) as HTMLElement | null;
+    expect(dialogContent2).not.toBeNull();
+    const [, confirmButton2] = Array.from(
+      dialogContent2!.querySelectorAll('button'),
+    ) as HTMLButtonElement[];
+
+    confirmButton2.click();
+
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(archiveCurrentGameAndReset).toHaveBeenCalledTimes(1);
+
+    root.unmount();
+    container.remove();
   });
 });
