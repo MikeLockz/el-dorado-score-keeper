@@ -279,10 +279,6 @@ export function useSinglePlayerViewModel({ humanId, rng }: { humanId: string; rn
     [appendMany, derived, humanId, isBatchPending, rng, state],
   );
 
-  const toggleTrumpBroken = React.useCallback(() => {
-    void append(events.spTrumpBrokenSet({ broken: !derived.isTrumpBroken }));
-  }, [append, derived.isTrumpBroken]);
-
   return {
     state,
     append,
@@ -320,7 +316,6 @@ export function useSinglePlayerViewModel({ humanId, rng }: { humanId: string; rn
     canPlayCard,
     playCard,
     onConfirmBid,
-    toggleTrumpBroken,
     isTrumpBroken: derived.isTrumpBroken,
     summaryEnteredAt: derived.summaryEnteredAt,
     trickPlays: derived.trickPlays,

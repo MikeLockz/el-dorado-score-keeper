@@ -60,7 +60,7 @@ function GameDetailPageInner() {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h1 className="text-lg font-bold">{game.title || 'Game'}</h1>
-          <div className="text-sm text-slate-700 dark:text-slate-200">
+          <div className="text-sm text-muted-foreground">
             Finished {formatDateTime(game.finishedAt)}
           </div>
         </div>
@@ -70,7 +70,7 @@ function GameDetailPageInner() {
       <Card className="p-2 mb-3">
         <div className="font-semibold mb-2">Final Scores</div>
         {scoresEntries.length === 0 ? (
-          <div className="text-slate-500 text-sm">No players</div>
+          <div className="text-muted-foreground text-sm">No players</div>
         ) : (
           <div className="grid grid-cols-[1fr_auto] gap-x-4 text-sm">
             <div className="font-bold">Player</div>
@@ -91,26 +91,26 @@ function GameDetailPageInner() {
         <Card className="p-2 mb-3">
           <div className="font-semibold mb-2">Single-Player Snapshot</div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-            <div className="text-slate-600 dark:text-slate-300">Phase</div>
+            <div className="text-muted-foreground">Phase</div>
             <div className="font-mono">{sp.phase}</div>
-            <div className="text-slate-600 dark:text-slate-300">Round</div>
+            <div className="text-muted-foreground">Round</div>
             <div className="font-mono">{sp.roundNo ?? '—'}</div>
-            <div className="text-slate-600 dark:text-slate-300">Dealer</div>
+            <div className="text-muted-foreground">Dealer</div>
             <div className="font-mono">{playersById[sp.dealerId ?? ''] ?? sp.dealerId ?? '—'}</div>
-            <div className="text-slate-600 dark:text-slate-300">Leader</div>
+            <div className="text-muted-foreground">Leader</div>
             <div className="font-mono">{playersById[sp.leaderId ?? ''] ?? sp.leaderId ?? '—'}</div>
-            <div className="text-slate-600 dark:text-slate-300">Trump</div>
+            <div className="text-muted-foreground">Trump</div>
             <div className="font-mono">
               {sp.trump && sp.trumpCard ? `${sp.trumpCard.rank} of ${sp.trump}` : '—'}
             </div>
-            <div className="text-slate-600 dark:text-slate-300">Trump Broken</div>
+            <div className="text-muted-foreground">Trump Broken</div>
             <div className="font-mono">{sp.trumpBroken ? 'yes' : 'no'}</div>
           </div>
         </Card>
       )}
 
       <Card className="p-2">
-        <div className="text-sm text-slate-800 dark:text-slate-200">
+        <div className="text-sm text-foreground">
           Events: {game.bundle.events.length} • Seq: {game.lastSeq}
         </div>
       </Card>
@@ -123,7 +123,7 @@ function GameDetailPageInner() {
             <div className="font-bold mb-1">Leaders</div>
             <div className="space-y-0.5">
               <div>
-                <span className="text-slate-800 dark:text-slate-200 mr-1">Most Total Bid:</span>
+                <span className="text-foreground mr-1">Most Total Bid:</span>
                 <span className="font-medium">
                   {stats?.leaders.mostTotalBid
                     ? `${stats.leaders.mostTotalBid.name} (${stats.leaders.mostTotalBid.totalBid})`
@@ -131,7 +131,7 @@ function GameDetailPageInner() {
                 </span>
               </div>
               <div>
-                <span className="text-slate-800 dark:text-slate-200 mr-1">Least Total Bid:</span>
+                <span className="text-foreground mr-1">Least Total Bid:</span>
                 <span className="font-medium">
                   {stats?.leaders.leastTotalBid
                     ? `${stats.leaders.leastTotalBid.name} (${stats.leaders.leastTotalBid.totalBid})`
@@ -139,7 +139,7 @@ function GameDetailPageInner() {
                 </span>
               </div>
               <div>
-                <span className="text-slate-800 dark:text-slate-200 mr-1">Highest Single Bid:</span>
+                <span className="text-foreground mr-1">Highest Single Bid:</span>
                 <span className="font-medium">
                   {stats?.leaders.highestSingleBid
                     ? `${stats.leaders.highestSingleBid.name} (R${stats.leaders.highestSingleBid.round}: ${stats.leaders.highestSingleBid.bid})`
@@ -147,9 +147,7 @@ function GameDetailPageInner() {
                 </span>
               </div>
               <div>
-                <span className="text-slate-800 dark:text-slate-200 mr-1">
-                  Biggest Single Loss:
-                </span>
+                <span className="text-foreground mr-1">Biggest Single Loss:</span>
                 <span className="font-medium">
                   {stats?.leaders.biggestSingleLoss
                     ? `${stats.leaders.biggestSingleLoss.name} (R${stats.leaders.biggestSingleLoss.round}: -${stats.leaders.biggestSingleLoss.loss})`
@@ -162,15 +160,15 @@ function GameDetailPageInner() {
             <div className="font-bold mb-1">Totals</div>
             <div className="space-y-0.5">
               <div>
-                <span className="text-slate-800 dark:text-slate-200 mr-1">Total Points Bid:</span>
+                <span className="text-foreground mr-1">Total Points Bid:</span>
                 <span className="font-medium">{stats?.totals.totalPointsBid ?? '—'}</span>
               </div>
               <div>
-                <span className="text-slate-800 dark:text-slate-200 mr-1">Hands Won:</span>
+                <span className="text-foreground mr-1">Hands Won:</span>
                 <span className="font-medium">{stats?.totals.totalHandsWon ?? '—'}</span>
               </div>
               <div>
-                <span className="text-slate-800 dark:text-slate-200 mr-1">Hands Lost:</span>
+                <span className="text-foreground mr-1">Hands Lost:</span>
                 <span className="font-medium">{stats?.totals.totalHandsLost ?? '—'}</span>
               </div>
             </div>
@@ -187,26 +185,27 @@ function GameDetailPageInner() {
             {(stats?.rounds ?? [])
               .slice()
               .sort((a, b) => b.tricks - a.tricks)
-              .map((r) => (
-                <React.Fragment key={r.round}>
-                  <div className="py-0.5 text-right">{r.tricks}</div>
-                  <div className="py-0.5 text-right">{r.sumBids}</div>
-                  <div className="py-0.5">
-                    <span
-                      className={`inline-flex items-center rounded px-1.5 py-0.5 text-[0.7rem] font-semibold capitalize border 
-                        ${
-                          r.overUnder === 'over'
-                            ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700'
-                            : r.overUnder === 'under'
-                              ? 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800/60 dark:text-slate-200 dark:border-slate-600'
-                              : 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700'
-                        }`}
-                    >
-                      {r.overUnder}
-                    </span>
-                  </div>
-                </React.Fragment>
-              ))}
+              .map((r) => {
+                const badgeClass =
+                  r.overUnder === 'over'
+                    ? 'border-destructive bg-destructive/15 text-destructive'
+                    : r.overUnder === 'under'
+                      ? 'border-border bg-surface-muted text-surface-muted-foreground'
+                      : 'border-status-scored bg-status-scored/15 text-status-scored';
+                return (
+                  <React.Fragment key={r.round}>
+                    <div className="py-0.5 text-right">{r.tricks}</div>
+                    <div className="py-0.5 text-right">{r.sumBids}</div>
+                    <div className="py-0.5">
+                      <span
+                        className={`inline-flex items-center rounded px-1.5 py-0.5 text-[0.7rem] font-semibold capitalize border ${badgeClass}`}
+                      >
+                        {r.overUnder}
+                      </span>
+                    </div>
+                  </React.Fragment>
+                );
+              })}
           </div>
         </div>
 
@@ -214,19 +213,19 @@ function GameDetailPageInner() {
         <div className="grid grid-cols-3 gap-3 text-sm mt-3">
           <div>
             <div className="font-bold">Started</div>
-            <div className="text-slate-800 dark:text-slate-200">
+            <div className="text-foreground">
               {stats ? formatDateTime(stats.timing.startedAt) : '—'}
             </div>
           </div>
           <div>
             <div className="font-bold">Ended</div>
-            <div className="text-slate-800 dark:text-slate-200">
+            <div className="text-foreground">
               {stats ? formatDateTime(stats.timing.finishedAt) : '—'}
             </div>
           </div>
           <div>
             <div className="font-bold">Duration</div>
-            <div className="text-slate-800 dark:text-slate-200">
+            <div className="text-foreground">
               {stats ? formatDuration(stats.timing.durationMs) : '—'}
             </div>
           </div>

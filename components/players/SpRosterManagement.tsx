@@ -139,10 +139,12 @@ export default function SpRosterManagement() {
               </Button>
             </div>
           </div>
-          <div className="bg-slate-700 text-white p-2 font-bold">Player</div>
-          <div className="bg-slate-700 text-white p-2 font-bold text-center">Actions</div>
+          <div className="bg-surface-muted text-surface-muted-foreground p-2 font-bold">Player</div>
+          <div className="bg-surface-muted text-surface-muted-foreground p-2 font-bold text-center">
+            Actions
+          </div>
           {ready && !minReached && players.length >= 3 && (
-            <div className="col-span-2 px-2 py-1 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/40 border-b italic">
+            <div className="col-span-2 px-2 py-1 text-xs text-muted-foreground bg-surface-subtle border-b italic">
               Tip: drag names to reorder
             </div>
           )}
@@ -219,7 +221,7 @@ export default function SpRosterManagement() {
                 </Fragment>
               ))}
               {players.length === 0 && (
-                <div className="col-span-2 p-4 text-center text-slate-500">
+                <div className="col-span-2 p-4 text-center text-muted-foreground">
                   Add players to get started.
                 </div>
               )}
@@ -228,7 +230,7 @@ export default function SpRosterManagement() {
             <>
               {Array.from({ length: 4 }).map((_, i) => (
                 <Fragment key={`placeholder-${i}`}>
-                  <div className="p-2 border-b truncate text-slate-400">-</div>
+                  <div className="p-2 border-b truncate text-muted-foreground">-</div>
                   <div className="p-2 border-b text-center flex items-center justify-center gap-2">
                     <Button size="sm" variant="outline" disabled className="h-7 px-2">
                       <Edit className="h-4 w-4" />

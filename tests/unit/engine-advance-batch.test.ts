@@ -30,9 +30,7 @@ const base: AppState = {
 };
 
 vi.mock('@/lib/single-player', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/single-player')>(
-    '@/lib/single-player',
-  );
+  const actual = await vi.importActual<typeof import('@/lib/single-player')>('@/lib/single-player');
   return {
     ...actual,
     bots: {

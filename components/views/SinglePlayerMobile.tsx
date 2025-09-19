@@ -52,7 +52,6 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     canPlayCard,
     playCard,
     onConfirmBid,
-    toggleTrumpBroken,
     isTrumpBroken,
     summaryEnteredAt,
     trickPlays,
@@ -278,16 +277,13 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
               <div className="mt-2 flex items-center justify-between">
                 <div className="text-sm">
                   <span className="text-muted-foreground mr-1">Hand Winner:</span>
-                  <span
-                    className="font-semibold text-emerald-700 dark:text-emerald-300"
-                    aria-live="polite"
-                  >
+                  <span className="font-semibold text-status-scored" aria-live="polite">
                     {playerName(reveal.winnerId)}
                   </span>
                 </div>
                 <button
                   type="button"
-                  className="rounded bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 text-sm"
+                  className="rounded bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1 text-sm"
                   onClick={() => {
                     if (userAdvanceBatch.length > 0) void appendMany(userAdvanceBatch);
                   }}
@@ -303,14 +299,9 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
                 </button>
               </div>
             )}
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                className="rounded border px-2 py-1 text-sm hover:bg-muted/20"
-                onClick={toggleTrumpBroken}
-              >
-                {isTrumpBroken ? 'Unmark Trump Broken' : 'Mark Trump Broken'}
-              </button>
+            <div className="mt-2 text-sm text-muted-foreground">
+              Trump broken:{' '}
+              <span className="font-semibold text-foreground">{isTrumpBroken ? 'Yes' : 'No'}</span>
             </div>
           </div>
         </aside>
@@ -340,7 +331,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             <span className="text-xs text-muted-foreground">Your bid</span>
             <button
               type="button"
-              className="h-7 w-7 rounded border bg-sky-700 text-white hover:bg-sky-800"
+              className="h-7 w-7 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90"
               onClick={() =>
                 void append(
                   events.bidSet({
@@ -358,7 +349,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             <span className="font-bold text-base min-w-[1.5rem] text-center">{humanBid}</span>
             <button
               type="button"
-              className="h-7 w-7 rounded border bg-sky-700 text-white hover:bg-sky-800"
+              className="h-7 w-7 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90"
               onClick={() =>
                 void append(
                   events.bidSet({
@@ -375,7 +366,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             </button>
             <button
               type="button"
-              className="ml-1 h-7 px-2 rounded border bg-emerald-700 text-white hover:bg-emerald-800"
+              className="ml-1 h-7 px-2 rounded border bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => void onConfirmBid(humanBid)}
               disabled={isBatchPending}
             >

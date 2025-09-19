@@ -21,8 +21,8 @@ export default function SettingsPage() {
       <h1 className="text-xl font-semibold mb-4">Settings</h1>
       <section className="space-y-3">
         <div>
-          <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">Theme</h2>
-          <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+          <h2 className="text-sm font-medium text-foreground mb-2">Theme</h2>
+          <p className="text-sm text-muted-foreground mb-3">
             Choose how the app looks. When set to System, it follows your device setting.
           </p>
           <div className="inline-flex items-center gap-2">

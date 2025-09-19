@@ -124,12 +124,8 @@ suite('SinglePlayerDesktop view', () => {
     expect(text).toMatch(/Bot Bob/);
 
     const buttons = Array.from(container!.querySelectorAll('button')) as HTMLButtonElement[];
-    const trumpBtn = buttons.find((btn) => /Mark Trump Broken/i.test(btn.textContent ?? ''));
-    expect(trumpBtn).toBeTruthy();
-    trumpBtn!.click();
-    await Promise.resolve();
-    expect(append).toHaveBeenCalled();
-    expect((append.mock.calls[0]?.[0] as any).type).toBe('sp/trump-broken-set');
+    expect(text).toMatch(/Broken: No/);
+    expect(append).not.toHaveBeenCalled();
 
     const cta = buttons.find((btn) =>
       /(Continue|Next Hand|Next Round|New Game)/i.test(btn.textContent ?? ''),

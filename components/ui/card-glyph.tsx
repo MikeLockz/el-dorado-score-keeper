@@ -19,9 +19,8 @@ function rankLabel(rank: number): string {
 }
 
 function suitContrastClass(suit: Suit): string {
-  // For red suits, use lighter red on dark chip (light mode) and darker red on light chip (dark mode)
-  // For black suits, inherit the chip text color.
-  if (suit === 'hearts' || suit === 'diamonds') return 'text-red-300 dark:text-red-700';
+  // Hearts/diamonds lean on the destructive token so red suits stay aligned with theme palettes.
+  if (suit === 'hearts' || suit === 'diamonds') return 'text-destructive';
   return '';
 }
 
@@ -51,7 +50,7 @@ export function CardGlyph({
         (padded ? 'p-0.5 ' : '') +
         // In light mode, make chip dark; in dark mode, make chip light for contrast
         // Always add a subtle border to separate from backgrounds
-        `bg-gray-900 text-white dark:bg-white dark:text-gray-900 border-border ` +
+        `bg-foreground text-background border-border ` +
         (className ?? '')
       }
       title={title ?? `${rankLabel(rank)} of ${suit}`}
@@ -75,7 +74,7 @@ export function SuitGlyph({
     <span
       className={
         `inline-flex items-center rounded border px-1 py-0.5 text-sm ` +
-        `bg-gray-900 text-white dark:bg-white dark:text-gray-900 border-border ` +
+        `bg-foreground text-background border-border ` +
         (className ?? '')
       }
       title={title ?? suit}

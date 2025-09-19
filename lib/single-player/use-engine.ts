@@ -1,17 +1,12 @@
 import * as React from 'react';
 import type { AppEvent, AppState } from '@/lib/state/types';
-import type { KnownAppEvent } from '@/lib/state/types';
 import { selectSpIsRoundDone, selectSpNextToPlay } from '@/lib/state/selectors-sp';
 import {
   prefillPrecedingBotBids,
   computeBotPlay,
   resolveCompletedTrick,
-  finalizeRoundIfDone,
+  computeAdvanceBatch,
 } from './engine';
-
-function isSpDeal(e: AppEvent): e is KnownAppEvent<'sp/deal'> {
-  return (e as { type?: string }).type === 'sp/deal';
-}
 
 export type UseEngineParams = {
   state: AppState;
@@ -30,6 +25,8 @@ export function useSinglePlayerEngine(params: UseEngineParams): void {
 
   const phase = state.sp.phase;
   const hasDeal = !!state.sp.trump && (state.sp.order?.length ?? 0) > 0;
+  const roundNo = state.sp.roundNo ?? 0;
+  const dealerId = state.sp.dealerId ?? null;
 
   const isRoundDone = selectSpIsRoundDone(state);
 
@@ -69,18 +66,28 @@ export function useSinglePlayerEngine(params: UseEngineParams): void {
     return () => clearTimeout(t);
   }, [state, phase, appendMany, hasDeal, isBatchPending]);
 
-  // Finalize round when done; may also advance to next round
+  // Finalize round when done; transition into summary via computeAdvanceBatch
   React.useEffect(() => {
+    if (phase !== 'playing') return;
     if (!isRoundDone) return;
     if (isBatchPending) return;
-    const batch = finalizeRoundIfDone(state, { now: Date.now() });
+    if (state.sp.reveal) return;
+    const batch = computeAdvanceBatch(state, Date.now(), { intent: 'auto' });
     if (batch.length === 0) return;
     void (async () => {
       await appendMany(batch);
-      // Notify UI of advancement if present by inspecting the batch
-      const nextDeal = batch.find(isSpDeal);
-      if (nextDeal && onAdvance) onAdvance(nextDeal.payload.roundNo, nextDeal.payload.dealerId);
       if (onSaved) onSaved();
     })();
-  }, [state, isRoundDone, isBatchPending, appendMany, onAdvance, onSaved]);
+  }, [state, phase, isRoundDone, isBatchPending, appendMany, onSaved]);
+
+  // Notify caller when a new deal materializes so UI mirrors the updated dealer index
+  const lastRoundRef = React.useRef<number>(roundNo);
+  React.useEffect(() => {
+    if (!onAdvance) return;
+    const prev = lastRoundRef.current;
+    if (dealerId && roundNo !== prev) {
+      onAdvance(roundNo, dealerId);
+    }
+    lastRoundRef.current = roundNo;
+  }, [roundNo, dealerId, onAdvance]);
 }

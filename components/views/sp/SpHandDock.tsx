@@ -15,7 +15,7 @@ export default function SpHandDock(props: {
     props;
   const totalCards = suitOrder.reduce((acc, s) => acc + (humanBySuit[s]?.length ?? 0), 0);
   if (totalCards === 0) {
-    return <div className="p-2 text-center text-xs text-muted-foreground">No cards dealt yet</div>;
+    return <div className="p-2 text-center text-xs text-muted-foreground">No cards</div>;
   }
   return (
     <div className="p-1">
@@ -26,8 +26,8 @@ export default function SpHandDock(props: {
               <button
                 key={`card-${s}-${c.rank}-${i}`}
                 className={`h-14 w-10 rounded border flex items-stretch justify-center font-bold select-none transition-shadow [&>*]:h-full ${
-                  s === 'hearts' || s === 'diamonds' ? 'text-red-600 dark:text-red-300' : ''
-                } ${isSelected(c) ? 'ring-2 ring-sky-500' : 'hover:ring-1 hover:ring-sky-400'} ${
+                  s === 'hearts' || s === 'diamonds' ? 'text-destructive' : ''
+                } ${isSelected(c) ? 'ring-2 ring-primary' : 'hover:ring-1 hover:ring-primary'} ${
                   isPlaying && !canPlayCard(c) ? 'opacity-40' : ''
                 }`}
                 onClick={() => onToggleSelect(c)}

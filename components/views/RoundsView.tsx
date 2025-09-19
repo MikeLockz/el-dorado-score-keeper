@@ -26,26 +26,26 @@ function labelForRoundState(s: RoundState) {
 function getRoundStateStyles(state: RoundState) {
   switch (state) {
     case 'locked':
-      return 'bg-gray-900 text-gray-400';
+      return 'bg-status-locked text-status-locked-foreground';
     case 'bidding':
-      return 'bg-sky-300 text-sky-900 shadow-sm';
+      return 'bg-status-bidding text-status-bidding-foreground shadow-sm';
     case 'complete':
-      return 'bg-orange-300 text-orange-900';
+      return 'bg-status-complete text-status-complete-foreground';
     case 'scored':
-      return 'bg-emerald-300 text-emerald-900';
+      return 'bg-status-scored text-status-scored-foreground';
   }
 }
 
 function getPlayerCellBackgroundStyles(state: RoundState) {
   switch (state) {
     case 'locked':
-      return 'bg-gray-900';
+      return 'bg-status-locked-surface';
     case 'bidding':
-      return 'bg-sky-50';
+      return 'bg-status-bidding-surface';
     case 'complete':
-      return 'bg-orange-50';
+      return 'bg-status-complete-surface';
     case 'scored':
-      return 'bg-emerald-50';
+      return 'bg-status-scored-surface';
   }
 }
 
@@ -105,10 +105,10 @@ export default function RoundsView() {
         {rState === 'locked' && (
           <>
             <div className="border-b flex items-center justify-center px-1 py-0.5">
-              <span className="text-[0.6rem] text-gray-500">-</span>
+              <span className="text-[0.6rem] text-muted-foreground">-</span>
             </div>
             <div className="flex items-center justify-center px-1 py-0.5">
-              <span className="text-[0.6rem] text-gray-500">-</span>
+              <span className="text-[0.6rem] text-muted-foreground">-</span>
             </div>
           </>
         )}
@@ -118,19 +118,19 @@ export default function RoundsView() {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-4 w-4 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700"
+                className="h-4 w-4 p-0 bg-card/80 hover:bg-card border-status-bidding text-status-bidding-foreground"
                 onClick={() => decrementBid(roundNum, playerId)}
                 disabled={bid <= 0}
               >
                 <Minus className="h-2 w-2" />
               </Button>
-              <span className="text-[0.7rem] font-bold min-w-[1rem] text-center text-sky-900 bg-white/60 px-1 rounded">
+              <span className="text-[0.7rem] font-bold min-w-[1rem] text-center text-status-bidding-foreground bg-card/60 px-1 rounded">
                 {bid}
               </span>
               <Button
                 size="sm"
                 variant="outline"
-                className="h-4 w-4 p-0 bg-white/80 hover:bg-white border-sky-300 text-sky-700"
+                className="h-4 w-4 p-0 bg-card/80 hover:bg-card border-status-bidding text-status-bidding-foreground"
                 onClick={() => incrementBid(roundNum, playerId, max)}
                 disabled={bid >= max}
               >
@@ -138,8 +138,8 @@ export default function RoundsView() {
               </Button>
             </div>
             <div className="flex items-center justify-between px-1 py-0.5">
-              <span className="text-[0.6rem] text-sky-700 font-medium">Bid</span>
-              <span className="w-8 h-5 text-center text-[0.65rem] font-semibold text-sky-900">
+              <span className="text-[0.6rem] text-status-bidding-foreground font-medium">Bid</span>
+              <span className="w-8 h-5 text-center text-[0.65rem] font-semibold text-status-bidding-foreground">
                 {bid}
               </span>
             </div>
@@ -148,13 +148,15 @@ export default function RoundsView() {
         {rState === 'complete' && (
           <>
             <div className="border-b flex items-center justify-between px-1 py-0.5">
-              <span className="text-[0.6rem] text-orange-800 font-medium">Bid: {bid}</span>
+              <span className="text-[0.6rem] text-status-complete-foreground font-medium">
+                Bid: {bid}
+              </span>
             </div>
             <div className="flex items-center justify-center gap-1 py-0.5">
               <Button
                 size="sm"
                 variant={made === true ? 'default' : 'outline'}
-                className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
+                className="h-5 w-5 p-0 bg-card/80 hover:bg-card border-status-complete"
                 onClick={() => toggleMade(roundNum, playerId, true)}
               >
                 <Check className="h-3 w-3" />
@@ -162,7 +164,7 @@ export default function RoundsView() {
               <Button
                 size="sm"
                 variant={made === false ? 'destructive' : 'outline'}
-                className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
+                className="h-5 w-5 p-0 bg-card/80 hover:bg-card border-status-complete"
                 onClick={() => toggleMade(roundNum, playerId, false)}
               >
                 <X className="h-3 w-3" />
@@ -173,18 +175,18 @@ export default function RoundsView() {
         {rState === 'scored' && (
           <>
             <div className="border-b flex items-center justify-between px-1 py-0.5">
-              <span className="text-[0.6rem] font-medium text-emerald-800">
+              <span className="text-[0.6rem] font-medium text-status-scored-foreground">
                 {made ? 'Made' : 'Missed'}
               </span>
-              <span className="text-[0.6rem] text-emerald-700">Bid: {bid}</span>
+              <span className="text-[0.6rem] text-status-scored-foreground">Bid: {bid}</span>
             </div>
             <div className="flex items-center justify-between px-1 py-0.5">
               <span
-                className={`text-[0.6rem] font-semibold ${made ? 'text-green-700' : 'text-red-700'}`}
+                className={`text-[0.6rem] font-semibold ${made ? 'text-status-scored-foreground' : 'text-destructive'}`}
               >
                 {(made ? 1 : -1) * (5 + bid)}
               </span>
-              <span className="font-bold text-[0.65rem] text-emerald-900">
+              <span className="font-bold text-[0.65rem] text-status-scored-foreground">
                 {state.scores[playerId] ?? 0}
               </span>
             </div>
@@ -237,11 +239,14 @@ export default function RoundsView() {
           className="grid text-[0.65rem] sm:text-xs"
           style={{ gridTemplateColumns: `3rem repeat(${players.length}, 1fr)` }}
         >
-          <div className="bg-slate-700 text-white p-1 font-bold text-center border-b border-r">
+          <div className="bg-surface-muted text-surface-muted-foreground p-1 font-bold text-center border-b border-r border-border">
             Rd
           </div>
           {players.map((p) => (
-            <div key={p.id} className="bg-slate-700 text-white p-1 font-bold text-center border-b">
+            <div
+              key={p.id}
+              className="bg-surface-muted text-surface-muted-foreground p-1 font-bold text-center border-b border-border"
+            >
               {p.name.substring(0, 2)}
             </div>
           ))}

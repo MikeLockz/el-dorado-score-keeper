@@ -37,7 +37,9 @@ export default function CreatePlayer() {
           <Plus className="h-4 w-4 mr-1" /> Add
         </Button>
       </div>
-      <div className={`text-[0.72rem] ${maxReached ? 'text-red-600' : 'text-slate-500'}`}>
+      <div
+        className={`text-[0.72rem] ${maxReached ? 'text-destructive' : 'text-muted-foreground'}`}
+      >
         {maxReached ? 'Maximum 10 players reached' : '2–10 players supported'}
       </div>
     </div>

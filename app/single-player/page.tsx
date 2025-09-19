@@ -177,9 +177,7 @@ export default function SinglePlayerPage() {
   }, []);
   const suitColorClass = React.useCallback((suit: string): string => {
     // Hearts/Diamonds in red; Clubs/Spades default foreground
-    return suit === 'hearts' || suit === 'diamonds'
-      ? 'text-red-700 dark:text-red-300'
-      : 'text-foreground';
+    return suit === 'hearts' || suit === 'diamonds' ? 'text-destructive' : 'text-foreground';
   }, []);
   const suitOrder = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
   const nameFor = React.useCallback(

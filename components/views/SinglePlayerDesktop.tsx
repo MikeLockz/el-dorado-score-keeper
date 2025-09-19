@@ -53,7 +53,6 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     canPlayCard,
     playCard,
     onConfirmBid,
-    toggleTrumpBroken,
     isTrumpBroken,
     summaryEnteredAt,
     trickPlays,
@@ -312,22 +311,21 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                   </span>
                 </div>
               </section>
-              <section className="space-y-3">
-                <button
-                  type="button"
-                  className="w-full rounded border px-3 py-2 text-sm hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"
-                  onClick={toggleTrumpBroken}
-                >
-                  {isTrumpBroken ? 'Unmark Trump Broken' : 'Mark Trump Broken'}
-                </button>
+              <section className="space-y-3 text-sm">
+                <div className="flex items-center justify-between rounded border px-3 py-2">
+                  <span className="text-muted-foreground">Trump broken</span>
+                  <span className="font-semibold text-foreground">
+                    {isTrumpBroken ? 'Yes' : 'No'}
+                  </span>
+                </div>
                 {reveal && (
                   <div
                     role="status"
                     aria-live="polite"
-                    className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm"
+                    className="rounded-md border border-status-scored/40 bg-status-scored/10 px-3 py-2 text-sm"
                   >
                     <span className="text-muted-foreground">Hand winner:</span>{' '}
-                    <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                    <span className="font-semibold text-status-scored">
                       {playerLabel(reveal.winnerId)}
                     </span>
                   </div>
@@ -363,7 +361,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className="h-8 w-8 rounded border bg-sky-700 text-white hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-500"
+                      className="h-8 w-8 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-status-bidding"
                       onClick={() =>
                         void append(
                           events.bidSet({
@@ -380,7 +378,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                     </button>
                     <button
                       type="button"
-                      className="h-8 w-8 rounded border bg-sky-700 text-white hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-500"
+                      className="h-8 w-8 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-status-bidding"
                       onClick={() =>
                         void append(
                           events.bidSet({
@@ -397,7 +395,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                     </button>
                     <button
                       type="button"
-                      className="ml-2 rounded bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="ml-2 rounded bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
                       onClick={() => void onConfirmBid(humanBid)}
                       disabled={isBatchPending}
                     >

@@ -24,7 +24,7 @@ export default function SpGameSummary(props: {
           {players.map((p) => (
             <div
               key={`gsum-${p.id}`}
-              className={`flex items-center justify-between rounded border px-2 py-2 ${p.isWinner ? 'border-emerald-400' : ''}`}
+              className={`flex items-center justify-between rounded border px-2 py-2 ${p.isWinner ? 'border-status-scored bg-status-scored/10' : ''}`}
             >
               <div className="font-medium">{p.name}</div>
               <div className="text-right min-w-[3rem] tabular-nums font-semibold">{p.total}</div>

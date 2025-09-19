@@ -1,11 +1,7 @@
 import type { AppState, AppEvent } from '@/lib/state/types';
 import { events } from '@/lib/state/events';
 import { tricksForRound, ROUNDS_TOTAL } from '@/lib/state/logic';
-import {
-  selectSpNextToPlay,
-  selectSpTricksForRound,
-  selectPlayersOrdered,
-} from '@/lib/state/selectors';
+import { selectSpNextToPlay, selectSpTricksForRound } from '@/lib/state/selectors';
 import { bots, startRound, winnerOfTrick, deriveSeed } from './index';
 import { computePrecedingBotBids } from './auto-bid';
 import type { Card } from './types';
@@ -97,11 +93,6 @@ export function resolveCompletedTrick(state: AppState): AppEvent[] {
   return batch;
 }
 
-export type FinalizeOptions = {
-  now?: number;
-  useTwoDecks?: boolean; // override; defaults to players.length > 5
-};
-
 // Helper: constructs the next-round deal batch in a single place.
 // Returns [sp/deal, sp/leader-set, sp/phase-set('bidding'), round/state-set('bidding')]
 export function buildNextRoundDealBatch(
@@ -142,43 +133,6 @@ export function buildNextRoundDealBatch(
     events.spPhaseSet({ phase: 'bidding' }),
     events.roundStateSet({ round: nextRound, state: 'bidding' }),
   ];
-}
-
-// If the round is done and not already scored, emit scoring + (optional) next round deal batch.
-export function finalizeRoundIfDone(state: AppState, opts: FinalizeOptions = {}): AppEvent[] {
-  const sp = state.sp;
-  const roundNo = sp.roundNo ?? 0;
-  if (roundNo <= 0) return [];
-  // Already scored? do nothing
-  if ((state.rounds[roundNo]?.state ?? 'locked') === 'scored') return [];
-  // Gate finalization until after the last clear: if reveal is active, keep the hand visible
-  if (sp.reveal) return [];
-  // UI-gated: if a hold is set (end-of-round confirmation), do not auto-finalize
-  // finalizeHold removed; ack/reveal gating are sufficient
-  // Check done condition
-  const needed = selectSpTricksForRound(state);
-  const total = Object.values(sp.trickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
-  if (!(needed > 0 && total >= needed)) return [];
-
-  const ids = selectPlayersOrdered(state).map((p) => p.id);
-  const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<string, number | undefined>;
-  const batch: AppEvent[] = [];
-  for (const pid of ids) {
-    // Skip absent players for this round (if present map says false)
-    if (state.rounds[roundNo]?.present?.[pid] === false) continue;
-    const won = sp.trickCounts?.[pid] ?? 0;
-    const made = won === (bidsMap[pid] ?? 0);
-    batch.push(events.madeSet({ round: roundNo, playerId: pid, made }));
-  }
-  // Mark SP phase done and finalize scoring row
-  batch.push(events.spPhaseSet({ phase: 'done' }));
-  batch.push(events.roundFinalize({ round: roundNo }));
-
-  // If more rounds remain, prepare next deal
-  if (roundNo < ROUNDS_TOTAL) {
-    batch.push(...buildNextRoundDealBatch(state, opts.now ?? Date.now(), opts.useTwoDecks));
-  }
-  return batch;
 }
 
 export type AdvanceOpts = {

@@ -10,7 +10,7 @@ export default function Leaderboard({ limit = 5 }: { limit?: number }) {
   if (leaders.length === 0) return null;
   return (
     <Card className="p-2 mb-2">
-      <div className="text-xs font-semibold text-slate-600 mb-1">Leaders</div>
+      <div className="text-xs font-semibold text-muted-foreground mb-1">Leaders</div>
       <ul className="text-sm">
         {leaders.map((l) => (
           <li key={l.id} className="flex items-center justify-between py-0.5">

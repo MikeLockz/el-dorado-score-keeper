@@ -5,7 +5,7 @@ import {
   prefillPrecedingBotBids,
   computeBotPlay,
   resolveCompletedTrick,
-  finalizeRoundIfDone,
+  computeAdvanceBatch,
 } from '@/lib/single-player/engine';
 
 const now = 1_700_000_000_000;
@@ -15,6 +15,68 @@ const ev = (type: any, payload: any, id: string) =>
 function replay(list: any[], base: AppState = INITIAL_STATE): AppState {
   return list.reduce((s, e) => reduce(s, e), base);
 }
+
+const ROUND1_COMPLETE_EVENTS = [
+  ev('player/added', { id: 'a', name: 'A' }, 'fp1'),
+  ev('player/added', { id: 'b', name: 'B' }, 'fp2'),
+  ev('round/state-set', { round: 1, state: 'playing' }, 'rs1'),
+  ev(
+    'sp/deal',
+    {
+      roundNo: 1,
+      dealerId: 'a',
+      order: ['a', 'b'],
+      trump: 'hearts',
+      trumpCard: { suit: 'hearts', rank: 12 },
+      hands: { a: [], b: [] },
+    },
+    'fd1',
+  ),
+  ev('bid/set', { round: 1, playerId: 'a', bid: 5 }, 'b1'),
+  ev('bid/set', { round: 1, playerId: 'b', bid: 5 }, 'b2'),
+  // 10 tricks → each player makes their bid
+  ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 2 } }, 'p1a'),
+  ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 3 } }, 'p1b'),
+  ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw1'),
+  ev('sp/trick/cleared', { winnerId: 'a' }, 'w1'),
+  ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 4 } }, 'p2a'),
+  ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 5 } }, 'p2b'),
+  ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw2'),
+  ev('sp/trick/cleared', { winnerId: 'a' }, 'w2'),
+  ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 6 } }, 'p3a'),
+  ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 7 } }, 'p3b'),
+  ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw3'),
+  ev('sp/trick/cleared', { winnerId: 'a' }, 'w3'),
+  ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 8 } }, 'p4a'),
+  ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 9 } }, 'p4b'),
+  ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw4'),
+  ev('sp/trick/cleared', { winnerId: 'a' }, 'w4'),
+  ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 10 } }, 'p5a'),
+  ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 11 } }, 'p5b'),
+  ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw5'),
+  ev('sp/trick/cleared', { winnerId: 'a' }, 'w5'),
+  ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 2 } }, 'p6a'),
+  ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 3 } }, 'p6b'),
+  ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw6'),
+  ev('sp/trick/cleared', { winnerId: 'b' }, 'w6'),
+  ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 4 } }, 'p7a'),
+  ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 5 } }, 'p7b'),
+  ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw7'),
+  ev('sp/trick/cleared', { winnerId: 'b' }, 'w7'),
+  ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 6 } }, 'p8a'),
+  ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 7 } }, 'p8b'),
+  ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw8'),
+  ev('sp/trick/cleared', { winnerId: 'b' }, 'w8'),
+  ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 8 } }, 'p9a'),
+  ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 9 } }, 'p9b'),
+  ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw9'),
+  ev('sp/trick/cleared', { winnerId: 'b' }, 'w9'),
+  ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 10 } }, 'p10a'),
+  ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 11 } }, 'p10b'),
+  ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw10'),
+  ev('sp/trick/cleared', { winnerId: 'b' }, 'w10'),
+  ev('sp/phase-set', { phase: 'playing' }, 'ph'),
+];
 
 describe('sp-engine', () => {
   it('prefillPrecedingBotBids emits bid/set for bots before the human', () => {
@@ -180,83 +242,21 @@ describe('sp-engine', () => {
     expect(out.length).toBe(0);
   });
 
-  it('finalizeRoundIfDone emits made/set and finalize; also prepares next deal when applicable', () => {
-    // Round 1: two players, 10 tricks total; both bid 5 and both win 5
-    const s0 = replay([
-      ev('player/added', { id: 'a', name: 'A' }, 'fp1'),
-      ev('player/added', { id: 'b', name: 'B' }, 'fp2'),
-      ev('round/state-set', { round: 1, state: 'playing' }, 'rs1'),
-      ev(
-        'sp/deal',
-        {
-          roundNo: 1,
-          dealerId: 'a',
-          order: ['a', 'b'],
-          trump: 'hearts',
-          trumpCard: { suit: 'hearts', rank: 12 },
-          hands: { a: [], b: [] },
-        },
-        'fd1',
-      ),
-      ev('bid/set', { round: 1, playerId: 'a', bid: 5 }, 'b1'),
-      ev('bid/set', { round: 1, playerId: 'b', bid: 5 }, 'b2'),
-      // Build 10 complete tricks (2 plays + reveal + clear each) → 5 wins each
-      ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 2 } }, 'p1a'),
-      ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 3 } }, 'p1b'),
-      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw1'),
-      ev('sp/trick/cleared', { winnerId: 'a' }, 'w1'),
-      ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 4 } }, 'p2a'),
-      ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 5 } }, 'p2b'),
-      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw2'),
-      ev('sp/trick/cleared', { winnerId: 'a' }, 'w2'),
-      ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 6 } }, 'p3a'),
-      ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 7 } }, 'p3b'),
-      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw3'),
-      ev('sp/trick/cleared', { winnerId: 'a' }, 'w3'),
-      ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 8 } }, 'p4a'),
-      ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 9 } }, 'p4b'),
-      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw4'),
-      ev('sp/trick/cleared', { winnerId: 'a' }, 'w4'),
-      ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 10 } }, 'p5a'),
-      ev('sp/trick/played', { playerId: 'b', card: { suit: 'clubs', rank: 11 } }, 'p5b'),
-      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'rw5'),
-      ev('sp/trick/cleared', { winnerId: 'a' }, 'w5'),
-      ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 2 } }, 'p6a'),
-      ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 3 } }, 'p6b'),
-      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw6'),
-      ev('sp/trick/cleared', { winnerId: 'b' }, 'w6'),
-      ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 4 } }, 'p7a'),
-      ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 5 } }, 'p7b'),
-      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw7'),
-      ev('sp/trick/cleared', { winnerId: 'b' }, 'w7'),
-      ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 6 } }, 'p8a'),
-      ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 7 } }, 'p8b'),
-      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw8'),
-      ev('sp/trick/cleared', { winnerId: 'b' }, 'w8'),
-      ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 8 } }, 'p9a'),
-      ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 9 } }, 'p9b'),
-      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw9'),
-      ev('sp/trick/cleared', { winnerId: 'b' }, 'w9'),
-      ev('sp/trick/played', { playerId: 'a', card: { suit: 'clubs', rank: 10 } }, 'p10a'),
-      ev('sp/trick/played', { playerId: 'b', card: { suit: 'hearts', rank: 11 } }, 'p10b'),
-      ev('sp/trick/reveal-set', { winnerId: 'b' }, 'rw10'),
-      ev('sp/trick/cleared', { winnerId: 'b' }, 'w10'),
-      ev('sp/phase-set', { phase: 'playing' }, 'ph'),
-    ]);
-    const out = finalizeRoundIfDone(s0, { now: now });
-    const types = out.map((e) => e.type);
+  it('computeAdvanceBatch finalizes into summary when round is complete', () => {
+    const s0 = replay(ROUND1_COMPLETE_EVENTS);
+    const batch = computeAdvanceBatch(s0, now, { intent: 'auto' });
+    const types = batch.map((e) => e.type);
     expect(types).toContain('made/set');
     expect(types).toContain('round/finalize');
     expect(types).toContain('sp/phase-set');
-    // Since next round < 10, expect a new sp/deal batch too
-    expect(types).toContain('sp/deal');
-    expect(types).toContain('sp/leader-set');
-    expect(types).toContain('round/state-set');
+    expect(types).toContain('sp/summary-entered-set');
+    expect(types).not.toContain('sp/deal');
+    const phaseEvt = batch.find((e) => e.type === 'sp/phase-set') as any;
+    expect(phaseEvt.payload.phase).toBe('summary');
   });
 
-  it('finalizeRoundIfDone is gated by reveal; finalizes only after clear', () => {
-    // Setup two players in round 10 (1 trick total). Both bid 0. Winner revealed but not cleared.
-    let s = replay([
+  it('computeAdvanceBatch waits for reveal to clear before finalizing', () => {
+    const base = [
       ev('player/added', { id: 'a', name: 'A' }, 'gp1'),
       ev('player/added', { id: 'b', name: 'B' }, 'gp2'),
       ev('round/state-set', { round: 10, state: 'playing' }, 'grs'),
@@ -275,20 +275,36 @@ describe('sp-engine', () => {
       ev('bid/set', { round: 10, playerId: 'a', bid: 0 }, 'gba'),
       ev('bid/set', { round: 10, playerId: 'b', bid: 0 }, 'gbb'),
       ev('sp/phase-set', { phase: 'playing' }, 'gph'),
-      // Simulate last trick: plays then reveal
       ev('sp/trick/played', { playerId: 'a', card: { suit: 'hearts', rank: 2 } }, 'gp1'),
       ev('sp/trick/played', { playerId: 'b', card: { suit: 'spades', rank: 3 } }, 'gp2'),
-      ev('sp/trick/reveal-set', { winnerId: 'a' }, 'grev'),
-    ]);
-    // While reveal is active, finalization should be gated
-    let out = finalizeRoundIfDone(s, { now });
-    expect(out.length).toBe(0);
-    // After clear (which also clears reveal), finalization should proceed
-    s = replay([ev('sp/trick/cleared', { winnerId: 'a' }, 'gclr')], s);
-    out = finalizeRoundIfDone(s, { now });
-    const types = out.map((e) => e.type);
-    expect(types).toContain('made/set');
+    ];
+    const withReveal = replay([...base, ev('sp/trick/reveal-set', { winnerId: 'a' }, 'grev')]);
+    const revealBatch = computeAdvanceBatch(withReveal, now, { intent: 'auto' });
+    const revealTypes = revealBatch.map((e) => e.type);
+    expect(revealTypes).toEqual(['sp/trick/cleared', 'sp/leader-set', 'sp/trick/reveal-clear']);
+    const cleared = replay(revealBatch, withReveal);
+    const batch = computeAdvanceBatch(cleared, now, { intent: 'auto' });
+    const types = batch.map((e) => e.type);
     expect(types).toContain('round/finalize');
+    expect(types).toContain('sp/phase-set');
+  });
+
+  it('computeAdvanceBatch advances from summary to next round on user intent', () => {
+    const initial = replay(ROUND1_COMPLETE_EVENTS);
+    const finalize = computeAdvanceBatch(initial, now, { intent: 'auto' });
+    expect(finalize.length).toBeGreaterThan(0);
+    const summarized = replay(finalize, initial);
+    expect(summarized.sp.phase).toBe('summary');
+    expect(summarized.sp.summaryEnteredAt).toBe(now);
+    const advance = computeAdvanceBatch(summarized, now + 5_000, { intent: 'user' });
+    const types = advance.map((e) => e.type);
+    expect(types.length).toBeGreaterThan(0);
+    expect(types).toContain('sp/deal');
+    expect(types).toContain('sp/leader-set');
+    expect(types).toContain('round/state-set');
+    expect(types).toContain('sp/phase-set');
+    const phaseEvt = advance.find((e) => e.type === 'sp/phase-set') as any;
+    expect(phaseEvt.payload.phase).toBe('bidding');
   });
 
   it("computeBotPlay returns [] when it's not the player's turn", () => {
@@ -345,7 +361,7 @@ describe('sp-engine', () => {
     expect(resolveCompletedTrick(s1).length).toBe(0);
   });
 
-  it('finalizeRoundIfDone returns [] when not done or already scored', () => {
+  it('computeAdvanceBatch returns [] when round incomplete or already scored', () => {
     // Not done (counts < needed)
     const s1 = replay([
       ev('player/added', { id: 'a', name: 'A' }, 'fd1'),
@@ -366,7 +382,7 @@ describe('sp-engine', () => {
       ev('sp/trick/cleared', { winnerId: 'a' }, 'only1'),
       ev('sp/phase-set', { phase: 'playing' }, 'phx'),
     ]);
-    expect(finalizeRoundIfDone(s1).length).toBe(0);
+    expect(computeAdvanceBatch(s1, now, { intent: 'auto' }).length).toBe(0);
     // Already scored
     const s2 = replay([
       ev('player/added', { id: 'a', name: 'A' }, 'ad1'),
@@ -385,6 +401,6 @@ describe('sp-engine', () => {
       ),
       ev('sp/phase-set', { phase: 'playing' }, 'ph2'),
     ]);
-    expect(finalizeRoundIfDone(s2).length).toBe(0);
+    expect(computeAdvanceBatch(s2, now, { intent: 'auto' }).length).toBe(0);
   });
 });

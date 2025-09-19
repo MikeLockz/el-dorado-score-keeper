@@ -28,7 +28,7 @@ export default function SpTrickTable(props: {
           <div
             key={pid}
             className={`grid grid-cols-[minmax(64px,1fr)_36px_52px_64px] items-center gap-1 rounded py-0.5 ${
-              isWinner ? 'border-emerald-500 bg-emerald-500/15' : 'border-border bg-card/60'
+              isWinner ? 'border-status-scored bg-status-scored/15' : 'border-border bg-card/60'
             }`}
           >
             <div className="truncate text-sm">{playerName(pid)}</div>

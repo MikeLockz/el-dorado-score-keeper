@@ -196,8 +196,16 @@ export default function CurrentGame({
   const cycleRoundState = async (round: number) => {
     if (disableRoundStateCycling) return;
     const current = state.rounds[round]?.state ?? 'locked';
-    if (current === 'locked') return;
+    if (current === 'locked') {
+      // Allow manually unlocking a stuck round (e.g., migrated state with no opener)
+      await append(events.roundStateSet({ round, state: 'bidding' }));
+      return;
+    }
     if (current === 'bidding') {
+      await append(events.roundStateSet({ round, state: 'complete' }));
+      return;
+    }
+    if (current === 'playing') {
       await append(events.roundStateSet({ round, state: 'complete' }));
       return;
     }
@@ -381,7 +389,7 @@ export default function CurrentGame({
                         const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
                         return (
                           <div
-                            className={`text-[0.55rem] mt-0.5 font-semibold ${mismatch ? 'text-red-700 dark:text-red-300' : ''}`}
+                            className={`text-[0.55rem] mt-0.5 font-semibold ${mismatch ? 'text-destructive' : ''}`}
                           >
                             {label}
                           </div>
@@ -410,9 +418,9 @@ export default function CurrentGame({
                     const isCurrent = isLive && live.currentPlayerId === c.id;
                     const isRevealWinner = isLive && state.sp?.reveal?.winnerId === c.id;
                     const cellBorder = isRevealWinner
-                      ? 'border-2 border-emerald-500'
+                      ? 'border-2 border-status-scored'
                       : isCurrent
-                        ? 'border-2 border-indigo-500'
+                        ? 'border-2 border-status-playing'
                         : 'border-b';
                     return (
                       <div
@@ -541,7 +549,7 @@ export default function CurrentGame({
                             <Button
                               size="sm"
                               variant={made === true ? 'default' : 'outline'}
-                              className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
+                              className="h-5 w-5 p-0 bg-card/80 hover:bg-card border-status-complete"
                               onClick={() => void toggleMade(round.round, c.id, true)}
                               aria-pressed={made === true}
                               aria-label={`Mark made for ${c.name} in round ${round.round}`}
@@ -552,7 +560,7 @@ export default function CurrentGame({
                             <Button
                               size="sm"
                               variant={made === false ? 'destructive' : 'outline'}
-                              className="h-5 w-5 p-0 bg-white/80 hover:bg-white border-orange-300"
+                              className="h-5 w-5 p-0 bg-card/80 hover:bg-card border-status-complete"
                               onClick={() => void toggleMade(round.round, c.id, false)}
                               aria-pressed={made === false}
                               aria-label={`Mark missed for ${c.name} in round ${round.round}`}
@@ -576,7 +584,7 @@ export default function CurrentGame({
                                       <span>
                                         <span className="text-foreground mr-1">Round:</span>
                                         <span
-                                          className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
+                                          className={`${made ? 'text-status-scored' : 'text-destructive'}`}
                                         >
                                           {roundDelta(bid, made)}
                                         </span>
@@ -592,7 +600,7 @@ export default function CurrentGame({
                                   full={
                                     <>
                                       <span
-                                        className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
+                                        className={`${made ? 'text-status-scored' : 'text-destructive'}`}
                                       >
                                         {made ? 'Made' : 'Missed'}
                                       </span>
@@ -603,8 +611,8 @@ export default function CurrentGame({
                                           <span>
                                             <span className="text-foreground mr-1">Total:</span>
                                             {isNeg ? (
-                                              <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
-                                                <span className="text-red-700 dark:text-red-300 leading-none">
+                                              <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-destructive">
+                                                <span className="text-destructive leading-none">
                                                   {Math.abs(cum)}
                                                 </span>
                                               </span>
@@ -619,7 +627,7 @@ export default function CurrentGame({
                                   abbrev={
                                     <>
                                       <span
-                                        className={`${made ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
+                                        className={`${made ? 'text-status-scored' : 'text-destructive'}`}
                                       >
                                         {made ? 'Made' : 'Missed'}
                                       </span>
@@ -630,8 +638,8 @@ export default function CurrentGame({
                                           <span>
                                             <span className="text-foreground mr-1">Tot:</span>
                                             {isNeg ? (
-                                              <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-red-500">
-                                                <span className="text-red-700 dark:text-red-300 leading-none">
+                                              <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-destructive">
+                                                <span className="text-destructive leading-none">
                                                   {Math.abs(cum)}
                                                 </span>
                                               </span>
@@ -662,8 +670,8 @@ export default function CurrentGame({
                                   return (
                                     <div className="w-full text-left">
                                       {isNeg ? (
-                                        <span className="relative inline-flex items-center justify-center align-middle w-[4ch] h-[4ch] rounded-full border-2 border-red-500">
-                                          <span className="font-extrabold text-lg text-red-700 dark:text-red-300 leading-none">
+                                        <span className="relative inline-flex items-center justify-center align-middle w-[4ch] h-[4ch] rounded-full border-2 border-destructive">
+                                          <span className="font-extrabold text-lg text-destructive leading-none">
                                             {Math.abs(cum)}
                                           </span>
                                         </span>
