@@ -278,7 +278,10 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
               <div className="mt-2 flex items-center justify-between">
                 <div className="text-sm">
                   <span className="text-muted-foreground mr-1">Hand Winner:</span>
-                  <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                  <span
+                    className="font-semibold text-emerald-700 dark:text-emerald-300"
+                    aria-live="polite"
+                  >
                     {playerName(reveal.winnerId)}
                   </span>
                 </div>
