@@ -125,7 +125,6 @@ export type AppState = Readonly<{
   display_order: Record<string, number>;
 }>;
 import { initialRounds, clampBid, finalizeRound } from './logic';
-import { uuid } from '@/lib/utils';
 import * as rosterOps from '@/lib/roster/ops';
 
 export const INITIAL_STATE: AppState = {
