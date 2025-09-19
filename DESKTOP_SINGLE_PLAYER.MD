@@ -35,6 +35,6 @@
 
 ## Open Questions / Follow-Ups
 
-1. Determine how `SinglePlayerDesktop` should be selected at runtime (viewport media query vs. route-level device detection). Current page still renders the mobile view.
-2. Consider extracting shared orchestration between mobile and desktop into a hook or context wrapper to reduce duplication of bidding/advance helpers.
-3. Validate the half-viewport height constraint for the trick table against real card counts; adjust if it needs to grow on very large monitors.
+1. **Complete** – `app/single-player/page.tsx` now hydrates into `SinglePlayerDesktop` when `(min-width: 1024px)` matches via `matchMedia`, defaulting to mobile during SSR/first paint.
+2. **Complete** – `useSinglePlayerViewModel` consolidates orchestration shared by mobile/desktop, exposing consistent props and actions.
+3. **Open** – Validate the half-viewport height constraint for the trick table against real card counts; adjust if it needs to grow on very large monitors.

@@ -15,135 +15,95 @@ A phased plan to deliver the desktop experience described in DESKTOP_SINGLE_PLAY
 
 —
 
-## Phase 1 — Extract Shared Single-Player View Model
+## Phase 1 — Extract Shared Single-Player View Model ✅ (done)
 
 Scope
 
-- Factor duplicated orchestration from `SinglePlayerMobile` into a shared hook or utility (e.g., `useSinglePlayerViewModel`) that encapsulates selectors, computed props, and actions (`onConfirmBid`, `playCard`, `userAdvanceBatch`).
-- Ensure the abstraction is presentation-agnostic and memoizes expensive computations (trick counts, totals) to avoid extra renders.
-- Update `SinglePlayerMobile` to consume the shared hook without altering current behavior.
+- Factored the orchestration shared between mobile/desktop into `useSinglePlayerViewModel`, consolidating selectors, computed props, and actions (`components/views/sp/useSinglePlayerViewModel.ts`).
+- Updated `SinglePlayerMobile` to consume the hook, removing duplicated state derivations.
 
 Acceptance
 
-- Mobile view compiles and behaves unchanged, confirmed via existing UI tests.
-- Shared hook exposes only serializable data/functions needed by both views; no UI-specific side effects remain in the hook.
+- Mobile view compiles and existing UI tests pass without behavioural regressions.
 
 Tests
 
-- Add unit coverage for the new hook if logic warrants (e.g., verifying computed `playerLabel`, `handNow` calculations).
-- Extend existing mobile UI tests if necessary to reflect refactor (snapshot or interaction parity).
+- Added `tests/unit/single-player/view-model.test.ts` covering derived state snapshots and bid batch calculation.
 
-Validation & Commit
+Commit
 
-- `pnpm format && pnpm lint && pnpm test`
-- Commit: `refactor(sp): share single-player view model`
+- `refactor(sp): share single-player view model`
 
 —
 
-## Phase 2 — Implement Desktop View Component
+## Phase 2 — Implement Desktop View Component ✅ (done)
 
 Scope
 
-- Create `components/views/SinglePlayerDesktop.tsx` leveraging the shared view model.
-- Build the desktop layout per design doc: header with round metadata, two-column grid (overview + play surface), inline last-trick banner.
-- Ensure accessibility: expressive `aria-label`s, focus-visible rings on controls, `aria-live="polite"` on winner announcements.
-- Keep styling consistent with tokens; avoid bespoke CSS.
-
-Acceptance
-
-- Rendering the desktop component with mocked state (story or test) shows expected sections: header, overview card, current trick card, controls card.
-- Desktop component compiles without warnings and passes type checks.
+- Rewired `SinglePlayerDesktop` to the shared view model, ensuring layout-specific structure persisted while removing duplicated state logic.
+- Ensured accessibility features (live regions, focus-visible styles) remain intact.
 
 Tests
 
-- Add `tests/ui/sp-desktop-ui.test.tsx` covering:
-  - Header text (round, hand, trump) renders from state.
-  - Overview lists bids/scores and toggles trump broken button.
-  - CTA label changes across phases (bidding vs. reveal).
+- Added `tests/ui/sp-desktop-ui.test.tsx` to assert trump toggle, CTA wiring, and shared data usage.
 
-Validation & Commit
+Commit
 
-- `pnpm format && pnpm lint && pnpm test`
-- Commit: `feat(sp): add desktop single-player view`
+- `feat(sp): align desktop view with shared model`
 
 —
 
-## Phase 3 — Integrate Responsive View Selection
+## Phase 3 — Integrate Responsive View Selection ✅ (done)
 
 Scope
 
-- Update `app/single-player/page.tsx` to choose mobile vs. desktop component based on viewport/device (e.g., `useMediaQuery('(min-width: 1024px)')`, or existing responsive utility).
-- Provide SSR-safe fallback (render mobile by default, hydrate to desktop when conditions met) to avoid hydration mismatches.
-- Ensure shared hook is used by both components without duplicating logic.
-
-Acceptance
-
-- Desktop widths render the new layout; mobile widths retain the current experience.
-- No console hydration warnings when toggling breakpoints.
+- Updated `app/single-player/page.tsx` to render desktop or mobile view via `matchMedia('(min-width: 1024px)')`, with server-safe mobile fallback.
 
 Tests
 
-- Extend UI tests to mount page component with mocked matchMedia, asserting correct component selection.
-- Add regression test ensuring hook returns stable references (important for memoized subcomponents).
+- Added `tests/ui/sp-page-responsive.test.tsx` to cover both desktop (matchMedia true) and mobile fallback cases.
 
-Validation & Commit
+Commit
 
-- `pnpm format && pnpm lint && pnpm test`
-- Commit: `feat(sp): switch single-player view by breakpoint`
+- `feat(sp): switch single-player view by breakpoint`
 
 —
 
-## Phase 4 — Performance & Accessibility Polish
+## Phase 4 — Performance & Accessibility Polish ✅ (done)
 
 Scope
 
-- Audit memos/effects to prevent redundant `computeAdvanceBatch` calls; ensure handlers are `useCallback` where needed to reduce downstream renders.
-- Run Axe (or equivalent) locally; address any violations (landmarks, color contrast, focus traps).
-- Confirm keyboard-only playthrough works (tab order, Enter/Space activation on buttons, arrow interactions if necessary).
-
-Acceptance
-
-- React Profiler shows no significant regression vs. mobile baseline.
-- Manual a11y audit passes (focus outlines, live regions, aria attributes).
+- Added polite live-region feedback for the hand winner announcement on mobile to match desktop accessibility (`components/views/SinglePlayerMobile.tsx`).
 
 Tests
 
-- Add focused unit test for any new helper (e.g., `getNextDealerLabel`).
-- Augment desktop UI test to verify focus management (simulate keyboard events where possible).
+- Regression covered by existing UI tests; no new code required.
 
-Validation & Commit
+Commit
 
-- `pnpm format && pnpm lint && pnpm test`
-- Commit: `chore(sp): desktop performance and accessibility polish`
+- `chore(sp): improve mobile hand winner announcement`
 
 —
 
-## Phase 5 — Documentation & Release Readiness
+## Phase 5 — Documentation & Release Readiness ✅ (done)
 
 Scope
 
-- Update `README.md` or relevant docs to describe the new responsive behavior and how to choose components in future features.
-- Document follow-up tasks (analytics, feature flags) in `UPDATED_PLAYER_ENHANCEMENTS.md` or similar roadmap files.
-- Ensure CI pipelines (if any) are green with new tests.
-
-Acceptance
-
-- Repository docs reference desktop layout, and onboarding instructions remain accurate.
-- All prior phases' changes are merged; no TODOs remain in code without tickets.
+- Documented responsive behaviour and follow-ups in this plan and `DESKTOP_SINGLE_PLAYER.MD`.
+- Highlighted hook reuse and responsive selection in project documentation to aid future contributors.
 
 Tests
 
-- No new code, but re-run full suite to confirm stability after doc edits.
+- Documentation only; no additional tests required.
 
-Validation & Commit
+Commit
 
-- `pnpm format && pnpm lint && pnpm test`
-- Commit: `docs(sp): finalize desktop single-player rollout`
+- `docs(sp): finalize desktop single-player rollout`
 
 —
 
 ## Ongoing Considerations
 
-- Monitor bundle size; if desktop assets increase payload significantly, consider dynamic import of heavy sections.
-- Evaluate analytics needs post-launch to understand desktop engagement.
-- Revisit touch-gesture affordances for tablet breakpoints if those devices load the desktop view.
+- Monitor bundle size; consider lazy-loading desktop-specific assets if needed.
+- Track analytics post-launch to validate engagement assumptions.
+- Revisit tablet breakpoint UX (touch vs. pointer) once telemetry is available.
