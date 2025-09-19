@@ -3,26 +3,8 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
-import { useAppState } from '@/components/state-provider';
-import {
-  events,
-  selectPlayersOrderedFor,
-  selectSpRotatedOrder,
-  selectSpLiveOverlay,
-  selectSpTrumpInfo,
-  selectSpDealerName,
-  selectSpTricksForRound,
-  selectSpHandBySuit,
-  selectSpReveal,
-} from '@/lib/state';
-import {
-  roundDelta,
-  selectCumulativeScoresAllRounds,
-  type AppEvent,
-  ROUNDS_TOTAL,
-} from '@/lib/state';
-import { bots, computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
-import { canPlayCard as ruleCanPlayCard } from '@/lib/rules/sp';
+import { events, roundDelta } from '@/lib/state';
+import { computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
 import { useNewGameRequest } from '@/lib/game-flow';
 import SpRoundSummary from './sp/SpRoundSummary';
 import SpGameSummary from './sp/SpGameSummary';
@@ -30,6 +12,7 @@ import SpTrickTable from './sp/SpTrickTable';
 import SpHandDock from './sp/SpHandDock';
 import { CardGlyph } from '@/components/ui';
 import { deriveSpCtaMeta } from './sp/cta-state';
+import { useSinglePlayerViewModel } from './sp/useSinglePlayerViewModel';
 
 type Props = {
   humanId: string;
@@ -37,59 +20,47 @@ type Props = {
 };
 
 export default function SinglePlayerDesktop({ humanId, rng }: Props) {
-  const { state, append, appendMany, isBatchPending, height } = useAppState();
+  const {
+    state,
+    append,
+    appendMany,
+    isBatchPending,
+    height,
+    players,
+    playerName,
+    playerLabel,
+    spPhase,
+    spRoundNo,
+    spOrder,
+    spTrickCounts,
+    reveal,
+    overlay,
+    rotated,
+    tricksThisRound,
+    trump,
+    trumpCard,
+    dealerName,
+    roundTotals,
+    currentBids,
+    currentMade,
+    humanBid,
+    isFinalRound,
+    handNow,
+    totalTricksSoFar,
+    humanBySuit,
+    suitOrder,
+    userAdvanceBatch,
+    canPlayCard,
+    playCard,
+    onConfirmBid,
+    toggleTrumpBroken,
+    isTrumpBroken,
+    summaryEnteredAt,
+    trickPlays,
+    lastTrickSnapshot,
+    sessionSeed,
+  } = useSinglePlayerViewModel({ humanId, rng });
   const { startNewGame, pending: newGamePending } = useNewGameRequest({ requireIdle: true });
-  const players = selectPlayersOrderedFor(state, 'single');
-  const isDev = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
-  const playerName = (pid: string) =>
-    players.find((p) => p.id === pid)?.name ?? (isDev ? pid : 'Unknown');
-  const playerLabel = (pid: string) => {
-    const name = playerName(pid);
-    return pid === humanId ? `${name} (you)` : name;
-  };
-
-  const sp = state.sp;
-  const spPhase = sp?.phase ?? 'setup';
-  const spRoundNo = sp?.roundNo ?? 0;
-  const spOrder: string[] = sp?.order ?? [];
-  const spHands = sp?.hands ?? {};
-  const spTrickCounts: Record<string, number> = React.useMemo(
-    () => sp?.trickCounts ?? {},
-    [sp?.trickCounts],
-  );
-  const spTrump = sp?.trump;
-  const reveal = selectSpReveal(state);
-
-  const overlay = spPhase === 'playing' ? selectSpLiveOverlay(state) : null;
-  const rotated = selectSpRotatedOrder(state);
-  const tricksThisRound = selectSpTricksForRound(state);
-  const { trump, trumpCard } = selectSpTrumpInfo(state);
-  const dealerName = selectSpDealerName(state);
-
-  const totalsByRound = React.useMemo(() => selectCumulativeScoresAllRounds(state), [state]);
-  const roundTotals = totalsByRound[spRoundNo] ?? {};
-  const rd = state.rounds[spRoundNo];
-  const humanBid = rd?.bids?.[humanId] ?? 0;
-  const isFinalRound = spRoundNo >= ROUNDS_TOTAL;
-
-  const handsCompleted = Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
-  const handNow = handsCompleted + (!reveal && (sp?.trickPlays?.length ?? 0) > 0 ? 1 : 0);
-  const totalTricksSoFar = React.useMemo(
-    () => Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0),
-    [spTrickCounts],
-  );
-
-  const humanBySuit = selectSpHandBySuit(state, humanId);
-  const suitOrder: Array<'spades' | 'hearts' | 'diamonds' | 'clubs'> = [
-    'spades',
-    'hearts',
-    'diamonds',
-    'clubs',
-  ];
-  const userAdvanceBatch = React.useMemo(
-    () => computeAdvanceBatch(state, Date.now(), { intent: 'user' }),
-    [state],
-  );
 
   const ctaMeta = React.useMemo(
     () =>
@@ -102,14 +73,12 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
   );
 
   const [pendingHeight, setPendingHeight] = React.useState<number | null>(null);
-
   React.useEffect(() => {
     if (pendingHeight == null) return;
     if (height > pendingHeight) setPendingHeight(null);
   }, [height, pendingHeight]);
 
   const isProcessingAdvance = pendingHeight != null;
-
   const advanceDisabled =
     userAdvanceBatch.length === 0 || ctaMeta.autoWait || isBatchPending || isProcessingAdvance;
 
@@ -150,7 +119,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     if (spPhase !== 'summary') return;
     const autoMs = 10_000;
     const tick = () => {
-      const entered = sp?.summaryEnteredAt ?? Date.now();
+      const entered = summaryEnteredAt ?? Date.now();
       const elapsed = Date.now() - entered;
       const remaining = Math.max(0, autoMs - elapsed);
       setRemainingMs(remaining);
@@ -165,85 +134,34 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     tick();
     const id = setInterval(tick, 250);
     return () => clearInterval(id);
-  }, [state, sp?.summaryEnteredAt, spPhase, autoCanceled, appendMany]);
+  }, [state, summaryEnteredAt, spPhase, autoCanceled, appendMany]);
 
   const [selected, setSelected] = React.useState<SpCard | null>(null);
   const isSelected = (c: SpCard) =>
     !!selected && selected.suit === c.suit && selected.rank === c.rank;
-  const canPlayCard = (c: SpCard) => {
-    if (spPhase !== 'playing') return false;
-    if (state.sp?.reveal) return false;
-    if (!spTrump) return false;
-    const ok = ruleCanPlayCard(
-      {
-        order: spOrder,
-        leaderId: sp?.leaderId ?? null,
-        trickPlays: (sp?.trickPlays ?? []).map((p) => ({
-          playerId: p.playerId,
-          card: { suit: p.card.suit, rank: p.card.rank },
-        })),
-        hands: spHands,
-        trump: spTrump,
-        trumpBroken: !!sp?.trumpBroken,
-      },
-      humanId,
-      { suit: c.suit, rank: c.rank },
-    );
-    return ok.ok;
-  };
-  const playCard = async (c: SpCard) => {
-    if (!canPlayCard(c)) return;
-    await append(events.spTrickPlayed({ playerId: humanId, card: { suit: c.suit, rank: c.rank } }));
-    setSelected(null);
-  };
 
-  const onConfirmBid = async (bid: number) => {
-    if (isBatchPending) return;
-    if (spPhase !== 'bidding') return;
-    const r = spRoundNo;
-    const batch: AppEvent[] = [events.bidSet({ round: r, playerId: humanId, bid })];
-    for (const p of spOrder) {
-      if (p === humanId) continue;
-      const currentBid = state.rounds[r]?.bids?.[p] ?? null;
-      if (currentBid == null) {
-        const amount = bots.botBid(
-          {
-            trump: spTrump!,
-            hand: spHands[p] ?? [],
-            tricksThisRound,
-            seatIndex: spOrder.findIndex((x) => x === p),
-            bidsSoFar: state.rounds[r]?.bids ?? {},
-            selfId: p,
-            rng,
-          },
-          'normal',
-        );
-        batch.push(events.bidSet({ round: r, playerId: p, bid: amount }));
-      }
-    }
-    batch.push(events.roundStateSet({ round: r, state: 'playing' }));
-    batch.push(events.spPhaseSet({ phase: 'playing' }));
-    await appendMany(batch);
-  };
+  const playSelectedCard = React.useCallback(
+    (card: SpCard) => {
+      if (!canPlayCard(card)) return;
+      setSelected(null);
+      void playCard(card);
+    },
+    [canPlayCard, playCard],
+  );
 
   if (spPhase === 'summary') {
     const ids = players.map((p) => p.id);
-    const bidsMap = (state.rounds[spRoundNo]?.bids ?? {}) as Record<string, number | undefined>;
-    const madeMap = (state.rounds[spRoundNo]?.made ?? {}) as Record<
-      string,
-      boolean | null | undefined
-    >;
     const perPlayer = ids.map((id) => {
       const name = playerLabel(id);
-      const bid = bidsMap[id] ?? null;
-      const made = madeMap[id] ?? null;
+      const bid = currentBids[id] ?? null;
+      const made = currentMade[id] ?? null;
       const delta = bid == null ? null : roundDelta(bid, made);
       const total = state.scores?.[id] ?? 0;
       return { id, name, bid, made, delta, total };
     });
     const nextDealer = (() => {
       const order = spOrder;
-      const curDealer = sp?.dealerId ?? order[0] ?? '';
+      const curDealer = state.sp?.dealerId ?? order[0] ?? '';
       const idx = Math.max(0, order.indexOf(curDealer));
       return order[(idx + 1) % order.length] ?? null;
     })();
@@ -253,7 +171,6 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
       const idx = Math.max(0, order.indexOf(nextDealer));
       return order[(idx + 1) % order.length] ?? null;
     })();
-    const isLastRound = spRoundNo >= 10;
     return (
       <div className="min-h-dvh bg-background text-foreground">
         <SpRoundSummary
@@ -268,10 +185,9 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
           onContinue={() => {
             if (isBatchPending) return;
             setAutoCanceled(true);
-            const batch = computeAdvanceBatch(state, Date.now(), { intent: 'user' });
-            if (batch.length > 0) void appendMany(batch);
+            if (userAdvanceBatch.length > 0) void appendMany(userAdvanceBatch);
           }}
-          isLastRound={isLastRound}
+          isLastRound={isFinalRound}
           disabled={isBatchPending}
         />
       </div>
@@ -290,7 +206,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
       <SpGameSummary
         title={title}
         players={totals.map((t) => ({ ...t, isWinner: t.total === max }))}
-        seed={state.sp?.sessionSeed ?? null}
+        seed={sessionSeed}
         onPlayAgain={() => {
           if (isBatchPending || newGamePending) return;
           void startNewGame({ skipConfirm: true });
@@ -299,6 +215,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
       />
     );
   }
+
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="border-b bg-card/95 px-8 py-4 shadow-sm">
@@ -325,7 +242,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                   '—'
                 )}
                 <span className="text-xs text-muted-foreground">
-                  Broken: {state.sp?.trumpBroken ? 'Yes' : 'No'}
+                  Broken: {isTrumpBroken ? 'Yes' : 'No'}
                 </span>
               </span>
             </div>
@@ -354,9 +271,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                   {spOrder.map((pid) => (
                     <div key={`bid-${pid}`} className="flex items-center justify-between gap-3">
                       <dt className="truncate font-medium">{playerLabel(pid)}</dt>
-                      <dd className="tabular-nums text-right">
-                        {state.rounds[spRoundNo]?.bids?.[pid] ?? 0}
-                      </dd>
+                      <dd className="tabular-nums text-right">{currentBids[pid] ?? 0}</dd>
                     </div>
                   ))}
                 </dl>
@@ -387,12 +302,12 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                   <span className="text-muted-foreground">Dealer next</span>
                   <span>
                     {(() => {
-                      const cur = sp?.dealerId ?? spOrder[0] ?? null;
+                      const cur = state.sp?.dealerId ?? spOrder[0] ?? null;
                       if (!cur || spOrder.length === 0) return '—';
                       const idx = Math.max(0, spOrder.indexOf(cur));
-                      if (spOrder.length === 1) return playerLabel(cur);
+                      if (spOrder.length === 1) return playerName(cur);
                       const next = spOrder[(idx + 1) % spOrder.length];
-                      return next ? playerLabel(next) : playerLabel(cur);
+                      return next ? playerName(next) : playerName(cur);
                     })()}
                   </span>
                 </div>
@@ -401,13 +316,11 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                 <button
                   type="button"
                   className="w-full rounded border px-3 py-2 text-sm hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"
-                  onClick={() =>
-                    void append(events.spTrumpBrokenSet({ broken: !state.sp?.trumpBroken }))
-                  }
+                  onClick={toggleTrumpBroken}
                 >
-                  {state.sp?.trumpBroken ? 'Unmark Trump Broken' : 'Mark Trump Broken'}
+                  {isTrumpBroken ? 'Unmark Trump Broken' : 'Mark Trump Broken'}
                 </button>
-                {state.sp?.reveal && (
+                {reveal && (
                   <div
                     role="status"
                     aria-live="polite"
@@ -415,7 +328,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                   >
                     <span className="text-muted-foreground">Hand winner:</span>{' '}
                     <span className="font-semibold text-emerald-700 dark:text-emerald-300">
-                      {playerLabel(state.sp.reveal.winnerId)}
+                      {playerLabel(reveal.winnerId)}
                     </span>
                   </div>
                 )}
@@ -433,7 +346,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                 <SpTrickTable
                   rotated={rotated}
                   playerName={playerLabel}
-                  bids={state.rounds[spRoundNo]?.bids ?? {}}
+                  bids={currentBids}
                   trickCounts={spTrickCounts}
                   playedCards={overlay?.cards ?? null}
                   winnerId={reveal ? reveal.winnerId : null}
@@ -505,7 +418,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                       prev && prev.suit === c.suit && prev.rank === c.rank ? null : c,
                     )
                   }
-                  onPlayCard={(c) => void playCard(c)}
+                  onPlayCard={playSelectedCard}
                 />
               </div>
               <div
@@ -537,8 +450,8 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
           </section>
         </div>
         {(() => {
-          const snap = sp?.lastTrickSnapshot ?? null;
-          const trickIdle = (sp?.trickPlays?.length ?? 0) === 0;
+          const snap = lastTrickSnapshot;
+          const trickIdle = trickPlays.length === 0;
           if (!snap || reveal || !trickIdle) return null;
           return (
             <div className="rounded-lg border bg-card px-4 py-3 text-sm shadow-sm">
