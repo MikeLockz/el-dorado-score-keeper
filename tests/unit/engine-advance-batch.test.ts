@@ -30,8 +30,16 @@ const base: AppState = {
 };
 
 vi.mock('@/lib/single-player', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/single-player')>(
+    '@/lib/single-player',
+  );
   return {
-    bots: { botBid: () => 0, botPlay: () => ({ suit: 'clubs', rank: 2 }) },
+    ...actual,
+    bots: {
+      ...actual.bots,
+      botBid: () => 0,
+      botPlay: () => ({ suit: 'clubs', rank: 2 }),
+    },
     startRound: vi.fn((cfg: any) => ({
       order: cfg.players,
       trump: 'spades',

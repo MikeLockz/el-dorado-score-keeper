@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { Loader2 } from 'lucide-react';
+
 import { useAppState } from '@/components/state-provider';
 import {
   events,
@@ -12,7 +14,6 @@ import {
   selectSpTricksForRound,
   selectSpHandBySuit,
   selectSpReveal,
-  selectSpIsRoundDone,
 } from '@/lib/state';
 import {
   roundDelta,
@@ -28,6 +29,7 @@ import SpGameSummary from './sp/SpGameSummary';
 import SpTrickTable from './sp/SpTrickTable';
 import SpHandDock from './sp/SpHandDock';
 import { CardGlyph } from '@/components/ui';
+import { deriveSpCtaMeta } from './sp/cta-state';
 
 type Props = {
   humanId: string;
@@ -35,7 +37,7 @@ type Props = {
 };
 
 export default function SinglePlayerDesktop({ humanId, rng }: Props) {
-  const { state, append, appendMany, isBatchPending } = useAppState();
+  const { state, append, appendMany, isBatchPending, height } = useAppState();
   const { startNewGame, pending: newGamePending } = useNewGameRequest({ requireIdle: true });
   const players = selectPlayersOrderedFor(state, 'single');
   const isDev = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
@@ -63,7 +65,6 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
   const tricksThisRound = selectSpTricksForRound(state);
   const { trump, trumpCard } = selectSpTrumpInfo(state);
   const dealerName = selectSpDealerName(state);
-  const _isRoundDone = selectSpIsRoundDone(state);
 
   const totalsByRound = React.useMemo(() => selectCumulativeScoresAllRounds(state), [state]);
   const roundTotals = totalsByRound[spRoundNo] ?? {};
@@ -88,6 +89,59 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
   const userAdvanceBatch = React.useMemo(
     () => computeAdvanceBatch(state, Date.now(), { intent: 'user' }),
     [state],
+  );
+
+  const ctaMeta = React.useMemo(
+    () =>
+      deriveSpCtaMeta(userAdvanceBatch, {
+        totalTricksSoFar,
+        tricksThisRound,
+        isFinalRound,
+      }),
+    [userAdvanceBatch, totalTricksSoFar, tricksThisRound, isFinalRound],
+  );
+
+  const [pendingHeight, setPendingHeight] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (pendingHeight == null) return;
+    if (height > pendingHeight) setPendingHeight(null);
+  }, [height, pendingHeight]);
+
+  const isProcessingAdvance = pendingHeight != null;
+
+  const advanceDisabled =
+    userAdvanceBatch.length === 0 || ctaMeta.autoWait || isBatchPending || isProcessingAdvance;
+
+  const onAdvance = React.useCallback(() => {
+    if (advanceDisabled) return;
+    const startHeight = height;
+    setPendingHeight(startHeight);
+    void appendMany(userAdvanceBatch).catch(() => {
+      setPendingHeight((prev) => (prev === startHeight ? null : prev));
+    });
+  }, [advanceDisabled, appendMany, height, userAdvanceBatch]);
+
+  const loadingLabel = React.useMemo(() => {
+    switch (ctaMeta.stage) {
+      case 'next-hand':
+        return 'Loading next hand...';
+      case 'next-round':
+        return 'Loading next round...';
+      case 'new-game':
+        return 'Preparing new game...';
+      default:
+        return 'Loading...';
+    }
+  }, [ctaMeta.stage]);
+
+  const advanceLabel = isProcessingAdvance ? (
+    <span className="flex items-center gap-2">
+      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+      {loadingLabel}
+    </span>
+  ) : (
+    ctaMeta.label
   );
 
   const [autoCanceled, setAutoCanceled] = React.useState(false);
@@ -245,12 +299,6 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
       />
     );
   }
-
-  const onAdvance = () => {
-    if (userAdvanceBatch.length === 0) return;
-    void appendMany(userAdvanceBatch);
-  };
-
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="border-b bg-card/95 px-8 py-4 shadow-sm">
@@ -479,16 +527,10 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                   type="button"
                   className="rounded bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={onAdvance}
-                  disabled={userAdvanceBatch.length === 0}
-                  aria-disabled={userAdvanceBatch.length === 0}
+                  disabled={advanceDisabled}
+                  aria-disabled={advanceDisabled}
                 >
-                  {reveal
-                    ? totalTricksSoFar >= tricksThisRound
-                      ? isFinalRound
-                        ? 'New Game'
-                        : 'Next Round'
-                      : 'Next Hand'
-                    : 'Continue'}
+                  {advanceLabel}
                 </button>
               </div>
             </div>
