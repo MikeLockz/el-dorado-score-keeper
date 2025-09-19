@@ -3,6 +3,7 @@ import React from 'react';
 import { startRound, mulberry32, deriveSeed } from '@/lib/single-player';
 // import CurrentGame from '@/components/views/CurrentGame';
 import SinglePlayerMobile from '@/components/views/SinglePlayerMobile';
+import SinglePlayerDesktop from '@/components/views/SinglePlayerDesktop';
 import type { PlayerId, Card } from '@/lib/single-player';
 import { useAppState } from '@/components/state-provider';
 import { ROUNDS_TOTAL } from '@/lib/state/logic';
@@ -40,6 +41,29 @@ export default function SinglePlayerPage() {
   const [saved, setSaved] = React.useState(false);
   const [selectedCard, setSelectedCard] = React.useState<Card | null>(null);
   const [autoDealt, setAutoDealt] = React.useState(false);
+  const [isDesktop, setIsDesktop] = React.useState(false);
+  const [hydrated, setHydrated] = React.useState(false);
+
+  React.useEffect(() => {
+    setHydrated(true);
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const query = window.matchMedia('(min-width: 1024px)');
+    const update = (event: MediaQueryList | MediaQueryListEvent) => {
+      setIsDesktop(event.matches);
+    };
+    update(query);
+    if (typeof query.addEventListener === 'function') {
+      query.addEventListener('change', update);
+      return () => query.removeEventListener('change', update);
+    }
+    if (typeof query.addListener === 'function') {
+      query.addListener(update);
+      return () => query.removeListener(update);
+    }
+    return undefined;
+  }, []);
 
   // Single-player roster (mode-aware); falls back to empty when not set up yet
   const activePlayers = React.useMemo(() => selectPlayersOrderedFor(state, 'single'), [state]);
@@ -316,5 +340,9 @@ export default function SinglePlayerPage() {
     );
   }
 
-  return <SinglePlayerMobile humanId={human} rng={rngRef.current} />;
+  const viewProps = { humanId: human, rng: rngRef.current } as const;
+  if (!hydrated) {
+    return <SinglePlayerMobile {...viewProps} />;
+  }
+  return isDesktop ? <SinglePlayerDesktop {...viewProps} /> : <SinglePlayerMobile {...viewProps} />;
 }
