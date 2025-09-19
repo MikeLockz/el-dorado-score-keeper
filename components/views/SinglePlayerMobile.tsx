@@ -3,26 +3,8 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
-import { useAppState } from '@/components/state-provider';
-import {
-  events,
-  selectPlayersOrderedFor,
-  selectSpRotatedOrder,
-  selectSpLiveOverlay,
-  selectSpTrumpInfo,
-  selectSpDealerName,
-  selectSpTricksForRound,
-  selectSpHandBySuit,
-  selectSpReveal,
-} from '@/lib/state';
-import {
-  roundDelta,
-  selectCumulativeScoresAllRounds,
-  type AppEvent,
-  ROUNDS_TOTAL,
-} from '@/lib/state';
-import { bots, computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
-import { canPlayCard as ruleCanPlayCard } from '@/lib/rules/sp';
+import { events, roundDelta } from '@/lib/state';
+import { computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
 import { useNewGameRequest } from '@/lib/game-flow';
 import SpRoundSummary from './sp/SpRoundSummary';
 import SpGameSummary from './sp/SpGameSummary';
@@ -30,6 +12,7 @@ import SpHeaderBar from './sp/SpHeaderBar';
 import SpTrickTable from './sp/SpTrickTable';
 import SpHandDock from './sp/SpHandDock';
 import { deriveSpCtaMeta } from './sp/cta-state';
+import { useSinglePlayerViewModel } from './sp/useSinglePlayerViewModel';
 
 type Props = {
   humanId: string;
@@ -37,62 +20,46 @@ type Props = {
 };
 
 export default function SinglePlayerMobile({ humanId, rng }: Props) {
-  const { state, append, appendMany, isBatchPending, height } = useAppState();
+  const {
+    state,
+    append,
+    appendMany,
+    isBatchPending,
+    height,
+    players,
+    playerName,
+    spPhase,
+    spRoundNo,
+    spOrder,
+    spTrickCounts,
+    reveal,
+    overlay,
+    rotated,
+    tricksThisRound,
+    trump,
+    trumpCard,
+    dealerName,
+    roundTotals,
+    currentBids,
+    currentMade,
+    humanBid,
+    isFinalRound,
+    handNow,
+    totalTricksSoFar,
+    humanBySuit,
+    suitOrder,
+    userAdvanceBatch,
+    canPlayCard,
+    playCard,
+    onConfirmBid,
+    toggleTrumpBroken,
+    isTrumpBroken,
+    summaryEnteredAt,
+    trickPlays,
+    lastTrickSnapshot,
+    sessionSeed,
+  } = useSinglePlayerViewModel({ humanId, rng });
   const { startNewGame, pending: newGamePending } = useNewGameRequest({ requireIdle: true });
-  const players = selectPlayersOrderedFor(state, 'single');
-  const isDev = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
-  const playerName = (pid: string) =>
-    players.find((p) => p.id === pid)?.name ?? (isDev ? pid : 'Unknown');
-
-  const sp = state.sp;
-  const spPhase = sp?.phase ?? 'setup';
-  // Use store-driven round number for all indexing
-  const spRoundNo = sp?.roundNo ?? 0;
-  const spOrder: string[] = sp?.order ?? [];
-  const spHands = sp?.hands ?? {};
-  const spTrickCounts: Record<string, number> = React.useMemo(
-    () => sp?.trickCounts ?? {},
-    [sp?.trickCounts],
-  );
-  const spTrump = sp?.trump;
-  const reveal = selectSpReveal(state);
-
-  const overlay = spPhase === 'playing' ? selectSpLiveOverlay(state) : null;
-  const rotated = selectSpRotatedOrder(state);
-  // Derive tricks using selector tied to store state
-  const tricksThisRound = selectSpTricksForRound(state);
-  const { trump, trumpCard } = selectSpTrumpInfo(state);
-  const dealerName = selectSpDealerName(state);
-  // tricksThisRound used directly where needed
-
-  const totalsByRound = React.useMemo(() => selectCumulativeScoresAllRounds(state), [state]);
-  const roundTotals = totalsByRound[spRoundNo] ?? {};
-  const rd = state.rounds[spRoundNo];
-  const humanBid = rd?.bids?.[humanId] ?? 0;
-  const isFinalRound = spRoundNo >= ROUNDS_TOTAL;
-  // Round state label moved to Devtools for debugging visibility
-
-  const handsCompleted = Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0);
-  // Count the current hand in-progress only when not revealing; during reveal the trick has
-  // already been counted in trickCounts.
-  const handNow = handsCompleted + (!reveal && (sp?.trickPlays?.length ?? 0) > 0 ? 1 : 0);
-  const totalTricksSoFar = React.useMemo(
-    () => Object.values(spTrickCounts ?? {}).reduce((a, n) => a + (n ?? 0), 0),
-    [spTrickCounts],
-  );
-
-  const humanBySuit = selectSpHandBySuit(state, humanId);
-  const suitOrder: Array<'spades' | 'hearts' | 'diamonds' | 'clubs'> = [
-    'spades',
-    'hearts',
-    'diamonds',
-    'clubs',
-  ];
-  // Memoized user-intent advance batch computed at top level per render
-  const userAdvanceBatch = React.useMemo(
-    () => computeAdvanceBatch(state, Date.now(), { intent: 'user' }),
-    [state],
-  );
 
   const ctaMeta = React.useMemo(
     () =>
@@ -153,7 +120,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     if (spPhase !== 'summary') return;
     const autoMs = 10_000;
     const tick = () => {
-      const entered = sp?.summaryEnteredAt ?? Date.now();
+      const entered = summaryEnteredAt ?? Date.now();
       const elapsed = Date.now() - entered;
       const remaining = Math.max(0, autoMs - elapsed);
       setRemainingMs(remaining);
@@ -168,38 +135,12 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     tick();
     const id = setInterval(tick, 250);
     return () => clearInterval(id);
-  }, [state, sp?.summaryEnteredAt, spPhase, autoCanceled, appendMany]);
+  }, [state, summaryEnteredAt, spPhase, autoCanceled, appendMany]);
 
   // Card selection and play helpers (declare before any returns)
   const [selected, setSelected] = React.useState<SpCard | null>(null);
   const isSelected = (c: SpCard) =>
     !!selected && selected.suit === c.suit && selected.rank === c.rank;
-  const canPlayCard = (c: SpCard) => {
-    if (spPhase !== 'playing') return false;
-    if (state.sp?.reveal) return false;
-    if (!spTrump) return false;
-    const ok = ruleCanPlayCard(
-      {
-        order: spOrder,
-        leaderId: sp?.leaderId ?? null,
-        trickPlays: (sp?.trickPlays ?? []).map((p) => ({
-          playerId: p.playerId,
-          card: { suit: p.card.suit, rank: p.card.rank },
-        })),
-        hands: spHands,
-        trump: spTrump,
-        trumpBroken: !!sp?.trumpBroken,
-      },
-      humanId,
-      { suit: c.suit, rank: c.rank },
-    );
-    return ok.ok;
-  };
-  const playCard = async (c: SpCard) => {
-    if (!canPlayCard(c)) return;
-    await append(events.spTrickPlayed({ playerId: humanId, card: { suit: c.suit, rank: c.rank } }));
-    setSelected(null);
-  };
 
   // Sheet state
   type SheetState = 'peek' | 'mid' | 'full';
@@ -208,11 +149,8 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
 
   if (spPhase === 'summary') {
     const ids = players.map((p) => p.id);
-    const bidsMap = (state.rounds[spRoundNo]?.bids ?? {}) as Record<string, number | undefined>;
-    const madeMap = (state.rounds[spRoundNo]?.made ?? {}) as Record<
-      string,
-      boolean | null | undefined
-    >;
+    const bidsMap = currentBids;
+    const madeMap = currentMade;
     const perPlayer = ids.map((id) => {
       const name = playerName(id);
       const bid = bidsMap[id] ?? null;
@@ -223,7 +161,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     });
     const nextDealer = (() => {
       const order = spOrder;
-      const curDealer = sp?.dealerId ?? order[0] ?? '';
+      const curDealer = state.sp?.dealerId ?? order[0] ?? '';
       const idx = Math.max(0, order.indexOf(curDealer));
       return order[(idx + 1) % order.length] ?? null;
     })();
@@ -233,7 +171,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
       const idx = Math.max(0, order.indexOf(nextDealer));
       return order[(idx + 1) % order.length] ?? null;
     })();
-    const isLastRound = spRoundNo >= 10;
+    const isLastRound = isFinalRound;
     return (
       <SpRoundSummary
         roundNo={spRoundNo}
@@ -269,7 +207,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
       <SpGameSummary
         title={title}
         players={totals.map((t) => ({ ...t, isWinner: t.total === max }))}
-        seed={state.sp?.sessionSeed ?? null}
+        seed={sessionSeed}
         onPlayAgain={() => {
           if (isBatchPending || newGamePending) return;
           void startNewGame({ skipConfirm: true });
@@ -279,39 +217,6 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     );
   }
 
-  const onConfirmBid = async (bid: number) => {
-    if (isBatchPending) return;
-    if (spPhase !== 'bidding') return;
-    const r = spRoundNo;
-    const batch: AppEvent[] = [events.bidSet({ round: r, playerId: humanId, bid })];
-    for (const p of spOrder) {
-      if (p === humanId) continue;
-      const currentBid = state.rounds[r]?.bids?.[p] ?? null;
-      if (currentBid == null) {
-        const amount = bots.botBid(
-          {
-            trump: spTrump!,
-            hand: spHands[p] ?? [],
-            tricksThisRound: tricksThisRound,
-            seatIndex: spOrder.findIndex((x) => x === p),
-            bidsSoFar: state.rounds[r]?.bids ?? {},
-            selfId: p,
-            rng,
-          },
-          'normal',
-        );
-        batch.push(events.bidSet({ round: r, playerId: p, bid: amount }));
-      }
-    }
-    batch.push(events.roundStateSet({ round: r, state: 'playing' }));
-    batch.push(events.spPhaseSet({ phase: 'playing' }));
-    await appendMany(batch);
-  };
-
-  // Sheet state: simple tap-to-cycle among peek/mid/full
-
-  // No end-of-round confirmation modal; advancing clears reveal and lets engine finalize
-
   return (
     <div className="min-h-dvh flex flex-col bg-background text-foreground">
       <SpHeaderBar
@@ -320,7 +225,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         trump={trump}
         trumpCard={trumpCard}
         dealerName={dealerName}
-        trumpBroken={!!state.sp?.trumpBroken}
+        trumpBroken={isTrumpBroken}
       />
 
       {/* Surface: Compact Trick Table + Bottom Sheet (overlayed) */}
@@ -329,7 +234,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         <SpTrickTable
           rotated={rotated}
           playerName={playerName}
-          bids={state.rounds[spRoundNo]?.bids ?? {}}
+          bids={currentBids}
           trickCounts={spTrickCounts}
           playedCards={overlay?.cards ?? null}
           winnerId={reveal ? reveal.winnerId : null}
@@ -357,7 +262,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             <div className="flex flex-wrap gap-3">
               {spOrder.map((pid) => (
                 <div key={`bid-${pid}`}>
-                  {playerName(pid)}: <strong>{state.rounds[spRoundNo]?.bids?.[pid] ?? 0}</strong>
+                  {playerName(pid)}: <strong>{currentBids[pid] ?? 0}</strong>
                 </div>
               ))}
             </div>
@@ -381,8 +286,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
                   type="button"
                   className="rounded bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 text-sm"
                   onClick={() => {
-                    const batch = computeAdvanceBatch(state, Date.now(), { intent: 'user' });
-                    if (batch.length > 0) void appendMany(batch);
+                    if (userAdvanceBatch.length > 0) void appendMany(userAdvanceBatch);
                   }}
                 >
                   {(() => {
@@ -400,11 +304,9 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
               <button
                 type="button"
                 className="rounded border px-2 py-1 text-sm hover:bg-muted/20"
-                onClick={() =>
-                  void append(events.spTrumpBrokenSet({ broken: !state.sp?.trumpBroken }))
-                }
+                onClick={toggleTrumpBroken}
               >
-                {state.sp?.trumpBroken ? 'Unmark Trump Broken' : 'Mark Trump Broken'}
+                {isTrumpBroken ? 'Unmark Trump Broken' : 'Mark Trump Broken'}
               </button>
             </div>
           </div>
@@ -413,8 +315,8 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
 
       {/* Last Trick banner (after clear, before next trick starts) */}
       {(() => {
-        const snap = sp?.lastTrickSnapshot ?? null;
-        const trickIdle = (sp?.trickPlays?.length ?? 0) === 0;
+        const snap = lastTrickSnapshot;
+        const trickIdle = trickPlays.length === 0;
         if (!snap || reveal || !trickIdle) return null;
         return (
           <div className="fixed left-0 right-0 bottom-[calc(52px+3rem)] z-30 mx-2 mb-2 rounded border bg-card px-3 py-2 text-xs shadow">
@@ -487,7 +389,11 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
           onToggleSelect={(c) =>
             setSelected((prev) => (prev && prev.suit === c.suit && prev.rank === c.rank ? null : c))
           }
-          onPlayCard={(c) => void playCard(c)}
+          onPlayCard={(c) => {
+            if (!canPlayCard(c)) return;
+            setSelected(null);
+            void playCard(c);
+          }}
         />
       </section>
 

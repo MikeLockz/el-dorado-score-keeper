@@ -28,20 +28,25 @@ function isKnownEventOfType<T extends AppEvent['type']>(
   return event.type === type;
 }
 
-export function deriveSpCtaMeta(
-  batch: ReadonlyArray<AppEvent>,
-  opts: DeriveOpts,
-): SpCtaMeta {
+export function deriveSpCtaMeta(batch: ReadonlyArray<AppEvent>, opts: DeriveOpts): SpCtaMeta {
   const { totalTricksSoFar, tricksThisRound, isFinalRound } = opts;
   if (!Array.isArray(batch) || batch.length === 0) {
     return { stage: 'idle', label: 'Continue', autoWait: false };
   }
 
-  if (batch.some((evt) => evt.type === 'sp/trick/reveal-set')) {
+  const hasEventOfType = <T extends AppEvent['type']>(type: T): boolean => {
+    for (const evt of batch) {
+      const candidate = evt as AppEvent;
+      if (isKnownEventOfType(candidate, type)) return true;
+    }
+    return false;
+  };
+
+  if (hasEventOfType('sp/trick/reveal-set')) {
     return { stage: 'reveal', label: 'Revealing...', autoWait: true };
   }
 
-  if (batch.some((evt) => evt.type === 'sp/trick/cleared')) {
+  if (hasEventOfType('sp/trick/cleared')) {
     const roundComplete = tricksThisRound > 0 && totalTricksSoFar >= tricksThisRound;
     if (roundComplete) {
       return isFinalRound
@@ -51,9 +56,13 @@ export function deriveSpCtaMeta(
     return { stage: 'next-hand', label: 'Next Hand', autoWait: false };
   }
 
-  const phaseSet = batch.find((evt): evt is KnownAppEvent<'sp/phase-set'> =>
-    isKnownEventOfType(evt, 'sp/phase-set'),
-  );
+  const phaseSet = (() => {
+    for (const evt of batch) {
+      const candidate = evt as AppEvent;
+      if (isKnownEventOfType(candidate, 'sp/phase-set')) return candidate;
+    }
+    return null;
+  })();
   if (phaseSet?.payload?.phase === 'summary') {
     return { stage: 'next-round', label: 'Next Round', autoWait: false };
   }
@@ -61,11 +70,11 @@ export function deriveSpCtaMeta(
     return { stage: 'new-game', label: 'New Game', autoWait: false };
   }
 
-  if (batch.some((evt) => evt.type === 'sp/deal')) {
+  if (hasEventOfType('sp/deal')) {
     return { stage: 'next-round', label: 'Next Round', autoWait: false };
   }
 
-  if (batch.some((evt) => evt.type === 'round/finalize')) {
+  if (hasEventOfType('round/finalize')) {
     return { stage: 'finalizing', label: 'Finalizing...', autoWait: true };
   }
 
