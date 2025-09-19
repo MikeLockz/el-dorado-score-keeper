@@ -30,14 +30,24 @@ export const events = {
     makeEvent('roster/player/renamed', p, m),
   rosterPlayerRemoved: (p: EventPayloadByType<'roster/player/removed'>, m?: Meta) =>
     makeEvent('roster/player/removed', p, m),
+  rosterPlayerTypeSet: (p: EventPayloadByType<'roster/player/type-set'>, m?: Meta) =>
+    makeEvent('roster/player/type-set', p, m),
   rosterPlayersReordered: (p: EventPayloadByType<'roster/players/reordered'>, m?: Meta) =>
     makeEvent('roster/players/reordered', p, m),
   rosterReset: (p: EventPayloadByType<'roster/reset'>, m?: Meta) => makeEvent('roster/reset', p, m),
+  rosterArchived: (p: EventPayloadByType<'roster/archived'>, m?: Meta) =>
+    makeEvent('roster/archived', p, m),
+  rosterRestored: (p: EventPayloadByType<'roster/restored'>, m?: Meta) =>
+    makeEvent('roster/restored', p, m),
   playerAdded: (p: EventPayloadByType<'player/added'>, m?: Meta) => makeEvent('player/added', p, m),
   playerRenamed: (p: EventPayloadByType<'player/renamed'>, m?: Meta) =>
     makeEvent('player/renamed', p, m),
   playerRemoved: (p: EventPayloadByType<'player/removed'>, m?: Meta) =>
     makeEvent('player/removed', p, m),
+  playerRestored: (p: EventPayloadByType<'player/restored'>, m?: Meta) =>
+    makeEvent('player/restored', p, m),
+  playerTypeSet: (p: EventPayloadByType<'player/type-set'>, m?: Meta) =>
+    makeEvent('player/type-set', p, m),
   playersReordered: (p: EventPayloadByType<'players/reordered'>, m?: Meta) =>
     makeEvent('players/reordered', p, m),
   playerDropped: (p: EventPayloadByType<'player/dropped'>, m?: Meta) =>

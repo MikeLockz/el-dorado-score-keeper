@@ -5,6 +5,118 @@ import { INITIAL_STATE, type AppEventType, type KnownAppEvent } from './types';
 import * as rosterOps from '@/lib/roster/ops';
 import { eventPayloadSchemas } from '@/schema/events';
 
+function coerceTimestamp(event: KnownAppEvent): number {
+  const ts = Number(event.ts);
+  return Number.isFinite(ts) ? ts : Date.now();
+}
+
+function applyPlayerAdded(
+  state: AppState,
+  event: KnownAppEvent,
+  payload: { id: string; name: string; type: 'human' | 'bot'; isRestore?: boolean },
+): AppState {
+  const id = payload.id;
+  const trimmed = String(payload.name ?? '').trim();
+  if (!id || !trimmed) return state;
+  const isExisting = Boolean(state.players[id]);
+  if (isExisting && !payload.isRestore) return state;
+
+  const hasAnyOrder = Object.keys(state.display_order ?? {}).length > 0;
+  const nextIdx = hasAnyOrder
+    ? Math.max(
+        -1,
+        ...Object.values(state.display_order ?? {}).map((n) => (Number.isFinite(n) ? n : -1)),
+      ) + 1
+    : 0;
+  const display_order = hasAnyOrder
+    ? { ...(state.display_order ?? {}), [id]: nextIdx }
+    : { ...(state.display_order ?? {}) };
+
+  let maxScored = 0;
+  const biddingRounds: number[] = [];
+  for (const [rk, rr] of Object.entries(state.rounds)) {
+    const rn = Number(rk);
+    const st = rr?.state ?? 'locked';
+    if (st === 'scored') maxScored = Math.max(maxScored, rn);
+    if (st === 'bidding') biddingRounds.push(rn);
+  }
+  biddingRounds.sort((a, b) => a - b);
+  const joinIndex = biddingRounds.length > 0 ? biddingRounds[0]! : maxScored + 1;
+  const rounds: Record<number, AppState['rounds'][number]> = {};
+  for (const [k, r] of Object.entries(state.rounds)) {
+    const rn = Number(k);
+    const present = { ...(r.present ?? {}) } as Record<string, boolean>;
+    present[id] = rn >= joinIndex;
+    rounds[rn] = { ...r, present } as AppState['rounds'][number];
+  }
+
+  let nextState: AppState = {
+    ...state,
+    players: { ...state.players, [id]: trimmed },
+    display_order,
+    rounds,
+  };
+
+  const rid =
+    nextState.activeScorecardRosterId ??
+    (() => {
+      const nrid = 'scorecard-default';
+      const createdAt = coerceTimestamp(event);
+      const roster = {
+        name: 'Score Card',
+        playersById: {} as Record<string, string>,
+        playerTypesById: {} as Record<string, 'human' | 'bot'>,
+        displayOrder: {} as Record<string, number>,
+        type: 'scorecard' as const,
+        createdAt,
+        archivedAt: null,
+      };
+      nextState = {
+        ...nextState,
+        rosters: { ...nextState.rosters, [nrid]: roster },
+        activeScorecardRosterId: nrid,
+      };
+      return nrid;
+    })();
+  const r = nextState.rosters[rid]!;
+  const scPlayers = { ...r.playersById, [id]: String(trimmed) };
+  const scTypes = { ...(r.playerTypesById ?? {}), [id]: payload.type };
+  const entries = Object.entries(r.displayOrder).sort((a, b) => a[1] - b[1]);
+  const ordered = entries.map(([pid]) => pid);
+  if (!ordered.includes(id)) ordered.push(id);
+  const scOrder: Record<string, number> = {};
+  for (let i = 0; i < ordered.length; i++) scOrder[ordered[i]!] = i;
+  nextState = {
+    ...nextState,
+    rosters: {
+      ...nextState.rosters,
+      [rid]: { ...r, playersById: scPlayers, playerTypesById: scTypes, displayOrder: scOrder },
+    },
+  };
+
+  const ts = coerceTimestamp(event);
+  const prevDetail = state.playerDetails?.[id];
+  const detail = {
+    name: trimmed,
+    type: payload.type,
+    archivedAt: null,
+    createdAt: prevDetail?.createdAt ?? ts,
+    updatedAt: ts,
+  } as const;
+  nextState = {
+    ...nextState,
+    playerDetails: { ...nextState.playerDetails, [id]: detail },
+  };
+
+  if (!payload.isRestore) {
+    const scores = { ...nextState.scores };
+    if (!(id in scores)) scores[id] = 0;
+    nextState = { ...nextState, scores };
+  }
+
+  return nextState;
+}
+
 function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState | null {
   switch (event.type) {
     case 'roster/created': {
@@ -25,7 +137,12 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
     }
     case 'roster/player/added': {
       const p = event.payload as EventMap['roster/player/added'];
-      return rosterOps.addPlayer(state, { rosterId: p.rosterId, id: p.id, name: p.name });
+      return rosterOps.addPlayer(state, {
+        rosterId: p.rosterId,
+        id: p.id,
+        name: p.name,
+        type: p.type,
+      });
     }
     case 'roster/player/renamed': {
       const p = event.payload as EventMap['roster/player/renamed'];
@@ -35,6 +152,10 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
       const p = event.payload as EventMap['roster/player/removed'];
       return rosterOps.removePlayer(state, { rosterId: p.rosterId, id: p.id });
     }
+    case 'roster/player/type-set': {
+      const p = event.payload as EventMap['roster/player/type-set'];
+      return rosterOps.setPlayerType(state, { rosterId: p.rosterId, id: p.id, type: p.type });
+    }
     case 'roster/players/reordered': {
       const p = event.payload as EventMap['roster/players/reordered'];
       return rosterOps.reorderPlayers(state, { rosterId: p.rosterId, order: p.order });
@@ -43,76 +164,31 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
       const p = event.payload as EventMap['roster/reset'];
       return rosterOps.resetRoster(state, { rosterId: p.rosterId });
     }
-    case 'player/added': {
-      const { id, name } = event.payload as EventMap['player/added'];
-      if (state.players[id]) return state;
-      const hasAnyOrder = Object.keys(state.display_order ?? {}).length > 0;
-      const nextIdx = hasAnyOrder
-        ? Math.max(
-            -1,
-            ...Object.values(state.display_order ?? {}).map((n) => (Number.isFinite(n) ? n : -1)),
-          ) + 1
-        : 0;
-      const display_order = hasAnyOrder
-        ? { ...(state.display_order ?? {}), [id]: nextIdx }
-        : { ...(state.display_order ?? {}) };
-      let maxScored = 0;
-      const biddingRounds: number[] = [];
-      for (const [rk, rr] of Object.entries(state.rounds)) {
-        const rn = Number(rk);
-        const st = rr?.state ?? 'locked';
-        if (st === 'scored') maxScored = Math.max(maxScored, rn);
-        if (st === 'bidding') biddingRounds.push(rn);
+    case 'roster/archived': {
+      const p = event.payload as EventMap['roster/archived'];
+      let nextState = rosterOps.archiveRoster(state, {
+        rosterId: p.rosterId,
+        archivedAt: coerceTimestamp(event),
+      });
+      if (nextState.activeScorecardRosterId === p.rosterId) {
+        nextState = { ...nextState, activeScorecardRosterId: null };
       }
-      biddingRounds.sort((a, b) => a - b);
-      const joinIndex = biddingRounds.length > 0 ? biddingRounds[0]! : maxScored + 1;
-      const rounds: Record<number, AppState['rounds'][number]> = {};
-      for (const [k, r] of Object.entries(state.rounds)) {
-        const rn = Number(k);
-        const present = { ...(r.present ?? {}) } as Record<string, boolean>;
-        present[id] = rn >= joinIndex;
-        rounds[rn] = { ...r, present } as AppState['rounds'][number];
+      if (nextState.activeSingleRosterId === p.rosterId) {
+        nextState = { ...nextState, activeSingleRosterId: null };
       }
-      let nextState: AppState = {
-        ...state,
-        players: { ...state.players, [id]: name },
-        display_order,
-        rounds,
-      };
-      const rid =
-        nextState.activeScorecardRosterId ??
-        (() => {
-          const nrid = 'scorecard-default';
-          const createdAt = event.ts ?? 0;
-          const roster = {
-            name: 'Score Card',
-            playersById: {} as Record<string, string>,
-            displayOrder: {} as Record<string, number>,
-            type: 'scorecard' as const,
-            createdAt,
-          };
-          nextState = {
-            ...nextState,
-            rosters: { ...nextState.rosters, [nrid]: roster },
-            activeScorecardRosterId: nrid,
-          };
-          return nrid;
-        })();
-      const r = nextState.rosters[rid]!;
-      const scPlayers = { ...r.playersById, [id]: String(name) };
-      const entries = Object.entries(r.displayOrder).sort((a, b) => a[1] - b[1]);
-      const ordered = entries.map(([pid]) => pid);
-      if (!ordered.includes(id)) ordered.push(id);
-      const scOrder: Record<string, number> = {};
-      for (let i = 0; i < ordered.length; i++) scOrder[ordered[i]!] = i;
-      nextState = {
-        ...nextState,
-        rosters: {
-          ...nextState.rosters,
-          [rid]: { ...r, playersById: scPlayers, displayOrder: scOrder },
-        },
-      };
       return nextState;
+    }
+    case 'roster/restored': {
+      const p = event.payload as EventMap['roster/restored'];
+      return rosterOps.restoreRoster(state, {
+        rosterId: p.rosterId,
+        restoredAt: coerceTimestamp(event),
+      });
+    }
+    case 'player/added': {
+      const { id, name, type } = event.payload as EventMap['player/added'];
+      const normalizedType: 'human' | 'bot' = type ?? state.playerDetails?.[id]?.type ?? 'human';
+      return applyPlayerAdded(state, event, { id, name, type: normalizedType });
     }
     case 'player/renamed': {
       const { id, name } = event.payload as EventMap['player/renamed'];
@@ -129,6 +205,19 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
           };
         }
       }
+      const ts = coerceTimestamp(event);
+      const prevDetail = state.playerDetails?.[id];
+      const detail = {
+        name: String(name),
+        type: prevDetail?.type ?? 'human',
+        archivedAt: prevDetail?.archivedAt ?? null,
+        createdAt: prevDetail?.createdAt ?? ts,
+        updatedAt: ts,
+      } as const;
+      nextState = {
+        ...nextState,
+        playerDetails: { ...nextState.playerDetails, [id]: detail },
+      };
       return nextState;
     }
     case 'player/removed': {
@@ -179,6 +268,19 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
           };
         }
       }
+      const ts = coerceTimestamp(event);
+      const prevDetail = state.playerDetails?.[id];
+      const detail = {
+        name: prevDetail?.name ?? state.players[id] ?? id,
+        type: prevDetail?.type ?? 'human',
+        archivedAt: ts,
+        createdAt: prevDetail?.createdAt ?? ts,
+        updatedAt: ts,
+      } as const;
+      nextState = {
+        ...nextState,
+        playerDetails: { ...nextState.playerDetails, [id]: detail },
+      };
       return nextState;
     }
     case 'players/reordered': {
@@ -209,6 +311,31 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
         };
       }
       return nextState;
+    }
+    case 'player/type-set': {
+      const { id, type } = event.payload as EventMap['player/type-set'];
+      const detail = state.playerDetails?.[id];
+      if (!detail) return state;
+      const ts = coerceTimestamp(event);
+      return {
+        ...state,
+        playerDetails: {
+          ...state.playerDetails,
+          [id]: { ...detail, type, updatedAt: ts },
+        },
+      } as AppState;
+    }
+    case 'player/restored': {
+      const { id } = event.payload as EventMap['player/restored'];
+      if (state.players[id]) return state;
+      const detail = state.playerDetails?.[id];
+      if (!detail) return state;
+      return applyPlayerAdded(state, event, {
+        id,
+        name: detail.name,
+        type: detail.type,
+        isRestore: true,
+      });
     }
     default:
       return null;

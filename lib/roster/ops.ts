@@ -12,16 +12,24 @@ function ensureRoster(next: AppState, rosterId: UUID) {
 
 export function createRoster(
   state: AppState,
-  p: { rosterId: UUID; name: string; type: 'scorecard' | 'single'; createdAt?: number },
+  p: {
+    rosterId: UUID;
+    name: string;
+    type: 'scorecard' | 'single';
+    createdAt?: number;
+    archivedAt?: number | null;
+  },
 ): AppState {
   if (state.rosters[p.rosterId]) return state;
   const createdAt = Number.isFinite(p.createdAt) ? Math.floor(p.createdAt!) : Date.now();
   const roster = {
     name: String(p.name),
     playersById: {} as Record<UUID, string>,
+    playerTypesById: {} as Record<UUID, 'human' | 'bot'>,
     displayOrder: {} as Record<UUID, number>,
     type: p.type,
     createdAt,
+    archivedAt: p.archivedAt ?? null,
   } as const;
   const rosters = clone(state.rosters);
   rosters[p.rosterId] = roster;
@@ -48,7 +56,7 @@ export function activateRoster(
 
 export function addPlayer(
   state: AppState,
-  p: { rosterId: UUID; id: UUID; name: string },
+  p: { rosterId: UUID; id: UUID; name: string; type?: 'human' | 'bot' },
 ): AppState {
   const r = ensureRoster(state, p.rosterId);
   if (!r) return state;
@@ -63,12 +71,14 @@ export function addPlayer(
   if (r.playersById[p.id]) return state;
   const playersById = clone(r.playersById);
   playersById[p.id] = trimmed;
+  const playerTypesById = clone(r.playerTypesById ?? {});
+  playerTypesById[p.id] = p.type ?? 'human';
   const displayOrder = clone(r.displayOrder);
   const nextIdx =
     Math.max(-1, ...Object.values(displayOrder).map((n) => (Number.isFinite(n) ? n : -1))) + 1;
   displayOrder[p.id] = nextIdx;
   const rosters = clone(state.rosters);
-  rosters[p.rosterId] = Object.assign({}, r, { playersById, displayOrder });
+  rosters[p.rosterId] = Object.assign({}, r, { playersById, playerTypesById, displayOrder });
   return Object.assign({}, state, { rosters });
 }
 
@@ -91,6 +101,19 @@ export function renamePlayer(
   return Object.assign({}, state, { rosters });
 }
 
+export function setPlayerType(
+  state: AppState,
+  p: { rosterId: UUID; id: UUID; type: 'human' | 'bot' },
+): AppState {
+  const r = ensureRoster(state, p.rosterId);
+  if (!r || !r.playersById[p.id]) return state;
+  const playerTypesById = clone(r.playerTypesById ?? {});
+  playerTypesById[p.id] = p.type;
+  const rosters = clone(state.rosters);
+  rosters[p.rosterId] = Object.assign({}, r, { playerTypesById });
+  return Object.assign({}, state, { rosters });
+}
+
 export function removePlayer(state: AppState, p: { rosterId: UUID; id: UUID }): AppState {
   const r = ensureRoster(state, p.rosterId);
   if (!r || !r.playersById[p.id]) return state;
@@ -98,12 +121,14 @@ export function removePlayer(state: AppState, p: { rosterId: UUID; id: UUID }): 
   if (currentCount <= 2) return state;
   const playersById = clone(r.playersById);
   delete playersById[p.id];
+  const playerTypesById = clone(r.playerTypesById ?? {});
+  delete playerTypesById[p.id];
   const entries = Object.entries(r.displayOrder).filter(([id]) => id !== p.id);
   entries.sort((a, b) => a[1] - b[1]);
   const displayOrder: Record<string, number> = {};
   for (let i = 0; i < entries.length; i++) displayOrder[entries[i]![0]] = i;
   const rosters = clone(state.rosters);
-  rosters[p.rosterId] = Object.assign({}, r, { playersById, displayOrder });
+  rosters[p.rosterId] = Object.assign({}, r, { playersById, playerTypesById, displayOrder });
   return Object.assign({}, state, { rosters });
 }
 
@@ -133,6 +158,39 @@ export function resetRoster(state: AppState, p: { rosterId: UUID }): AppState {
   const r = ensureRoster(state, p.rosterId);
   if (!r) return state;
   const rosters = clone(state.rosters);
-  rosters[p.rosterId] = Object.assign({}, r, { playersById: {}, displayOrder: {} });
+  rosters[p.rosterId] = Object.assign({}, r, {
+    playersById: {},
+    playerTypesById: {},
+    displayOrder: {},
+  });
+  return Object.assign({}, state, { rosters });
+}
+
+export function archiveRoster(
+  state: AppState,
+  p: { rosterId: UUID; archivedAt?: number },
+): AppState {
+  const r = ensureRoster(state, p.rosterId);
+  if (!r) return state;
+  if (r.archivedAt) return state;
+  const rosters = clone(state.rosters);
+  rosters[p.rosterId] = Object.assign({}, r, {
+    archivedAt: Number.isFinite(p.archivedAt) ? Math.floor(p.archivedAt!) : Date.now(),
+  });
+  return Object.assign({}, state, { rosters });
+}
+
+export function restoreRoster(
+  state: AppState,
+  p: { rosterId: UUID; restoredAt?: number },
+): AppState {
+  const r = ensureRoster(state, p.rosterId);
+  if (!r) return state;
+  if (!r.archivedAt) return state;
+  const rosters = clone(state.rosters);
+  rosters[p.rosterId] = Object.assign({}, r, {
+    archivedAt: null,
+    createdAt: r.createdAt,
+  });
   return Object.assign({}, state, { rosters });
 }

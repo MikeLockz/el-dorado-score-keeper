@@ -172,7 +172,10 @@ export function StateProvider({
           const id = ids[i]!;
           const name = names[i]!;
           await inst.append(
-            events.playerAdded({ id, name }, { eventId: `seed:${id}`, ts: Date.now() + i }),
+            events.playerAdded(
+              { id, name, type: 'human' },
+              { eventId: `seed:${id}`, ts: Date.now() + i },
+            ),
           );
         }
       } finally {

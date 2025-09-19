@@ -30,6 +30,8 @@ describe('events factory helpers', () => {
     ['playerAdded', 'player/added', { id: 'p1', name: 'P1' }],
     ['playerRenamed', 'player/renamed', { id: 'p1', name: 'New' }],
     ['playerRemoved', 'player/removed', { id: 'p1' }],
+    ['playerRestored', 'player/restored', { id: 'p1' }],
+    ['playerTypeSet', 'player/type-set', { id: 'p1', type: 'bot' }],
     ['playersReordered', 'players/reordered', { order: ['p1', 'p2'] }],
     ['playerDropped', 'player/dropped', { id: 'p1', fromRound: 3 }],
     ['playerResumed', 'player/resumed', { id: 'p1', fromRound: 3 }],
@@ -38,6 +40,21 @@ describe('events factory helpers', () => {
     ['bidSet', 'bid/set', { round: 2, playerId: 'p1', bid: 2 }],
     ['madeSet', 'made/set', { round: 2, playerId: 'p1', made: true }],
     ['roundFinalize', 'round/finalize', { round: 2 }],
+    ['rosterCreated', 'roster/created', { rosterId: 'r1', name: 'Roster', type: 'scorecard' }],
+    ['rosterRenamed', 'roster/renamed', { rosterId: 'r1', name: 'Renamed' }],
+    ['rosterActivated', 'roster/activated', { rosterId: 'r1', mode: 'scorecard' }],
+    [
+      'rosterPlayerAdded',
+      'roster/player/added',
+      { rosterId: 'r1', id: 'p1', name: 'A', type: 'bot' },
+    ],
+    ['rosterPlayerRenamed', 'roster/player/renamed', { rosterId: 'r1', id: 'p1', name: 'B' }],
+    ['rosterPlayerRemoved', 'roster/player/removed', { rosterId: 'r1', id: 'p1' }],
+    ['rosterPlayerTypeSet', 'roster/player/type-set', { rosterId: 'r1', id: 'p1', type: 'human' }],
+    ['rosterPlayersReordered', 'roster/players/reordered', { rosterId: 'r1', order: ['p1'] }],
+    ['rosterReset', 'roster/reset', { rosterId: 'r1' }],
+    ['rosterArchived', 'roster/archived', { rosterId: 'r1' }],
+    ['rosterRestored', 'roster/restored', { rosterId: 'r1' }],
     // Single-player
     ['spReset', 'sp/reset', {}],
     [
@@ -78,7 +95,10 @@ describe('events factory helpers', () => {
   });
 
   it('accepts meta overrides on helpers', () => {
-    const e = events.playerAdded({ id: 'x', name: 'X' }, { eventId: 'meta', ts: 42 });
+    const e = events.playerAdded(
+      { id: 'x', name: 'X', type: 'human' },
+      { eventId: 'meta', ts: 42 },
+    );
     expect(e.eventId).toBe('meta');
     expect(e.ts).toBe(42);
   });

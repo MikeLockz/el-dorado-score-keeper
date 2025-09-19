@@ -15,8 +15,9 @@ describe('roster events', () => {
     expect(s.activeScorecardRosterId).toBe(rid);
 
     s = reduce(s, events.rosterPlayerAdded({ rosterId: rid, id: 'p1', name: 'Alice' }));
-    s = reduce(s, events.rosterPlayerAdded({ rosterId: rid, id: 'p2', name: 'Bob' }));
+    s = reduce(s, events.rosterPlayerAdded({ rosterId: rid, id: 'p2', name: 'Bob', type: 'bot' }));
     expect(s.rosters[rid].playersById).toEqual({ p1: 'Alice', p2: 'Bob' });
+    expect(s.rosters[rid].playerTypesById).toEqual({ p1: 'human', p2: 'bot' });
     expect(Object.values(s.rosters[rid].displayOrder).sort()).toEqual([0, 1]);
 
     s = reduce(s, events.rosterPlayersReordered({ rosterId: rid, order: ['p2', 'p1'] }));
@@ -25,14 +26,25 @@ describe('roster events', () => {
     s = reduce(s, events.rosterPlayerRenamed({ rosterId: rid, id: 'p2', name: 'B' }));
     expect(s.rosters[rid].playersById.p2).toBe('B');
 
+    s = reduce(s, events.rosterPlayerTypeSet({ rosterId: rid, id: 'p1', type: 'bot' }));
+    expect(s.rosters[rid].playerTypesById).toEqual({ p1: 'bot', p2: 'bot' });
+
     // Add a third so removal is allowed (min 2 guard)
     s = reduce(s, events.rosterPlayerAdded({ rosterId: rid, id: 'p3', name: 'C' }));
     s = reduce(s, events.rosterPlayerRemoved({ rosterId: rid, id: 'p1' }));
     expect(Object.keys(s.rosters[rid].playersById).sort()).toEqual(['p2', 'p3']);
+    expect(Object.keys(s.rosters[rid].playerTypesById).sort()).toEqual(['p2', 'p3']);
     expect(Object.values(s.rosters[rid].displayOrder).sort()).toEqual([0, 1]);
 
     s = reduce(s, events.rosterReset({ rosterId: rid }));
     expect(Object.keys(s.rosters[rid].playersById).length).toBe(0);
     expect(Object.keys(s.rosters[rid].displayOrder).length).toBe(0);
+    expect(Object.keys(s.rosters[rid].playerTypesById).length).toBe(0);
+
+    s = reduce(s, events.rosterArchived({ rosterId: rid }));
+    expect(s.rosters[rid].archivedAt).toBeTypeOf('number');
+    expect(s.activeScorecardRosterId).toBeNull();
+    s = reduce(s, events.rosterRestored({ rosterId: rid }));
+    expect(s.rosters[rid].archivedAt).toBeNull();
   });
 });

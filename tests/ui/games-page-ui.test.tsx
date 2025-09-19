@@ -8,8 +8,30 @@ const listGames = vi.fn(async () => [
   {
     id: 'game-1',
     title: 'Weekend Match',
-    summary: { players: '4 players', winnerName: 'Alice' },
-    finishedAt: new Date('2024-02-10T15:00:00Z').toISOString(),
+    createdAt: Date.parse('2024-02-10T12:00:00Z'),
+    finishedAt: Date.parse('2024-02-10T15:00:00Z'),
+    lastSeq: 10,
+    summary: {
+      players: 4,
+      scores: { a: 120, b: 110 },
+      playersById: { a: 'Alice', b: 'Bob', c: 'Carla', d: 'Drew' },
+      winnerId: 'a',
+      winnerName: 'Alice',
+      winnerScore: 120,
+      scorecard: { activeRound: 7 },
+      sp: {
+        phase: 'setup',
+        roundNo: null,
+        dealerId: null,
+        leaderId: null,
+        order: [],
+        trump: null,
+        trumpCard: null,
+        trickCounts: {},
+        trumpBroken: false,
+      },
+    },
+    bundle: { latestSeq: 10, events: [] },
   },
 ]);
 const deleteGame = vi.fn(async () => {});

@@ -33,8 +33,17 @@ export type RoundData = Readonly<{
   present?: Record<string, boolean>;
 }>;
 
+export type PlayerDetail = Readonly<{
+  name: string;
+  type: 'human' | 'bot';
+  archivedAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+}>;
+
 export type AppState = Readonly<{
   players: Record<string, string>;
+  playerDetails: Record<string, PlayerDetail>;
   scores: Record<string, number>;
   rounds: Record<number, RoundData>;
   // Roster model (introduced alongside legacy players/display_order)
@@ -43,9 +52,11 @@ export type AppState = Readonly<{
     Readonly<{
       name: string;
       playersById: Record<UUID, string>;
+      playerTypesById: Record<UUID, 'human' | 'bot'>;
       displayOrder: Record<UUID, number>;
       type: 'scorecard' | 'single';
       createdAt: number;
+      archivedAt?: number | null;
     }>
   >;
   activeScorecardRosterId: UUID | null;
@@ -85,6 +96,7 @@ export type AppState = Readonly<{
 
 export const INITIAL_STATE: AppState = {
   players: {},
+  playerDetails: {},
   scores: {},
   rounds: initialRounds(),
   rosters: {},

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasInProgressGame } from '@/lib/game-flow';
+import { hasInProgressGame, hasScorecardProgress, hasSinglePlayerProgress } from '@/lib/game-flow';
 import { INITIAL_STATE } from '@/lib/state/types';
 import type { AppState } from '@/lib/state/types';
 
@@ -77,5 +77,34 @@ describe('hasInProgressGame', () => {
       hands: {},
     };
     expect(hasInProgressGame(state)).toBe(false);
+  });
+
+  it('exposes scorecard-only progress predicate', () => {
+    const state = cloneState();
+    state.rounds[1] = {
+      ...state.rounds[1],
+      state: 'playing',
+      bids: { a: 2 },
+      made: { a: null },
+    };
+    expect(hasScorecardProgress(state)).toBe(true);
+    expect(hasSinglePlayerProgress(state)).toBe(false);
+  });
+
+  it('exposes single-player-only progress predicate', () => {
+    const state = cloneState();
+    state.sp = {
+      ...state.sp,
+      phase: 'playing',
+      hands: { a: [{ suit: 'spades', rank: 8 }] },
+    } as AppState['sp'];
+    expect(hasSinglePlayerProgress(state)).toBe(true);
+    state.sp = {
+      ...state.sp,
+      phase: 'setup',
+      hands: {},
+      trickPlays: [],
+    } as AppState['sp'];
+    expect(hasSinglePlayerProgress(state)).toBe(false);
   });
 });

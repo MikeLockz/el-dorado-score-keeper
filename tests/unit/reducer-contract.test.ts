@@ -18,15 +18,20 @@ describe('reducer contract: payload schemas', () => {
         'roster/player/added',
         'roster/player/removed',
         'roster/player/renamed',
+        'roster/player/type-set',
         'roster/players/reordered',
         'roster/renamed',
         'roster/reset',
+        'roster/archived',
+        'roster/restored',
         'bid/set',
         'made/set',
         'player/added',
         'player/dropped',
+        'player/restored',
         'player/removed',
         'player/renamed',
+        'player/type-set',
         'player/resumed',
         'players/reordered',
         'round/finalize',
@@ -50,12 +55,13 @@ describe('reducer contract: payload schemas', () => {
 
   describe('player/added', () => {
     it('accepts valid payload and updates players', () => {
-      const payload = { id: 'p1', name: 'Alice' };
+      const payload = { id: 'p1', name: 'Alice', type: 'bot' as const };
       const parsed = payloadSchemas['player/added'].safeParse(payload);
       expect(parsed.success).toBe(true);
       const e = validateEventStrict(ev('player/added', payload));
       const s = reduce(INITIAL_STATE, e);
       expect(s.players.p1).toBe('Alice');
+      expect(s.playerDetails.p1?.type).toBe('bot');
     });
     it('rejects invalid payloads', () => {
       const invalids = [
@@ -98,6 +104,7 @@ describe('reducer contract: payload schemas', () => {
       let s: AppState = reduce(INITIAL_STATE, eAdd);
       s = reduce(s, eRem);
       expect(s.players.p2).toBeUndefined();
+      expect(s.playerDetails.p2?.archivedAt).toBeTypeOf('number');
     });
     it('rejects invalid payloads', () => {
       const invalids = [{ id: '' }, {}];
@@ -209,5 +216,27 @@ describe('reducer contract: payload schemas', () => {
         );
       }
     });
+  });
+});
+describe('player/restored', () => {
+  it('restores an archived player', () => {
+    const eAdd = validateEventStrict(ev('player/added', { id: 'p5', name: 'Eva' }));
+    const eRem = validateEventStrict(ev('player/removed', { id: 'p5' }));
+    const eRes = validateEventStrict(ev('player/restored', { id: 'p5' }));
+    let s: AppState = reduce(INITIAL_STATE, eAdd);
+    s = reduce(s, eRem);
+    s = reduce(s, eRes);
+    expect(s.players.p5).toBe('Eva');
+    expect(s.playerDetails.p5?.archivedAt).toBeNull();
+  });
+});
+
+describe('player/type-set', () => {
+  it('updates the recorded type', () => {
+    const eAdd = validateEventStrict(ev('player/added', { id: 'p7', name: 'George' }));
+    const eType = validateEventStrict(ev('player/type-set', { id: 'p7', type: 'bot' }));
+    let s: AppState = reduce(INITIAL_STATE, eAdd);
+    s = reduce(s, eType);
+    expect(s.playerDetails.p7?.type).toBe('bot');
   });
 });

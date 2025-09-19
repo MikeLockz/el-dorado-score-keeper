@@ -43,7 +43,7 @@ export const selectLeaders = memo1((s: AppState): Leader[] => {
   return leaders;
 });
 
-export type PlayerItem = { id: string; name: string };
+export type PlayerItem = { id: string; name: string; type: 'human' | 'bot' };
 
 // Preferred ordering for display: `display_order` if present; otherwise insertion order.
 export const selectPlayersOrdered = memo1((s: AppState): PlayerItem[] => {
@@ -63,7 +63,11 @@ export const selectPlayersOrdered = memo1((s: AppState): PlayerItem[] => {
   } else {
     sortedIds = ids;
   }
-  return sortedIds.map((id) => ({ id, name: s.players[id]! }));
+  return sortedIds.map((id) => ({
+    id,
+    name: s.players[id]!,
+    type: s.playerDetails?.[id]?.type ?? 'human',
+  }));
 });
 
 // Roster-aware adapters
@@ -72,6 +76,7 @@ export type ActiveRosterView = Readonly<{
   rosterId: string | null;
   name: string;
   playersById: Record<string, string>;
+  playerTypesById: Record<string, 'human' | 'bot'>;
   displayOrder: Record<string, number>;
 }>;
 
@@ -94,6 +99,7 @@ export const selectActiveRoster = memo2((s: AppState, mode: Mode): ActiveRosterV
         rosterId: rid,
         name: rr.name,
         playersById: rr.playersById,
+        playerTypesById: rr.playerTypesById ?? {},
         displayOrder: rr.displayOrder,
       };
     }
@@ -103,7 +109,15 @@ export const selectActiveRoster = memo2((s: AppState, mode: Mode): ActiveRosterV
     const playersById = s.players ?? {};
     if (Object.keys(playersById).length === 0) return null;
     const displayOrder = denseOrderFrom(playersById, s.display_order);
-    return { rosterId: null, name: 'Score Card', playersById, displayOrder };
+    return {
+      rosterId: null,
+      name: 'Score Card',
+      playersById,
+      playerTypesById: Object.fromEntries(
+        Object.keys(playersById).map((id) => [id, s.playerDetails?.[id]?.type ?? 'human']),
+      ),
+      displayOrder,
+    };
   }
   return null;
 });
@@ -114,12 +128,59 @@ export const selectPlayersOrderedFor = memo2((s: AppState, mode: Mode): PlayerIt
   const entries = Object.entries(r.displayOrder).sort((a, b) => a[1] - b[1]);
   const ids = entries.map(([id]) => id);
   for (const id of Object.keys(r.playersById)) if (!ids.includes(id)) ids.push(id);
-  return ids.map((id) => ({ id, name: r.playersById[id] ?? id }));
+  return ids.map((id) => ({
+    id,
+    name: r.playersById[id] ?? id,
+    type: r.playerTypesById?.[id] ?? 'human',
+  }));
 });
 
 export const selectHumanIdFor = memo2((s: AppState, mode: Mode): string | null => {
   if (mode === 'single') return s.humanByMode?.single ?? null;
   return null;
+});
+
+export type ArchivedPlayer = {
+  id: string;
+  name: string;
+  type: 'human' | 'bot';
+  archivedAt: number;
+};
+
+export const selectArchivedPlayers = memo1((s: AppState): ArchivedPlayer[] => {
+  const out: ArchivedPlayer[] = [];
+  for (const [id, detail] of Object.entries(s.playerDetails ?? {})) {
+    if (!detail || detail.archivedAt == null) continue;
+    out.push({ id, name: detail.name, type: detail.type, archivedAt: detail.archivedAt });
+  }
+  out.sort((a, b) => b.archivedAt - a.archivedAt || a.name.localeCompare(b.name));
+  return out;
+});
+
+export type RosterSummary = Readonly<{
+  rosterId: string;
+  name: string;
+  players: number;
+  archived: boolean;
+  type: 'scorecard' | 'single';
+  createdAt: number;
+}>;
+
+export const selectAllRosters = memo1((s: AppState): RosterSummary[] => {
+  const out: RosterSummary[] = [];
+  for (const [rosterId, roster] of Object.entries(s.rosters ?? {})) {
+    if (!roster) continue;
+    out.push({
+      rosterId,
+      name: roster.name,
+      players: Object.keys(roster.playersById ?? {}).length,
+      archived: !!roster.archivedAt,
+      type: roster.type,
+      createdAt: roster.createdAt,
+    });
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
 });
 
 export type RoundRow = {

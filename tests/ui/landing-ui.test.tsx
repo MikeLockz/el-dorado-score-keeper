@@ -1,8 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { INITIAL_STATE, type AppState } from '@/lib/state';
 
 const suite = typeof document === 'undefined' ? describe.skip : describe;
+
+const noop = () => {};
+
+function mockAppState(
+  state: AppState,
+  { height = 0, ready = true }: { height?: number; ready?: boolean } = {},
+) {
+  vi.mock('@/components/state-provider', () => ({
+    useAppState: () => ({
+      state,
+      height,
+      ready,
+      append: async () => 0,
+      appendMany: async () => 0,
+      isBatchPending: false,
+      previewAt: async () => state,
+      warnings: [],
+      clearWarnings: noop,
+      timeTraveling: false,
+    }),
+  }));
+}
 
 suite('Landing Page UI', () => {
   beforeEach(() => {
@@ -10,161 +33,164 @@ suite('Landing Page UI', () => {
     vi.clearAllMocks();
   });
 
-  it('renders hero and primary CTAs with correct links', async () => {
-    vi.mock('@/components/state-provider', async () => ({
-      useAppState: () => ({ ready: true, height: 0 }),
-    }));
+  it('renders hero copy and default new game actions', async () => {
+    const baseState = JSON.parse(JSON.stringify(INITIAL_STATE)) as AppState;
+    mockAppState(baseState, { height: 0 });
     vi.mock('@/lib/state/io', async () => ({
       listGames: async () => [],
     }));
     const { default: LandingPage } = await import('@/app/landing/page');
+    const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = ReactDOM.createRoot(div);
-    root.render(React.createElement(LandingPage));
+    root.render(
+      React.createElement(NewGameConfirmProvider, null, React.createElement(LandingPage)),
+    );
 
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
 
-    const text = div.textContent || '';
-    expect(text).toMatch(/Set Out for El Dorado/);
-    expect(text).toMatch(/Start Single Player/);
-    expect(text).toMatch(/Host Game/);
-    expect(text).toMatch(/Open Score Card/);
+    const hero = div.textContent || '';
+    expect(hero).toMatch(/Set Out for El Dorado/);
 
-    const links = Array.from(div.querySelectorAll('a')) as HTMLAnchorElement[];
-    const single = links.find((a) => /Start Single Player/i.test(a.textContent || ''))!;
-    const host = links.find((a) => /Host Game/i.test(a.textContent || ''))!;
-    const score = links.find((a) => /Open Score Card/i.test(a.textContent || ''))!;
+    const singleSection = div.querySelector('section[aria-label="Single player mode actions"]')!;
+    const singlePrimary = singleSection.querySelector('button')!;
+    expect(singlePrimary.textContent).toMatch(/New Game/i);
 
-    expect(single?.getAttribute('href')).toBe('/single-player');
-    expect(host?.getAttribute('href')).toBe('/rules');
-    expect(score?.getAttribute('href')).toBe('/');
+    const scoreSection = div.querySelector(
+      'section[aria-label="Open score card for in-person tallying"]',
+    )!;
+    const scorePrimary = scoreSection.querySelector('button')!;
+    expect(scorePrimary.textContent).toMatch(/New Score Card/i);
 
     root.unmount();
     div.remove();
   });
 
-  it('exposes aria-labels on mode cards', async () => {
-    vi.mock('@/components/state-provider', async () => ({
-      useAppState: () => ({ ready: true, height: 0 }),
-    }));
+  it('renders resume actions when progress exists', async () => {
+    const state = JSON.parse(JSON.stringify(INITIAL_STATE)) as AppState;
+    state.sp = {
+      ...state.sp,
+      phase: 'playing',
+      hands: { a: [{ suit: 'spades', rank: 10 }] },
+      trickPlays: [],
+    };
+    state.players = { a: 'Alice', b: 'Bob' } as AppState['players'];
+    state.scores = { a: 5, b: 0 } as AppState['scores'];
+    state.rounds[1] = {
+      ...state.rounds[1],
+      state: 'bidding',
+      bids: { a: 2 },
+      made: { a: null },
+    };
+    mockAppState(state, { height: 12 });
     vi.mock('@/lib/state/io', async () => ({
       listGames: async () => [],
     }));
     const { default: LandingPage } = await import('@/app/landing/page');
+    const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = ReactDOM.createRoot(div);
-    root.render(React.createElement(LandingPage));
+    root.render(
+      React.createElement(NewGameConfirmProvider, null, React.createElement(LandingPage)),
+    );
 
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
 
-    const sections = Array.from(div.querySelectorAll('section[aria-label]')) as HTMLElement[];
-    const labels = sections.map((s) => s.getAttribute('aria-label'));
-    expect(labels.join(' ')).toMatch(/single player/i);
-    expect(labels.join(' ')).toMatch(/multiplayer/i);
-    expect(labels.join(' ')).toMatch(/score card/i);
+    const singleSection = div.querySelector('section[aria-label="Single player mode actions"]')!;
+    const singleButtons = Array.from(singleSection.querySelectorAll('button, a'));
+    expect(singleButtons.some((el) => /Resume Game/i.test(el.textContent || ''))).toBe(true);
+    expect(singleButtons.some((el) => /Start a new game/i.test(el.textContent || ''))).toBe(true);
+
+    const scoreSection = div.querySelector(
+      'section[aria-label="Open score card for in-person tallying"]',
+    )!;
+    const scoreButtons = Array.from(scoreSection.querySelectorAll('button, a'));
+    expect(scoreButtons.some((el) => /Resume Score Card/i.test(el.textContent || ''))).toBe(true);
+    expect(scoreButtons.some((el) => /Start a new score card/i.test(el.textContent || ''))).toBe(
+      true,
+    );
 
     root.unmount();
     div.remove();
   });
 
-  it('shows Resume and recents when available', async () => {
-    vi.mock('@/components/state-provider', async () => ({
-      useAppState: () => ({ ready: true, height: 5 }),
-    }));
+  it('renders recent games with mode, players, and resume', async () => {
+    const state = JSON.parse(JSON.stringify(INITIAL_STATE)) as AppState;
+    mockAppState(state, { height: 1 });
     vi.mock('@/lib/state/io', async () => ({
       listGames: async () => [
         {
-          id: 'a',
-          title: 'Alpha',
-          createdAt: 1,
-          finishedAt: 2,
-          lastSeq: 1,
+          id: 'rec-1',
+          title: 'Single Player Adventure',
+          createdAt: 100,
+          finishedAt: 200,
+          lastSeq: 4,
           summary: {
-            players: 0,
+            players: 3,
             scores: {},
-            playersById: {},
+            playersById: { a: 'Alice', b: 'Bot', c: 'Cara' },
             winnerId: null,
             winnerName: null,
             winnerScore: null,
-          },
-          bundle: { latestSeq: 0, events: [] },
-        },
-        {
-          id: 'b',
-          title: 'Beta',
-          createdAt: 3,
-          finishedAt: 4,
-          lastSeq: 1,
-          summary: {
-            players: 0,
-            scores: {},
-            playersById: {},
-            winnerId: null,
-            winnerName: null,
-            winnerScore: null,
-          },
-          bundle: { latestSeq: 0, events: [] },
-        },
-        {
-          id: 'c',
-          title: 'Gamma',
-          createdAt: 5,
-          finishedAt: 6,
-          lastSeq: 1,
-          summary: {
-            players: 0,
-            scores: {},
-            playersById: {},
-            winnerId: null,
-            winnerName: null,
-            winnerScore: null,
+            mode: 'single-player',
+            sp: {
+              phase: 'playing',
+              roundNo: 3,
+              dealerId: 'a',
+              leaderId: 'a',
+              order: ['a', 'b', 'c'],
+              trump: null,
+              trumpCard: null,
+              trickCounts: {},
+              trumpBroken: false,
+            },
           },
           bundle: { latestSeq: 0, events: [] },
         },
       ],
     }));
     const { default: LandingPage } = await import('@/app/landing/page');
+    const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = ReactDOM.createRoot(div);
-    root.render(React.createElement(LandingPage));
+    root.render(
+      React.createElement(NewGameConfirmProvider, null, React.createElement(LandingPage)),
+    );
 
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
 
-    const resume = Array.from(div.querySelectorAll('a')).find((a) =>
-      /Resume current game/i.test(a.textContent || ''),
-    ) as HTMLAnchorElement;
-    expect(resume).toBeTruthy();
-    expect(resume.getAttribute('href')).toBe('/');
-
-    const alpha = div.querySelector('a[href="/games/view?id=a"]') as HTMLAnchorElement;
-    const beta = div.querySelector('a[href="/games/view?id=b"]') as HTMLAnchorElement;
-    const gamma = div.querySelector('a[href="/games/view?id=c"]') as HTMLAnchorElement;
-    expect(alpha && beta && gamma).toBeTruthy();
-    const viewAll = div.querySelector('a[href="/games"]');
-    expect(viewAll).toBeTruthy();
+    const recentRow = div.querySelector('[role="button"][aria-label^="Resume"]');
+    expect(recentRow).toBeTruthy();
+    expect(recentRow?.textContent || '').toMatch(/Single Player/);
+    expect(recentRow?.textContent || '').toMatch(/Hand 3/);
+    expect(recentRow?.textContent || '').toMatch(/3 players/);
+    const resumeButton = recentRow?.querySelector('button');
+    expect(resumeButton?.textContent || '').toMatch(/Resume/);
 
     root.unmount();
     div.remove();
   });
 
   it('shows empty copy without recents', async () => {
-    vi.mock('@/components/state-provider', async () => ({
-      useAppState: () => ({ ready: true, height: 0 }),
-    }));
+    const state = JSON.parse(JSON.stringify(INITIAL_STATE)) as AppState;
+    mockAppState(state, { height: 0 });
     vi.mock('@/lib/state/io', async () => ({
       listGames: async () => [],
     }));
     const { default: LandingPage } = await import('@/app/landing/page');
+    const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = ReactDOM.createRoot(div);
-    root.render(React.createElement(LandingPage));
+    root.render(
+      React.createElement(NewGameConfirmProvider, null, React.createElement(LandingPage)),
+    );
 
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));

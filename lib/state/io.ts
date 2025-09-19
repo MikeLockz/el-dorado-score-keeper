@@ -23,6 +23,10 @@ export type GameRecord = {
     winnerId: string | null;
     winnerName: string | null;
     winnerScore: number | null;
+    mode?: 'scorecard' | 'single-player';
+    scorecard?: {
+      activeRound: number | null;
+    };
     sp?: {
       phase: 'setup' | 'bidding' | 'playing' | 'summary' | 'game-summary' | 'done';
       roundNo: number | null;
@@ -226,10 +230,41 @@ function summarizeState(s: AppState): GameRecord['summary'] {
       winnerId = pid;
     }
   }
+  const roundsEntries = Object.entries(s.rounds ?? {});
+  let latestActiveRound: number | null = null;
+  for (const [rk, round] of roundsEntries) {
+    const rn = Number(rk);
+    if (!Number.isFinite(rn) || !round) continue;
+    const bids = Object.values(round.bids ?? {});
+    const made = Object.values(round.made ?? {});
+    const presentFlags = Object.values(round.present ?? {});
+    const roundActive =
+      round.state !== 'locked' ||
+      bids.some((b) => b != null && b !== 0) ||
+      made.some((m) => m != null) ||
+      presentFlags.some((p) => p === false);
+    if (roundActive) {
+      if (latestActiveRound == null || rn > latestActiveRound) {
+        latestActiveRound = rn;
+      }
+    }
+  }
+
+  if (latestActiveRound == null && roundsEntries.length > 0) {
+    latestActiveRound = 1;
+  }
+
   const spUnknown = (s as unknown as { sp?: unknown }).sp;
   const sp = (spUnknown && typeof spUnknown === 'object' ? spUnknown : {}) as Partial<
     AppState['sp']
   >;
+  const spPhase = sp.phase ?? 'setup';
+  const spActive =
+    spPhase !== 'setup' &&
+    spPhase !== 'game-summary' &&
+    spPhase !== 'done' &&
+    ((sp.trickPlays?.length ?? 0) > 0 || Object.keys(sp.hands ?? {}).length > 0);
+  const mode: 'scorecard' | 'single-player' = spActive ? 'single-player' : 'scorecard';
   return {
     players: Object.keys(playersById).length,
     scores,
@@ -237,8 +272,12 @@ function summarizeState(s: AppState): GameRecord['summary'] {
     winnerId,
     winnerName: winnerId ? (playersById[winnerId] ?? null) : null,
     winnerScore,
+    mode,
+    scorecard: {
+      activeRound: latestActiveRound,
+    },
     sp: {
-      phase: sp.phase ?? 'setup',
+      phase: spPhase,
       roundNo: sp.roundNo ?? null,
       dealerId: sp.dealerId ?? null,
       leaderId: sp.leaderId ?? null,
@@ -352,9 +391,10 @@ export async function archiveCurrentGameAndReset(
   );
   const seedEvents: AppEvent[] = [
     baseSeedEvent,
-    ...Object.entries(endState.players).map(([id, name], idx) =>
-      events.playerAdded({ id, name }, { ts: finishedAt + idx + 1 }),
-    ),
+    ...Object.entries(endState.players).map(([id, name], idx) => {
+      const type = endState.playerDetails?.[id]?.type ?? 'human';
+      return events.playerAdded({ id, name, type }, { ts: finishedAt + idx + 1 });
+    }),
   ];
 
   // Error helpers with surface codes

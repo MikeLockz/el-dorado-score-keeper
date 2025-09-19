@@ -89,32 +89,39 @@ const DEFAULT_TELEMETRY_EVENT_NAMES: Record<NewGameTelemetryEvent, string> = {
   error: 'new_game_error',
 };
 
-export function hasInProgressGame(state: AppState): boolean {
+export function hasScorecardProgress(state: AppState): boolean {
   const anyScores = Object.values(state.scores ?? {}).some(
     (score) => typeof score === 'number' && score !== 0,
   );
 
   const anyRoundActivity = Object.values(state.rounds ?? {}).some((round) => {
     if (!round) return false;
-    if (round.state === 'locked') return false;
     const bids = Object.values(round.bids ?? {});
     const made = Object.values(round.made ?? {});
     const bidsActive = bids.some((b) => b != null && b !== 0);
     const madeActive = made.some((m) => m != null);
-    return bidsActive || madeActive;
+    const presenceChanged = Object.values(round.present ?? {}).some((p) => p === false);
+    const stateActive = round.state !== 'locked' && round.state !== 'bidding';
+    return stateActive || bidsActive || madeActive || presenceChanged;
   });
 
+  return anyScores || anyRoundActivity;
+}
+
+export function hasSinglePlayerProgress(state: AppState): boolean {
   const sp = state.sp;
   const spPhase = sp?.phase;
-  const spActive = Boolean(
-    spPhase &&
-      spPhase !== 'setup' &&
-      spPhase !== 'game-summary' &&
-      spPhase !== 'done' &&
-      ((sp?.trickPlays?.length ?? 0) > 0 || Object.keys(sp?.hands ?? {}).length > 0),
-  );
+  if (!spPhase) return false;
+  if (spPhase === 'setup' || spPhase === 'game-summary' || spPhase === 'done') return false;
+  const trickPlays = sp?.trickPlays ?? [];
+  const hands = sp?.hands ?? {};
+  const hasHands = Object.values(hands).some((cards) => (cards?.length ?? 0) > 0);
+  const hasTricks = trickPlays.length > 0;
+  return hasHands || hasTricks;
+}
 
-  return anyScores || anyRoundActivity || spActive;
+export function hasInProgressGame(state: AppState): boolean {
+  return hasScorecardProgress(state) || hasSinglePlayerProgress(state);
 }
 
 function defaultConfirm(message: string): Promise<boolean> {
