@@ -34,7 +34,7 @@ function labelForRoundState(s: RoundState) {
       : s === 'playing'
         ? 'Playing'
         : s === 'complete'
-          ? 'Complete'
+          ? 'Done'
           : 'Scored';
 }
 
@@ -189,8 +189,10 @@ export default function CurrentGame({
     const next = Math.max(0, current - 1);
     if (next !== current) await append(events.bidSet({ round, playerId, bid: next }));
   };
-  const toggleMade = async (round: number, playerId: string, made: boolean) => {
-    await append(events.madeSet({ round, playerId, made }));
+  const toggleMade = async (round: number, playerId: string, desired: boolean) => {
+    const current = state.rounds[round]?.made[playerId] ?? null;
+    const next = current === desired ? null : desired;
+    await append(events.madeSet({ round, playerId, made: next }));
   };
 
   const cycleRoundState = async (round: number) => {
@@ -210,13 +212,7 @@ export default function CurrentGame({
       return;
     }
     if (current === 'complete') {
-      const rd = state.rounds[round];
-      const allMarked = players.every(
-        (p) => rd?.present?.[p.id] === false || (rd?.made[p.id] ?? null) !== null,
-      );
-      if (allMarked) {
-        await append(events.roundFinalize({ round }));
-      }
+      await append(events.roundFinalize({ round }));
       return;
     }
     if (current === 'scored') {
@@ -364,13 +360,18 @@ export default function CurrentGame({
                       }
                       aria-label={`Round ${round.round}. ${(() => {
                         const rState = state.rounds[round.round]?.state ?? 'locked';
+                        const info =
+                          roundInfoByRound[round.round] ??
+                          ({
+                            sumBids: 0,
+                            tricks: round.tricks,
+                            overUnder: 'match',
+                            state: rState,
+                          } as const);
                         const showBid = rState === 'bidding' || rState === 'scored';
-                        const info = roundInfoByRound[round.round] ?? {
-                          sumBids: 0,
-                          tricks: round.tricks,
-                        };
-                        const total = showBid ? info.sumBids : 0;
-                        const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
+                        const label = showBid
+                          ? `Bid: ${info.sumBids} (${info.overUnder === 'match' ? 'matches tricks' : info.overUnder === 'over' ? 'over bid' : 'under bid'})`
+                          : labelForRoundState(rState);
                         return disableRoundStateCycling
                           ? `Current: ${label}.`
                           : `Current: ${label}. Activate to advance state.`;
@@ -379,19 +380,33 @@ export default function CurrentGame({
                       <div className="font-bold text-sm text-foreground">{round.tricks}</div>
                       {(() => {
                         const rState = state.rounds[round.round]?.state ?? 'locked';
+                        const info =
+                          roundInfoByRound[round.round] ??
+                          ({
+                            sumBids: 0,
+                            tricks: round.tricks,
+                            overUnder: 'match',
+                            state: rState,
+                          } as const);
                         const showBid = rState === 'bidding' || rState === 'scored';
-                        const info = roundInfoByRound[round.round] ?? {
-                          sumBids: 0,
-                          tricks: round.tricks,
-                        };
-                        const total = showBid ? info.sumBids : 0;
-                        const mismatch = showBid && total !== info.tricks;
-                        const label = showBid ? `Bid: ${total}` : labelForRoundState(rState);
+                        if (showBid) {
+                          const matched = info.sumBids === info.tricks;
+                          const chipClass = matched
+                            ? 'bg-status-scored text-white'
+                            : 'bg-destructive text-white';
+                          return (
+                            <div className="mt-0.5 flex justify-center">
+                              <span
+                                className={`inline-flex items-center rounded-full px-1 py-[1px] text-[0.55rem] whitespace-nowrap ${chipClass}`}
+                              >
+                                {`Bid: ${info.sumBids}`}
+                              </span>
+                            </div>
+                          );
+                        }
                         return (
-                          <div
-                            className={`text-[0.55rem] mt-0.5 font-semibold ${mismatch ? 'text-destructive' : ''}`}
-                          >
-                            {label}
+                          <div className="text-[0.55rem] mt-0.5 font-semibold">
+                            {labelForRoundState(rState)}
                           </div>
                         );
                       })()}
@@ -494,7 +509,7 @@ export default function CurrentGame({
                                 >
                                   <Minus className="h-3 w-3" />
                                 </Button>
-                                <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-status-bidding-foreground bg-status-bidding-surface px-1.5 rounded">
+                                <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-status-bidding-foreground px-1.5 rounded">
                                   {bid}
                                 </span>
                                 <Button
@@ -546,28 +561,34 @@ export default function CurrentGame({
                           </div>
                         ) : rState === 'complete' ? (
                           <div className="flex items-center justify-center gap-4 w-full px-1 py-0.5">
-                            <Button
-                              size="sm"
-                              variant={made === true ? 'default' : 'outline'}
-                              className="h-5 w-5 p-0 bg-card/80 hover:bg-card border-status-complete"
+                            <button
+                              type="button"
+                              className={`inline-flex h-5 w-5 items-center justify-center rounded-md border p-0 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50 ${
+                                made === true
+                                  ? 'border-status-scored bg-status-scored text-status-scored-foreground hover:bg-[color-mix(in_oklch,_var(--color-status-scored)_85%,_black_15%)]'
+                                  : 'border-border bg-card/70 text-muted-foreground hover:bg-card dark:bg-surface-muted/80 dark:text-surface-muted-foreground'
+                              }`}
                               onClick={() => void toggleMade(round.round, c.id, true)}
                               aria-pressed={made === true}
                               aria-label={`Mark made for ${c.name} in round ${round.round}`}
                               disabled={disableInputs}
                             >
                               <Check className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={made === false ? 'destructive' : 'outline'}
-                              className="h-5 w-5 p-0 bg-card/80 hover:bg-card border-status-complete"
+                            </button>
+                            <button
+                              type="button"
+                              className={`inline-flex h-5 w-5 items-center justify-center rounded-md border p-0 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50 ${
+                                made === false
+                                  ? 'border-destructive bg-destructive text-white hover:bg-[color-mix(in_oklch,_var(--destructive)_85%,_black_15%)] dark:text-white'
+                                  : 'border-border bg-card/70 text-muted-foreground hover:bg-card dark:bg-surface-muted/80 dark:text-surface-muted-foreground'
+                              }`}
                               onClick={() => void toggleMade(round.round, c.id, false)}
                               aria-pressed={made === false}
                               aria-label={`Mark missed for ${c.name} in round ${round.round}`}
                               disabled={disableInputs}
                             >
                               <X className="h-3 w-3" />
-                            </Button>
+                            </button>
                           </div>
                         ) : (
                           <>

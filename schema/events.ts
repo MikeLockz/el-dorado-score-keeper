@@ -43,7 +43,7 @@ export const eventPayloadSchemas = {
   'score/added': z.object({ playerId, delta: z.number().finite() }),
   'round/state-set': z.object({ round, state: roundState }),
   'bid/set': z.object({ round, playerId, bid: z.number().int().nonnegative() }),
-  'made/set': z.object({ round, playerId, made: z.boolean() }),
+  'made/set': z.object({ round, playerId, made: z.boolean().nullable() }),
   'round/finalize': z.object({ round }),
   // single-player
   'sp/reset': z.object({}),
@@ -66,6 +66,10 @@ export const eventPayloadSchemas = {
   'sp/trick/reveal-clear': z.object({}),
   'sp/summary-entered-set': z.object({ at: z.number().int().nonnegative() }),
   'sp/seed-set': z.object({ seed: z.number().int() }),
+  'sp/round-tally-set': z.object({
+    round,
+    tallies: z.record(z.number().int().min(0)),
+  }),
 } as const;
 
 export type AppEventType = keyof typeof eventPayloadSchemas;

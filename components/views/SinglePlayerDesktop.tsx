@@ -34,8 +34,9 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     spOrder,
     spTrickCounts,
     reveal,
-    overlay,
     rotated,
+    tableWinnerId,
+    tableCards,
     tricksThisRound,
     trump,
     trumpCard,
@@ -58,6 +59,8 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     trickPlays,
     lastTrickSnapshot,
     sessionSeed,
+    scoreCardRounds,
+    scoreCardTotals,
   } = useSinglePlayerViewModel({ humanId, rng });
   const { startNewGame, pending: newGamePending } = useNewGameRequest({ requireIdle: true });
 
@@ -148,6 +151,45 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     [canPlayCard, playCard],
   );
 
+  const summaryData = React.useMemo(() => {
+    const ids = players.map((p) => p.id);
+    const totals = ids.map((id) => ({
+      id,
+      name: playerLabel(id),
+      total: state.scores?.[id] ?? 0,
+    }));
+    const totalsValues = totals.map((t) => t.total);
+    const max = totalsValues.length > 0 ? Math.max(...totalsValues) : 0;
+    const winners = totals.filter((t) => t.total === max).map((t) => t.name);
+    const title =
+      winners.length > 1
+        ? `Winners: ${winners.join(', ')}`
+        : winners.length === 1
+          ? `Winner: ${winners[0] ?? '-'}`
+          : 'Game Summary';
+    return {
+      title,
+      players: totals.map((t) => ({ ...t, isWinner: totalsValues.length > 0 && t.total === max })),
+      seed: sessionSeed,
+    };
+  }, [players, playerLabel, state.scores, sessionSeed]);
+
+  const [showSummary, setShowSummary] = React.useState(false);
+  React.useEffect(() => {
+    if (spPhase === 'bidding' || spPhase === 'playing') return;
+    setShowSummary(false);
+  }, [spPhase]);
+
+  const toggleSummaryView = React.useCallback(() => {
+    setShowSummary((prev) => !prev);
+  }, []);
+
+  const handlePlayAgain = React.useCallback(() => {
+    if (isBatchPending || newGamePending) return;
+    setShowSummary(false);
+    void startNewGame({ skipConfirm: true });
+  }, [isBatchPending, newGamePending, startNewGame]);
+
   if (spPhase === 'summary') {
     const ids = players.map((p) => p.id);
     const perPlayer = ids.map((id) => {
@@ -188,29 +230,23 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
           }}
           isLastRound={isFinalRound}
           disabled={isBatchPending}
+          scoreCardRounds={scoreCardRounds}
+          scoreCardTotals={scoreCardTotals}
         />
       </div>
     );
   }
 
   if (spPhase === 'game-summary' || spPhase === 'done') {
-    const ids = players.map((p) => p.id);
-    const totals = ids.map((id) => ({ id, name: playerLabel(id), total: state.scores?.[id] ?? 0 }));
-    const max = totals.reduce((m, t) => Math.max(m, t.total), Number.NEGATIVE_INFINITY);
-    const winners = totals.filter((t) => t.total === max).map((t) => t.name);
-    const title =
-      winners.length > 1 ? `Winners: ${winners.join(', ')}` : `Winner: ${winners[0] ?? '-'}`;
-
     return (
       <SpGameSummary
-        title={title}
-        players={totals.map((t) => ({ ...t, isWinner: t.total === max }))}
-        seed={sessionSeed}
-        onPlayAgain={() => {
-          if (isBatchPending || newGamePending) return;
-          void startNewGame({ skipConfirm: true });
-        }}
+        title={summaryData.title}
+        players={summaryData.players}
+        seed={summaryData.seed}
+        onPlayAgain={handlePlayAgain}
         disabled={isBatchPending || newGamePending}
+        scoreCardRounds={scoreCardRounds}
+        scoreCardTotals={scoreCardTotals}
       />
     );
   }
@@ -331,133 +367,168 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                   </div>
                 )}
               </section>
-            </div>
-          </aside>
-          <section className="flex flex-col gap-6">
-            <div className="rounded-lg border bg-card shadow-sm">
-              <div className="border-b px-4 py-3">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  Current Trick
-                </h2>
-              </div>
-              <div className="max-h-[50vh] overflow-auto px-4 py-4 [&>section]:space-y-3 [&>section]:p-0 [&>section]:pb-4">
-                <SpTrickTable
-                  rotated={rotated}
-                  playerName={playerLabel}
-                  bids={currentBids}
-                  trickCounts={spTrickCounts}
-                  playedCards={overlay?.cards ?? null}
-                  winnerId={reveal ? reveal.winnerId : null}
-                />
-              </div>
-            </div>
-            <div className="rounded-lg border bg-card shadow-sm" aria-label="Play controls">
-              {spPhase === 'bidding' && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">Your bid</span>
-                    <span className="font-semibold tabular-nums">{humanBid}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="h-8 w-8 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-status-bidding"
-                      onClick={() =>
-                        void append(
-                          events.bidSet({
-                            round: spRoundNo,
-                            playerId: humanId,
-                            bid: Math.max(0, humanBid - 1),
-                          }),
-                        )
-                      }
-                      disabled={isBatchPending || humanBid <= 0}
-                      aria-label="Decrease bid"
-                    >
-                      −
-                    </button>
-                    <button
-                      type="button"
-                      className="h-8 w-8 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-status-bidding"
-                      onClick={() =>
-                        void append(
-                          events.bidSet({
-                            round: spRoundNo,
-                            playerId: humanId,
-                            bid: Math.min(tricksThisRound, humanBid + 1),
-                          }),
-                        )
-                      }
-                      disabled={isBatchPending || humanBid >= tricksThisRound}
-                      aria-label="Increase bid"
-                    >
-                      +
-                    </button>
-                    <button
-                      type="button"
-                      className="ml-2 rounded bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
-                      onClick={() => void onConfirmBid(humanBid)}
-                      disabled={isBatchPending}
-                    >
-                      Confirm
-                    </button>
-                  </div>
-                </div>
-              )}
-              <div className="px-2 pb-2">
-                <SpHandDock
-                  suitOrder={suitOrder}
-                  humanBySuit={humanBySuit}
-                  isPlaying={spPhase === 'playing'}
-                  isSelected={isSelected}
-                  canPlayCard={canPlayCard}
-                  onToggleSelect={(c) =>
-                    setSelected((prev) =>
-                      prev && prev.suit === c.suit && prev.rank === c.rank ? null : c,
-                    )
-                  }
-                  onPlayCard={playSelectedCard}
-                />
-              </div>
-              <div
-                className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3"
-                aria-label="Turn actions"
-              >
-                <div className="text-sm text-muted-foreground">
-                  {reveal
-                    ? totalTricksSoFar >= tricksThisRound
-                      ? isFinalRound
-                        ? 'Round complete — start a new game when ready.'
-                        : 'Round complete — continue to the next round.'
-                      : 'Hand resolved — continue when ready.'
-                    : spPhase === 'bidding'
-                      ? 'Adjust your bid, then confirm.'
-                      : 'Play a card or continue.'}
-                </div>
+              <div className="border-t pt-4 text-sm">
                 <button
                   type="button"
-                  className="rounded bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={onAdvance}
-                  disabled={advanceDisabled}
-                  aria-disabled={advanceDisabled}
+                  className={`font-semibold text-primary hover:underline ${showSummary ? 'underline' : ''}`}
+                  onClick={toggleSummaryView}
+                  aria-pressed={showSummary}
+                  aria-expanded={showSummary}
+                  aria-controls="sp-game-summary-panel"
                 >
-                  {advanceLabel}
+                  View Full Summary
                 </button>
               </div>
             </div>
+          </aside>
+          <section className="flex flex-col gap-6">
+            {showSummary ? (
+              <div
+                id="sp-game-summary-panel"
+                className="flex flex-col rounded-lg border bg-card shadow-sm"
+                aria-label="Full game summary"
+              >
+                <SpGameSummary
+                  variant="panel"
+                  title={summaryData.title}
+                  players={summaryData.players}
+                  seed={summaryData.seed}
+                  onPlayAgain={handlePlayAgain}
+                  disabled={isBatchPending || newGamePending}
+                  onClose={() => setShowSummary(false)}
+                  scoreCardRounds={scoreCardRounds}
+                  scoreCardTotals={scoreCardTotals}
+                />
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg border bg-card shadow-sm">
+                  <div className="border-b px-4 py-3">
+                    <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                      Current Trick
+                    </h2>
+                  </div>
+                  <div className="max-h-[50vh] overflow-auto px-4 py-4 [&>section]:space-y-3 [&>section]:p-0 [&>section]:pb-4">
+                    <SpTrickTable
+                      rotated={rotated}
+                      playerName={playerLabel}
+                      bids={currentBids}
+                      trickCounts={spTrickCounts}
+                      playedCards={tableCards}
+                      winnerId={tableWinnerId}
+                    />
+                  </div>
+                </div>
+                <div className="rounded-lg border bg-card shadow-sm" aria-label="Play controls">
+                  {spPhase === 'bidding' && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Your bid</span>
+                        <span className="font-semibold tabular-nums">{humanBid}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="h-8 w-8 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-status-bidding"
+                          onClick={() =>
+                            void append(
+                              events.bidSet({
+                                round: spRoundNo,
+                                playerId: humanId,
+                                bid: Math.max(0, humanBid - 1),
+                              }),
+                            )
+                          }
+                          disabled={isBatchPending || humanBid <= 0}
+                          aria-label="Decrease bid"
+                        >
+                          −
+                        </button>
+                        <button
+                          type="button"
+                          className="h-8 w-8 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-status-bidding"
+                          onClick={() =>
+                            void append(
+                              events.bidSet({
+                                round: spRoundNo,
+                                playerId: humanId,
+                                bid: Math.min(tricksThisRound, humanBid + 1),
+                              }),
+                            )
+                          }
+                          disabled={isBatchPending || humanBid >= tricksThisRound}
+                          aria-label="Increase bid"
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          className="ml-2 rounded bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
+                          onClick={() => void onConfirmBid(humanBid)}
+                          disabled={isBatchPending}
+                        >
+                          Confirm
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="px-2 pb-2">
+                    <SpHandDock
+                      suitOrder={suitOrder}
+                      humanBySuit={humanBySuit}
+                      isPlaying={spPhase === 'playing'}
+                      isSelected={isSelected}
+                      canPlayCard={canPlayCard}
+                      onToggleSelect={(c) =>
+                        setSelected((prev) =>
+                          prev && prev.suit === c.suit && prev.rank === c.rank ? null : c,
+                        )
+                      }
+                      onPlayCard={playSelectedCard}
+                    />
+                  </div>
+                  <div
+                    className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3"
+                    aria-label="Turn actions"
+                  >
+                    <div className="text-sm text-muted-foreground">
+                      {reveal
+                        ? totalTricksSoFar >= tricksThisRound
+                          ? isFinalRound
+                            ? 'Round complete — start a new game when ready.'
+                            : 'Round complete — continue to the next round.'
+                          : 'Hand resolved — continue when ready.'
+                        : spPhase === 'bidding'
+                          ? 'Adjust your bid, then confirm.'
+                          : 'Play a card or continue.'}
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={onAdvance}
+                      disabled={advanceDisabled}
+                      aria-disabled={advanceDisabled}
+                    >
+                      {advanceLabel}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </section>
         </div>
-        {(() => {
-          const snap = lastTrickSnapshot;
-          const trickIdle = trickPlays.length === 0;
-          if (!snap || reveal || !trickIdle) return null;
-          return (
-            <div className="rounded-lg border bg-card px-4 py-3 text-sm shadow-sm">
-              <span className="text-muted-foreground">Last trick:</span>{' '}
-              <span className="font-semibold">{playerLabel(snap.winnerId)}</span>
-            </div>
-          );
-        })()}
+        {!showSummary &&
+          (() => {
+            const snap = lastTrickSnapshot;
+            const trickIdle = trickPlays.length === 0;
+            if (!snap || reveal || !trickIdle) return null;
+            return (
+              <div className="rounded-lg border bg-card px-4 py-3 text-sm shadow-sm">
+                <span className="text-muted-foreground">Last trick:</span>{' '}
+                <span className="font-semibold">{playerLabel(snap.winnerId)}</span>
+              </div>
+            );
+          })()}
       </main>
     </div>
   );

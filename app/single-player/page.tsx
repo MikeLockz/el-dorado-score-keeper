@@ -1,5 +1,7 @@
 'use client';
 import React from 'react';
+import { Loader2 } from 'lucide-react';
+
 import { startRound, mulberry32, deriveSeed } from '@/lib/single-player';
 // import CurrentGame from '@/components/views/CurrentGame';
 import SinglePlayerMobile from '@/components/views/SinglePlayerMobile';
@@ -250,6 +252,17 @@ export default function SinglePlayerPage() {
   const spRoster = React.useMemo(() => selectActiveRoster(state, 'single'), [state]);
   const scRoster = React.useMemo(() => selectActiveRoster(state, 'scorecard'), [state]);
   const [quickCount, setQuickCount] = React.useState<number>(2);
+
+  if (!ready) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center bg-background text-foreground">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          Loading single player…
+        </div>
+      </div>
+    );
+  }
 
   if (!spRoster) {
     return (

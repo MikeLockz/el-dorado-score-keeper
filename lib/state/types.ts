@@ -89,6 +89,7 @@ export type AppState = Readonly<{
     }> | null;
     summaryEnteredAt?: number;
     sessionSeed?: number | null;
+    roundTallies?: Record<number, Record<string, number>>;
   }>;
   // Optional dense display order per player ID. Missing entries are handled by selectors.
   display_order: Record<string, number>;
@@ -119,6 +120,7 @@ export const INITIAL_STATE: AppState = {
     handPhase: 'idle',
     lastTrickSnapshot: null,
     sessionSeed: null,
+    roundTallies: {},
   },
   display_order: {},
 };

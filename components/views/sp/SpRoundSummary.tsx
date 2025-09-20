@@ -1,6 +1,9 @@
 import React from 'react';
 import type { Suit } from '@/lib/single-player/types';
 
+import SpScoreCard from './SpScoreCard';
+import type { ScoreCardRound } from './useSinglePlayerViewModel';
+
 export type PlayerSummary = Readonly<{
   id: string;
   name: string;
@@ -22,6 +25,8 @@ export default function SpRoundSummary(props: {
   onContinue: () => void;
   isLastRound: boolean;
   disabled?: boolean;
+  scoreCardRounds: ReadonlyArray<ScoreCardRound>;
+  scoreCardTotals: Record<string, number>;
 }) {
   const {
     roundNo,
@@ -35,6 +40,8 @@ export default function SpRoundSummary(props: {
     onContinue,
     isLastRound,
     disabled,
+    scoreCardRounds,
+    scoreCardTotals,
   } = props;
   const autoSecs = Math.ceil((remainingMs ?? 0) / 1000);
   return (
@@ -77,6 +84,11 @@ export default function SpRoundSummary(props: {
         <div className="mt-3 text-xs text-muted-foreground">
           {autoCanceled ? 'Auto-advance canceled' : `Auto-advance in ${autoSecs}s… (tap to cancel)`}
         </div>
+        <SpScoreCard
+          rounds={scoreCardRounds}
+          totals={scoreCardTotals}
+          players={players.map((p) => ({ id: p.id, name: p.name }))}
+        />
       </main>
       <nav
         className="fixed left-0 right-0 bottom-0 z-30 grid grid-cols-2 gap-2 px-2 py-2 border-t bg-background/85 backdrop-blur"

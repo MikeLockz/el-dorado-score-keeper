@@ -34,7 +34,8 @@ export function finalizeRound(prev: AppState, round: number): AppState {
     // Only count if player is present (treat missing as present for compatibility)
     if (r.present?.[pid] === false) continue;
     const bid = r.bids[pid] ?? 0;
-    const made = r.made[pid] ?? false;
+    const madeRaw = r.made?.[pid];
+    const made = madeRaw ?? false;
     scores[pid] = (scores[pid] ?? 0) + roundDelta(bid, made);
   }
   const rounds: Record<number, RoundData> = {

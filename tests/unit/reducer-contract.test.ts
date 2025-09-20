@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { makeEvent, type AppEventType, type EventPayloadByType } from '@/lib/state/events';
 import { INITIAL_STATE, reduce, type AppState } from '@/lib/state/types';
+import { roundDelta } from '@/lib/state/logic';
 import { payloadSchemas, validateEventStrict } from '@/lib/state/validation';
 
 const now = 1_700_000_000_000;
@@ -48,6 +49,7 @@ describe('reducer contract: payload schemas', () => {
         'sp/trump-broken-set',
         'sp/leader-set',
         'sp/summary-entered-set',
+        'sp/round-tally-set',
         'sp/seed-set',
       ].sort(),
     );
@@ -180,6 +182,13 @@ describe('reducer contract: payload schemas', () => {
       const s = reduce(INITIAL_STATE, e);
       expect(s.rounds[1].made.p1).toBe(true);
     });
+    it('allows clearing outcome with null', () => {
+      const eTrue = validateEventStrict(ev('made/set', { round: 1, playerId: 'p1', made: true }));
+      const eClear = validateEventStrict(ev('made/set', { round: 1, playerId: 'p1', made: null }));
+      let s = reduce(INITIAL_STATE, eTrue);
+      s = reduce(s, eClear);
+      expect(s.rounds[1].made.p1).toBeNull();
+    });
     it('rejects invalid payloads', () => {
       const invalids = [
         { round: -2, playerId: 'p1', made: false },
@@ -207,6 +216,21 @@ describe('reducer contract: payload schemas', () => {
       expect(s.rounds[1].state).toBe('scored');
       expect(s.rounds[2].state).toBe('bidding');
       expect(Object.keys(s.scores)).toEqual(['p1', 'p2']);
+    });
+    it('finalizes even when some made values are unset', () => {
+      const eAdd1 = validateEventStrict(ev('player/added', { id: 'p1', name: 'A' }));
+      const eAdd2 = validateEventStrict(ev('player/added', { id: 'p2', name: 'B' }));
+      const eBid1 = validateEventStrict(ev('bid/set', { round: 1, playerId: 'p1', bid: 2 }));
+      const eBid2 = validateEventStrict(ev('bid/set', { round: 1, playerId: 'p2', bid: 3 }));
+      const eMade1 = validateEventStrict(ev('made/set', { round: 1, playerId: 'p1', made: true }));
+      const eFin = validateEventStrict(ev('round/finalize', { round: 1 }));
+
+      let s: AppState = INITIAL_STATE;
+      for (const e of [eAdd1, eAdd2, eBid1, eBid2, eMade1, eFin]) s = reduce(s, e);
+
+      expect(s.rounds[1].state).toBe('scored');
+      expect(s.scores.p1).toBe(roundDelta(2, true));
+      expect(s.scores.p2).toBe(roundDelta(3, false));
     });
     it('rejects invalid payloads', () => {
       const invalids = [{ round: -1 }, {}];

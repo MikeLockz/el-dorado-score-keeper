@@ -43,21 +43,21 @@
   --surface-muted-foreground: oklch(0.45 0 0);
   --surface-accent: oklch(0.93 0.03 210);
   --surface-accent-foreground: oklch(0.24 0.02 210);
-  --status-locked: oklch(0.94 0 0);
-  --status-locked-foreground: oklch(0.35 0 0);
-  --status-locked-surface: oklch(0.975 0 0);
-  --status-bidding: oklch(0.78 0.09 210);
+  --status-locked: oklch(0.9 0.02 260);
+  --status-locked-foreground: oklch(0.34 0.03 260);
+  --status-locked-surface: oklch(0.96 0.01 260);
+  --status-bidding: oklch(0.74 0.16 210);
   --status-bidding-foreground: oklch(0.985 0 0);
-  --status-bidding-surface: oklch(0.92 0.04 210);
-  --status-playing: oklch(0.74 0.1 275);
+  --status-bidding-surface: oklch(0.88 0.09 210);
+  --status-playing: oklch(0.7 0.16 275);
   --status-playing-foreground: oklch(0.985 0 0);
-  --status-playing-surface: oklch(0.9 0.05 275);
-  --status-complete: oklch(0.8 0.14 55);
-  --status-complete-foreground: oklch(0.985 0 0);
-  --status-complete-surface: oklch(0.94 0.05 55);
-  --status-scored: oklch(0.78 0.13 150);
-  --status-scored-foreground: oklch(0.985 0 0);
-  --status-scored-surface: oklch(0.92 0.05 150);
+  --status-playing-surface: oklch(0.86 0.09 275);
+  --status-complete: oklch(0.76 0.21 55);
+  --status-complete-foreground: oklch(0.34 0.05 55);
+  --status-complete-surface: oklch(0.9 0.12 55);
+  --status-scored: oklch(0.56 0.18 140);
+  --status-scored-foreground: oklch(0.2 0.04 140);
+  --status-scored-surface: oklch(0.8 0.11 140);
 }
 
 .dark {

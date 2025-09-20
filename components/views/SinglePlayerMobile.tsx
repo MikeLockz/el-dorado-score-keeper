@@ -33,13 +33,13 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     spOrder,
     spTrickCounts,
     reveal,
-    overlay,
     rotated,
+    tableWinnerId,
+    tableCards,
     tricksThisRound,
     trump,
     trumpCard,
     dealerName,
-    roundTotals,
     currentBids,
     currentMade,
     humanBid,
@@ -57,6 +57,8 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     trickPlays,
     lastTrickSnapshot,
     sessionSeed,
+    scoreCardRounds,
+    scoreCardTotals,
   } = useSinglePlayerViewModel({ humanId, rng });
   const { startNewGame, pending: newGamePending } = useNewGameRequest({ requireIdle: true });
 
@@ -112,6 +114,42 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     ctaMeta.label
   );
 
+  const summaryData = React.useMemo(() => {
+    const ids = players.map((p) => p.id);
+    const totals = ids.map((id) => ({
+      id,
+      name: playerName(id),
+      total: state.scores?.[id] ?? 0,
+    }));
+    const max =
+      totals.length > 0
+        ? totals.reduce((m, t) => Math.max(m, t.total), Number.NEGATIVE_INFINITY)
+        : 0;
+    const winners = totals.filter((t) => t.total === max).map((t) => t.name);
+    const title =
+      winners.length > 1
+        ? `Winners: ${winners.join(', ')}`
+        : winners.length === 1
+          ? `Winner: ${winners[0] ?? '-'}`
+          : 'Game Summary';
+    return {
+      title,
+      players: totals.map((t) => ({ ...t, isWinner: t.total === max })),
+      seed: sessionSeed,
+    };
+  }, [players, playerName, state.scores, sessionSeed]);
+
+  const [showSummary, setShowSummary] = React.useState(false);
+  React.useEffect(() => {
+    if (spPhase !== 'bidding' && spPhase !== 'playing') setShowSummary(false);
+  }, [spPhase]);
+
+  const handlePlayAgain = React.useCallback(() => {
+    if (isBatchPending || newGamePending) return;
+    setShowSummary(false);
+    void startNewGame({ skipConfirm: true });
+  }, [isBatchPending, newGamePending, startNewGame]);
+
   // Summary auto-advance hooks (always declared; guarded inside effect)
   const [autoCanceled, setAutoCanceled] = React.useState(false);
   const [remainingMs, setRemainingMs] = React.useState<number>(0);
@@ -140,11 +178,6 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   const [selected, setSelected] = React.useState<SpCard | null>(null);
   const isSelected = (c: SpCard) =>
     !!selected && selected.suit === c.suit && selected.rank === c.rank;
-
-  // Sheet state
-  type SheetState = 'peek' | 'mid' | 'full';
-  const [sheet, setSheet] = React.useState<SheetState>('peek');
-  const cycleSheet = () => setSheet((s) => (s === 'peek' ? 'mid' : s === 'mid' ? 'full' : 'peek'));
 
   if (spPhase === 'summary') {
     const ids = players.map((p) => p.id);
@@ -189,29 +222,39 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         }}
         isLastRound={isLastRound}
         disabled={isBatchPending}
+        scoreCardRounds={scoreCardRounds}
+        scoreCardTotals={scoreCardTotals}
       />
     );
   }
 
   // Game Summary Screen (phase === 'game-summary')
   if (spPhase === 'game-summary' || spPhase === 'done') {
-    const ids = players.map((p) => p.id);
-    const totals = ids.map((id) => ({ id, name: playerName(id), total: state.scores?.[id] ?? 0 }));
-    const max = totals.reduce((m, t) => Math.max(m, t.total), Number.NEGATIVE_INFINITY);
-    const winners = totals.filter((t) => t.total === max).map((t) => t.name);
-    const title =
-      winners.length > 1 ? `Winners: ${winners.join(', ')}` : `Winner: ${winners[0] ?? '-'}`;
-
     return (
       <SpGameSummary
-        title={title}
-        players={totals.map((t) => ({ ...t, isWinner: t.total === max }))}
-        seed={sessionSeed}
-        onPlayAgain={() => {
-          if (isBatchPending || newGamePending) return;
-          void startNewGame({ skipConfirm: true });
-        }}
+        title={summaryData.title}
+        players={summaryData.players}
+        seed={summaryData.seed}
+        onPlayAgain={handlePlayAgain}
         disabled={isBatchPending || newGamePending}
+        scoreCardRounds={scoreCardRounds}
+        scoreCardTotals={scoreCardTotals}
+      />
+    );
+  }
+
+  if (showSummary) {
+    return (
+      <SpGameSummary
+        title={summaryData.title}
+        players={summaryData.players}
+        seed={summaryData.seed}
+        onPlayAgain={handlePlayAgain}
+        disabled={isBatchPending || newGamePending}
+        onDetailsToggle={() => setShowSummary(false)}
+        detailsActive
+        scoreCardRounds={scoreCardRounds}
+        scoreCardTotals={scoreCardTotals}
       />
     );
   }
@@ -227,7 +270,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         trumpBroken={isTrumpBroken}
       />
 
-      {/* Surface: Compact Trick Table + Bottom Sheet (overlayed) */}
+      {/* Surface: Compact Trick Table */}
       <main className="relative flex-1">
         {/* Compact Table */}
         <SpTrickTable
@@ -235,76 +278,9 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
           playerName={playerName}
           bids={currentBids}
           trickCounts={spTrickCounts}
-          playedCards={overlay?.cards ?? null}
-          winnerId={reveal ? reveal.winnerId : null}
+          playedCards={tableCards}
+          winnerId={tableWinnerId}
         />
-
-        {/* Bottom Sheet */}
-        <aside
-          className={`fixed left-0 right-0 bottom-0 z-50 bg-card border-t transition-transform ${
-            sheet === 'peek'
-              ? 'translate-y-full'
-              : sheet === 'mid'
-                ? 'translate-y-[40dvh]'
-                : 'translate-y-0'
-          }`}
-        >
-          <div
-            className="text-center py-1 text-muted-foreground select-none cursor-ns-resize"
-            onClick={cycleSheet}
-            title="Tap to expand/collapse"
-          >
-            ▄▄▄
-          </div>
-          <div className="max-h-[calc(100dvh-3rem)] overflow-auto p-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            <div className="text-xs text-muted-foreground mb-1">Bids</div>
-            <div className="flex flex-wrap gap-3">
-              {spOrder.map((pid) => (
-                <div key={`bid-${pid}`}>
-                  {playerName(pid)}: <strong>{currentBids[pid] ?? 0}</strong>
-                </div>
-              ))}
-            </div>
-            <div className="text-xs text-muted-foreground mt-3 mb-1">Scores</div>
-            <div className="flex flex-wrap gap-3">
-              {spOrder.map((pid) => (
-                <div key={`score-${pid}`}>
-                  {playerName(pid)}: <strong>{roundTotals[pid] ?? 0}</strong>
-                </div>
-              ))}
-            </div>
-            {reveal && (
-              <div className="mt-2 flex items-center justify-between">
-                <div className="text-sm">
-                  <span className="text-muted-foreground mr-1">Hand Winner:</span>
-                  <span className="font-semibold text-status-scored" aria-live="polite">
-                    {playerName(reveal.winnerId)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="rounded bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1 text-sm"
-                  onClick={() => {
-                    if (userAdvanceBatch.length > 0) void appendMany(userAdvanceBatch);
-                  }}
-                >
-                  {(() => {
-                    const total = Object.values(spTrickCounts ?? {}).reduce(
-                      (a, n) => a + (n ?? 0),
-                      0,
-                    );
-                    if (total >= tricksThisRound) return isFinalRound ? 'New Game' : 'Next Round';
-                    return 'Next Hand';
-                  })()}
-                </button>
-              </div>
-            )}
-            <div className="mt-2 text-sm text-muted-foreground">
-              Trump broken:{' '}
-              <span className="font-semibold text-foreground">{isTrumpBroken ? 'Yes' : 'No'}</span>
-            </div>
-          </div>
-        </aside>
       </main>
 
       {/* Last Trick banner (after clear, before next trick starts) */}
@@ -399,8 +375,9 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
       >
         <>
           <button
+            type="button"
             className="text-muted-foreground hover:text-foreground hover:underline"
-            onClick={cycleSheet}
+            onClick={() => setShowSummary(true)}
             aria-label="Round details"
           >
             Details

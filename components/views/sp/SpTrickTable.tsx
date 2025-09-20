@@ -24,12 +24,17 @@ export default function SpTrickTable(props: {
         const tricks = trickCounts[pid] ?? 0;
         const played = playedCards?.[pid] ?? null;
         const isWinner = !!winnerId && winnerId === pid;
+        const rowClasses = isWinner
+          ? 'border-2 text-status-scored-foreground font-semibold shadow-md ring-status-scored/70'
+          : 'border border-border/60 bg-card/60';
+        const style = isWinner
+          ? ({ borderColor: 'var(--color-status-scored)' } as React.CSSProperties)
+          : undefined;
         return (
           <div
             key={pid}
-            className={`grid grid-cols-[minmax(64px,1fr)_36px_52px_64px] items-center gap-1 rounded py-0.5 ${
-              isWinner ? 'border-status-scored bg-status-scored/15' : 'border-border bg-card/60'
-            }`}
+            className={`grid grid-cols-[minmax(64px,1fr)_36px_52px_64px] items-center gap-1 rounded px-2 py-1 transition-all ${rowClasses}`}
+            style={style}
           >
             <div className="truncate text-sm">{playerName(pid)}</div>
             <div className="text-sm tabular-nums text-center">{bid}</div>

@@ -80,6 +80,8 @@ export const events = {
   spSummaryEnteredSet: (p: EventPayloadByType<'sp/summary-entered-set'>, m?: Meta) =>
     makeEvent('sp/summary-entered-set', p, m),
   spSeedSet: (p: EventPayloadByType<'sp/seed-set'>, m?: Meta) => makeEvent('sp/seed-set', p, m),
+  spRoundTallySet: (p: EventPayloadByType<'sp/round-tally-set'>, m?: Meta) =>
+    makeEvent('sp/round-tally-set', p, m),
 };
 
 export type { AppEventType, EventPayloadByType, KnownAppEvent };

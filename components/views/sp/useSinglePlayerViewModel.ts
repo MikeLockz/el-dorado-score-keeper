@@ -16,6 +16,7 @@ import {
   selectCumulativeScoresAllRounds,
   type AppEvent,
   ROUNDS_TOTAL,
+  roundDelta,
 } from '@/lib/state';
 import type { AppState } from '@/lib/state/types';
 import { bots, computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
@@ -28,6 +29,19 @@ type TrickPlay = {
   playerId: string;
   card: { suit: Suit; rank: Rank };
 };
+
+type ScoreCardEntry = Readonly<{
+  bid: number | null;
+  taken: number | null;
+  score: number;
+  made: boolean | null;
+  present: boolean;
+}>;
+
+export type ScoreCardRound = Readonly<{
+  round: number;
+  entries: Record<string, ScoreCardEntry>;
+}>;
 
 export type SinglePlayerDerivedState = Readonly<{
   players: ReadonlyArray<{ id: string; name: string; type: 'human' | 'bot' }>;
@@ -57,11 +71,15 @@ export type SinglePlayerDerivedState = Readonly<{
   humanBySuit: Record<Suit, ReadonlyArray<SpCard>>;
   suitOrder: ReadonlyArray<Suit>;
   trickPlays: TrickPlay[];
+  tableWinnerId: string | null;
+  tableCards: Record<string, { suit: Suit; rank: Rank } | null> | null;
   isTrumpBroken: boolean;
   summaryEnteredAt: number | null;
   lastTrickSnapshot: AppState['sp']['lastTrickSnapshot'];
   sessionSeed: number | null;
   leaderId: string | null;
+  scoreCardRounds: ReadonlyArray<ScoreCardRound>;
+  scoreCardTotals: Record<string, number>;
 }>;
 
 export function buildSinglePlayerDerivedState(
@@ -111,17 +129,75 @@ export function buildSinglePlayerDerivedState(
         card: { suit: p.card.suit, rank: p.card.rank },
       }))
     : [];
+  const trickIdle = trickPlays.length === 0;
   const trickCountValues = Object.values(spTrickCounts);
   const handsCompleted = trickCountValues.reduce((total, count) => total + (count ?? 0), 0);
-  const handNow = handsCompleted + (!reveal && trickPlays.length > 0 ? 1 : 0);
+  const handNow = handsCompleted + (!reveal && !trickIdle ? 1 : 0);
   const totalTricksSoFar = trickCountValues.reduce((total, count) => total + (count ?? 0), 0);
 
   const humanBySuit = selectSpHandBySuit(state, humanId);
   const isTrumpBroken = !!sp?.trumpBroken;
   const summaryEnteredAt = sp?.summaryEnteredAt ?? null;
   const lastTrickSnapshot = sp?.lastTrickSnapshot ?? null;
+  const overlayCards = overlay?.cards ?? null;
+  const snapshotCards = (() => {
+    if (!lastTrickSnapshot) return null;
+    const map: Record<string, { suit: Suit; rank: Rank } | null> = {};
+    for (const pid of spOrder) map[pid] = null;
+    for (const play of lastTrickSnapshot.plays ?? []) {
+      if (!play?.card) continue;
+      map[play.playerId] = { suit: play.card.suit, rank: play.card.rank };
+    }
+    return map;
+  })();
+  const hasOverlayCard = overlayCards ? Object.values(overlayCards).some((card) => !!card) : false;
+  const tableCards = hasOverlayCard ? overlayCards : snapshotCards;
+  const tableWinnerId =
+    reveal?.winnerId ?? (trickIdle ? (lastTrickSnapshot?.winnerId ?? null) : null);
   const sessionSeed = sp?.sessionSeed ?? null;
   const leaderId = sp?.leaderId ?? null;
+
+  const roundTallies = sp?.roundTallies ?? {};
+  const scoreCardRounds: ScoreCardRound[] = [];
+  for (let round = 1; round <= ROUNDS_TOTAL; round++) {
+    const rd = state.rounds[round];
+    if (!rd || rd.state !== 'scored') continue;
+    const entry: Record<string, ScoreCardEntry> = {};
+    const tallies =
+      roundTallies[round] ?? (round === spRoundNo ? (sp.trickCounts ?? {}) : undefined);
+    for (const player of players) {
+      const id = player.id;
+      const absent = rd.present?.[id] === false;
+      const bid = absent ? null : (rd.bids?.[id] ?? null);
+      const made = absent ? null : (rd.made?.[id] ?? null);
+      const taken = (() => {
+        if (absent) return null;
+        if (tallies && typeof tallies[id] === 'number') return tallies[id];
+        if (
+          round === spRoundNo &&
+          (spPhase === 'summary' || spPhase === 'game-summary' || spPhase === 'done')
+        ) {
+          const value = sp.trickCounts?.[id];
+          return typeof value === 'number' ? value : null;
+        }
+        return null;
+      })();
+      const score = absent ? 0 : roundDelta(bid ?? 0, made);
+      entry[id] = {
+        bid,
+        taken,
+        score,
+        made,
+        present: !absent,
+      };
+    }
+    scoreCardRounds.push({ round, entries: entry });
+  }
+
+  const scoreCardTotals: Record<string, number> = {};
+  for (const player of players) {
+    scoreCardTotals[player.id] = state.scores?.[player.id] ?? 0;
+  }
 
   return {
     players,
@@ -151,11 +227,15 @@ export function buildSinglePlayerDerivedState(
     humanBySuit,
     suitOrder: SUIT_ORDER,
     trickPlays,
+    tableWinnerId,
+    tableCards,
     isTrumpBroken,
     summaryEnteredAt,
     lastTrickSnapshot,
     sessionSeed,
     leaderId,
+    scoreCardRounds,
+    scoreCardTotals,
   };
 }
 
@@ -319,8 +399,12 @@ export function useSinglePlayerViewModel({ humanId, rng }: { humanId: string; rn
     isTrumpBroken: derived.isTrumpBroken,
     summaryEnteredAt: derived.summaryEnteredAt,
     trickPlays: derived.trickPlays,
+    tableWinnerId: derived.tableWinnerId,
+    tableCards: derived.tableCards,
     lastTrickSnapshot: derived.lastTrickSnapshot,
     sessionSeed: derived.sessionSeed,
     leaderId: derived.leaderId,
+    scoreCardRounds: derived.scoreCardRounds,
+    scoreCardTotals: derived.scoreCardTotals,
   } as const;
 }

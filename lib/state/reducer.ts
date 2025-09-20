@@ -410,9 +410,10 @@ function reduceRounds(state: AppState, event: KnownAppEvent): AppState | null {
         state.rounds[round] ??
         ({ state: 'locked', bids: {}, made: {} } as AppState['rounds'][number]);
       if (r.present?.[playerId] === false) return state;
+      const nextValue = made === null ? null : !!made;
       return {
         ...state,
-        rounds: { ...state.rounds, [round]: { ...r, made: { ...r.made, [playerId]: !!made } } },
+        rounds: { ...state.rounds, [round]: { ...r, made: { ...r.made, [playerId]: nextValue } } },
       };
     }
     case 'round/finalize': {
@@ -547,6 +548,12 @@ function reduceSinglePlayer(state: AppState, event: KnownAppEvent): AppState | n
       const { seed } = event.payload as EventMap['sp/seed-set'];
       const n = Math.floor(seed);
       return { ...state, sp: { ...state.sp, sessionSeed: Number.isFinite(n) ? n : 0 } };
+    }
+    case 'sp/round-tally-set': {
+      const { round: roundNo, tallies } = event.payload as EventMap['sp/round-tally-set'];
+      const roundTallies = { ...(state.sp.roundTallies ?? {}) };
+      roundTallies[roundNo] = { ...tallies };
+      return { ...state, sp: { ...state.sp, roundTallies } };
     }
     default:
       return null;

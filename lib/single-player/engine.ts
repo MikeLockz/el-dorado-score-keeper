@@ -186,12 +186,15 @@ export function computeAdvanceBatch(
     const ids = (state.sp.order ?? []).slice();
     const bidsMap = (state.rounds[roundNo]?.bids ?? {}) as Record<string, number | undefined>;
     const batch: AppEvent[] = [];
+    const tallies: Record<string, number> = {};
     for (const pid of ids) {
       if (state.rounds[roundNo]?.present?.[pid] === false) continue;
       const won = sp.trickCounts?.[pid] ?? 0;
+      tallies[pid] = won;
       const made = won === (bidsMap[pid] ?? 0);
       batch.push(events.madeSet({ round: roundNo, playerId: pid, made }));
     }
+    batch.push(events.spRoundTallySet({ round: roundNo, tallies }));
     batch.push(events.spPhaseSet({ phase: roundNo >= ROUNDS_TOTAL ? 'game-summary' : 'summary' }));
     batch.push(events.roundFinalize({ round: roundNo }));
     batch.push(events.spSummaryEnteredSet({ at: now }));

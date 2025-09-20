@@ -37,6 +37,27 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --surface-subtle: oklch(0.985 0 0);
+  --surface-subtle-foreground: oklch(0.305 0 0);
+  --surface-muted: oklch(0.938 0 0);
+  --surface-muted-foreground: oklch(0.45 0 0);
+  --surface-accent: oklch(0.93 0.03 210);
+  --surface-accent-foreground: oklch(0.24 0.02 210);
+  --status-locked: oklch(0.9 0.02 260);
+  --status-locked-foreground: oklch(0.34 0.03 260);
+  --status-locked-surface: oklch(0.96 0.01 260);
+  --status-bidding: oklch(0.74 0.16 210);
+  --status-bidding-foreground: oklch(0.985 0 0);
+  --status-bidding-surface: oklch(0.88 0.09 210);
+  --status-playing: oklch(0.7 0.16 275);
+  --status-playing-foreground: oklch(0.985 0 0);
+  --status-playing-surface: oklch(0.86 0.09 275);
+  --status-complete: oklch(0.76 0.21 55);
+  --status-complete-foreground: oklch(0.34 0.05 55);
+  --status-complete-surface: oklch(0.9 0.12 55);
+  --status-scored: oklch(0.56 0.18 140);
+  --status-scored-foreground: oklch(0.2 0.04 140);
+  --status-scored-surface: oklch(0.8 0.11 140);
 }
 
 .dark {
@@ -54,8 +75,8 @@
   --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --destructive: oklch(0.62 0.25 25);
+  --destructive-foreground: oklch(0.14 0.02 25);
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
   --ring: oklch(0.439 0 0);
@@ -72,6 +93,27 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+  --surface-subtle: oklch(0.22 0 0);
+  --surface-subtle-foreground: oklch(0.9 0 0);
+  --surface-muted: oklch(0.28 0 0);
+  --surface-muted-foreground: oklch(0.83 0 0);
+  --surface-accent: oklch(0.35 0.03 210);
+  --surface-accent-foreground: oklch(0.9 0.02 210);
+  --status-locked: oklch(0.3 0 0);
+  --status-locked-foreground: oklch(0.87 0 0);
+  --status-locked-surface: oklch(0.2 0 0);
+  --status-bidding: oklch(0.55 0.12 210);
+  --status-bidding-foreground: oklch(0.96 0.015 210);
+  --status-bidding-surface: oklch(0.28 0.04 210);
+  --status-playing: oklch(0.52 0.14 275);
+  --status-playing-foreground: oklch(0.1 0.02 275);
+  --status-playing-surface: oklch(0.27 0.05 275);
+  --status-complete: oklch(0.54 0.16 55);
+  --status-complete-foreground: oklch(0.96 0.02 55);
+  --status-complete-surface: oklch(0.28 0.06 55);
+  --status-scored: oklch(0.48 0.12 140);
+  --status-scored-foreground: oklch(0.96 0.01 140);
+  --status-scored-surface: oklch(0.28 0.07 140);
 }
 
 @theme inline {
@@ -113,6 +155,27 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-subtle-foreground: var(--surface-subtle-foreground);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-muted-foreground: var(--surface-muted-foreground);
+  --color-surface-accent: var(--surface-accent);
+  --color-surface-accent-foreground: var(--surface-accent-foreground);
+  --color-status-locked: var(--status-locked);
+  --color-status-locked-foreground: var(--status-locked-foreground);
+  --color-status-locked-surface: var(--status-locked-surface);
+  --color-status-bidding: var(--status-bidding);
+  --color-status-bidding-foreground: var(--status-bidding-foreground);
+  --color-status-bidding-surface: var(--status-bidding-surface);
+  --color-status-playing: var(--status-playing);
+  --color-status-playing-foreground: var(--status-playing-foreground);
+  --color-status-playing-surface: var(--status-playing-surface);
+  --color-status-complete: var(--status-complete);
+  --color-status-complete-foreground: var(--status-complete-foreground);
+  --color-status-complete-surface: var(--status-complete-surface);
+  --color-status-scored: var(--status-scored);
+  --color-status-scored-foreground: var(--status-scored-foreground);
+  --color-status-scored-surface: var(--status-scored-surface);
 }
 
 @layer base {

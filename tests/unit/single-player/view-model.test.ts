@@ -98,6 +98,39 @@ describe('buildSinglePlayerDerivedState', () => {
     expect(derived.summaryEnteredAt).toBe(123);
     expect(derived.lastTrickSnapshot?.winnerId).toBe('human');
     expect(derived.suitOrder).toEqual(['spades', 'hearts', 'diamonds', 'clubs']);
+    expect(derived.tableWinnerId).toBeNull();
+    expect(derived.tableCards?.bot1?.rank).toBe(13);
+  });
+
+  it('returns last trick winner when idle without reveal', () => {
+    const state = makeBaseState();
+    const idleState: AppState = {
+      ...state,
+      sp: {
+        ...state.sp!,
+        trickPlays: [],
+        reveal: null,
+      },
+    };
+    const derived = buildSinglePlayerDerivedState(idleState, 'human');
+    expect(derived.tableWinnerId).toBe('human');
+    expect(derived.tableCards?.bot1?.rank).toBe(11);
+    expect(derived.tableCards?.human?.rank).toBe(9);
+  });
+
+  it('prefers reveal winner when available', () => {
+    const state = makeBaseState();
+    const revealState: AppState = {
+      ...state,
+      sp: {
+        ...state.sp!,
+        trickPlays: [],
+        reveal: { winnerId: 'bot1' },
+      },
+    };
+    const derived = buildSinglePlayerDerivedState(revealState, 'human');
+    expect(derived.tableWinnerId).toBe('bot1');
+    expect(derived.tableCards?.bot1?.rank).toBe(11);
   });
 });
 

@@ -36,17 +36,8 @@ function getRoundStateStyles(state: RoundState) {
   }
 }
 
-function getPlayerCellBackgroundStyles(state: RoundState) {
-  switch (state) {
-    case 'locked':
-      return 'bg-status-locked-surface';
-    case 'bidding':
-      return 'bg-status-bidding-surface';
-    case 'complete':
-      return 'bg-status-complete-surface';
-    case 'scored':
-      return 'bg-status-scored-surface';
-  }
+function getPlayerCellBackgroundStyles(_state: RoundState) {
+  return 'bg-secondary';
 }
 
 export default function RoundsView() {
