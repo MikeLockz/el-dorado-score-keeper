@@ -185,7 +185,8 @@ export function buildSinglePlayerDerivedState(
       const made = absent ? null : (rd.made?.[id] ?? null);
       const taken = (() => {
         if (absent) return null;
-        if (tallies && typeof tallies[id] === 'number') return tallies[id];
+        const talliesValue = tallies?.[id];
+        if (typeof talliesValue === 'number') return talliesValue;
         if (
           round === spRoundNo &&
           (spPhase === 'summary' || spPhase === 'game-summary' || spPhase === 'done')

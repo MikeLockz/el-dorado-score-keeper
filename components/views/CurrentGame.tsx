@@ -13,13 +13,14 @@ import {
 import type { RoundState } from '@/lib/state';
 import ScorecardGrid, {
   LiveOverlay,
+  ScorecardGridProps,
   ScorecardPlayerColumn,
   ScorecardRoundEntry,
   ScorecardRoundView,
 } from './scorecard/ScorecardGrid';
 
 type Props = {
-  live?: LiveOverlay;
+  live?: LiveOverlay | null;
   biddingInteractiveIds?: string[];
   onConfirmBid?: (round: number, playerId: string, bid: number) => void;
   disableRoundStateCycling?: boolean;
@@ -27,7 +28,7 @@ type Props = {
 };
 
 export default function CurrentGame({
-  live,
+  live = null,
   biddingInteractiveIds,
   onConfirmBid,
   disableRoundStateCycling,
@@ -179,20 +180,21 @@ export default function CurrentGame({
     [cycleRoundState],
   );
 
-  return (
-    <ScorecardGrid
-      columns={columns}
-      rounds={rounds}
-      live={live}
-      revealWinnerId={state.sp?.reveal?.winnerId ?? null}
-      biddingInteractiveIds={biddingInteractiveIds}
-      disableRoundStateCycling={disableRoundStateCycling}
-      disableInputs={disableInputs}
-      onCycleRoundState={handleCycleRoundState}
-      onIncrementBid={handleIncrementBid}
-      onDecrementBid={handleDecrementBid}
-      onToggleMade={handleToggleMade}
-      onConfirmBid={onConfirmBid}
-    />
-  );
+  const scorecardGridProps: ScorecardGridProps = {
+    columns,
+    rounds,
+    live,
+    revealWinnerId: state.sp?.reveal?.winnerId ?? null,
+    onCycleRoundState: handleCycleRoundState,
+    onIncrementBid: handleIncrementBid,
+    onDecrementBid: handleDecrementBid,
+    onToggleMade: handleToggleMade,
+  };
+  if (biddingInteractiveIds !== undefined) scorecardGridProps.biddingInteractiveIds = biddingInteractiveIds;
+  if (disableRoundStateCycling !== undefined)
+    scorecardGridProps.disableRoundStateCycling = disableRoundStateCycling;
+  if (disableInputs !== undefined) scorecardGridProps.disableInputs = disableInputs;
+  if (onConfirmBid) scorecardGridProps.onConfirmBid = onConfirmBid;
+
+  return <ScorecardGrid {...scorecardGridProps} />;
 }

@@ -1,4 +1,4 @@
-import type { AppEvent, KnownAppEvent } from '@/lib/state';
+import type { AppEvent, AppEventType, KnownAppEvent } from '@/lib/state';
 
 export type SpCtaStage =
   | 'idle'
@@ -21,11 +21,11 @@ type DeriveOpts = {
   isFinalRound: boolean;
 };
 
-function isKnownEventOfType<T extends AppEvent['type']>(
+function isKnownEventOfType<T extends AppEventType>(
   event: AppEvent,
   type: T,
 ): event is KnownAppEvent<T> {
-  return event.type === type;
+  return (event.type as AppEventType) === type;
 }
 
 export function deriveSpCtaMeta(batch: ReadonlyArray<AppEvent>, opts: DeriveOpts): SpCtaMeta {
@@ -34,7 +34,7 @@ export function deriveSpCtaMeta(batch: ReadonlyArray<AppEvent>, opts: DeriveOpts
     return { stage: 'idle', label: 'Continue', autoWait: false };
   }
 
-  const hasEventOfType = <T extends AppEvent['type']>(type: T): boolean => {
+  const hasEventOfType = (type: AppEventType): boolean => {
     for (const evt of batch) {
       const candidate = evt as AppEvent;
       if (isKnownEventOfType(candidate, type)) return true;

@@ -20,6 +20,9 @@ import {
   Users,
   Bot,
 } from 'lucide-react';
+import { usePromptDialog } from '@/components/dialogs/PromptDialog';
+import { useConfirmDialog } from '@/components/dialogs/ConfirmDialog';
+import { useToast } from '@/components/ui/toast';
 
 function orderedRosterIds(roster: AppState['rosters'][string]) {
   const entries = Object.entries(roster.displayOrder ?? {}).sort((a, b) => a[1] - b[1]);
@@ -27,8 +30,6 @@ function orderedRosterIds(roster: AppState['rosters'][string]) {
   for (const id of Object.keys(roster.playersById ?? {})) if (!ids.includes(id)) ids.push(id);
   return ids;
 }
-
-import type { AppState } from '@/lib/state';
 
 type PlayerRow = ReturnType<typeof selectPlayersOrdered>[number];
 type RosterSummary = ReturnType<typeof selectAllRosters>[number];
@@ -83,28 +84,49 @@ export default function PlayerManagement() {
   const rosters = React.useMemo(() => selectAllRosters(state), [state]);
   const rosterMap = React.useMemo(() => state.rosters, [state.rosters]);
   const { startNewGame, pending: newGamePending } = useNewGameRequest();
+  const promptDialog = usePromptDialog();
+  const confirmDialog = useConfirmDialog();
+  const { toast } = useToast();
 
   const [draggingId, setDraggingId] = React.useState<string | null>(null);
   const [localOrder, setLocalOrder] = React.useState(players);
-  const [showArchivedPlayers, setShowArchivedPlayers] = React.useState(false);
+  const [playerView, setPlayerView] = React.useState<'active' | 'archived'>('active');
   const [showArchivedRosters, setShowArchivedRosters] = React.useState(false);
   const [playerPending, setPlayerPending] = React.useState<Pending>(null);
   const [rosterPending, setRosterPending] = React.useState<RosterPending>(null);
   const [autoCreateCount, setAutoCreateCount] = React.useState(4);
 
   React.useEffect(() => {
+    if (playerView === 'archived' && archivedPlayers.length === 0) {
+      setPlayerView('active');
+    }
+  }, [playerView, archivedPlayers.length]);
+
+  React.useEffect(() => {
     if (!draggingId) setLocalOrder(players);
   }, [players, draggingId]);
 
+  const viewingArchivedPlayers = playerView === 'archived';
+
   const handleAddPlayer = React.useCallback(async () => {
     const suggested = nextPlayerLabel(players, archivedPlayers);
-    const name = window.prompt('Player name', suggested);
+    const name = await promptDialog({
+      title: 'Add player',
+      description: 'Enter a name for the new player.',
+      confirmLabel: 'Add player',
+      cancelLabel: 'Cancel',
+      defaultValue: suggested,
+      placeholder: 'Player name',
+      validate: (value) => {
+        if (!value.trim()) return 'Please enter a player name.';
+        return ensureUniqueName(value, players, archivedPlayers)
+          ? null
+          : 'That name is already in use.';
+      },
+    });
     if (!name) return;
     const unique = ensureUniqueName(name, players, archivedPlayers);
-    if (!unique) {
-      window.alert('That name is already in use. Choose a different name.');
-      return;
-    }
+    if (!unique) return;
     const id = uuid();
     try {
       setPlayerPending('add');
@@ -114,17 +136,26 @@ export default function PlayerManagement() {
     } finally {
       setPlayerPending(null);
     }
-  }, [append, players, archivedPlayers]);
+  }, [append, players, archivedPlayers, promptDialog]);
 
   const handleRenamePlayer = React.useCallback(
     async (player: PlayerRow) => {
-      const name = window.prompt('Rename player', player.name);
+      const name = await promptDialog({
+        title: 'Rename player',
+        confirmLabel: 'Save name',
+        cancelLabel: 'Cancel',
+        defaultValue: player.name,
+        placeholder: 'Player name',
+        validate: (value) => {
+          if (!value.trim()) return 'Please enter a player name.';
+          return ensureUniqueName(value, players, archivedPlayers, player.id)
+            ? null
+            : 'That name is already in use.';
+        },
+      });
       if (!name || name.trim() === player.name.trim()) return;
       const unique = ensureUniqueName(name, players, archivedPlayers, player.id);
-      if (!unique) {
-        window.alert('That name is already in use. Choose a different name.');
-        return;
-      }
+      if (!unique) return;
       try {
         setPlayerPending('rename');
         await append(events.playerRenamed({ id: player.id, name: unique }));
@@ -134,7 +165,7 @@ export default function PlayerManagement() {
         setPlayerPending(null);
       }
     },
-    [append, players, archivedPlayers],
+    [append, players, archivedPlayers, promptDialog],
   );
 
   const handleTogglePlayerType = React.useCallback(
@@ -155,10 +186,21 @@ export default function PlayerManagement() {
   const handleRemovePlayer = React.useCallback(
     async (player: PlayerRow) => {
       if (players.length <= 2) {
-        window.alert('At least two players are required.');
+        toast({
+          title: 'Add another player',
+          description: 'At least two players are required.',
+          variant: 'warning',
+        });
         return;
       }
-      if (!window.confirm(`Remove ${player.name}?`)) return;
+      const confirmed = await confirmDialog({
+        title: 'Remove player',
+        description: `Remove ${player.name}? This cannot be undone.`,
+        confirmLabel: 'Remove player',
+        cancelLabel: 'Cancel',
+        variant: 'destructive',
+      });
+      if (!confirmed) return;
       try {
         setPlayerPending('remove');
         await append(events.playerRemoved({ id: player.id }));
@@ -168,7 +210,7 @@ export default function PlayerManagement() {
         setPlayerPending(null);
       }
     },
-    [append, players.length],
+    [append, players.length, confirmDialog],
   );
 
   const handleRestorePlayer = React.useCallback(
@@ -187,7 +229,14 @@ export default function PlayerManagement() {
 
   const handleResetPlayers = React.useCallback(async () => {
     if (players.length === 0) return;
-    if (!window.confirm('Archive all players and clear the current list?')) return;
+    const confirmed = await confirmDialog({
+      title: 'Reset players',
+      description: 'Archive all players and clear the current list?',
+      confirmLabel: 'Archive players',
+      cancelLabel: 'Cancel',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
     try {
       setPlayerPending('reset');
       const removals = players.map((p, idx) =>
@@ -199,12 +248,16 @@ export default function PlayerManagement() {
     } finally {
       setPlayerPending(null);
     }
-  }, [appendMany, players]);
+  }, [appendMany, players, confirmDialog]);
 
   const handleAutoCreatePlayers = React.useCallback(async () => {
     const remaining = 10 - players.length;
     if (remaining <= 0) {
-      window.alert('Maximum of 10 players reached.');
+      toast({
+        title: 'Player limit reached',
+        description: 'You can manage up to 10 active players at a time.',
+        variant: 'warning',
+      });
       return;
     }
     const count = Math.min(autoCreateCount, remaining);
@@ -230,7 +283,7 @@ export default function PlayerManagement() {
     } finally {
       setPlayerPending(null);
     }
-  }, [appendMany, players, archivedPlayers, autoCreateCount]);
+  }, [appendMany, players, archivedPlayers, autoCreateCount, toast]);
 
   const onDragEnd = React.useCallback(
     (order: PlayerRow[]) => {
@@ -243,7 +296,15 @@ export default function PlayerManagement() {
 
   const handleRosterCreate = React.useCallback(async () => {
     const suggested = `Roster ${rosters.filter((r) => !r.archived).length + 1}`;
-    const name = window.prompt('Roster name', suggested);
+    const name = await promptDialog({
+      title: 'Create roster',
+      description: 'Choose a name for the new roster.',
+      confirmLabel: 'Create roster',
+      cancelLabel: 'Cancel',
+      defaultValue: suggested,
+      placeholder: 'Roster name',
+      validate: (value) => (!value.trim() ? 'Please enter a roster name.' : null),
+    });
     if (!name) return;
     const rid = uuid();
     try {
@@ -254,13 +315,19 @@ export default function PlayerManagement() {
     } finally {
       setRosterPending(null);
     }
-  }, [append, rosters]);
+  }, [append, promptDialog, rosters]);
 
   const handleRosterRename = React.useCallback(
     async (roster: RosterSummary) => {
-      const current = roster.name;
-      const name = window.prompt('Rename roster', current);
-      if (!name || name.trim() === current.trim()) return;
+      const name = await promptDialog({
+        title: 'Rename roster',
+        confirmLabel: 'Save name',
+        cancelLabel: 'Cancel',
+        defaultValue: roster.name,
+        placeholder: 'Roster name',
+        validate: (value) => (!value.trim() ? 'Please enter a roster name.' : null),
+      });
+      if (!name || name.trim() === roster.name.trim()) return;
       try {
         setRosterPending('rename');
         await append(events.rosterRenamed({ rosterId: roster.rosterId, name: name.trim() }));
@@ -270,12 +337,19 @@ export default function PlayerManagement() {
         setRosterPending(null);
       }
     },
-    [append],
+    [append, promptDialog],
   );
 
   const handleRosterArchive = React.useCallback(
     async (roster: RosterSummary) => {
-      if (!window.confirm(`Archive roster "${roster.name}"?`)) return;
+      const confirmed = await confirmDialog({
+        title: 'Archive roster',
+        description: `Archive "${roster.name}"? You can restore it later.`,
+        confirmLabel: 'Archive roster',
+        cancelLabel: 'Cancel',
+        variant: 'destructive',
+      });
+      if (!confirmed) return;
       try {
         setRosterPending('archive');
         await append(events.rosterArchived({ rosterId: roster.rosterId }));
@@ -285,7 +359,7 @@ export default function PlayerManagement() {
         setRosterPending(null);
       }
     },
-    [append],
+    [append, confirmDialog],
   );
 
   const handleRosterRestore = React.useCallback(
@@ -308,11 +382,19 @@ export default function PlayerManagement() {
       if (!roster) return;
       const order = orderedRosterIds(roster);
       if (order.length < 2) {
-        window.alert('A score card roster requires at least 2 players.');
+        toast({
+          title: 'Roster needs more players',
+          description: 'Score card rosters require at least two players.',
+          variant: 'warning',
+        });
         return;
       }
       if (order.length > 10) {
-        window.alert('Score card supports at most 10 players.');
+        toast({
+          title: 'Too many players for score card',
+          description: 'Score card mode supports a maximum of 10 players.',
+          variant: 'warning',
+        });
         return;
       }
       const removeEvents = Object.keys(state.players ?? {}).map((id) =>
@@ -328,7 +410,7 @@ export default function PlayerManagement() {
       const reorder = events.playersReordered({ order });
       await appendMany([...removeEvents, ...addEvents, reorder]);
     },
-    [appendMany, rosterMap, state.players],
+    [appendMany, rosterMap, state.players, toast],
   );
 
   const applyRosterToSingle = React.useCallback(
@@ -337,11 +419,19 @@ export default function PlayerManagement() {
       if (!roster) return;
       const order = orderedRosterIds(roster);
       if (order.length < 2) {
-        window.alert('Single player mode requires at least 2 players.');
+        toast({
+          title: 'Roster needs more players',
+          description: 'Single player mode requires at least two players.',
+          variant: 'warning',
+        });
         return;
       }
       if (order.length > 6) {
-        window.alert('Single player mode supports up to 6 players.');
+        toast({
+          title: 'Too many players for single player',
+          description: 'Single player mode supports a maximum of 6 players.',
+          variant: 'warning',
+        });
         return;
       }
       const targetId = state.activeSingleRosterId ?? `sp-${rosterId}`;
@@ -368,7 +458,7 @@ export default function PlayerManagement() {
       batch.push(events.rosterActivated({ rosterId: targetId, mode: 'single' }));
       await appendMany(batch);
     },
-    [appendMany, rosterMap, state.activeSingleRosterId, state.rosters],
+    [appendMany, rosterMap, state.activeSingleRosterId, state.rosters, toast],
   );
 
   const handleLoadRosterToScorecard = React.useCallback(
@@ -427,7 +517,14 @@ export default function PlayerManagement() {
   const handleResetRosters = React.useCallback(async () => {
     const activeRosters = rosters.filter((r) => !r.archived);
     if (activeRosters.length === 0) return;
-    if (!window.confirm('Archive all rosters?')) return;
+    const confirmed = await confirmDialog({
+      title: 'Archive all rosters',
+      description: 'Archive all active rosters?',
+      confirmLabel: 'Archive all',
+      cancelLabel: 'Cancel',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
     try {
       setRosterPending('reset');
       await appendMany(activeRosters.map((r) => events.rosterArchived({ rosterId: r.rosterId })));
@@ -436,7 +533,7 @@ export default function PlayerManagement() {
     } finally {
       setRosterPending(null);
     }
-  }, [appendMany, rosters]);
+  }, [appendMany, rosters, confirmDialog]);
 
   const activeRosters = rosters.filter((r) => !r.archived);
   const archivedRosters = rosters.filter((r) => r.archived);
@@ -447,157 +544,55 @@ export default function PlayerManagement() {
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Users className="h-5 w-5" /> Players
+              <Users className="h-5 w-5" aria-hidden="true" />{' '}
+              {viewingArchivedPlayers ? 'Archived players' : 'Players'}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Manage active players, reorder seating, and maintain archived profiles.
+              {viewingArchivedPlayers
+                ? 'Restore archived players back to your active list.'
+                : 'Manage active players, reorder seating, and maintain archived profiles.'}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              onClick={() => void handleAddPlayer()}
-              disabled={!ready || playerPending !== null}
-            >
-              {playerPending === 'add' ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Plus className="h-4 w-4" aria-hidden="true" />
-              )}
-              Add Player
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => void handleResetPlayers()}
-              disabled={!ready || players.length === 0 || playerPending !== null}
-            >
-              <RotateCcw className="h-4 w-4" aria-hidden="true" /> Reset All
-            </Button>
-          </div>
-        </header>
-
-        {players.length === 0 ? (
-          <div className="rounded-md border border-dashed border-muted p-6 text-center space-y-3">
-            <p className="text-sm text-muted-foreground">No active players yet.</p>
-            <div className="flex items-center justify-center gap-2">
-              <label className="text-sm" htmlFor="auto-count">
-                Auto-create
-              </label>
-              <select
-                id="auto-count"
-                className="h-9 rounded-md border px-2 text-sm"
-                value={autoCreateCount}
-                onChange={(event) => setAutoCreateCount(Number(event.target.value))}
-              >
-                {[2, 3, 4, 5, 6].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+          {!viewingArchivedPlayers ? (
+            <div className="flex flex-wrap items-center gap-2">
               <Button
-                variant="outline"
-                onClick={() => void handleAutoCreatePlayers()}
+                onClick={() => void handleAddPlayer()}
                 disabled={!ready || playerPending !== null}
               >
-                <UserPlus className="h-4 w-4" aria-hidden="true" /> Create
+                {playerPending === 'add' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                )}
+                Add Player
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => void handleResetPlayers()}
+                disabled={!ready || players.length === 0 || playerPending !== null}
+              >
+                <RotateCcw className="h-4 w-4" aria-hidden="true" /> Reset All
               </Button>
             </div>
-          </div>
-        ) : (
-          <div className="border rounded-md divide-y" role="list">
-            {localOrder.map((player) => (
-              <div
-                key={player.id}
-                role="listitem"
-                className={cn(
-                  'flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between transition-colors bg-background',
-                  draggingId === player.id ? 'opacity-60' : undefined,
-                )}
-                draggable
-                aria-label={`Drag to reorder ${player.name}`}
-                aria-grabbed={draggingId === player.id || undefined}
-                onDragStart={(event) => {
-                  setDraggingId(player.id);
-                  event.dataTransfer.setData('text/plain', player.id);
-                  event.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  if (!draggingId || draggingId === player.id) return;
-                  setLocalOrder((prev) => {
-                    const from = prev.findIndex((item) => item.id === draggingId);
-                    const to = prev.findIndex((item) => item.id === player.id);
-                    if (from < 0 || to < 0 || from === to) return prev;
-                    const next = prev.slice();
-                    const [moved] = next.splice(from, 1);
-                    if (!moved) return prev;
-                    next.splice(to, 0, moved);
-                    return next;
-                  });
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  if (!draggingId) return;
-                  onDragEnd(localOrder);
-                }}
-                onDragEnd={() => {
-                  if (!draggingId) return;
-                  onDragEnd(localOrder);
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-muted text-sm font-medium text-muted-foreground">
-                    <ArrowUpDown className="h-4 w-4" aria-hidden="true" />
-                  </span>
-                  <div>
-                    <div className="text-sm font-medium">{player.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {player.type === 'bot' ? 'Bot' : 'Human'}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void handleTogglePlayerType(player)}
-                    disabled={!ready || playerPending !== null}
-                  >
-                    <Bot className="h-4 w-4" aria-hidden="true" />{' '}
-                    {player.type === 'human' ? 'Mark Bot' : 'Mark Human'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void handleRenamePlayer(player)}
-                    disabled={!ready || playerPending !== null}
-                  >
-                    Rename
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => void handleRemovePlayer(player)}
-                    disabled={!ready || playerPending !== null}
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" /> Remove
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+          ) : null}
+        </header>
 
-        {archivedPlayers.length > 0 ? (
-          <div className="space-y-2">
-            <button
-              type="button"
-              className="text-sm text-primary underline-offset-4 hover:underline"
-              onClick={() => setShowArchivedPlayers((prev) => !prev)}
-            >
-              {showArchivedPlayers ? 'Hide archived players' : 'Show archived players'}
-            </button>
-            {showArchivedPlayers ? (
+        {viewingArchivedPlayers ? (
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="text-sm text-primary underline-offset-4 hover:underline"
+                onClick={() => setPlayerView('active')}
+              >
+                Back to players
+              </button>
+            </div>
+            {archivedPlayers.length === 0 ? (
+              <div className="rounded-md border border-dashed border-muted p-6 text-center text-sm text-muted-foreground">
+                No archived players yet.
+              </div>
+            ) : (
               <div className="rounded-md border divide-y">
                 {archivedPlayers.map((player) => (
                   <div key={player.id} className="flex items-center justify-between p-3 text-sm">
@@ -619,9 +614,137 @@ export default function PlayerManagement() {
                   </div>
                 ))}
               </div>
-            ) : null}
+            )}
           </div>
-        ) : null}
+        ) : (
+          <>
+            {players.length === 0 ? (
+              <div className="rounded-md border border-dashed border-muted p-6 text-center space-y-3">
+                <p className="text-sm text-muted-foreground">No active players yet.</p>
+                <div className="flex items-center justify-center gap-2">
+                  <label className="text-sm" htmlFor="auto-count">
+                    Auto-create
+                  </label>
+                  <select
+                    id="auto-count"
+                    className="h-9 rounded-md border px-2 text-sm"
+                    value={autoCreateCount}
+                    onChange={(event) => setAutoCreateCount(Number(event.target.value))}
+                  >
+                    {[2, 3, 4, 5, 6].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleAutoCreatePlayers()}
+                    disabled={!ready || playerPending !== null}
+                  >
+                    <UserPlus className="h-4 w-4" aria-hidden="true" /> Create
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="border rounded-md divide-y" role="list">
+                {localOrder.map((player) => (
+                  <div
+                    key={player.id}
+                    role="listitem"
+                    className={cn(
+                      'flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between transition-colors bg-background',
+                      draggingId === player.id ? 'opacity-60' : undefined,
+                    )}
+                    draggable
+                    aria-label={`Drag to reorder ${player.name}`}
+                    aria-grabbed={draggingId === player.id || undefined}
+                    onDragStart={(event) => {
+                      setDraggingId(player.id);
+                      event.dataTransfer.setData('text/plain', player.id);
+                      event.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      if (!draggingId || draggingId === player.id) return;
+                      setLocalOrder((prev) => {
+                        const from = prev.findIndex((item) => item.id === draggingId);
+                        const to = prev.findIndex((item) => item.id === player.id);
+                        if (from < 0 || to < 0 || from === to) return prev;
+                        const next = prev.slice();
+                        const [moved] = next.splice(from, 1);
+                        if (!moved) return prev;
+                        next.splice(to, 0, moved);
+                        return next;
+                      });
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      if (!draggingId) return;
+                      onDragEnd(localOrder);
+                    }}
+                    onDragEnd={() => {
+                      if (!draggingId) return;
+                      onDragEnd(localOrder);
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-muted text-sm font-medium text-muted-foreground">
+                        <ArrowUpDown className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <div>
+                        <div className="text-sm font-medium">{player.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {player.type === 'bot' ? 'Bot' : 'Human'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void handleTogglePlayerType(player)}
+                        disabled={!ready || playerPending !== null}
+                      >
+                        <Bot className="h-4 w-4" aria-hidden="true" />{' '}
+                        {player.type === 'human' ? 'Mark Bot' : 'Mark Human'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void handleRenamePlayer(player)}
+                        disabled={!ready || playerPending !== null}
+                        data-testid={`rename-player-${player.id}`}
+                      >
+                        Rename
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => void handleRemovePlayer(player)}
+                        disabled={!ready || playerPending !== null}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" /> Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {archivedPlayers.length > 0 ? (
+              <div className="pt-3 text-right">
+                <button
+                  type="button"
+                  className="text-sm text-primary underline-offset-4 hover:underline"
+                  onClick={() => setPlayerView('archived')}
+                >
+                  See archived players
+                </button>
+              </div>
+            ) : null}
+          </>
+        )}
       </Card>
 
       <Card className="p-4 space-y-4">
@@ -704,6 +827,7 @@ export default function PlayerManagement() {
                         variant="outline"
                         onClick={() => void handleRosterRename(roster)}
                         disabled={!ready || rosterPending !== null}
+                        data-testid={`rename-roster-${roster.rosterId}`}
                       >
                         Rename
                       </Button>

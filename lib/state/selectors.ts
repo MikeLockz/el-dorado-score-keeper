@@ -43,7 +43,7 @@ export const selectLeaders = memo1((s: AppState): Leader[] => {
   return leaders;
 });
 
-export type PlayerItem = { id: string; name: string; type: 'human' | 'bot' };
+export type PlayerItem = { id: string; name: string; type: 'human' | 'bot'; archived: boolean };
 
 // Preferred ordering for display: `display_order` if present; otherwise insertion order.
 export const selectPlayersOrdered = memo1((s: AppState): PlayerItem[] => {
@@ -67,6 +67,7 @@ export const selectPlayersOrdered = memo1((s: AppState): PlayerItem[] => {
     id,
     name: s.players[id]!,
     type: s.playerDetails?.[id]?.type ?? 'human',
+    archived: s.playerDetails?.[id]?.archived ?? false,
   }));
 });
 
@@ -132,6 +133,7 @@ export const selectPlayersOrderedFor = memo2((s: AppState, mode: Mode): PlayerIt
     id,
     name: r.playersById[id] ?? id,
     type: r.playerTypesById?.[id] ?? 'human',
+    archived: false,
   }));
 });
 
@@ -150,8 +152,13 @@ export type ArchivedPlayer = {
 export const selectArchivedPlayers = memo1((s: AppState): ArchivedPlayer[] => {
   const out: ArchivedPlayer[] = [];
   for (const [id, detail] of Object.entries(s.playerDetails ?? {})) {
-    if (!detail || detail.archivedAt == null) continue;
-    out.push({ id, name: detail.name, type: detail.type, archivedAt: detail.archivedAt });
+    if (!detail || !detail.archived) continue;
+    out.push({
+      id,
+      name: detail.name,
+      type: detail.type,
+      archivedAt: detail.archivedAt ?? 0,
+    });
   }
   out.sort((a, b) => b.archivedAt - a.archivedAt || a.name.localeCompare(b.name));
   return out;

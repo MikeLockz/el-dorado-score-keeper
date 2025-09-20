@@ -36,6 +36,7 @@ export type RoundData = Readonly<{
 export type PlayerDetail = Readonly<{
   name: string;
   type: 'human' | 'bot';
+  archived: boolean;
   archivedAt: number | null;
   createdAt: number;
   updatedAt: number;

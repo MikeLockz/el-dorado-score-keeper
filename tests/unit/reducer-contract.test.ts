@@ -64,6 +64,7 @@ describe('reducer contract: payload schemas', () => {
       const s = reduce(INITIAL_STATE, e);
       expect(s.players.p1).toBe('Alice');
       expect(s.playerDetails.p1?.type).toBe('bot');
+      expect(s.playerDetails.p1?.archived).toBe(false);
     });
     it('rejects invalid payloads', () => {
       const invalids = [
@@ -107,6 +108,7 @@ describe('reducer contract: payload schemas', () => {
       s = reduce(s, eRem);
       expect(s.players.p2).toBeUndefined();
       expect(s.playerDetails.p2?.archivedAt).toBeTypeOf('number');
+      expect(s.playerDetails.p2?.archived).toBe(true);
     });
     it('rejects invalid payloads', () => {
       const invalids = [{ id: '' }, {}];
@@ -252,6 +254,7 @@ describe('player/restored', () => {
     s = reduce(s, eRes);
     expect(s.players.p5).toBe('Eva');
     expect(s.playerDetails.p5?.archivedAt).toBeNull();
+    expect(s.playerDetails.p5?.archived).toBe(false);
   });
 });
 

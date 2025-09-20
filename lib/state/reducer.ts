@@ -99,6 +99,7 @@ function applyPlayerAdded(
   const detail = {
     name: trimmed,
     type: payload.type,
+    archived: false,
     archivedAt: null,
     createdAt: prevDetail?.createdAt ?? ts,
     updatedAt: ts,
@@ -137,12 +138,18 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
     }
     case 'roster/player/added': {
       const p = event.payload as EventMap['roster/player/added'];
-      return rosterOps.addPlayer(state, {
+      const base = {
         rosterId: p.rosterId,
         id: p.id,
         name: p.name,
-        type: p.type,
-      });
+      } as {
+        rosterId: string;
+        id: string;
+        name: string;
+        type?: 'human' | 'bot';
+      };
+      if (p.type !== undefined) base.type = p.type;
+      return rosterOps.addPlayer(state, base);
     }
     case 'roster/player/renamed': {
       const p = event.payload as EventMap['roster/player/renamed'];
@@ -210,6 +217,7 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
       const detail = {
         name: String(name),
         type: prevDetail?.type ?? 'human',
+        archived: prevDetail?.archived ?? false,
         archivedAt: prevDetail?.archivedAt ?? null,
         createdAt: prevDetail?.createdAt ?? ts,
         updatedAt: ts,
@@ -273,6 +281,7 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
       const detail = {
         name: prevDetail?.name ?? state.players[id] ?? id,
         type: prevDetail?.type ?? 'human',
+        archived: true,
         archivedAt: ts,
         createdAt: prevDetail?.createdAt ?? ts,
         updatedAt: ts,

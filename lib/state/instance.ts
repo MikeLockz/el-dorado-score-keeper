@@ -222,12 +222,18 @@ export async function createInstance(opts?: {
       for (let i = 0; i < orderedIds.length; i++) displayOrder[orderedIds[i]!] = i;
       const createdAt = Date.now();
       const playersById: Record<string, string> = { ...next.players };
+      const playerTypesById: Record<string, 'human' | 'bot'> = {};
+      for (const pid of Object.keys(playersById)) {
+        playerTypesById[pid] = next.playerDetails?.[pid]?.type ?? 'human';
+      }
       const roster = {
         name: 'Score Card',
         playersById,
+        playerTypesById,
         displayOrder,
         type: 'scorecard' as const,
         createdAt,
+        archivedAt: null,
       };
       const newRosters: AppState['rosters'] = { [rid]: roster };
       next = Object.assign({}, next, { rosters: newRosters, activeScorecardRosterId: rid });
