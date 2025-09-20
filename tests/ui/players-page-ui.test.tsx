@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { waitFor } from '@testing-library/react';
 import type { AppState } from '@/lib/state';
 import { INITIAL_STATE } from '@/lib/state';
 
@@ -10,7 +11,7 @@ const startNewGame = vi.fn(async () => true);
 
 const suite = typeof document === 'undefined' ? describe.skip : describe;
 
-type MockAppStateHook = ReturnType<typeof import('@/components/state-provider')['useAppState']>;
+type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 
 const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
 
@@ -132,8 +133,9 @@ suite('PlayersPage UI', () => {
     const { default: PlayersPage } = await import('@/app/players/page');
     const { div, root } = await renderWithProviders(React.createElement(PlayersPage));
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
+    await waitFor(() => {
+      expect(div.textContent || '').toMatch(/Players/);
+    });
 
     expect(div.textContent || '').toMatch(/Players/);
     expect(div.textContent || '').toMatch(/Rosters/);
@@ -146,16 +148,22 @@ suite('PlayersPage UI', () => {
     const { default: PlayersPage } = await import('@/app/players/page');
     const { div, root } = await renderWithProviders(React.createElement(PlayersPage));
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
+    await waitFor(() => {
+      const addButton = Array.from(div.querySelectorAll('button')).find((el) =>
+        /Add Player/i.test(el.textContent || ''),
+      );
+      expect(addButton).toBeTruthy();
+    });
 
     const addButton = Array.from(div.querySelectorAll('button')).find((el) =>
       /Add Player/i.test(el.textContent || ''),
     )!;
     addButton.click();
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
+    await waitFor(() => {
+      const dialog = div.querySelector('[data-slot="dialog-content"]') as HTMLElement;
+      expect(dialog).toBeTruthy();
+    });
 
     const dialog = div.querySelector('[data-slot="dialog-content"]') as HTMLElement;
     expect(dialog).toBeTruthy();
@@ -171,10 +179,9 @@ suite('PlayersPage UI', () => {
     expect(confirmButton).toBeTruthy();
     confirmButton.click();
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(append).toHaveBeenCalledWith(expect.objectContaining({ type: 'player/added' }));
+    await waitFor(() => {
+      expect(append).toHaveBeenCalledWith(expect.objectContaining({ type: 'player/added' }));
+    });
 
     root.unmount();
     div.remove();
@@ -184,18 +191,19 @@ suite('PlayersPage UI', () => {
     const { default: PlayersPage } = await import('@/app/players/page');
     const { div, root } = await renderWithProviders(React.createElement(PlayersPage));
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
+    await waitFor(() => {
+      expect(div.querySelector('[data-testid="rename-player-p1"]')).toBeTruthy();
+    });
 
     const renameButton = div.querySelector('[data-testid="rename-player-p1"]') as HTMLButtonElement;
     expect(renameButton).toBeTruthy();
     renameButton.click();
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-
-    const dialog = div.querySelector('[data-slot="dialog-content"]') as HTMLElement;
-    expect(dialog).toBeTruthy();
+    const dialog = (await waitFor(() => {
+      const element = div.querySelector('[data-slot="dialog-content"]') as HTMLElement;
+      expect(element).toBeTruthy();
+      return element;
+    })) as HTMLElement;
 
     const input = dialog.querySelector('input') as HTMLInputElement;
     expect(input).toBeTruthy();
@@ -208,10 +216,9 @@ suite('PlayersPage UI', () => {
     expect(confirmButton).toBeTruthy();
     confirmButton.click();
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(append).toHaveBeenCalledWith(expect.objectContaining({ type: 'player/renamed' }));
+    await waitFor(() => {
+      expect(append).toHaveBeenCalledWith(expect.objectContaining({ type: 'player/renamed' }));
+    });
 
     root.unmount();
     div.remove();
@@ -221,18 +228,19 @@ suite('PlayersPage UI', () => {
     const { default: PlayersPage } = await import('@/app/players/page');
     const { div, root } = await renderWithProviders(React.createElement(PlayersPage));
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
+    await waitFor(() => {
+      expect(div.querySelector('[data-testid="rename-roster-r1"]')).toBeTruthy();
+    });
 
     const renameButton = div.querySelector('[data-testid="rename-roster-r1"]') as HTMLButtonElement;
     expect(renameButton).toBeTruthy();
     renameButton.click();
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-
-    const dialog = div.querySelector('[data-slot="dialog-content"]') as HTMLElement;
-    expect(dialog).toBeTruthy();
+    const dialog = (await waitFor(() => {
+      const element = div.querySelector('[data-slot="dialog-content"]') as HTMLElement;
+      expect(element).toBeTruthy();
+      return element;
+    })) as HTMLElement;
 
     const input = dialog.querySelector('input') as HTMLInputElement;
     expect(input).toBeTruthy();
@@ -245,10 +253,9 @@ suite('PlayersPage UI', () => {
     expect(confirmButton).toBeTruthy();
     confirmButton.click();
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(append).toHaveBeenCalledWith(expect.objectContaining({ type: 'roster/renamed' }));
+    await waitFor(() => {
+      expect(append).toHaveBeenCalledWith(expect.objectContaining({ type: 'roster/renamed' }));
+    });
 
     root.unmount();
     div.remove();

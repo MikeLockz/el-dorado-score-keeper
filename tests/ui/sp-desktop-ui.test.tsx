@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { waitFor } from '@testing-library/react';
 
 import type { AppState, RoundData } from '@/lib/state/types';
+
+type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
+
+const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
 
 const mockBatch = [{ type: 'sp/trick/cleared', payload: {} }];
 
@@ -71,16 +76,6 @@ const makeDesktopState = (): AppState => {
 
 let stateRef: AppState = makeDesktopState();
 
-vi.mock('@/components/state-provider', () => ({
-  useAppState: () => ({
-    state: stateRef,
-    height: 480,
-    append,
-    appendMany,
-    isBatchPending: false,
-  }),
-}));
-
 vi.mock('@/lib/single-player', async () => ({
   computeAdvanceBatch: vi.fn(() => mockBatch),
   bots: {
@@ -99,6 +94,20 @@ suite('SinglePlayerDesktop view', () => {
     append.mockClear();
     appendMany.mockClear();
     stateRef = makeDesktopState();
+    setMockAppState({
+      state: stateRef,
+      height: 480,
+      append,
+      appendMany,
+      isBatchPending: false,
+      ready: true,
+      previewAt: async () => stateRef,
+      warnings: [],
+      clearWarnings: () => {},
+      timeTravelHeight: null,
+      setTimeTravelHeight: () => {},
+      timeTraveling: false,
+    });
     container = document.createElement('div');
     document.body.appendChild(container);
     root = ReactDOM.createRoot(container);
@@ -115,15 +124,16 @@ suite('SinglePlayerDesktop view', () => {
     const { default: SinglePlayerDesktop } = await import('@/components/views/SinglePlayerDesktop');
 
     root!.render(<SinglePlayerDesktop humanId="human" rng={() => 0.42} />);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    const text = container!.textContent ?? '';
-    expect(text).toMatch(/Single Player/);
-    expect(text).toMatch(/Round 1/);
-    expect(text).toMatch(/Alice H \(you\)/);
-    expect(text).toMatch(/Bot Bob/);
+    await waitFor(() => {
+      const textContent = container!.textContent ?? '';
+      expect(textContent).toMatch(/Single Player/);
+      expect(textContent).toMatch(/Round 1/);
+      expect(textContent).toMatch(/Alice H \(you\)/);
+      expect(textContent).toMatch(/Bot Bob/);
+    });
 
     const buttons = Array.from(container!.querySelectorAll('button')) as HTMLButtonElement[];
+    const text = container!.textContent ?? '';
     expect(text).toMatch(/Broken: No/);
     expect(append).not.toHaveBeenCalled();
 

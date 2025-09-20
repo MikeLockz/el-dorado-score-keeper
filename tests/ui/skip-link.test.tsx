@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 const suite = typeof document === 'undefined' ? describe.skip : describe;
 
@@ -26,24 +26,16 @@ suite('Layout skip link', () => {
     }));
 
     const { default: RootLayout } = await import('@/app/layout');
-    const div = document.createElement('div');
-    document.body.appendChild(div);
-    const root = ReactDOM.createRoot(div);
-    root.render(
+    const markup = renderToStaticMarkup(
       React.createElement(RootLayout as any, {
         children: React.createElement('div', null, 'Hello'),
       }),
     );
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-
-    const skip = div.querySelector('a[href="#main"]');
-    const main = div.querySelector('#main');
+    const doc = new DOMParser().parseFromString(markup, 'text/html');
+    const skip = doc.querySelector('a[href="#main"]');
+    const main = doc.querySelector('#main');
     expect(skip).toBeTruthy();
     expect(main).toBeTruthy();
-
-    root.unmount();
-    div.remove();
   });
 });

@@ -97,7 +97,7 @@ suite('Game Summary UI', () => {
     useAppStateMock.mockReturnValue(defaultHookValue);
   });
 
-  it('renders totals and triggers Play Again', async () => {
+  it('renders totals without the Play Again button', async () => {
     const { default: SinglePlayerPage } = await import('@/app/single-player/page');
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -112,15 +112,8 @@ suite('Game Summary UI', () => {
     expect(text).toMatch(/Winner/);
 
     const btns = Array.from(div.querySelectorAll('button'));
-    const playAgain = btns.find((b) =>
-      /Play Again/i.test(b.textContent || ''),
-    ) as HTMLButtonElement;
-    expect(playAgain).toBeTruthy();
-    playAgain.click();
-
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-    expect(archiveCurrentGameAndReset).toHaveBeenCalled();
+    const playAgain = btns.find((b) => /Play Again/i.test(b.textContent || ''));
+    expect(playAgain).toBeUndefined();
 
     root.unmount();
     div.remove();

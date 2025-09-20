@@ -5,7 +5,6 @@ import { Loader2 } from 'lucide-react';
 
 import { events, roundDelta } from '@/lib/state';
 import { computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
-import { useNewGameRequest } from '@/lib/game-flow';
 import SpRoundSummary from './sp/SpRoundSummary';
 import SpGameSummary from './sp/SpGameSummary';
 import SpTrickTable from './sp/SpTrickTable';
@@ -63,7 +62,6 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     scoreCardTotals,
     scoreCardGrid,
   } = useSinglePlayerViewModel({ humanId, rng });
-  const { startNewGame, pending: newGamePending } = useNewGameRequest({ requireIdle: true });
 
   const ctaMeta = React.useMemo(
     () =>
@@ -185,12 +183,6 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     setShowSummary((prev) => !prev);
   }, []);
 
-  const handlePlayAgain = React.useCallback(() => {
-    if (isBatchPending || newGamePending) return;
-    setShowSummary(false);
-    void startNewGame({ skipConfirm: true });
-  }, [isBatchPending, newGamePending, startNewGame]);
-
   if (spPhase === 'summary') {
     const ids = players.map((p) => p.id);
     const perPlayer = ids.map((id) => {
@@ -245,8 +237,6 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
         title={summaryData.title}
         players={summaryData.players}
         seed={summaryData.seed}
-        onPlayAgain={handlePlayAgain}
-        disabled={isBatchPending || newGamePending}
         scoreCardRounds={scoreCardRounds}
         scoreCardTotals={scoreCardTotals}
         scoreCardGrid={scoreCardGrid}
@@ -396,8 +386,6 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                   title={summaryData.title}
                   players={summaryData.players}
                   seed={summaryData.seed}
-                  onPlayAgain={handlePlayAgain}
-                  disabled={isBatchPending || newGamePending}
                   onClose={() => setShowSummary(false)}
                   scoreCardRounds={scoreCardRounds}
                   scoreCardTotals={scoreCardTotals}

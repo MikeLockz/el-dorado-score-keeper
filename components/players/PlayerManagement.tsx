@@ -210,7 +210,7 @@ export default function PlayerManagement() {
         setPlayerPending(null);
       }
     },
-    [append, players.length, confirmDialog],
+    [append, players.length, confirmDialog, toast],
   );
 
   const handleRestorePlayer = React.useCallback(

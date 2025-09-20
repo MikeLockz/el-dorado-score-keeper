@@ -15,10 +15,12 @@ vi.mock('@/lib/state', async () => {
   };
 });
 
-type MockAppStateHook = ReturnType<typeof import('@/components/state-provider')['useAppState']>;
+type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 
 const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
-const setListGamesMock = (globalThis as any).__setListGamesMock as (fn: () => Promise<GameRecord[]>) => void;
+const setListGamesMock = (globalThis as any).__setListGamesMock as (
+  fn: () => Promise<GameRecord[]>,
+) => void;
 const getMockFetch = (globalThis as any).__getMockFetch as () => ReturnType<typeof vi.fn>;
 
 const buildAppState = () => {

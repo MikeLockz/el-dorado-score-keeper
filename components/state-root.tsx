@@ -2,6 +2,9 @@
 import React from 'react';
 import { StateProvider } from '@/components/state-provider';
 import { NewGameConfirmProvider } from '@/components/dialogs/NewGameConfirm';
+import { PromptDialogProvider } from '@/components/dialogs/PromptDialog';
+import { ConfirmDialogProvider } from '@/components/dialogs/ConfirmDialog';
+import { ToastProvider } from '@/components/ui/toast';
 
 export default function StateRoot({ children }: { children: React.ReactNode }) {
   const onWarn = React.useCallback((code: string, info?: unknown) => {
@@ -11,7 +14,13 @@ export default function StateRoot({ children }: { children: React.ReactNode }) {
   }, []);
   return (
     <StateProvider onWarn={onWarn}>
-      <NewGameConfirmProvider>{children}</NewGameConfirmProvider>
+      <NewGameConfirmProvider>
+        <ConfirmDialogProvider>
+          <PromptDialogProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </PromptDialogProvider>
+        </ConfirmDialogProvider>
+      </NewGameConfirmProvider>
     </StateProvider>
   );
 }

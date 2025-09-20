@@ -5,7 +5,6 @@ import { Loader2 } from 'lucide-react';
 
 import { events, roundDelta } from '@/lib/state';
 import { computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
-import { useNewGameRequest } from '@/lib/game-flow';
 import SpRoundSummary from './sp/SpRoundSummary';
 import SpGameSummary from './sp/SpGameSummary';
 import SpHeaderBar from './sp/SpHeaderBar';
@@ -61,7 +60,6 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     scoreCardTotals,
     scoreCardGrid,
   } = useSinglePlayerViewModel({ humanId, rng });
-  const { startNewGame, pending: newGamePending } = useNewGameRequest({ requireIdle: true });
 
   const ctaMeta = React.useMemo(
     () =>
@@ -138,12 +136,6 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   React.useEffect(() => {
     if (spPhase !== 'bidding' && spPhase !== 'playing') setShowSummary(false);
   }, [spPhase]);
-
-  const handlePlayAgain = React.useCallback(() => {
-    if (isBatchPending || newGamePending) return;
-    setShowSummary(false);
-    void startNewGame({ skipConfirm: true });
-  }, [isBatchPending, newGamePending, startNewGame]);
 
   // Summary auto-advance hooks (always declared; guarded inside effect)
   const [autoCanceled, setAutoCanceled] = React.useState(false);
@@ -231,8 +223,6 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         title={summaryData.title}
         players={summaryData.players}
         seed={summaryData.seed}
-        onPlayAgain={handlePlayAgain}
-        disabled={isBatchPending || newGamePending}
         scoreCardRounds={scoreCardRounds}
         scoreCardTotals={scoreCardTotals}
         scoreCardGrid={scoreCardGrid}
@@ -246,8 +236,6 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         title={summaryData.title}
         players={summaryData.players}
         seed={summaryData.seed}
-        onPlayAgain={handlePlayAgain}
-        disabled={isBatchPending || newGamePending}
         onDetailsToggle={() => setShowSummary(false)}
         detailsActive
         scoreCardRounds={scoreCardRounds}

@@ -1,12 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { waitFor } from '@testing-library/react';
 import type { AppState, RoundData } from '@/lib/state/types';
 
 const append = vi.fn(async () => undefined);
 const appendMany = vi.fn(async () => undefined);
 
 const rosterId = 'responsive-roster';
+
+type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
+
+const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
 
 const createState = (): AppState => {
   const rounds: Record<number, RoundData> = {};
@@ -65,17 +70,6 @@ const createState = (): AppState => {
 
 let stateRef: AppState = createState();
 
-vi.mock('@/components/state-provider', () => ({
-  useAppState: () => ({
-    state: stateRef,
-    append,
-    appendMany,
-    isBatchPending: false,
-    ready: true,
-    height: 600,
-  }),
-}));
-
 const originalMatchMedia = typeof window !== 'undefined' ? window.matchMedia : undefined;
 
 const installMatchMedia = (matches: boolean) => {
@@ -119,6 +113,20 @@ suite('SinglePlayerPage responsive selection', () => {
     append.mockClear();
     appendMany.mockClear();
     stateRef = createState();
+    setMockAppState({
+      state: stateRef,
+      append,
+      appendMany,
+      isBatchPending: false,
+      ready: true,
+      height: 600,
+      previewAt: async () => stateRef,
+      warnings: [],
+      clearWarnings: () => {},
+      timeTravelHeight: null,
+      setTimeTravelHeight: () => {},
+      timeTraveling: false,
+    });
     container = document.createElement('div');
     document.body.appendChild(container);
     root = ReactDOM.createRoot(container);
@@ -144,12 +152,11 @@ suite('SinglePlayerPage responsive selection', () => {
     installMatchMedia(true);
     const { default: SinglePlayerPage } = await import('@/app/single-player/page');
     root!.render(<SinglePlayerPage />);
-    await Promise.resolve();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    const roundOverview = container!.querySelector('[aria-label="Round overview"]');
-    expect(roundOverview).not.toBeNull();
-    expect(container!.textContent).toMatch(/Single Player/);
+    await waitFor(() => {
+      const roundOverview = container!.querySelector('[aria-label="Round overview"]');
+      expect(roundOverview).not.toBeNull();
+      expect(container!.textContent).toMatch(/Single Player/);
+    });
   });
 
   it('defaults to mobile view without matchMedia support', async () => {

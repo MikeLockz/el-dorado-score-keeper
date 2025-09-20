@@ -190,7 +190,8 @@ export default function CurrentGame({
     onDecrementBid: handleDecrementBid,
     onToggleMade: handleToggleMade,
   };
-  if (biddingInteractiveIds !== undefined) scorecardGridProps.biddingInteractiveIds = biddingInteractiveIds;
+  if (biddingInteractiveIds !== undefined)
+    scorecardGridProps.biddingInteractiveIds = biddingInteractiveIds;
   if (disableRoundStateCycling !== undefined)
     scorecardGridProps.disableRoundStateCycling = disableRoundStateCycling;
   if (disableInputs !== undefined) scorecardGridProps.disableInputs = disableInputs;
