@@ -172,7 +172,8 @@ export function buildSinglePlayerDerivedState(
   for (let round = 1; round <= ROUNDS_TOTAL; round++) {
     const rd = state.rounds[round];
     const includeCurrent =
-      round === spRoundNo && (spPhase === 'summary' || spPhase === 'game-summary' || spPhase === 'done');
+      round === spRoundNo &&
+      (spPhase === 'summary' || spPhase === 'game-summary' || spPhase === 'done');
     if (!rd || (!includeCurrent && rd.state !== 'scored')) continue;
     const entry: Record<string, ScoreCardEntry> = {};
     const tallies =
@@ -231,8 +232,8 @@ export function buildSinglePlayerDerivedState(
       const entry = entries?.[player.id];
       const present = entry?.present ?? false;
       const bid = present && typeof entry?.bid === 'number' ? entry.bid : 0;
-      const made = present ? entry?.made ?? null : null;
-      const taken = present ? entry?.taken ?? null : null;
+      const made = present ? (entry?.made ?? null) : null;
+      const taken = present ? (entry?.taken ?? null) : null;
       if (entries && present) sumBids += bid;
       const cumulative = totalsByRound[round]?.[player.id] ?? 0;
       roundEntries[player.id] = {
@@ -474,9 +475,9 @@ export function useSinglePlayerViewModel({ humanId, rng }: { humanId: string; rn
     tableCards: derived.tableCards,
     lastTrickSnapshot: derived.lastTrickSnapshot,
     sessionSeed: derived.sessionSeed,
-   leaderId: derived.leaderId,
-   scoreCardRounds: derived.scoreCardRounds,
-   scoreCardTotals: derived.scoreCardTotals,
+    leaderId: derived.leaderId,
+    scoreCardRounds: derived.scoreCardRounds,
+    scoreCardTotals: derived.scoreCardTotals,
     scoreCardGrid: derived.scoreCardGrid,
   } as const;
 }

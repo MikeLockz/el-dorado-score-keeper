@@ -72,8 +72,8 @@ export default function CurrentGame({
           continue;
         }
         const present = roundData?.present?.[column.id] !== false;
-        const bid = present ? roundData?.bids?.[column.id] ?? 0 : 0;
-        const made = present ? roundData?.made?.[column.id] ?? null : null;
+        const bid = present ? (roundData?.bids?.[column.id] ?? 0) : 0;
+        const made = present ? (roundData?.made?.[column.id] ?? null) : null;
         const cumulative = totalsByRound[roundNumber]?.[column.id] ?? 0;
         const taken = live?.counts?.[column.id] ?? null;
         entries[column.id] = { bid, made, present, cumulative, taken };
@@ -136,7 +136,9 @@ export default function CurrentGame({
       if (current === 'complete') {
         const roundData = state.rounds[round];
         const allMarked = players.every(
-          (player) => roundData?.present?.[player.id] === false || (roundData?.made?.[player.id] ?? null) !== null,
+          (player) =>
+            roundData?.present?.[player.id] === false ||
+            (roundData?.made?.[player.id] ?? null) !== null,
         );
         if (!allMarked) return;
         await append(events.roundFinalize({ round }));
@@ -170,6 +172,13 @@ export default function CurrentGame({
     [toggleMade],
   );
 
+  const handleCycleRoundState = React.useCallback(
+    (round: number) => {
+      void cycleRoundState(round);
+    },
+    [cycleRoundState],
+  );
+
   return (
     <ScorecardGrid
       columns={columns}
@@ -179,7 +188,7 @@ export default function CurrentGame({
       biddingInteractiveIds={biddingInteractiveIds}
       disableRoundStateCycling={disableRoundStateCycling}
       disableInputs={disableInputs}
-      onCycleRoundState={cycleRoundState}
+      onCycleRoundState={handleCycleRoundState}
       onIncrementBid={handleIncrementBid}
       onDecrementBid={handleDecrementBid}
       onToggleMade={handleToggleMade}

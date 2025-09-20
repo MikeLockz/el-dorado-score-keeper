@@ -321,7 +321,7 @@ export default function ScorecardGrid({
                     title={column.placeholder ? undefined : column.name}
                     aria-label={column.placeholder ? undefined : `Player ${column.name}`}
                   >
-                    {column.placeholder ? '-' : abbr[column.id] ?? column.name.substring(0, 2)}
+                    {column.placeholder ? '-' : (abbr[column.id] ?? column.name.substring(0, 2))}
                   </div>
                 ))}
               </div>
@@ -383,14 +383,11 @@ export default function ScorecardGrid({
                     const entry = round.entries[column.id];
                     const cellKey = `${round.round}-${column.id}`;
                     const showDetails =
-                      round.state !== 'scored'
-                        ? true
-                        : !!detailCells.current[cellKey];
+                      round.state !== 'scored' ? true : !!detailCells.current[cellKey];
                     const cellKeyId = `cell-details-${round.round}-${column.id}`;
                     const isScored = round.state === 'scored';
-                    const isLive =
-                      round.state === 'playing' && live && live.round === round.round;
-                    const liveCard = isLive ? live.cards[column.id] ?? null : null;
+                    const isLive = round.state === 'playing' && live && live.round === round.round;
+                    const liveCard = isLive ? (live.cards[column.id] ?? null) : null;
                     const isCurrent =
                       isLive && live?.currentPlayerId && live.currentPlayerId === column.id;
                     const isRevealWinner = isLive && revealWinnerId === column.id;
@@ -659,7 +656,9 @@ export default function ScorecardGrid({
                                 <span className="w-full text-right font-extrabold text-xl text-foreground">
                                   {bid}
                                 </span>
-                                <span className="px-1 font-extrabold text-xl text-foreground">-</span>
+                                <span className="px-1 font-extrabold text-xl text-foreground">
+                                  -
+                                </span>
                                 <div className="w-full text-left">
                                   {cumulative < 0 ? (
                                     <span className="relative inline-flex items-center justify-center align-middle w-[4ch] h-[4ch] rounded-full border-2 border-destructive">
@@ -668,7 +667,9 @@ export default function ScorecardGrid({
                                       </span>
                                     </span>
                                   ) : (
-                                    <span className="font-extrabold text-xl text-foreground">{cumulative}</span>
+                                    <span className="font-extrabold text-xl text-foreground">
+                                      {cumulative}
+                                    </span>
                                   )}
                                 </div>
                               </div>
