@@ -23,9 +23,6 @@ export default function SpScoreCard({ rounds, totals, players }: Props) {
 
   return (
     <section className="mt-4">
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-        Previous Rounds
-      </div>
       <div className="overflow-x-auto">
         <table className="min-w-full border text-xs">
           <caption className="sr-only">Score card history</caption>

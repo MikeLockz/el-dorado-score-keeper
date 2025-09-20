@@ -59,6 +59,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     sessionSeed,
     scoreCardRounds,
     scoreCardTotals,
+    scoreCardGrid,
   } = useSinglePlayerViewModel({ humanId, rng });
   const { startNewGame, pending: newGamePending } = useNewGameRequest({ requireIdle: true });
 
@@ -125,13 +126,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
       totals.length > 0
         ? totals.reduce((m, t) => Math.max(m, t.total), Number.NEGATIVE_INFINITY)
         : 0;
-    const winners = totals.filter((t) => t.total === max).map((t) => t.name);
-    const title =
-      winners.length > 1
-        ? `Winners: ${winners.join(', ')}`
-        : winners.length === 1
-          ? `Winner: ${winners[0] ?? '-'}`
-          : 'Game Summary';
+    const title = 'Game Summary';
     return {
       title,
       players: totals.map((t) => ({ ...t, isWinner: t.total === max })),
@@ -224,6 +219,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         disabled={isBatchPending}
         scoreCardRounds={scoreCardRounds}
         scoreCardTotals={scoreCardTotals}
+        scoreCardGrid={scoreCardGrid}
       />
     );
   }
@@ -239,6 +235,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         disabled={isBatchPending || newGamePending}
         scoreCardRounds={scoreCardRounds}
         scoreCardTotals={scoreCardTotals}
+        scoreCardGrid={scoreCardGrid}
       />
     );
   }
@@ -255,6 +252,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         detailsActive
         scoreCardRounds={scoreCardRounds}
         scoreCardTotals={scoreCardTotals}
+        scoreCardGrid={scoreCardGrid}
       />
     );
   }

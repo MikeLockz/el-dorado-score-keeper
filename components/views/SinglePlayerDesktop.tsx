@@ -61,6 +61,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     sessionSeed,
     scoreCardRounds,
     scoreCardTotals,
+    scoreCardGrid,
   } = useSinglePlayerViewModel({ humanId, rng });
   const { startNewGame, pending: newGamePending } = useNewGameRequest({ requireIdle: true });
 
@@ -232,6 +233,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
           disabled={isBatchPending}
           scoreCardRounds={scoreCardRounds}
           scoreCardTotals={scoreCardTotals}
+          scoreCardGrid={scoreCardGrid}
         />
       </div>
     );
@@ -247,6 +249,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
         disabled={isBatchPending || newGamePending}
         scoreCardRounds={scoreCardRounds}
         scoreCardTotals={scoreCardTotals}
+        scoreCardGrid={scoreCardGrid}
       />
     );
   }
@@ -398,6 +401,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                   onClose={() => setShowSummary(false)}
                   scoreCardRounds={scoreCardRounds}
                   scoreCardTotals={scoreCardTotals}
+                  scoreCardGrid={scoreCardGrid}
                 />
               </div>
             ) : (

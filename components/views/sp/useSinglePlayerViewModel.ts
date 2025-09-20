@@ -17,11 +17,17 @@ import {
   type AppEvent,
   ROUNDS_TOTAL,
   roundDelta,
+  tricksForRound,
 } from '@/lib/state';
 import type { AppState } from '@/lib/state/types';
 import { bots, computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
 import { canPlayCard as ruleCanPlayCard } from '@/lib/rules/sp';
 import type { Suit, Rank } from '@/lib/single-player/types';
+import type {
+  ScorecardPlayerColumn,
+  ScorecardRoundEntry,
+  ScorecardRoundView,
+} from '../scorecard/ScorecardGrid';
 
 const SUIT_ORDER: ReadonlyArray<Suit> = ['spades', 'hearts', 'diamonds', 'clubs'];
 
@@ -80,6 +86,10 @@ export type SinglePlayerDerivedState = Readonly<{
   leaderId: string | null;
   scoreCardRounds: ReadonlyArray<ScoreCardRound>;
   scoreCardTotals: Record<string, number>;
+  scoreCardGrid: Readonly<{
+    columns: ReadonlyArray<ScorecardPlayerColumn>;
+    rounds: ReadonlyArray<ScorecardRoundView>;
+  }>;
 }>;
 
 export function buildSinglePlayerDerivedState(
@@ -161,7 +171,9 @@ export function buildSinglePlayerDerivedState(
   const scoreCardRounds: ScoreCardRound[] = [];
   for (let round = 1; round <= ROUNDS_TOTAL; round++) {
     const rd = state.rounds[round];
-    if (!rd || rd.state !== 'scored') continue;
+    const includeCurrent =
+      round === spRoundNo && (spPhase === 'summary' || spPhase === 'game-summary' || spPhase === 'done');
+    if (!rd || (!includeCurrent && rd.state !== 'scored')) continue;
     const entry: Record<string, ScoreCardEntry> = {};
     const tallies =
       roundTallies[round] ?? (round === spRoundNo ? (sp.trickCounts ?? {}) : undefined);
@@ -198,6 +210,64 @@ export function buildSinglePlayerDerivedState(
   for (const player of players) {
     scoreCardTotals[player.id] = state.scores?.[player.id] ?? 0;
   }
+
+  const scoreCardGridColumns: ScorecardPlayerColumn[] = players.map((player) => ({
+    id: player.id,
+    name: player.name,
+  }));
+
+  const scoreCardEntriesByRound = new Map<number, ScoreCardRound['entries']>();
+  for (const round of scoreCardRounds) {
+    scoreCardEntriesByRound.set(round.round, round.entries);
+  }
+
+  const scoreCardGridRounds: ScorecardRoundView[] = [];
+  for (let round = 1; round <= ROUNDS_TOTAL; round++) {
+    const entries = scoreCardEntriesByRound.get(round);
+    const tricks = tricksForRound(round);
+    let sumBids = 0;
+    const roundEntries: Record<string, ScorecardRoundEntry> = {};
+    for (const player of players) {
+      const entry = entries?.[player.id];
+      const present = entry?.present ?? false;
+      const bid = present && typeof entry?.bid === 'number' ? entry.bid : 0;
+      const made = present ? entry?.made ?? null : null;
+      const taken = present ? entry?.taken ?? null : null;
+      if (entries && present) sumBids += bid;
+      const cumulative = totalsByRound[round]?.[player.id] ?? 0;
+      roundEntries[player.id] = {
+        bid,
+        made,
+        present,
+        cumulative,
+        placeholder: !entries,
+        taken,
+      };
+    }
+    const overUnder = !entries
+      ? 'match'
+      : sumBids === tricks
+        ? 'match'
+        : sumBids > tricks
+          ? 'over'
+          : 'under';
+    scoreCardGridRounds.push({
+      round,
+      tricks,
+      state: entries ? 'scored' : 'locked',
+      info: {
+        sumBids,
+        overUnder,
+        showBidChip: !!entries,
+      },
+      entries: roundEntries,
+    });
+  }
+
+  const scoreCardGrid = {
+    columns: scoreCardGridColumns,
+    rounds: scoreCardGridRounds,
+  } as const;
 
   return {
     players,
@@ -236,6 +306,7 @@ export function buildSinglePlayerDerivedState(
     leaderId,
     scoreCardRounds,
     scoreCardTotals,
+    scoreCardGrid,
   };
 }
 
@@ -403,8 +474,9 @@ export function useSinglePlayerViewModel({ humanId, rng }: { humanId: string; rn
     tableCards: derived.tableCards,
     lastTrickSnapshot: derived.lastTrickSnapshot,
     sessionSeed: derived.sessionSeed,
-    leaderId: derived.leaderId,
-    scoreCardRounds: derived.scoreCardRounds,
-    scoreCardTotals: derived.scoreCardTotals,
+   leaderId: derived.leaderId,
+   scoreCardRounds: derived.scoreCardRounds,
+   scoreCardTotals: derived.scoreCardTotals,
+    scoreCardGrid: derived.scoreCardGrid,
   } as const;
 }

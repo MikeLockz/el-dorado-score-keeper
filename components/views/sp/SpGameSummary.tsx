@@ -1,5 +1,9 @@
 import React from 'react';
 
+import ScorecardGrid, {
+  type ScorecardPlayerColumn,
+  type ScorecardRoundView,
+} from '../scorecard/ScorecardGrid';
 import SpScoreCard from './SpScoreCard';
 import type { ScoreCardRound } from './useSinglePlayerViewModel';
 
@@ -18,6 +22,10 @@ export default function SpGameSummary(props: {
   variant?: 'full' | 'panel';
   scoreCardRounds?: ReadonlyArray<ScoreCardRound>;
   scoreCardTotals?: Readonly<Record<string, number>>;
+  scoreCardGrid?: Readonly<{
+    columns: ReadonlyArray<ScorecardPlayerColumn>;
+    rounds: ReadonlyArray<ScorecardRoundView>;
+  }>;
 }) {
   const {
     title,
@@ -32,6 +40,7 @@ export default function SpGameSummary(props: {
     variant = 'full',
     scoreCardRounds,
     scoreCardTotals,
+    scoreCardGrid,
   } = props;
   const isPanel = variant === 'panel';
   const showDetailsToggle = typeof onDetailsToggle === 'function';
@@ -50,7 +59,6 @@ export default function SpGameSummary(props: {
       <header className={`border-b ${headerPadding}`}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-xs text-muted-foreground">Game Summary</div>
             <div className={titleClass}>{title}</div>
             {typeof seed === 'number' && Number.isFinite(seed) && (
               <div className="mt-1 text-xs text-muted-foreground">Seed: {seed}</div>
@@ -69,24 +77,20 @@ export default function SpGameSummary(props: {
         </div>
       </header>
       <main className={mainPadding}>
-        <div className="grid grid-cols-1 gap-2 text-sm">
-          {players.map((p) => (
-            <div
-              key={`gsum-${p.id}`}
-              className={`flex items-center justify-between rounded border px-2 py-2 ${p.isWinner ? '' : ''}`}
-            >
-              <div className="font-medium">{p.name}</div>
-              <div className="text-right min-w-[3rem] tabular-nums font-semibold">{p.total}</div>
-            </div>
-          ))}
-        </div>
-        {!!scoreCardRounds?.length && scoreCardTotals && (
+        {scoreCardGrid && scoreCardGrid.rounds.length > 0 ? (
+          <ScorecardGrid
+            columns={scoreCardGrid.columns}
+            rounds={scoreCardGrid.rounds}
+            disableInputs
+            disableRoundStateCycling
+          />
+        ) : !!scoreCardRounds?.length && scoreCardTotals ? (
           <SpScoreCard
             rounds={scoreCardRounds}
             totals={scoreCardTotals}
             players={players.map((p) => ({ id: p.id, name: p.name }))}
           />
-        )}
+        ) : null}
       </main>
       {isPanel ? (
         <footer className="border-t px-4 py-3 flex flex-wrap items-center justify-end gap-2">
