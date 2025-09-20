@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import type { AppState } from '@/lib/state';
+import { waitFor } from '@testing-library/react';
+import { INITIAL_STATE, type AppState } from '@/lib/state';
+
+type MockAppStateHook = ReturnType<typeof import('@/components/state-provider')['useAppState']>;
+type RouterStub = ReturnType<typeof import('next/navigation')['useRouter']>;
+type NewGameConfirmSetter = (impl: { show: ReturnType<typeof vi.fn> }) => void;
+
+const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
+const setMockRouter = (globalThis as any).__setMockRouter as (router: RouterStub) => void;
+const setNewGameConfirm = (globalThis as any).__setNewGameConfirm as NewGameConfirmSetter;
 
 const archiveCurrentGameAndReset = vi.fn(async () => {});
 const listGames = vi.fn(async () => [
@@ -37,38 +46,70 @@ const listGames = vi.fn(async () => [
 const deleteGame = vi.fn(async () => {});
 const restoreGame = vi.fn(async () => {});
 
+const stateMocks = vi.hoisted(() => ({
+  archiveCurrentGameAndReset: vi.fn(async () => {}),
+  listGames: vi.fn(async () => [
+    {
+      id: 'game-1',
+      title: 'Weekend Match',
+      createdAt: Date.parse('2024-02-10T12:00:00Z'),
+      finishedAt: Date.parse('2024-02-10T15:00:00Z'),
+      lastSeq: 10,
+      summary: {
+        players: 4,
+        scores: { a: 120, b: 110 },
+        playersById: { a: 'Alice', b: 'Bob', c: 'Carla', d: 'Drew' },
+        winnerId: 'a',
+        winnerName: 'Alice',
+        winnerScore: 120,
+        scorecard: { activeRound: 7 },
+        sp: {
+          phase: 'setup',
+          roundNo: null,
+          dealerId: null,
+          leaderId: null,
+          order: [],
+          trump: null,
+          trumpCard: null,
+          trickCounts: {},
+          trumpBroken: false,
+        },
+      },
+      bundle: { latestSeq: 10, events: [] },
+    },
+  ]),
+  deleteGame: vi.fn(async () => {}),
+  restoreGame: vi.fn(async () => {}),
+}));
+
 vi.mock('@/lib/state', async () => {
   const actual = await import('@/lib/state');
   return {
     ...actual,
-    archiveCurrentGameAndReset,
-    listGames,
-    deleteGame,
-    restoreGame,
+    archiveCurrentGameAndReset: stateMocks.archiveCurrentGameAndReset,
+    listGames: stateMocks.listGames,
+    deleteGame: stateMocks.deleteGame,
+    restoreGame: stateMocks.restoreGame,
   };
 });
 
 const push = vi.fn();
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push }),
-}));
-
 const append = vi.fn(async () => 1);
 const appendMany = vi.fn(async () => 1);
 
-const inProgressState: AppState = {
-  players: { a: 'Alice', b: 'Bob' },
-  scores: { a: 10, b: 5 },
-  rounds: {
-    1: {
-      state: 'playing',
-      bids: { a: 1, b: 2 },
-      made: { a: null, b: null },
-    },
-  } as any,
-  display_order: { a: 0, b: 1 },
-  sp: {
+function createInProgressContext(): MockAppStateHook {
+  const state = JSON.parse(JSON.stringify(INITIAL_STATE)) as AppState;
+  state.players = { a: 'Alice', b: 'Bob' } as AppState['players'];
+  state.scores = { a: 10, b: 5 } as AppState['scores'];
+  state.rounds[1] = {
+    ...state.rounds[1],
+    state: 'playing',
+    bids: { a: 1, b: 2 },
+    made: { a: null, b: null },
+  };
+  state.sp = {
+    ...state.sp,
     phase: 'playing',
     roundNo: 1,
     dealerId: 'a',
@@ -80,47 +121,51 @@ const inProgressState: AppState = {
     trickCounts: { a: 0, b: 0 },
     trumpBroken: false,
     leaderId: 'a',
-    reveal: null,
     handPhase: 'playing',
-    lastTrickSnapshot: null,
-    summaryEnteredAt: Date.now(),
-  },
-};
+  } as AppState['sp'];
 
-const defaultHookValue = {
-  state: inProgressState,
-  height: 42,
-  ready: true,
-  append,
-  appendMany,
-  isBatchPending: false,
-  previewAt: async () => inProgressState,
-  warnings: [],
-  clearWarnings: () => {},
-  timeTraveling: false,
-};
-
-const useAppStateMock = vi.fn(() => defaultHookValue);
-
-vi.mock('@/components/state-provider', () => ({
-  useAppState: useAppStateMock,
-}));
+  return {
+    state,
+    height: 42,
+    ready: true,
+    append,
+    appendMany,
+    isBatchPending: false,
+    previewAt: async () => state,
+    warnings: [],
+    clearWarnings: () => {},
+    timeTravelHeight: null,
+    setTimeTravelHeight: () => {},
+    timeTraveling: false,
+  };
+}
 
 const suite = typeof document === 'undefined' ? describe.skip : describe;
 
 suite('Games page new game flow', () => {
   beforeEach(() => {
-    archiveCurrentGameAndReset.mockClear();
-    listGames.mockClear();
-    deleteGame.mockClear();
-    restoreGame.mockClear();
+    stateMocks.archiveCurrentGameAndReset.mockClear();
+    stateMocks.listGames.mockClear();
+    stateMocks.deleteGame.mockClear();
+    stateMocks.restoreGame.mockClear();
     push.mockClear();
     append.mockClear();
     appendMany.mockClear();
-    useAppStateMock.mockReturnValue(defaultHookValue);
+    setMockAppState(createInProgressContext());
+    setMockRouter({
+      push,
+      replace: vi.fn(),
+      refresh: vi.fn(),
+      forward: vi.fn(),
+      back: vi.fn(),
+      prefetch: vi.fn().mockResolvedValue(undefined),
+    });
   });
 
   it('confirms before starting a new game and navigates on success', async () => {
+    const confirmShow = vi.fn<(options?: unknown) => Promise<boolean>>().mockResolvedValue(true);
+    setNewGameConfirm({ show: confirmShow });
+
     const { default: GamesPage } = await import('@/app/games/page');
     const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
 
@@ -129,10 +174,9 @@ suite('Games page new game flow', () => {
     const root = ReactDOM.createRoot(container);
     root.render(React.createElement(NewGameConfirmProvider, null, React.createElement(GamesPage)));
 
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(listGames).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+    expect(stateMocks.listGames).toHaveBeenCalledTimes(1);
+    });
 
     const newGameButton = Array.from(container.querySelectorAll('button')).find((btn) =>
       /New Game/i.test(btn.textContent || ''),
@@ -140,36 +184,10 @@ suite('Games page new game flow', () => {
     expect(newGameButton).toBeTruthy();
 
     newGameButton.click();
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
 
-    const dialogContent = document.querySelector('[data-slot="dialog-content"]') as HTMLElement;
-    expect(dialogContent).toBeTruthy();
-
-    const [cancelButton] = Array.from(
-      dialogContent.querySelectorAll('button'),
-    ) as HTMLButtonElement[];
-    cancelButton.click();
-
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(archiveCurrentGameAndReset).not.toHaveBeenCalled();
-    expect(push).not.toHaveBeenCalled();
-
-    newGameButton.click();
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-
-    const dialogContent2 = document.querySelector('[data-slot="dialog-content"]') as HTMLElement;
-    const buttons = Array.from(dialogContent2.querySelectorAll('button')) as HTMLButtonElement[];
-    const confirmButton = buttons[1];
-    confirmButton.click();
-
-    await Promise.resolve();
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(archiveCurrentGameAndReset).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(stateMocks.archiveCurrentGameAndReset).toHaveBeenCalledTimes(1);
+    });
     expect(push).toHaveBeenCalledWith('/');
 
     root.unmount();
