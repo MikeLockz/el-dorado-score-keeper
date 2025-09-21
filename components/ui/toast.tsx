@@ -124,7 +124,13 @@ function ToastViewport({
   toasts: ToastState[];
   onDismiss: (id: string) => void;
 }) {
-  if (typeof document === 'undefined') return null;
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[120] flex justify-center px-4">
       <ul className="flex w-full max-w-sm flex-col gap-3" role="status" aria-live="polite">

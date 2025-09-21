@@ -36,6 +36,8 @@ const nextConfig = {
   ],
   ...(basePath ? { basePath } : {}),
   ...(assetPrefix ? { assetPrefix } : {}),
+  // Allow dev assets to be requested from 127.0.0.1 (used by Playwright tests)
+  allowedDevOrigins: ['127.0.0.1'],
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -47,12 +49,6 @@ const nextConfig = {
   },
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
-  },
-  async redirects() {
-    return [
-      { source: '/single', destination: '/single-player', permanent: true },
-      { source: '/how-to', destination: '/rules', permanent: true },
-    ];
   },
 };
 

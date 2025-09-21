@@ -116,13 +116,13 @@ export function ModeCard({
   };
 
   return (
-    <Card className="h-full p-5 sm:p-6 flex flex-col gap-3 bg-card text-card-foreground border">
+    <Card className="h-full flex flex-col gap-3 border p-5 sm:p-6 text-muted-foreground">
       <section aria-label={ariaLabel}>
         <div className="flex items-center gap-3">
           <div className="inline-flex items-center justify-center h-8 w-8 rounded-xl border bg-muted text-muted-foreground">
             {icon}
           </div>
-          <h3 className="text-base font-semibold leading-tight">{title}</h3>
+          <h3 className="text-base font-semibold leading-tight text-card-foreground">{title}</h3>
         </div>
         <p className="text-sm text-muted-foreground mt-1">{description}</p>
         <div className="mt-3 flex items-center gap-3">

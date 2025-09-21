@@ -16,6 +16,23 @@ function sanitize(html: string): string {
 }
 
 describe('ModeCard snapshots (structure only)', () => {
+  it('retains Tailwind utility classes on the card container (baseline guard)', () => {
+    const card = React.createElement(ModeCard as any, {
+      icon: React.createElement(Compass as any, { className: 'h-5 w-5' }),
+      title: 'Single Player',
+      description: 'Play solo against adaptive AI. Practice strategies and unlock achievements.',
+      primary: { label: 'Start', href: '/single-player', ariaLabel: 'Start Single Player' },
+      secondary: null,
+      ariaLabel: 'Start single player mode — play solo vs AI.',
+    });
+
+    const markup = renderToStaticMarkup(card);
+
+    expect(markup).toMatch(
+      /class="[^"]*bg-card[^"]*flex[^"]*sm:p-6[^"]*text-muted-foreground[^"]*"/,
+    );
+  });
+
   it('renders Single Player, Multiplayer, and Score Card cards', () => {
     const tree = React.createElement(
       'div',

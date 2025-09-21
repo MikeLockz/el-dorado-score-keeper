@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { waitFor } from '@testing-library/react';
@@ -7,7 +7,8 @@ import type { AppState, RoundData } from '@/lib/state/types';
 
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 
-const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
+const stateProviderModule = await import('@/components/state-provider');
+const useAppStateMock = vi.spyOn(stateProviderModule, 'useAppState');
 
 const mockBatch = [{ type: 'sp/trick/cleared', payload: {} }];
 
@@ -29,7 +30,24 @@ const makeDesktopState = (): AppState => {
 
   return {
     players: { human: 'Alice H', bot1: 'Bot Bob' },
-    playerDetails: {},
+    playerDetails: {
+      human: {
+        name: 'Alice H',
+        type: 'human',
+        archived: false,
+        archivedAt: null,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      bot1: {
+        name: 'Bot Bob',
+        type: 'bot',
+        archived: false,
+        archivedAt: null,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    },
     scores: { human: 12, bot1: 4 },
     rounds,
     rosters: {
@@ -89,12 +107,13 @@ const suite = typeof document === 'undefined' ? describe.skip : describe;
 suite('SinglePlayerDesktop view', () => {
   let container: HTMLDivElement | null = null;
   let root: ReactDOM.Root | null = null;
+  let mockContext: MockAppStateHook;
 
   beforeEach(() => {
     append.mockClear();
     appendMany.mockClear();
     stateRef = makeDesktopState();
-    setMockAppState({
+    mockContext = {
       state: stateRef,
       height: 480,
       append,
@@ -107,7 +126,8 @@ suite('SinglePlayerDesktop view', () => {
       timeTravelHeight: null,
       setTimeTravelHeight: () => {},
       timeTraveling: false,
-    });
+    } as MockAppStateHook;
+    useAppStateMock.mockReturnValue(mockContext);
     container = document.createElement('div');
     document.body.appendChild(container);
     root = ReactDOM.createRoot(container);
@@ -118,6 +138,11 @@ suite('SinglePlayerDesktop view', () => {
     if (container) container.remove();
     container = null;
     root = null;
+    useAppStateMock.mockReset();
+  });
+
+  afterAll(() => {
+    useAppStateMock.mockRestore();
   });
 
   it('renders desktop overview and routes actions through shared view model', async () => {

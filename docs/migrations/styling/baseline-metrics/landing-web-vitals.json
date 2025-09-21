@@ -1,0 +1,17 @@
+{
+  "collectedAt": "2025-09-21T01:53:40.616Z",
+  "navigation": {
+    "domContentLoaded": 7055.600000023842,
+    "load": 7274.199999928474,
+    "firstByte": 7002.899999976158,
+    "transferSize": 13865,
+    "encodedBodySize": 13565,
+    "decodedBodySize": 52324
+  },
+  "paint": {
+    "first-paint": 7068,
+    "first-contentful-paint": 7068
+  },
+  "largestContentfulPaint": null,
+  "cumulativeLayoutShift": 0
+}

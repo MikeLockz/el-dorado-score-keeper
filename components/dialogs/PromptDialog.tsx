@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 export type PromptDialogOptions = {
   title: string;
@@ -99,6 +100,12 @@ function PromptDialogContent({
 
   const confirmLabel = options?.confirmLabel ?? 'Confirm';
   const cancelLabel = options?.cancelLabel ?? 'Cancel';
+  const hasExplicitDescription = Boolean(options?.description);
+  const fallbackDescription =
+    options?.description ??
+    (options?.inputLabel
+      ? `Enter a value for ${options.inputLabel} and choose ${confirmLabel}.`
+      : `Provide a value, then choose ${confirmLabel} to continue.`);
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onCancel() : undefined)}>
@@ -106,11 +113,14 @@ function PromptDialogContent({
         <form onSubmit={handleSubmit} className="space-y-4">
           <DialogHeader>
             <DialogTitle>{options?.title}</DialogTitle>
-            {options?.description ? (
-              <DialogDescription className="text-left sm:text-left whitespace-pre-line">
-                {options.description}
-              </DialogDescription>
-            ) : null}
+            <DialogDescription
+              className={cn(
+                'text-left sm:text-left whitespace-pre-line',
+                hasExplicitDescription ? undefined : 'sr-only',
+              )}
+            >
+              {fallbackDescription}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             {options?.inputLabel ? (

@@ -43,6 +43,8 @@ export type UseNewGameRequestOptions = {
   onError?: (error: unknown) => void;
   /** Optional telemetry configuration for confirm/cancel metrics. */
   telemetry?: NewGameTelemetryConfig;
+  /** Internal/testing override: force the has-progress detection result. */
+  forceHasProgress?: boolean;
 };
 
 export type StartNewGameOptions = {
@@ -144,6 +146,7 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
     onCancelled,
     onError,
     telemetry,
+    forceHasProgress,
   } = options;
   const app = useAppState();
   const confirmController = useNewGameConfirm();
@@ -247,7 +250,7 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
       if (requireIdle && isBatchPending) return false;
 
       const effectiveState = timeTraveling ? liveStateRef.current : state;
-      const hasProgress = hasInProgressGame(effectiveState);
+      const hasProgress = forceHasProgress ?? hasInProgressGame(effectiveState);
       const needsConfirmation = !skipConfirm && hasProgress;
       let skipReason: NewGameTelemetryPayload['skipReason'] | null = null;
 
@@ -360,6 +363,7 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
       onError,
       onSuccess,
       pending,
+      forceHasProgress,
       requireIdle,
       state,
       timeTraveling,
