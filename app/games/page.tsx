@@ -8,7 +8,12 @@ import { Button, Card, Skeleton } from '@/components/ui';
 import { Loader2, MoreHorizontal } from 'lucide-react';
 import { type GameRecord, listGames, deleteGame, restoreGame } from '@/lib/state';
 import { formatDateTime } from '@/lib/format';
-import { useNewGameRequest } from '@/lib/game-flow';
+import {
+  useNewGameRequest,
+  hasScorecardProgress,
+  hasSinglePlayerProgress,
+} from '@/lib/game-flow';
+import { useAppState } from '@/components/state-provider';
 
 import styles from './page.module.scss';
 
@@ -21,8 +26,26 @@ const skeletonRows = Array.from({ length: 4 });
 
 export default function GamesPage() {
   const [games, setGames] = React.useState<GameRecord[] | null>(null);
-  const { startNewGame, pending: startPending } = useNewGameRequest();
   const router = useRouter();
+  const { state } = useAppState();
+  const resumeRoute = React.useMemo(() => {
+    if (hasSinglePlayerProgress(state)) return '/single-player';
+    if (hasScorecardProgress(state)) return '/scorecard';
+    return null;
+  }, [state]);
+  const resumeRouteRef = React.useRef<string | null>(resumeRoute);
+  resumeRouteRef.current = resumeRoute;
+  const handleResumeCurrentGame = React.useCallback(() => {
+    const target = resumeRouteRef.current;
+    if (!target) return;
+    router.push(target);
+  }, [router]);
+  const { startNewGame, pending: startPending } = useNewGameRequest({
+    onSuccess: () => {
+      router.push('/');
+    },
+    onCancelled: handleResumeCurrentGame,
+  });
 
   const load = React.useCallback(async () => {
     try {
@@ -57,10 +80,8 @@ export default function GamesPage() {
   }, [statusMessage]);
 
   const onNewGame = async () => {
-    const ok = await startNewGame();
-    if (ok) {
-      router.push('/');
-    }
+    resumeRouteRef.current = resumeRoute;
+    await startNewGame();
   };
 
   const requestAction = React.useCallback(

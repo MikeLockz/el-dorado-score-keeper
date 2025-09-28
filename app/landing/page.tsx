@@ -14,7 +14,17 @@ import styles from './page.module.scss';
 export default function LandingPage() {
   const router = useRouter();
   const { state } = useAppState();
-  const { startNewGame, pending: newGamePending } = useNewGameRequest();
+  const requestedModeRef = React.useRef<'single' | 'scorecard' | null>(null);
+  const handleNavigateToMode = React.useCallback(() => {
+    const mode = requestedModeRef.current;
+    if (!mode) return;
+    requestedModeRef.current = null;
+    router.push(mode === 'single' ? '/single-player' : '/scorecard');
+  }, [router]);
+  const { startNewGame, pending: newGamePending } = useNewGameRequest({
+    onSuccess: handleNavigateToMode,
+    onCancelled: handleNavigateToMode,
+  });
 
   const singlePlayerActive = hasSinglePlayerProgress(state);
   const scorecardActive = hasScorecardProgress(state);
@@ -22,12 +32,13 @@ export default function LandingPage() {
   const handleStartNew = React.useCallback(
     async (mode: 'single' | 'scorecard') => {
       if (newGamePending) return;
+      requestedModeRef.current = mode;
       const ok = await startNewGame();
-      if (ok) {
-        router.push(mode === 'single' ? '/single-player' : '/scorecard');
+      if (!ok && requestedModeRef.current === mode) {
+        requestedModeRef.current = null;
       }
     },
-    [newGamePending, router, startNewGame],
+    [newGamePending, startNewGame],
   );
 
   return (

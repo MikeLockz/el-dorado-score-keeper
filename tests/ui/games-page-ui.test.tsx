@@ -61,9 +61,21 @@ vi.spyOn(stateModule, 'restoreGame').mockImplementation(
 );
 
 const gameFlowModule = await import('@/lib/game-flow');
+type UseNewGameRequest = typeof gameFlowModule.useNewGameRequest;
+type UseNewGameRequestOptions = Parameters<UseNewGameRequest>[0];
+
 const startNewGameSpy = vi.hoisted(() => vi.fn(async () => true));
-vi.spyOn(gameFlowModule, 'useNewGameRequest').mockImplementation(() => ({
-  startNewGame: startNewGameSpy,
+
+vi.spyOn(gameFlowModule, 'useNewGameRequest').mockImplementation((options?: UseNewGameRequestOptions) => ({
+  startNewGame: async (...args) => {
+    const result = await startNewGameSpy(...args);
+    if (result) {
+      options?.onSuccess?.();
+    } else {
+      options?.onCancelled?.();
+    }
+    return result;
+  },
   pending: false,
 }));
 
@@ -161,8 +173,41 @@ suite('Games page new game flow', () => {
 
     await waitFor(() => {
       expect(startNewGameSpy).toHaveBeenCalledTimes(1);
+      expect(push).toHaveBeenCalledWith('/');
     });
-    expect(push).toHaveBeenCalledWith('/');
+
+    root.unmount();
+    container.remove();
+  });
+
+  it('navigates back to the in-progress game when cancelling the new game confirmation', async () => {
+    const confirmShow = vi.fn<(options?: unknown) => Promise<boolean>>().mockResolvedValue(false);
+    setNewGameConfirm({ show: confirmShow });
+    startNewGameSpy.mockResolvedValueOnce(false);
+
+    const { default: GamesPage } = await import('@/app/games/page');
+    const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = ReactDOM.createRoot(container);
+    root.render(React.createElement(NewGameConfirmProvider, null, React.createElement(GamesPage)));
+
+    await waitFor(() => {
+      expect(stateMocks.listGames).toHaveBeenCalledTimes(1);
+    });
+
+    const newGameButton = Array.from(container.querySelectorAll('button')).find((btn) =>
+      /New Game/i.test(btn.textContent || ''),
+    ) as HTMLButtonElement;
+    expect(newGameButton).toBeTruthy();
+
+    newGameButton.click();
+
+    await waitFor(() => {
+      expect(startNewGameSpy).toHaveBeenCalledTimes(1);
+      expect(push).toHaveBeenCalledWith('/single-player');
+    });
 
     root.unmount();
     container.remove();
