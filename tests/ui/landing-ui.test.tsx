@@ -10,11 +10,15 @@ const suite = typeof document === 'undefined' ? describe.skip : describe;
 const noop = () => {};
 
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
+type RouterStub = ReturnType<(typeof import('next/navigation'))['useRouter']>;
+type NewGameConfirmSetter = (impl: { show: ReturnType<typeof vi.fn> }) => void;
 
 const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
 const setListGamesMock = (globalThis as any).__setListGamesMock as (
   fn: () => Promise<GameRecord[]>,
 ) => void;
+const setMockRouter = (globalThis as any).__setMockRouter as (router: RouterStub) => void;
+const setNewGameConfirm = (globalThis as any).__setNewGameConfirm as NewGameConfirmSetter;
 
 function mockAppState(
   state: AppState,
@@ -118,6 +122,64 @@ suite('Landing Page UI', () => {
     expect(scoreButtons.some((el) => /Start a new score card/i.test(el.textContent || ''))).toBe(
       true,
     );
+
+    root.unmount();
+    div.remove();
+  });
+
+  it('routes to the active single player game when cancelling the new game confirmation', async () => {
+    const state = JSON.parse(JSON.stringify(INITIAL_STATE)) as AppState;
+    state.sp = {
+      ...state.sp,
+      phase: 'playing',
+      hands: { a: [{ suit: 'clubs', rank: 7 }] },
+      trickPlays: [],
+    };
+    state.players = { a: 'Ava', b: 'Ben' } as AppState['players'];
+    state.scores = { a: 3, b: 1 } as AppState['scores'];
+    mockAppState(state, { height: 5 });
+
+    const push = vi.fn();
+    setMockRouter({
+      push,
+      replace: vi.fn(),
+      refresh: vi.fn(),
+      forward: vi.fn(),
+      back: vi.fn(),
+      prefetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const confirmShow = vi
+      .fn<(options?: unknown) => Promise<boolean>>()
+      .mockResolvedValue(false);
+    setNewGameConfirm({ show: confirmShow });
+
+    const { default: LandingPage } = await import('@/app/landing/page');
+    const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = ReactDOM.createRoot(div);
+    root.render(
+      React.createElement(NewGameConfirmProvider, null, React.createElement(LandingPage)),
+    );
+
+    const singleSection = await waitFor(() => {
+      const section = div.querySelector('section[aria-label="Single player mode actions"]');
+      expect(section).toBeTruthy();
+      return section as HTMLElement;
+    });
+
+    const newGameButton = Array.from(singleSection.querySelectorAll('button')).find((btn) =>
+      /Start a new game/i.test(btn.textContent || ''),
+    ) as HTMLButtonElement;
+    expect(newGameButton).toBeTruthy();
+
+    newGameButton.click();
+
+    await waitFor(() => {
+      expect(confirmShow).toHaveBeenCalledTimes(1);
+      expect(push).toHaveBeenCalledWith('/single-player');
+    });
 
     root.unmount();
     div.remove();

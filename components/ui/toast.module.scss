@@ -1,0 +1,119 @@
+@use '../../styles/mixins/state' as state;
+@use '../../styles/tokens/spacing' as spacing;
+
+$shadow-lg: 0 20px 45px rgba(15, 23, 42, 0.25);
+
+.viewport {
+  pointer-events: none;
+  position: fixed;
+  inset-inline: 0;
+  bottom: spacing.spacing('space-4');
+  z-index: 120;
+  display: flex;
+  justify-content: center;
+  padding-inline: spacing.spacing('space-4');
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 24rem;
+  gap: spacing.spacing('space-3');
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  pointer-events: auto;
+}
+
+.toastCard {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
+  padding-block: spacing.spacing('space-3');
+  padding-inline: spacing.spacing('space-4');
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: var(--shadow-lg, #{$shadow-lg});
+  outline: none;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+
+  &:focus-within {
+    @include state.focus-ring(color-mix(in oklch, var(--ring) 55%, transparent));
+  }
+
+  &[data-variant='success'] {
+    background: var(--status-complete-surface);
+    color: var(--status-complete-foreground);
+    border-color: var(--status-complete);
+  }
+
+  &[data-variant='warning'] {
+    background: var(--status-bidding-surface);
+    color: var(--status-bidding-foreground);
+    border-color: var(--status-bidding);
+  }
+
+  &[data-variant='destructive'] {
+    background: var(--destructive);
+    color: var(--destructive-foreground);
+    border-color: color-mix(in oklch, var(--destructive) 80%, transparent);
+  }
+}
+
+.dismissButton {
+  position: absolute;
+  inset-inline-end: spacing.spacing('space-2');
+  top: spacing.spacing('space-2');
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: color-mix(in oklch, currentColor 70%, transparent);
+  cursor: pointer;
+  @include state.transition-colors();
+  outline: none;
+
+  &:hover {
+    color: currentColor;
+  }
+
+  &:focus-visible {
+    @include state.focus-ring(color-mix(in oklch, var(--ring) 70%, transparent));
+  }
+
+  :global(svg) {
+    inline-size: 1rem;
+    block-size: 1rem;
+  }
+}
+
+.body {
+  padding-inline-end: spacing.spacing('space-6');
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.description {
+  margin-top: spacing.spacing('space-1');
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  color: color-mix(in oklch, currentColor 80%, transparent);
+}

@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { archiveCurrentGameAndReset } from '@/lib/state';
 import type { AppState } from '@/lib/state';
-import { logEvent } from '@/lib/client-log';
+import * as clientLog from '@/lib/client-log';
 import { useAppState } from '@/components/state-provider';
 import { useNewGameConfirm } from '@/components/dialogs/NewGameConfirm';
 
@@ -43,6 +42,8 @@ export type UseNewGameRequestOptions = {
   onError?: (error: unknown) => void;
   /** Optional telemetry configuration for confirm/cancel metrics. */
   telemetry?: NewGameTelemetryConfig;
+  /** Internal/testing override: force the has-progress detection result. */
+  forceHasProgress?: boolean;
 };
 
 export type StartNewGameOptions = {
@@ -88,6 +89,11 @@ const DEFAULT_TELEMETRY_EVENT_NAMES: Record<NewGameTelemetryEvent, string> = {
   skip: 'new_game_skipped',
   error: 'new_game_error',
 };
+
+async function archiveCurrentGameAndResetLive(): Promise<void> {
+  const mod = await import('@/lib/state');
+  await mod.archiveCurrentGameAndReset();
+}
 
 export function hasScorecardProgress(state: AppState): boolean {
   const anyScores = Object.values(state.scores ?? {}).some(
@@ -144,13 +150,16 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
     onCancelled,
     onError,
     telemetry,
+    forceHasProgress,
   } = options;
   const app = useAppState();
   const confirmController = useNewGameConfirm();
-  const { state, timeTraveling, isBatchPending } = app;
+  const { state, timeTraveling } = app;
   const [pending, setPending] = React.useState(false);
   const liveStateRef = React.useRef<AppState>(state);
   const telemetryRef = React.useRef<NewGameTelemetryConfig | undefined>(telemetry);
+  const appRef = React.useRef(app);
+  appRef.current = app;
 
   React.useEffect(() => {
     telemetryRef.current = telemetry;
@@ -188,7 +197,7 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
         }
         const eventName = config.events?.[event] ?? DEFAULT_TELEMETRY_EVENT_NAMES[event];
         if (!eventName) return;
-        logEvent(eventName, payload);
+        clientLog.logEvent(eventName, payload);
       } catch {}
     },
     [dbName, requireIdle],
@@ -244,10 +253,11 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
     async (requestOptions: StartNewGameOptions = {}) => {
       const { skipConfirm = false } = requestOptions;
       if (pending) return false;
-      if (requireIdle && isBatchPending) return false;
+      const latestApp = appRef.current ?? app;
+      if (requireIdle && latestApp?.isBatchPending) return false;
 
       const effectiveState = timeTraveling ? liveStateRef.current : state;
-      const hasProgress = hasInProgressGame(effectiveState);
+      const hasProgress = forceHasProgress ?? hasInProgressGame(effectiveState);
       const needsConfirmation = !skipConfirm && hasProgress;
       let skipReason: NewGameTelemetryPayload['skipReason'] | null = null;
 
@@ -306,7 +316,7 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
           return Date.now();
         };
         const startedAt = mark();
-        await archiveCurrentGameAndReset();
+        await archiveCurrentGameAndResetLive();
         const finishedAt = mark();
         const durationMs = Math.max(0, finishedAt - startedAt);
 
@@ -352,7 +362,6 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
       }
     },
     [
-      isBatchPending,
       confirm,
       confirmMessage,
       onBeforeStart,
@@ -360,9 +369,11 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
       onError,
       onSuccess,
       pending,
+      forceHasProgress,
       requireIdle,
       state,
       timeTraveling,
+      app,
       confirmController,
       emitTelemetry,
     ],

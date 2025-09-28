@@ -1,0 +1,5 @@
+@use '../tokens/colors';
+
+:root[data-theme='light'] {
+  @include colors.emit-theme('light');
+}

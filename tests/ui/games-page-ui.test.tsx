@@ -61,9 +61,21 @@ vi.spyOn(stateModule, 'restoreGame').mockImplementation(
 );
 
 const gameFlowModule = await import('@/lib/game-flow');
+type UseNewGameRequest = typeof gameFlowModule.useNewGameRequest;
+type UseNewGameRequestOptions = Parameters<UseNewGameRequest>[0];
+
 const startNewGameSpy = vi.hoisted(() => vi.fn(async () => true));
-vi.spyOn(gameFlowModule, 'useNewGameRequest').mockImplementation(() => ({
-  startNewGame: startNewGameSpy,
+
+vi.spyOn(gameFlowModule, 'useNewGameRequest').mockImplementation((options?: UseNewGameRequestOptions) => ({
+  startNewGame: async (...args) => {
+    const result = await startNewGameSpy(...args);
+    if (result) {
+      options?.onSuccess?.();
+    } else {
+      options?.onCancelled?.();
+    }
+    return result;
+  },
   pending: false,
 }));
 
@@ -161,8 +173,113 @@ suite('Games page new game flow', () => {
 
     await waitFor(() => {
       expect(startNewGameSpy).toHaveBeenCalledTimes(1);
+      expect(push).toHaveBeenCalledWith('/');
     });
-    expect(push).toHaveBeenCalledWith('/');
+
+    root.unmount();
+    container.remove();
+  });
+
+  it('navigates back to the in-progress game when cancelling the new game confirmation', async () => {
+    const confirmShow = vi.fn<(options?: unknown) => Promise<boolean>>().mockResolvedValue(false);
+    setNewGameConfirm({ show: confirmShow });
+    startNewGameSpy.mockResolvedValueOnce(false);
+
+    const { default: GamesPage } = await import('@/app/games/page');
+    const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = ReactDOM.createRoot(container);
+    root.render(React.createElement(NewGameConfirmProvider, null, React.createElement(GamesPage)));
+
+    await waitFor(() => {
+      expect(stateMocks.listGames).toHaveBeenCalledTimes(1);
+    });
+
+    const newGameButton = Array.from(container.querySelectorAll('button')).find((btn) =>
+      /New Game/i.test(btn.textContent || ''),
+    ) as HTMLButtonElement;
+    expect(newGameButton).toBeTruthy();
+
+    newGameButton.click();
+
+    await waitFor(() => {
+      expect(startNewGameSpy).toHaveBeenCalledTimes(1);
+      expect(push).toHaveBeenCalledWith('/single-player');
+    });
+
+    root.unmount();
+    container.remove();
+  });
+
+  it('restores a single player game and navigates directly to that mode', async () => {
+    stateMocks.listGames.mockResolvedValueOnce([
+      {
+        id: 'sp-1',
+        title: 'Solo Practice',
+        createdAt: Date.parse('2024-05-01T12:00:00Z'),
+        finishedAt: Date.parse('2024-05-01T13:00:00Z'),
+        lastSeq: 99,
+        summary: {
+          players: 1,
+          scores: {},
+          playersById: { solo: 'You' },
+          winnerId: 'solo',
+          winnerName: 'You',
+          winnerScore: 999,
+          mode: 'single-player',
+          scorecard: { activeRound: null },
+          sp: {
+            phase: 'playing',
+            roundNo: 4,
+            dealerId: 'solo',
+            leaderId: 'solo',
+            order: ['solo'],
+            trump: 'hearts',
+            trumpCard: { suit: 'hearts', rank: 12 },
+            trickCounts: { solo: 2 },
+            trumpBroken: true,
+          },
+        },
+        bundle: { latestSeq: 99, events: [] },
+      },
+    ]);
+
+    const { default: GamesPage } = await import('@/app/games/page');
+    const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = ReactDOM.createRoot(container);
+    root.render(React.createElement(NewGameConfirmProvider, null, React.createElement(GamesPage)));
+
+    await waitFor(() => {
+      const restoreButton = Array.from(container.querySelectorAll('button')).find((btn) =>
+        /Restore/i.test(btn.textContent || ''),
+      );
+      expect(restoreButton).toBeTruthy();
+    });
+
+    const rowRestore = Array.from(container.querySelectorAll('button')).find((btn) =>
+      /Restore/i.test(btn.textContent || ''),
+    ) as HTMLButtonElement;
+    rowRestore.click();
+
+    const dialogRestore = await waitFor(() => {
+      const buttons = Array.from(container.querySelectorAll('button')).filter((btn) =>
+        /Restore/i.test(btn.textContent || ''),
+      );
+      expect(buttons.length).toBeGreaterThan(1);
+      return buttons.at(-1) as HTMLButtonElement;
+    });
+
+    dialogRestore.click();
+
+    await waitFor(() => {
+      expect(stateMocks.restoreGame).toHaveBeenCalledWith(undefined, 'sp-1');
+      expect(push).toHaveBeenCalledWith('/single-player');
+    });
 
     root.unmount();
     container.remove();

@@ -1,9 +1,12 @@
 'use client';
 import * as React from 'react';
 import Link from 'next/link';
+import clsx from 'clsx';
 import { Card, Button } from '@/components/ui';
 import { logEvent } from '@/lib/client-log';
 import { Loader2 } from 'lucide-react';
+
+import styles from './mode-card.module.scss';
 
 export type ModeCardProps = {
   icon: React.ReactNode;
@@ -49,7 +52,7 @@ export function ModeCard({
     const { href, onClick, ariaLabel: labelOverride, label, disabled, pending } = action;
     const content = (
       <>
-        {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+        {pending ? <Loader2 className={styles.spinner} aria-hidden="true" /> : null}
         {label}
       </>
     );
@@ -86,11 +89,10 @@ export function ModeCard({
 
   const renderSecondary = (action: ModeCardAction) => {
     const { href, onClick, label, disabled, pending } = action;
-    const className =
-      'text-sm text-primary underline-offset-4 hover:underline inline-flex items-center gap-1';
+    const className = clsx(styles.secondaryAction, pending && styles.secondaryActionPending);
     const content = (
       <>
-        {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+        {pending ? <Loader2 className={styles.spinner} aria-hidden="true" /> : null}
         {label}
       </>
     );
@@ -116,16 +118,14 @@ export function ModeCard({
   };
 
   return (
-    <Card className="h-full p-5 sm:p-6 flex flex-col gap-3 bg-card text-card-foreground border">
+    <Card className={styles.card}>
       <section aria-label={ariaLabel}>
-        <div className="flex items-center gap-3">
-          <div className="inline-flex items-center justify-center h-8 w-8 rounded-xl border bg-muted text-muted-foreground">
-            {icon}
-          </div>
-          <h3 className="text-base font-semibold leading-tight">{title}</h3>
+        <div className={styles.header}>
+          <div className={styles.icon}>{icon}</div>
+          <h3 className={styles.title}>{title}</h3>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">{description}</p>
-        <div className="mt-3 flex items-center gap-3">
+        <p className={styles.description}>{description}</p>
+        <div className={styles.actions}>
           {renderPrimary(enhancedPrimary)}
           {secondary ? renderSecondary(secondary) : null}
         </div>

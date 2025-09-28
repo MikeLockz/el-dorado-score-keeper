@@ -9,10 +9,22 @@ import HeroCtas from '@/components/landing/HeroCtas';
 import { useAppState } from '@/components/state-provider';
 import { useNewGameRequest, hasScorecardProgress, hasSinglePlayerProgress } from '@/lib/game-flow';
 
+import styles from './page.module.scss';
+
 export default function LandingPage() {
   const router = useRouter();
   const { state } = useAppState();
-  const { startNewGame, pending: newGamePending } = useNewGameRequest();
+  const requestedModeRef = React.useRef<'single' | 'scorecard' | null>(null);
+  const handleNavigateToMode = React.useCallback(() => {
+    const mode = requestedModeRef.current;
+    if (!mode) return;
+    requestedModeRef.current = null;
+    router.push(mode === 'single' ? '/single-player' : '/scorecard');
+  }, [router]);
+  const { startNewGame, pending: newGamePending } = useNewGameRequest({
+    onSuccess: handleNavigateToMode,
+    onCancelled: handleNavigateToMode,
+  });
 
   const singlePlayerActive = hasSinglePlayerProgress(state);
   const scorecardActive = hasScorecardProgress(state);
@@ -20,8 +32,10 @@ export default function LandingPage() {
   const handleStartNew = React.useCallback(
     async (mode: 'single' | 'scorecard') => {
       if (newGamePending) return;
+      requestedModeRef.current = mode;
       const ok = await startNewGame();
-      if (ok) {
+      if (!ok && requestedModeRef.current === mode) {
+        requestedModeRef.current = null;
         router.push(mode === 'single' ? '/single-player' : '/scorecard');
       }
     },
@@ -29,20 +43,20 @@ export default function LandingPage() {
   );
 
   return (
-    <div className="px-4 py-16 sm:py-24 max-w-5xl mx-auto space-y-10">
+    <div className={styles.container}>
       {/* Hero */}
-      <section className="text-center space-y-3">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Set Out for El Dorado</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
+      <section className={styles.hero}>
+        <h1 className={styles.heroTitle}>Set Out for El Dorado</h1>
+        <p className={styles.heroCopy}>
           Choose your path: practice solo, gather your party, or tally scores on the go.
         </p>
         <HeroCtas />
       </section>
 
       {/* Modes Grid */}
-      <section aria-label="Modes" className="grid gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <section aria-label="Modes" className={styles.modesGrid}>
         <ModeCard
-          icon={<Compass className="h-5 w-5" />}
+          icon={<Compass />}
           title="Single Player"
           description="Play solo against adaptive AI. Practice strategies and unlock achievements."
           primary={
@@ -74,7 +88,7 @@ export default function LandingPage() {
           ariaLabel="Single player mode actions"
         />
         <ModeCard
-          icon={<Flame className="h-5 w-5" />}
+          icon={<Flame />}
           title="Multiplayer"
           description="Host a room or join with a code. Cross‑device, real‑time play."
           primary={{ label: 'Host', href: '/rules', ariaLabel: 'Host Game (coming soon)' }}
@@ -83,7 +97,7 @@ export default function LandingPage() {
           ariaLabel="Open multiplayer — host a room or join by code."
         />
         <ModeCard
-          icon={<Calculator className="h-5 w-5" />}
+          icon={<Calculator />}
           title="Score Card"
           description="Track scores for in‑person sessions. Share and export results."
           primary={

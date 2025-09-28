@@ -69,13 +69,15 @@ Notes:
 - `test`: Run tests once with Vitest.
 - `test:watch`: Watch mode for tests.
 - `coverage`: Generate test coverage report.
+- `tokens:sync`: Regenerate Sass and JSON design token artifacts from the canonical design token catalog.
+- `tokens:watch`: Watch design token changes and regenerate artifacts on save.
 
 ## Tech Stack
 
 - Next.js 15 (App Router)
 - React 19
 - TypeScript
-- Tailwind CSS 4
+- Sass modules with token-driven theming
 - Radix UI primitives + `lucide-react` icons
 - Vitest for unit/integration tests
 

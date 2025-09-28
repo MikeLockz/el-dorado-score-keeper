@@ -1,12 +1,16 @@
 'use client';
 
 import React from 'react';
+import clsx from 'clsx';
+
 import { Button, Input } from '@/components/ui';
 import { Plus } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
 import { uuid } from '@/lib/utils';
 import type { UUID } from '@/lib/state';
 import { events } from '@/lib/state';
+
+import styles from './create-player.module.scss';
 
 export default function CreatePlayer() {
   const { append, state } = useAppState();
@@ -24,22 +28,24 @@ export default function CreatePlayer() {
   };
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex gap-2">
+    <div className={styles.root}>
+      <div className={styles.controls}>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Add player name"
-          className="h-9"
+          className={styles.input}
           disabled={maxReached}
         />
-        <Button onClick={() => void onAdd()} disabled={!name.trim() || maxReached} className="h-9">
-          <Plus className="h-4 w-4 mr-1" /> Add
+        <Button
+          onClick={() => void onAdd()}
+          disabled={!name.trim() || maxReached}
+          className={styles.submitButton}
+        >
+          <Plus aria-hidden="true" /> Add
         </Button>
       </div>
-      <div
-        className={`text-[0.72rem] ${maxReached ? 'text-destructive' : 'text-muted-foreground'}`}
-      >
+      <div className={clsx(styles.helper, maxReached && styles.helperDestructive)}>
         {maxReached ? 'Maximum 10 players reached' : '2–10 players supported'}
       </div>
     </div>

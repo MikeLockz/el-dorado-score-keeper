@@ -1,0 +1,72 @@
+@use '../../../styles/tokens/spacing' as spacing;
+
+.root {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 10;
+  background: color-mix(in oklch, var(--card) 95%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
+  padding-inline: spacing.spacing('space-2');
+  padding-block: spacing.spacing('space-1');
+}
+
+.primaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted-foreground);
+}
+
+.metricLabel {
+  color: var(--muted-foreground);
+}
+
+.metricGroup {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-items: baseline;
+  gap: spacing.spacing('space-1');
+}
+
+.metaGroup {
+  display: inline-flex;
+  align-items: baseline;
+  gap: spacing.spacing('space-1');
+}
+
+.metricValue {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.trumpGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+}
+
+.secondaryRow {
+  margin-top: spacing.spacing('space-1');
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: spacing.spacing('space-3');
+  row-gap: spacing.spacing('space-1');
+}
+
+.metaText {
+  font-size: 0.625rem;
+  line-height: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.metaTextStrong {
+  font-weight: 600;
+  color: var(--foreground);
+}

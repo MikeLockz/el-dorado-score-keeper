@@ -1,4 +1,6 @@
 import { FlatCompat } from '@eslint/eslintrc';
+import sassModuleBoundaryPlugin from './eslint/rules/sass-module-boundary.mjs';
+import noTailwindClassnamesPlugin from './eslint/rules/no-tailwind-classnames.mjs';
 
 // Migrate from .eslintrc.cjs to Flat config while preserving behavior.
 const compat = new FlatCompat({
@@ -82,4 +84,14 @@ export default [
     ],
     reportUnusedDisableDirectives: true,
   }),
+  {
+    plugins: {
+      'sass-boundary': sassModuleBoundaryPlugin,
+      'no-tailwind': noTailwindClassnamesPlugin,
+    },
+    rules: {
+      'sass-boundary/no-external-import': 'error',
+      'no-tailwind/no-tailwind-classnames': 'error',
+    },
+  },
 ];

@@ -2,6 +2,8 @@ import React from 'react';
 import { CardGlyph } from '@/components/ui';
 import type { Suit, Rank, Card } from '@/lib/single-player/types';
 
+import styles from './sp-hand-dock.module.scss';
+
 export default function SpHandDock(props: {
   suitOrder: ReadonlyArray<Suit>;
   humanBySuit: Record<Suit, ReadonlyArray<{ suit: Suit; rank: Rank }>>;
@@ -15,21 +17,17 @@ export default function SpHandDock(props: {
     props;
   const totalCards = suitOrder.reduce((acc, s) => acc + (humanBySuit[s]?.length ?? 0), 0);
   if (totalCards === 0) {
-    return <div className="p-2 text-center text-xs text-muted-foreground">No cards</div>;
+    return <div className={styles.emptyState}>No cards</div>;
   }
   return (
-    <div className="p-1">
-      <div className="flex flex-wrap gap-3">
+    <div className={styles.root}>
+      <div className={styles.suitList}>
         {suitOrder.map((s) => (
-          <div key={`suit-group-${s}`} className="flex gap-1">
+          <div key={`suit-group-${s}`} className={styles.suitGroup}>
             {(humanBySuit[s] ?? []).map((c, i) => (
               <button
                 key={`card-${s}-${c.rank}-${i}`}
-                className={`h-14 w-10 rounded border flex items-stretch justify-center font-bold select-none transition-shadow [&>*]:h-full ${
-                  s === 'hearts' || s === 'diamonds' ? 'text-destructive' : ''
-                } ${isSelected(c) ? 'ring-2 ring-primary' : 'hover:ring-1 hover:ring-primary'} ${
-                  isPlaying && !canPlayCard(c) ? 'opacity-40' : ''
-                }`}
+                className={styles.cardButton}
                 onClick={() => onToggleSelect(c)}
                 onDoubleClick={(e) => {
                   e.preventDefault();
@@ -39,6 +37,10 @@ export default function SpHandDock(props: {
                 aria-pressed={isSelected(c) ? 'true' : 'false'}
                 aria-label={`${c.rank} of ${c.suit}`}
                 disabled={!canPlayCard(c)}
+                data-suit={s}
+                data-selected={isSelected(c) ? 'true' : undefined}
+                data-playing={isPlaying ? 'true' : undefined}
+                data-unplayable={!canPlayCard(c) ? 'true' : undefined}
               >
                 <CardGlyph suit={c.suit} rank={c.rank} size="sm" />
               </button>

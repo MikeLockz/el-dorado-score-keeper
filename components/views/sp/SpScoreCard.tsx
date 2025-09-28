@@ -1,6 +1,9 @@
 import React from 'react';
+import clsx from 'clsx';
 
 import type { ScoreCardRound } from './useSinglePlayerViewModel';
+
+import styles from './sp-score-card.module.scss';
 
 type Props = {
   rounds: ReadonlyArray<ScoreCardRound>;
@@ -22,60 +25,56 @@ export default function SpScoreCard({ rounds, totals, players }: Props) {
   if (!rounds.length) return null;
 
   return (
-    <section className="mt-4">
-      <div className="overflow-x-auto">
-        <table className="min-w-full border text-xs">
-          <caption className="sr-only">Score card history</caption>
-          <thead className="bg-muted/60">
-            <tr>
-              <th
-                scope="col"
-                className="border px-2 py-1 text-left align-bottom font-semibold"
-                rowSpan={2}
-              >
+    <section className={styles.root}>
+      <div className={styles.tableWrapper}>
+        <table className={styles.table}>
+          <caption className={styles.visuallyHidden}>Score card history</caption>
+          <thead className={styles.tableHead}>
+            <tr className={styles.tableRow}>
+              <th scope="col" className={styles.tableHeadCell} rowSpan={2}>
                 Round
               </th>
               {players.map((player) => (
                 <th
                   key={`player-${player.id}`}
                   scope="col"
-                  className="border px-2 py-1 text-center font-semibold"
+                  className={clsx(styles.tableHeadCell, styles.tableHeadCellNumeric)}
                   colSpan={3}
                 >
                   {player.name}
                 </th>
               ))}
             </tr>
-            <tr>
+            <tr className={styles.tableRow}>
               {players.flatMap((player) => [
                 <th
                   key={`head-${player.id}-bid`}
                   scope="col"
-                  className="border px-2 py-1 text-center text-[0.7rem] uppercase tracking-wide text-muted-foreground"
+                  className={clsx(styles.tableHeadCell, styles.tableHeadCellNumeric)}
                 >
-                  Bid
+                  <span className={styles.tableHeadSubLabel}>Bid</span>
                 </th>,
                 <th
                   key={`head-${player.id}-taken`}
                   scope="col"
-                  className="border px-2 py-1 text-center text-[0.7rem] uppercase tracking-wide text-muted-foreground"
+                  className={clsx(styles.tableHeadCell, styles.tableHeadCellNumeric)}
                 >
-                  Took
+                  <span className={styles.tableHeadSubLabel}>Took</span>
                 </th>,
                 <th
                   key={`head-${player.id}-score`}
                   scope="col"
-                  className="border px-2 py-1 text-center text-[0.7rem] uppercase tracking-wide text-muted-foreground"
+                  className={clsx(styles.tableHeadCell, styles.tableHeadCellNumeric)}
                 >
-                  Round
+                  <span className={styles.tableHeadSubLabel}>Round</span>
                 </th>,
               ])}
             </tr>
           </thead>
           <tbody>
             {rounds.map((round) => (
-              <tr key={`round-row-${round.round}`} className="odd:bg-muted/10">
-                <th scope="row" className="border px-2 py-1 text-left font-semibold">
+              <tr key={`round-row-${round.round}`} className={styles.tableRow}>
+                <th scope="row" className={styles.tableHeadCell}>
                   {round.round}
                 </th>
                 {players.flatMap((player) => {
@@ -85,26 +84,26 @@ export default function SpScoreCard({ rounds, totals, players }: Props) {
                   const scoreValue = entry?.score ?? 0;
                   const scoreClass =
                     scoreValue > 0
-                      ? 'text-status-scored'
+                      ? styles.scorePositive
                       : scoreValue < 0
-                        ? 'text-destructive'
-                        : 'text-foreground';
+                        ? styles.scoreNegative
+                        : styles.scoreNeutral;
                   return [
                     <td
                       key={`round-${round.round}-${player.id}-bid`}
-                      className="border px-2 py-1 text-center"
+                      className={clsx(styles.tableCell, styles.tableCellNumeric)}
                     >
                       {bidCell}
                     </td>,
                     <td
                       key={`round-${round.round}-${player.id}-taken`}
-                      className="border px-2 py-1 text-center"
+                      className={clsx(styles.tableCell, styles.tableCellNumeric)}
                     >
                       {takenCell}
                     </td>,
                     <td
                       key={`round-${round.round}-${player.id}-score`}
-                      className={`border px-2 py-1 text-center font-semibold ${scoreClass}`}
+                      className={clsx(styles.tableCell, styles.tableCellNumeric, scoreClass)}
                     >
                       {formatNumber(scoreValue)}
                     </td>,
@@ -113,35 +112,43 @@ export default function SpScoreCard({ rounds, totals, players }: Props) {
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-muted/40">
-            <tr>
-              <th scope="row" className="border px-2 py-1 text-left font-semibold">
+          <tfoot className={styles.tableFooter}>
+            <tr className={styles.tableRow}>
+              <th scope="row" className={styles.tableHeadCell}>
                 Total
               </th>
               {players.flatMap((player) => {
                 const totalScore = totals[player.id] ?? 0;
                 const scoreClass =
                   totalScore > 0
-                    ? 'text-status-scored'
+                    ? styles.scorePositive
                     : totalScore < 0
-                      ? 'text-destructive'
-                      : 'text-foreground';
+                      ? styles.scoreNegative
+                      : styles.scoreNeutral;
                 return [
                   <td
                     key={`total-${player.id}-bid`}
-                    className="border px-2 py-1 text-center text-muted-foreground"
+                    className={clsx(
+                      styles.tableCell,
+                      styles.tableCellNumeric,
+                      styles.playerTotalLabel,
+                    )}
                   >
                     —
                   </td>,
                   <td
                     key={`total-${player.id}-taken`}
-                    className="border px-2 py-1 text-center text-muted-foreground"
+                    className={clsx(
+                      styles.tableCell,
+                      styles.tableCellNumeric,
+                      styles.playerTotalLabel,
+                    )}
                   >
                     —
                   </td>,
                   <td
                     key={`total-${player.id}-score`}
-                    className={`border px-2 py-1 text-center font-semibold ${scoreClass}`}
+                    className={clsx(styles.tableCell, styles.tableCellNumeric, scoreClass)}
                   >
                     {formatNumber(totalScore)}
                   </td>,

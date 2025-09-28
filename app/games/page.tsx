@@ -3,12 +3,19 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
+import clsx from 'clsx';
 import { Button, Card, Skeleton } from '@/components/ui';
 import { Loader2, MoreHorizontal } from 'lucide-react';
-import { type GameRecord, listGames, deleteGame, restoreGame } from '@/lib/state';
+import { type GameRecord, listGames, deleteGame, restoreGame, deriveGameRoute } from '@/lib/state';
 import { formatDateTime } from '@/lib/format';
-import { useNewGameRequest } from '@/lib/game-flow';
-import { cn } from '@/lib/utils';
+import {
+  useNewGameRequest,
+  hasScorecardProgress,
+  hasSinglePlayerProgress,
+} from '@/lib/game-flow';
+import { useAppState } from '@/components/state-provider';
+
+import styles from './page.module.scss';
 
 type PendingAction = {
   type: 'restore' | 'delete';
@@ -19,8 +26,27 @@ const skeletonRows = Array.from({ length: 4 });
 
 export default function GamesPage() {
   const [games, setGames] = React.useState<GameRecord[] | null>(null);
-  const { startNewGame, pending: startPending } = useNewGameRequest();
   const router = useRouter();
+  const { state } = useAppState();
+  const resumeRoute = React.useMemo(() => {
+    if (hasSinglePlayerProgress(state)) return '/single-player';
+    if (hasScorecardProgress(state)) return '/scorecard';
+    return null;
+  }, [state]);
+  const resumeRouteRef = React.useRef<string | null>(resumeRoute);
+  resumeRouteRef.current = resumeRoute;
+  const handleResumeCurrentGame = React.useCallback(() => {
+    const target = resumeRouteRef.current;
+    if (!target) return;
+    resumeRouteRef.current = null;
+    router.push(target);
+  }, [router]);
+  const { startNewGame, pending: startPending } = useNewGameRequest({
+    onSuccess: () => {
+      router.push('/');
+    },
+    onCancelled: handleResumeCurrentGame,
+  });
 
   const load = React.useCallback(async () => {
     try {
@@ -55,9 +81,10 @@ export default function GamesPage() {
   }, [statusMessage]);
 
   const onNewGame = async () => {
+    resumeRouteRef.current = resumeRoute;
     const ok = await startNewGame();
-    if (ok) {
-      router.push('/');
+    if (!ok) {
+      handleResumeCurrentGame();
     }
   };
 
@@ -83,9 +110,10 @@ export default function GamesPage() {
 
     try {
       if (action.type === 'restore') {
+        const redirectPath = deriveGameRoute(action.game);
         await restoreGame(undefined, action.game.id);
         setStatusMessage(`Restored "${title}". Redirecting to current game.`);
-        router.push('/');
+        router.push(redirectPath);
       } else {
         await deleteGame(undefined, action.game.id);
         setStatusMessage(`Deleted "${title}".`);
@@ -108,13 +136,13 @@ export default function GamesPage() {
 
   return (
     <>
-      <div className="p-3 max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <h1 className="text-lg font-bold text-foreground">Games</h1>
+      <div className={styles.page}>
+        <div className={styles.headerRow}>
+          <h1 className={styles.title}>Games</h1>
           <Button onClick={() => void onNewGame()} disabled={startPending}>
             {startPending ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                <Loader2 className={styles.loaderIcon} aria-hidden="true" />
                 Archiving…
               </>
             ) : (
@@ -122,69 +150,53 @@ export default function GamesPage() {
             )}
           </Button>
         </div>
-        <div aria-live="polite" aria-atomic="true" className="sr-only">
+        <div aria-live="polite" aria-atomic="true" className={styles.statusLive}>
           {statusMessage ?? ''}
         </div>
-        {statusMessage ? (
-          <div className="mb-3 rounded-md border border-status-bidding bg-status-bidding-surface px-3 py-2 text-sm text-status-bidding-foreground shadow-sm">
-            {statusMessage}
-          </div>
-        ) : null}
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-surface-subtle">
+        {statusMessage ? <div className={styles.statusMessage}>{statusMessage}</div> : null}
+        <Card className={styles.tableCard}>
+          <div className={styles.tableScroll}>
+            <table className={styles.table}>
+              <thead className={styles.tableHead}>
                 <tr>
-                  <th
-                    scope="col"
-                    className="sticky top-0 z-10 px-4 py-3 text-left font-semibold text-surface-subtle-foreground bg-surface-subtle"
-                  >
+                  <th scope="col" className={styles.headerCell}>
                     Title
                   </th>
-                  <th
-                    scope="col"
-                    className="sticky top-0 z-10 px-4 py-3 text-center font-semibold text-surface-subtle-foreground bg-surface-subtle"
-                  >
+                  <th scope="col" className={clsx(styles.headerCell, styles.headerCellCenter)}>
                     Players
                   </th>
-                  <th
-                    scope="col"
-                    className="sticky top-0 z-10 px-4 py-3 text-center font-semibold text-surface-subtle-foreground bg-surface-subtle"
-                  >
+                  <th scope="col" className={clsx(styles.headerCell, styles.headerCellCenter)}>
                     Winner
                   </th>
-                  <th
-                    scope="col"
-                    className="sticky top-0 z-10 px-4 py-3 text-center font-semibold text-surface-subtle-foreground bg-surface-subtle"
-                  >
+                  <th scope="col" className={clsx(styles.headerCell, styles.headerCellCenter)}>
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className={styles.tableBody}>
                 {games === null ? (
                   skeletonRows.map((_, idx) => (
-                    <tr key={`skeleton-${idx}`} className="bg-background">
-                      <td className="px-4 py-4">
-                        <div className="flex flex-col gap-2">
-                          <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-3 w-24" />
+                    <tr key={`skeleton-${idx}`} className={styles.skeletonRow}>
+                      <td className={styles.cell}>
+                        <div className={styles.titleGroup}>
+                          <Skeleton className={styles.skeletonTitle} />
+                          <Skeleton className={styles.skeletonSubtitle} />
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-center">
-                        <Skeleton className="mx-auto h-4 w-10" />
+                      <td className={clsx(styles.cell, styles.cellCenter)}>
+                        <Skeleton className={styles.skeletonPlayers} />
                       </td>
-                      <td className="px-4 py-4 text-center">
-                        <Skeleton className="mx-auto h-4 w-20" />
+                      <td className={clsx(styles.cell, styles.cellCenter)}>
+                        <Skeleton className={styles.skeletonWinner} />
                       </td>
-                      <td className="px-4 py-4">
-                        <Skeleton className="mx-auto h-8 w-28" />
+                      <td className={clsx(styles.cell, styles.cellActions)}>
+                        <Skeleton className={styles.skeletonActions} />
                       </td>
                     </tr>
                   ))
                 ) : games.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                    <td colSpan={4} className={styles.emptyCell}>
                       No archived games yet.
                     </td>
                   </tr>
@@ -195,35 +207,30 @@ export default function GamesPage() {
                     return (
                       <tr
                         key={g.id}
-                        className={cn(
-                          'group transition-colors hover:bg-surface-accent focus-within:bg-surface-accent',
-                          disableActions && 'opacity-60',
-                        )}
+                        className={clsx(styles.row, disableActions && styles.rowDisabled)}
                         onClick={() => {
                           if (disableActions) return;
                           router.push(`/games/view?id=${g.id}`);
                         }}
                       >
-                        <td className="px-4 py-3 align-top">
-                          <div className="font-medium truncate text-foreground group-hover:text-foreground">
-                            {g.title || 'Untitled'}
-                          </div>
-                          <div className="text-[0.72rem] text-muted-foreground group-hover:text-foreground/80 transition-colors">
-                            {formatDateTime(g.finishedAt)}
+                        <td className={styles.cell}>
+                          <div className={styles.titleGroup}>
+                            <div className={styles.titleText}>{g.title || 'Untitled'}</div>
+                            <div className={styles.titleMeta}>{formatDateTime(g.finishedAt)}</div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-center align-top text-foreground">
+                        <td className={clsx(styles.cell, styles.cellCenter)}>
                           {g.summary.players}
                         </td>
-                        <td className="px-4 py-3 text-center align-top font-semibold text-foreground">
+                        <td className={clsx(styles.cell, styles.cellCenter, styles.cellEmphasis)}>
                           {g.summary.winnerName ?? '-'}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className={clsx(styles.cell, styles.cellActions)}>
                           <div
-                            className="flex items-center justify-center gap-2"
-                            onClick={(e) => e.stopPropagation()}
+                            className={styles.actionCluster}
+                            onClick={(event) => event.stopPropagation()}
                           >
-                            <div className="hidden sm:flex items-center gap-2">
+                            <div className={styles.desktopActions}>
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -241,7 +248,7 @@ export default function GamesPage() {
                                 Delete
                               </Button>
                             </div>
-                            <div className="sm:hidden">
+                            <div className={styles.mobileActions}>
                               <Button
                                 size="icon"
                                 variant="outline"
@@ -267,17 +274,17 @@ export default function GamesPage() {
                                   );
                                 }}
                               >
-                                <MoreHorizontal className="h-4 w-4" />
+                                <MoreHorizontal className={styles.moreIcon} />
                               </Button>
                             </div>
                           </div>
                           {optimistic ? (
                             <p
-                              className={cn(
-                                'mt-2 text-center text-xs font-medium',
+                              className={clsx(
+                                styles.optimisticMessage,
                                 optimistic === 'restoring'
-                                  ? 'text-status-scored-foreground'
-                                  : 'text-destructive',
+                                  ? styles.optimisticMessageRestore
+                                  : styles.optimisticMessageDelete,
                               )}
                             >
                               {optimistic === 'restoring' ? 'Restoring…' : 'Deleting…'}
@@ -293,9 +300,9 @@ export default function GamesPage() {
           </div>
           {menuOpen ? (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
+              <div className={styles.menuBackdrop} onClick={() => setMenuOpen(null)} />
               <div
-                className="fixed z-50 w-40 rounded-md border border-border bg-popover text-popover-foreground shadow-md py-1 text-sm"
+                className={styles.menuContent}
                 style={{
                   top: menuOpen.openUp ? menuOpen.y - 8 : menuOpen.y + 8,
                   left: menuOpen.x,
@@ -304,7 +311,7 @@ export default function GamesPage() {
                 onClick={(event) => event.stopPropagation()}
               >
                 <button
-                  className="block w-full text-left px-3 py-2 hover:bg-surface-subtle"
+                  className={styles.menuItem}
                   onClick={() => {
                     const game = games?.find((item) => item.id === menuOpen.id);
                     if (game) {
@@ -315,7 +322,7 @@ export default function GamesPage() {
                   Restore
                 </button>
                 <button
-                  className="block w-full text-left px-3 py-2 text-destructive hover:bg-surface-subtle"
+                  className={clsx(styles.menuItem, styles.menuItemDestructive)}
                   onClick={() => {
                     const game = games?.find((item) => item.id === menuOpen.id);
                     if (game) {
@@ -339,17 +346,17 @@ export default function GamesPage() {
         }}
       >
         <AlertDialog.Portal>
-          <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out" />
-          <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6 shadow-lg focus:outline-none">
-            <AlertDialog.Title className="text-lg font-semibold text-foreground">
+          <AlertDialog.Overlay className={styles.dialogOverlay} />
+          <AlertDialog.Content className={styles.dialogContent}>
+            <AlertDialog.Title className={styles.dialogTitle}>
               {pendingAction?.type === 'restore' ? 'Restore this game?' : 'Delete this game?'}
             </AlertDialog.Title>
-            <AlertDialog.Description className="mt-2 text-sm text-muted-foreground">
+            <AlertDialog.Description className={styles.dialogDescription}>
               {pendingAction?.type === 'restore'
                 ? 'Restoring will replace your current progress with the archived session.'
                 : 'Deleting removes the archived game permanently. This action cannot be undone.'}
             </AlertDialog.Description>
-            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <div className={styles.dialogActions}>
               <AlertDialog.Cancel asChild>
                 <Button variant="outline">Cancel</Button>
               </AlertDialog.Cancel>

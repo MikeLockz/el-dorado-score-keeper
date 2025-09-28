@@ -1,0 +1,78 @@
+@use '../../styles/mixins/typography' as typography;
+@use '../../styles/mixins/state' as state;
+@use '../../styles/mixins/breakpoints' as breakpoints;
+@use '../../styles/tokens/spacing' as spacing;
+
+$shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.08);
+
+.input {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.25rem;
+  padding-block: spacing.spacing('space-1');
+  padding-inline: spacing.spacing('space-3');
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--input) 85%, transparent);
+  color: var(--foreground);
+  box-shadow: var(--shadow-xs, #{$shadow-xs});
+  @include typography.body('body-md');
+  @include state.transition-colors();
+  outline: none;
+
+  @include breakpoints.respond('md') {
+    @include typography.body('body-sm');
+  }
+
+  &::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  &::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  &:focus-visible {
+    @include state.focus-ring(var(--ring));
+    border-color: var(--ring);
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--destructive);
+  }
+
+  &[aria-invalid='true']:focus-visible {
+    @include state.focus-ring(var(--destructive));
+  }
+
+  &:disabled {
+    @include state.disabled;
+    background: color-mix(in oklch, var(--input) 60%, transparent);
+    color: color-mix(in oklch, var(--muted-foreground) 70%, var(--foreground) 30%);
+    box-shadow: none;
+  }
+
+  &::file-selector-button {
+    height: 1.75rem;
+    padding-inline: spacing.spacing('space-2');
+    margin-inline-end: spacing.spacing('space-2');
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--foreground);
+    font-weight: 500;
+    @include typography.body('body-sm');
+    @include state.transition-colors();
+  }
+
+  &:focus-visible::file-selector-button {
+    @include state.focus-ring(var(--ring));
+  }
+
+  &:disabled::file-selector-button {
+    @include state.disabled;
+  }
+}

@@ -1,0 +1,73 @@
+@use './base';
+@use 'sass:map';
+@use './themes/light';
+@use './themes/dark';
+@use './tokens/colors' as color-tokens;
+@use './tokens/spacing' as spacing-tokens;
+@use './tokens/radii' as radii-tokens;
+
+$color-keys: map.keys(map.get(color-tokens.$color-tokens, 'light'));
+$spacing-entries: spacing-tokens.$spacing-tokens;
+
+@mixin alias-color-variables() {
+  @each $token in $color-keys {
+    --#{$token}: var(--color-#{$token});
+  }
+}
+
+@mixin register-spacing-variables() {
+  @each $token, $value in $spacing-entries {
+    --#{$token}: #{spacing-tokens.spacing($token)};
+  }
+}
+
+@mixin register-radius-variables() {
+  --radius-none: #{radii-tokens.radius(none)};
+  --radius-xs: #{radii-tokens.radius(xs)};
+  --radius-sm-token: #{radii-tokens.radius(sm)};
+  --radius-md-token: #{radii-tokens.radius(md)};
+  --radius-lg-token: #{radii-tokens.radius(lg)};
+  --radius-xl-token: #{radii-tokens.radius(xl)};
+  --radius-full-token: #{radii-tokens.radius(full)};
+  --radius: #{radii-tokens.radius(lg)};
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  @include color-tokens.emit-theme('light');
+  @include alias-color-variables();
+  @include register-spacing-variables();
+  @include register-radius-variables();
+  --font-family-sans: var(
+    --font-geist-sans,
+    'Geist',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    system-ui,
+    sans-serif
+  );
+  --font-family-mono: var(
+    --font-geist-mono,
+    'Geist Mono',
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    'Courier New',
+    monospace
+  );
+  --font-sans: var(--font-family-sans);
+  --font-mono: var(--font-family-mono);
+}
+
+:root[data-theme='dark'],
+html.dark {
+  @include color-tokens.emit-theme('dark');
+  @include alias-color-variables();
+}

@@ -1,0 +1,42 @@
+@use '../styles/mixins/state' as state;
+@use '../styles/tokens/spacing' as spacing;
+
+.body {
+  font-family: var(--font-sans);
+  color: var(--foreground);
+  background: var(--background);
+  min-height: 100vh;
+}
+
+.skipLink {
+  position: absolute;
+  inset-inline-start: -100vw;
+  inset-block-start: auto;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+
+  &:focus {
+    position: fixed;
+    inset-block-start: spacing.spacing('space-2');
+    inset-inline-start: spacing.spacing('space-2');
+    inline-size: auto;
+    block-size: auto;
+    padding-block: spacing.spacing('space-2');
+    padding-inline: spacing.spacing('space-3');
+    clip: auto;
+    z-index: 50;
+    border-radius: var(--radius-md);
+    background: var(--card);
+    color: var(--card-foreground);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.25);
+    @include state.focus-ring(var(--ring));
+  }
+}
+
+.main {
+  min-height: 100vh;
+  background: var(--background);
+}

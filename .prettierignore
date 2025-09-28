@@ -5,4 +5,7 @@ coverage
 dist
 *.log
 *.cache
+.cache
+styles/tokens
+styles/tokens.json
 experiments

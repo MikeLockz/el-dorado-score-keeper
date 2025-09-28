@@ -1,0 +1,491 @@
+@use '../../../styles/mixins/breakpoints' as breakpoints;
+@use '../../../styles/mixins/state' as state;
+@use '../../../styles/tokens/spacing' as spacing;
+
+.wrapper {
+  padding: spacing.spacing('space-2');
+  margin-inline: auto;
+}
+
+.card {
+  overflow: hidden;
+  border: none;
+  box-shadow: none;
+}
+
+.scaleContainer {
+  position: relative;
+  inline-size: 100%;
+  overflow: hidden;
+}
+
+.gridWrapper {
+  inline-size: 100%;
+}
+
+.grid {
+  display: grid;
+  font-size: 0.65rem;
+  gap: 0;
+  color: var(--foreground);
+
+  @include breakpoints.respond(sm) {
+    font-size: 0.75rem;
+  }
+}
+
+.gridRow {
+  display: contents;
+}
+
+.headerCell {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  padding: spacing.spacing('space-1');
+  font-weight: 700;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+
+  &:focus-visible {
+    @include state.focus-ring(color-mix(in oklch, var(--ring) 65%, transparent), 3px, 0);
+  }
+}
+
+.headerCellRound {
+  border-right: 1px solid var(--border);
+}
+
+.roundCell {
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.roundStateButton {
+  inline-size: 100%;
+  block-size: 100%;
+  padding: spacing.spacing('space-1');
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: spacing.spacing('space-1');
+  text-align: center;
+  font-weight: 600;
+  outline: none;
+  transition: transform 160ms ease;
+
+  &:focus-visible {
+    @include state.focus-ring(color-mix(in oklch, var(--ring) 65%, transparent), 3px, 0);
+  }
+}
+
+.roundStateValue {
+  font-size: 0.875rem;
+  color: inherit;
+}
+
+.roundBidChip,
+.roundStateLabel {
+  font-size: 0.55rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.roundBidChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: spacing.spacing('space-1');
+  padding-block: 0.0625rem;
+  border-radius: 999px;
+  color: #fff;
+}
+
+.roundStateMeta {
+  margin-top: 0.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: spacing.spacing('space-1');
+  user-select: none;
+}
+
+.roundBidChipMatch {
+  background: var(--color-status-scored);
+}
+
+.roundBidChipMiss {
+  background: var(--color-destructive);
+}
+
+.roundStateLabel {
+  color: inherit;
+}
+
+.playerCell {
+  display: grid;
+  grid-template-columns: 1fr;
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease;
+  outline: none;
+
+  &:focus-visible {
+    @include state.focus-ring(color-mix(in oklch, var(--ring) 65%, transparent), 3px, 0);
+  }
+}
+
+.playerCellSingleRow {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.playerCellDoubleRow {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.playerCellPlaceholderRow,
+.playerCellInfoRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: spacing.spacing('space-1');
+  padding-inline: spacing.spacing('space-1');
+  padding-block: 0.125rem;
+}
+
+.playerCellPlaceholderRow {
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
+}
+
+.placeholderValue {
+  font-size: 0.6rem;
+  color: var(--color-surface-muted-foreground, var(--muted-foreground));
+}
+
+.playingCell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  padding-inline: spacing.spacing('space-1');
+  padding-block: spacing.spacing('space-1');
+  gap: spacing.spacing('space-1');
+  user-select: none;
+}
+
+.playingBidTaken {
+  font-weight: 800;
+  font-size: 1.25rem;
+  text-align: right;
+}
+
+.playingSeparator {
+  font-weight: 800;
+  font-size: 1.25rem;
+  text-align: center;
+}
+
+.playingCard {
+  font-size: 0.9rem;
+  color: var(--muted-foreground);
+}
+
+.playingCardWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.playingCardEmpty {
+  font-size: 0.9rem;
+  color: var(--muted-foreground);
+}
+
+.biddingControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: spacing.spacing('space-1');
+  gap: spacing.spacing('space-2');
+}
+
+.biddingDisplay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: spacing.spacing('space-1');
+  padding-block: spacing.spacing('space-1');
+}
+
+.biddingChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 1.5rem;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  text-align: center;
+  color: var(--color-status-bidding-foreground);
+}
+
+.bidAdjustButton,
+.bidConfirmButton {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
+}
+
+.bidAdjustButton {
+  border: 1px solid color-mix(in oklch, var(--color-status-bidding) 40%, transparent);
+  background: var(--color-status-bidding);
+  color: var(--color-status-bidding-foreground);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--color-status-bidding) 90%, black 10%);
+  }
+
+  &:focus-visible {
+    @include state.focus-ring(var(--color-status-bidding));
+  }
+}
+
+.bidConfirmButton {
+  margin-inline-start: spacing.spacing('space-1');
+  border: 1px solid color-mix(in oklch, var(--color-status-scored) 45%, transparent);
+  background: var(--color-status-scored);
+  color: var(--color-status-scored-foreground);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--color-status-scored) 88%, black 12%);
+  }
+
+  &:focus-visible {
+    @include state.focus-ring(var(--color-status-scored));
+  }
+}
+
+.bidButtonIcon {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+}
+
+.completeControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: spacing.spacing('space-2');
+  padding-inline: spacing.spacing('space-1');
+  padding-block: spacing.spacing('space-1');
+}
+
+.toggleButton {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: color-mix(in oklch, var(--card) 70%, transparent);
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+
+  &:hover:not(:disabled) {
+    background: var(--card);
+  }
+
+  &:focus-visible {
+    @include state.focus-ring(var(--ring));
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.toggleButtonMade {
+  border-color: var(--color-status-scored);
+  background: var(--color-status-scored);
+  color: var(--color-status-scored-foreground);
+}
+
+.toggleButtonMiss {
+  border-color: var(--destructive);
+  background: var(--destructive);
+  color: #fff;
+}
+
+.cellSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: spacing.spacing('space-1');
+  padding-inline: spacing.spacing('space-1');
+  padding-block: spacing.spacing('space-1');
+  user-select: none;
+}
+
+.cellSummaryValue {
+  font-weight: 800;
+  font-size: 1.25rem;
+  text-align: right;
+}
+
+.cellSummarySeparator {
+  font-weight: 800;
+  font-size: 1.25rem;
+  text-align: center;
+}
+
+.cellSummaryTotal {
+  font-weight: 800;
+  font-size: 1.25rem;
+}
+
+.cellSummaryTotalNegative {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 4ch;
+  block-size: 4ch;
+  border-radius: 999px;
+  border: 2px solid var(--destructive);
+  color: var(--destructive);
+  font-weight: 800;
+}
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing.spacing('space-1');
+  padding-inline: spacing.spacing('space-1');
+  padding-block: spacing.spacing('space-1');
+}
+
+.detailLabel {
+  color: var(--foreground);
+}
+
+.detailBadgePositive {
+  color: var(--color-status-scored);
+}
+
+.detailBadgeNegative {
+  color: var(--destructive);
+}
+
+.detailTotalWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing.spacing('space-1');
+}
+
+.smallCaps {
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.textMutedSmall {
+  font-size: 0.6rem;
+  color: var(--muted-foreground);
+}
+
+.fitRow {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.playerCellLocked {
+  background: var(--color-status-locked-surface);
+}
+
+.playerCellBidding {
+  background: var(--color-status-bidding-surface);
+}
+
+.playerCellPlaying {
+  background: var(--color-status-playing-surface);
+}
+
+.playerCellComplete {
+  background: var(--color-status-complete-surface);
+}
+
+.playerCellScored {
+  background: var(--color-status-scored-surface);
+}
+
+.roundStateLocked {
+  background: var(--color-status-locked);
+  color: var(--color-status-locked-foreground);
+}
+
+.roundStateBidding {
+  background: var(--color-status-bidding);
+  color: var(--color-status-bidding-foreground);
+}
+
+.roundStatePlaying {
+  background: var(--color-status-playing);
+  color: var(--color-status-playing-foreground);
+}
+
+.roundStateComplete {
+  background: var(--color-status-complete);
+  color: var(--color-status-complete-foreground);
+}
+
+.roundStateScored {
+  background: var(--color-status-scored);
+  color: var(--color-status-scored-foreground);
+}
+
+.cellBorderDefault {
+  border-bottom: 1px solid var(--border);
+}
+
+.cellBorderCurrent {
+  border: 2px solid var(--color-status-playing);
+}
+
+.cellBorderWinner {
+  border: 2px solid var(--color-status-scored);
+}
+
+.noSelect {
+  user-select: none;
+}
+
+.inlineIcon {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+}
+
+.detailBadgeNeutral {
+  color: var(--foreground);
+}
+
+.cellLabelPrefix {
+  margin-inline-end: 0.125rem;
+}
+
+.cellToggleSummary {
+  cursor: pointer;
+}

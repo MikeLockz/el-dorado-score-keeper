@@ -1,0 +1,45 @@
+
+> el-dorado-score-keeper@0.1.0 build /Users/mbp/Development/el-dorado-score-keeper
+> next build
+
+   ▲ Next.js 15.2.4
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/16) ...
+   Generating static pages (4/16) 
+   Generating static pages (8/16) 
+   Generating static pages (12/16) 
+ ✓ Generating static pages (16/16)
+   Finalizing page optimization ...
+   Collecting build traces ...
+   Exporting (0/3) ...
+ ✓ Exporting (3/3)
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                      183 B         161 kB
+├ ○ /_not-found                            975 B         102 kB
+├ ƒ /api/log                               144 B         101 kB
+├ ○ /debug/env                             144 B         101 kB
+├ ○ /games                               3.83 kB         158 kB
+├ ○ /games/view                          2.75 kB         153 kB
+├ ○ /how-to                                144 B         101 kB
+├ ○ /landing                               182 B         161 kB
+├ ○ /players                             7.48 kB         162 kB
+├ ○ /rules                               1.99 kB         121 kB
+├ ○ /scorecard                           1.47 kB         157 kB
+├ ○ /settings                             5.6 kB         125 kB
+├ ○ /single                                144 B         101 kB
+└ ○ /single-player                       14.9 kB         170 kB
++ First Load JS shared by all             101 kB
+  ├ chunks/1acdb12c-4f172dd7c7665111.js  53.2 kB
+  ├ chunks/575-1bdb396b1893fb1c.js       45.9 kB
+  └ other shared chunks (total)          1.92 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

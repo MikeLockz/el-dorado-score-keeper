@@ -1,0 +1,44 @@
+@use 'sass:map';
+
+$breakpoints: (
+  sm: 40rem,
+  md: 48rem,
+  lg: 64rem,
+  xl: 80rem,
+  '2xl': 96rem,
+);
+
+@function breakpoint-value($name) {
+  $value: map.get($breakpoints, $name);
+  @if $value == null {
+    @error "Unknown breakpoint: #{$name}";
+  }
+  @return $value;
+}
+
+@mixin respond($name) {
+  $width: breakpoint-value($name);
+  @media (min-width: $width) {
+    @content;
+  }
+}
+
+@mixin respond-down($name) {
+  $width: breakpoint-value($name);
+  @media (max-width: calc(#{$width} - 0.02rem)) {
+    @content;
+  }
+}
+
+@mixin respond-between($min, $max) {
+  $min-width: breakpoint-value($min);
+  $max-width: breakpoint-value($max);
+
+  @if $min-width >= $max-width {
+    @error "respond-between requires $min to be smaller than $max";
+  }
+
+  @media (min-width: $min-width) and (max-width: calc(#{$max-width} - 0.02rem)) {
+    @content;
+  }
+}

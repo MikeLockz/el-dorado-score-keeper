@@ -1,11 +1,15 @@
 'use client';
 
 import React from 'react';
+import clsx from 'clsx';
+
 import { Card, Button, CardGlyph } from '@/components/ui';
 import { Check, X, Plus, Minus } from 'lucide-react';
 import { roundDelta, ROUNDS_TOTAL } from '@/lib/state';
 import type { RoundState } from '@/lib/state';
 import { twoCharAbbrs } from '@/lib/utils';
+
+import styles from './scorecard-grid.module.scss';
 
 type Suit = 'clubs' | 'diamonds' | 'hearts' | 'spades';
 
@@ -78,37 +82,37 @@ function labelForRoundState(state: RoundState) {
   }
 }
 
-function getRoundStateStyles(state: RoundState) {
+function getRoundStateClass(state: RoundState) {
   switch (state) {
     case 'locked':
-      return 'bg-status-locked text-status-locked-foreground';
+      return styles.roundStateLocked;
     case 'bidding':
-      return 'bg-status-bidding text-status-bidding-foreground';
+      return styles.roundStateBidding;
     case 'playing':
-      return 'bg-status-playing text-status-playing-foreground';
+      return styles.roundStatePlaying;
     case 'complete':
-      return 'bg-status-complete text-status-complete-foreground';
+      return styles.roundStateComplete;
     case 'scored':
-      return 'bg-status-scored text-status-scored-foreground';
+      return styles.roundStateScored;
     default:
-      return 'bg-status-locked text-status-locked-foreground';
+      return styles.roundStateLocked;
   }
 }
 
-function getPlayerCellBackgroundStyles(state: RoundState) {
+function getPlayerCellBackgroundClass(state: RoundState) {
   switch (state) {
     case 'locked':
-      return 'bg-status-locked-surface';
+      return styles.playerCellLocked;
     case 'bidding':
-      return 'bg-status-bidding-surface';
+      return styles.playerCellBidding;
     case 'playing':
-      return 'bg-status-playing-surface';
+      return styles.playerCellPlaying;
     case 'complete':
-      return 'bg-status-complete-surface';
+      return styles.playerCellComplete;
     case 'scored':
-      return 'bg-status-scored-surface';
+      return styles.playerCellScored;
     default:
-      return 'bg-status-locked-surface';
+      return styles.playerCellLocked;
   }
 }
 
@@ -173,7 +177,7 @@ function FitRow({
     <div
       id={id}
       ref={ref}
-      className={`whitespace-nowrap overflow-hidden ${className ?? ''}`}
+      className={clsx(styles.fitRow, className)}
       style={{ fontSize: `${size}rem` }}
     >
       {useAbbrev && abbrev ? abbrev : full}
@@ -285,28 +289,28 @@ export default function ScorecardGrid({
   }, [biddingInteractiveIds]);
 
   return (
-    <div className="p-2 mx-auto">
-      <Card className="overflow-hidden shadow-none">
-        <div ref={containerRef} className="relative w-full overflow-hidden">
-          <div ref={contentRef}>
+    <div className={styles.wrapper}>
+      <Card className={styles.card}>
+        <div ref={containerRef} className={styles.scaleContainer}>
+          <div ref={contentRef} className={styles.gridWrapper}>
             <div
               ref={gridRef}
               role="grid"
               aria-label="Score grid"
               aria-rowcount={ROUNDS_TOTAL + 1}
               aria-colcount={columnCount + 1}
-              className="grid text-[0.65rem] sm:text-xs"
+              className={styles.grid}
               style={{
                 gridTemplateColumns: applyScale
                   ? `3rem repeat(${columnCount}, 4.75rem)`
                   : `3rem repeat(${columnCount}, 1fr)`,
               }}
             >
-              <div role="row" aria-rowindex={1} className="contents">
+              <div role="row" aria-rowindex={1} className={styles.gridRow}>
                 <div
                   role="columnheader"
                   aria-colindex={1}
-                  className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b border-r outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  className={clsx(styles.headerCell, styles.headerCellRound)}
                   tabIndex={0}
                 >
                   Rd
@@ -316,7 +320,7 @@ export default function ScorecardGrid({
                     key={`hdr-${column.id}`}
                     role="columnheader"
                     aria-colindex={idx + 2}
-                    className="bg-secondary text-secondary-foreground p-1 font-bold text-center border-b outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                    className={styles.headerCell}
                     tabIndex={0}
                     title={column.placeholder ? undefined : column.name}
                     aria-label={column.placeholder ? undefined : `Player ${column.name}`}
@@ -330,19 +334,21 @@ export default function ScorecardGrid({
                 <div
                   role="row"
                   aria-rowindex={rowIdx + 2}
-                  className="contents"
+                  className={styles.gridRow}
                   key={`row-${round.round}`}
                 >
                   <div
                     role="rowheader"
                     aria-colindex={1}
-                    className={`border-b border-r transition-all duration-200 ${
-                      disableRoundStateCycling ? 'cursor-default' : 'cursor-pointer'
-                    } ${getRoundStateStyles(round.state)}`}
+                    className={clsx(
+                      styles.roundCell,
+                      disableRoundStateCycling ? undefined : styles.cellToggleSummary,
+                      getRoundStateClass(round.state),
+                    )}
                   >
                     <button
                       type="button"
-                      className="w-full h-full p-1 text-center flex flex-col justify-center outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                      className={styles.roundStateButton}
                       onClick={
                         disableRoundStateCycling || !onCycleRoundState
                           ? undefined
@@ -358,22 +364,25 @@ export default function ScorecardGrid({
                           : `Current: ${label}. Activate to advance state.`;
                       })()}`}
                     >
-                      <div className="font-bold text-sm text-foreground">{round.tricks}</div>
+                      <div className={styles.roundStateValue}>{round.tricks}</div>
                       {round.info.showBidChip ? (
-                        <div className="mt-0.5 flex justify-center">
+                        <div className={styles.roundStateMeta}>
                           <span
-                            className={`inline-flex items-center rounded-full px-1 py-[1px] text-[0.55rem] whitespace-nowrap ${
+                            className={clsx(
+                              styles.roundBidChip,
                               round.info.overUnder === 'match'
-                                ? 'bg-status-scored text-white'
-                                : 'bg-destructive text-white'
-                            }`}
+                                ? styles.roundBidChipMatch
+                                : styles.roundBidChipMiss,
+                            )}
                           >
                             {`Bid: ${round.info.sumBids}`}
                           </span>
                         </div>
                       ) : (
-                        <div className="text-[0.55rem] mt-0.5 font-semibold">
-                          {labelForRoundState(round.state)}
+                        <div className={styles.roundStateMeta}>
+                          <div className={styles.roundStateLabel}>
+                            {labelForRoundState(round.state)}
+                          </div>
                         </div>
                       )}
                     </button>
@@ -391,11 +400,11 @@ export default function ScorecardGrid({
                     const isCurrent =
                       isLive && live?.currentPlayerId && live.currentPlayerId === column.id;
                     const isRevealWinner = isLive && revealWinnerId === column.id;
-                    const cellBorder = isRevealWinner
-                      ? 'border-2 border-status-scored'
+                    const cellBorderClass = isRevealWinner
+                      ? styles.cellBorderWinner
                       : isCurrent
-                        ? 'border-2 border-status-playing'
-                        : 'border-b';
+                        ? styles.cellBorderCurrent
+                        : styles.cellBorderDefault;
 
                     const isPlaceholder = column.placeholder || entry?.placeholder;
                     const isAbsent = !isPlaceholder && entry && !entry.present;
@@ -404,27 +413,250 @@ export default function ScorecardGrid({
                     const cumulative = entry?.cumulative ?? 0;
                     const taken = entry?.taken ?? null;
 
+                    const isClickable = isScored && !isPlaceholder && !isAbsent;
+                    const playerCellClass = clsx(
+                      cellBorderClass,
+                      styles.playerCell,
+                      round.state === 'bidding' ||
+                        round.state === 'complete' ||
+                        round.state === 'playing' ||
+                        !showDetails
+                        ? styles.playerCellSingleRow
+                        : styles.playerCellDoubleRow,
+                      getPlayerCellBackgroundClass(round.state),
+                      isClickable ? styles.cellToggleSummary : undefined,
+                    );
+
+                    const renderPlaceholderRows = () => (
+                      <>
+                        <div className={styles.playerCellPlaceholderRow}>
+                          <span className={styles.placeholderValue}>-</span>
+                        </div>
+                        <div className={styles.playerCellInfoRow}>
+                          <span className={styles.placeholderValue}>-</span>
+                        </div>
+                      </>
+                    );
+
+                    let cellContent: React.ReactNode;
+
+                    if (isPlaceholder || isAbsent || round.state === 'locked') {
+                      cellContent = renderPlaceholderRows();
+                    } else if (round.state === 'bidding') {
+                      const canBid = !biddingSet || biddingSet.has(column.id);
+                      if (!canBid) {
+                        cellContent = (
+                          <div className={styles.biddingDisplay}>
+                            <span className={styles.biddingChip}>{bid}</span>
+                          </div>
+                        );
+                      } else {
+                        const handleDec = () => {
+                          if (disableInputs || !onDecrementBid) return;
+                          onDecrementBid(round.round, column.id);
+                        };
+                        const handleInc = () => {
+                          if (disableInputs || !onIncrementBid) return;
+                          onIncrementBid(round.round, column.id, round.tricks);
+                        };
+                        const handleConfirm = () => {
+                          if (disableInputs || !onConfirmBid) return;
+                          onConfirmBid(round.round, column.id, bid);
+                        };
+                        cellContent = (
+                          <div className={styles.biddingControls}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={styles.bidAdjustButton}
+                              onClick={handleDec}
+                              aria-label={`Decrease bid for ${column.name} in round ${round.round}`}
+                              disabled={disableInputs || bid <= 0}
+                            >
+                              <Minus className={styles.bidButtonIcon} />
+                            </Button>
+                            <span className={styles.biddingChip}>{bid}</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={styles.bidAdjustButton}
+                              onClick={handleInc}
+                              aria-label={`Increase bid for ${column.name} in round ${round.round}`}
+                              disabled={disableInputs || bid >= round.tricks}
+                            >
+                              <Plus className={styles.bidButtonIcon} />
+                            </Button>
+                            {onConfirmBid ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className={styles.bidConfirmButton}
+                                onClick={handleConfirm}
+                                aria-label={`Confirm bid for ${column.name} and start round`}
+                                disabled={disableInputs}
+                              >
+                                <Check className={styles.bidButtonIcon} />
+                              </Button>
+                            ) : null}
+                          </div>
+                        );
+                      }
+                    } else if (round.state === 'playing') {
+                      cellContent = (
+                        <div id={cellKeyId} className={styles.playingCell}>
+                          <span className={styles.playingBidTaken}>{`${taken ?? 0}/${bid}`}</span>
+                          <span className={styles.playingSeparator}>-</span>
+                          <span className={styles.playingCardWrapper}>
+                            {liveCard ? (
+                              <CardGlyph suit={liveCard.suit} rank={liveCard.rank} size="md" />
+                            ) : (
+                              <span className={styles.playingCardEmpty}>—</span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    } else if (round.state === 'complete') {
+                      cellContent = (
+                        <div className={styles.completeControls}>
+                          <button
+                            type="button"
+                            className={clsx(
+                              styles.toggleButton,
+                              made === true && styles.toggleButtonMade,
+                            )}
+                            onClick={() => {
+                              if (disableInputs || !onToggleMade) return;
+                              onToggleMade(round.round, column.id, true);
+                            }}
+                            aria-pressed={made === true}
+                            aria-label={`Mark made for ${column.name} in round ${round.round}`}
+                            disabled={disableInputs}
+                          >
+                            <Check className={styles.inlineIcon} />
+                          </button>
+                          <button
+                            type="button"
+                            className={clsx(
+                              styles.toggleButton,
+                              made === false && styles.toggleButtonMiss,
+                            )}
+                            onClick={() => {
+                              if (disableInputs || !onToggleMade) return;
+                              onToggleMade(round.round, column.id, false);
+                            }}
+                            aria-pressed={made === false}
+                            aria-label={`Mark missed for ${column.name} in round ${round.round}`}
+                            disabled={disableInputs}
+                          >
+                            <X className={styles.inlineIcon} />
+                          </button>
+                        </div>
+                      );
+                    } else {
+                      cellContent = showDetails ? (
+                        <>
+                          <FitRow
+                            id={cellKeyId}
+                            className={styles.detailRow}
+                            maxRem={0.65}
+                            minRem={0.5}
+                            full={
+                              <>
+                                <span className={styles.detailLabel}>Bid: {bid}</span>
+                                <span className={styles.detailTotalWrapper}>
+                                  <span className={styles.detailLabel}>Round:</span>
+                                  <span
+                                    className={clsx(
+                                      made
+                                        ? styles.detailBadgePositive
+                                        : styles.detailBadgeNegative,
+                                    )}
+                                  >
+                                    {roundDelta(bid, made)}
+                                  </span>
+                                </span>
+                              </>
+                            }
+                          />
+                          <FitRow
+                            className={styles.detailRow}
+                            maxRem={0.65}
+                            minRem={0.5}
+                            abbrevAtRem={0.55}
+                            full={
+                              <>
+                                <span
+                                  className={clsx(
+                                    made ? styles.detailBadgePositive : styles.detailBadgeNegative,
+                                  )}
+                                >
+                                  {made ? 'Made' : 'Missed'}
+                                </span>
+                                <span className={styles.detailTotalWrapper}>
+                                  <span className={styles.detailLabel}>Total:</span>
+                                  {cumulative < 0 ? (
+                                    <span className={styles.cellSummaryTotalNegative}>
+                                      {Math.abs(cumulative)}
+                                    </span>
+                                  ) : (
+                                    <span className={styles.detailBadgeNeutral}>{cumulative}</span>
+                                  )}
+                                </span>
+                              </>
+                            }
+                            abbrev={
+                              <>
+                                <span
+                                  className={clsx(
+                                    made ? styles.detailBadgePositive : styles.detailBadgeNegative,
+                                  )}
+                                >
+                                  {made ? 'Made' : 'Missed'}
+                                </span>
+                                <span className={styles.detailTotalWrapper}>
+                                  <span className={styles.detailLabel}>Tot:</span>
+                                  {cumulative < 0 ? (
+                                    <span className={styles.cellSummaryTotalNegative}>
+                                      {Math.abs(cumulative)}
+                                    </span>
+                                  ) : (
+                                    <span className={styles.detailBadgeNeutral}>{cumulative}</span>
+                                  )}
+                                </span>
+                              </>
+                            }
+                          />
+                        </>
+                      ) : (
+                        <div id={cellKeyId} className={styles.cellSummary}>
+                          <span className={styles.cellSummaryValue}>{bid}</span>
+                          <span className={styles.cellSummarySeparator}>-</span>
+                          <div className={styles.playingCardWrapper}>
+                            {cumulative < 0 ? (
+                              <span className={styles.cellSummaryTotalNegative}>
+                                {Math.abs(cumulative)}
+                              </span>
+                            ) : (
+                              <span className={styles.cellSummaryTotal}>{cumulative}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div
                         key={`${round.round}-${column.id}`}
                         role="gridcell"
                         aria-colindex={colIdx + 2}
-                        className={`${cellBorder} grid grid-cols-1 ${
-                          round.state === 'bidding' ||
-                          round.state === 'complete' ||
-                          round.state === 'playing'
-                            ? 'grid-rows-1'
-                            : showDetails
-                              ? 'grid-rows-2'
-                              : 'grid-rows-1'
-                        } transition-all duration-200 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] ${getPlayerCellBackgroundStyles(round.state)}`}
+                        className={playerCellClass}
                         tabIndex={0}
                         onClick={() => {
-                          if (isScored && !isPlaceholder && !isAbsent) {
+                          if (isClickable) {
                             toggleCellDetails(round.round, column.id);
                           }
                         }}
-                        {...(isScored && !isPlaceholder && !isAbsent
+                        {...(isClickable
                           ? {
                               onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
@@ -440,242 +672,7 @@ export default function ScorecardGrid({
                               'aria-label': `Scores for ${column.placeholder ? 'player' : column.name} in round ${round.round}`,
                             })}
                       >
-                        {isPlaceholder || isAbsent ? (
-                          <>
-                            <div className="border-b flex items-center justify-center px-1 py-0.5">
-                              <span className="text-[0.6rem] text-surface-muted-foreground">-</span>
-                            </div>
-                            <div className="flex items-center justify-center px-1 py-0.5">
-                              <span className="text-[0.6rem] text-surface-muted-foreground">-</span>
-                            </div>
-                          </>
-                        ) : round.state === 'locked' ? (
-                          <>
-                            <div className="border-b flex items-center justify-center px-1 py-0.5">
-                              <span className="text-[0.6rem] text-surface-muted-foreground">-</span>
-                            </div>
-                            <div className="flex items-center justify-center px-1 py-0.5">
-                              <span className="text-[0.6rem] text-surface-muted-foreground">-</span>
-                            </div>
-                          </>
-                        ) : round.state === 'bidding' ? (
-                          (() => {
-                            const canBid = !biddingSet || biddingSet.has(column.id);
-                            if (!canBid) {
-                              return (
-                                <div className="flex items-center justify-center px-1">
-                                  <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-status-bidding-foreground bg-status-bidding-surface px-1.5 rounded">
-                                    {bid}
-                                  </span>
-                                </div>
-                              );
-                            }
-                            const handleDec = () => {
-                              if (disableInputs || !onDecrementBid) return;
-                              onDecrementBid(round.round, column.id);
-                            };
-                            const handleInc = () => {
-                              if (disableInputs || !onIncrementBid) return;
-                              onIncrementBid(round.round, column.id, round.tricks);
-                            };
-                            const handleConfirm = () => {
-                              if (disableInputs || !onConfirmBid) return;
-                              onConfirmBid(round.round, column.id, bid);
-                            };
-                            return (
-                              <div className="flex items-center justify-center px-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-6 w-6 p-0 border border-status-bidding bg-status-bidding text-status-bidding-foreground hover:bg-[color-mix(in_oklch,_var(--color-status-bidding)_90%,_black_10%)] focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                                  onClick={handleDec}
-                                  aria-label={`Decrease bid for ${column.name} in round ${round.round}`}
-                                  disabled={disableInputs || bid <= 0}
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                                <span className="text-base leading-none font-bold min-w-[1.5rem] text-center text-status-bidding-foreground px-1.5 rounded">
-                                  {bid}
-                                </span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-6 w-6 p-0 border border-status-bidding bg-status-bidding text-status-bidding-foreground hover:bg-[color-mix(in_oklch,_var(--color-status-bidding)_90%,_black_10%)] focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                                  onClick={handleInc}
-                                  aria-label={`Increase bid for ${column.name} in round ${round.round}`}
-                                  disabled={disableInputs || bid >= round.tricks}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </Button>
-                                {onConfirmBid ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-6 w-6 p-0 ml-1 border border-status-scored bg-status-scored text-status-scored-foreground hover:bg-[color-mix(in_oklch,_var(--color-status-scored)_88%,_black_12%)] focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                                    onClick={handleConfirm}
-                                    aria-label={`Confirm bid for ${column.name} and start round`}
-                                    disabled={disableInputs}
-                                  >
-                                    <Check className="h-3 w-3" />
-                                  </Button>
-                                ) : null}
-                              </div>
-                            );
-                          })()
-                        ) : round.state === 'playing' ? (
-                          <div
-                            id={cellKeyId}
-                            className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none"
-                          >
-                            <span className="w-full text-right font-extrabold text-xl text-foreground">
-                              {taken ?? 0}/{bid}
-                            </span>
-                            <span className="px-1 font-extrabold text-xl text-foreground">-</span>
-                            <span className="w-full text-left">
-                              {liveCard ? (
-                                <CardGlyph suit={liveCard.suit} rank={liveCard.rank} size="md" />
-                              ) : (
-                                <span className="text-[0.9rem] text-muted-foreground">—</span>
-                              )}
-                            </span>
-                          </div>
-                        ) : round.state === 'complete' ? (
-                          <div className="flex items-center justify-center gap-4 w-full px-1 py-0.5">
-                            <button
-                              type="button"
-                              className={`inline-flex h-5 w-5 items-center justify-center rounded-md border p-0 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50 ${
-                                made === true
-                                  ? 'border-status-scored bg-status-scored text-status-scored-foreground hover:bg-[color-mix(in_oklch,_var(--color-status-scored)_85%,_black_15%)]'
-                                  : 'border-border bg-card/70 text-muted-foreground hover:bg-card dark:bg-surface-muted/80 dark:text-surface-muted-foreground'
-                              }`}
-                              onClick={() => {
-                                if (disableInputs || !onToggleMade) return;
-                                onToggleMade(round.round, column.id, true);
-                              }}
-                              aria-pressed={made === true}
-                              aria-label={`Mark made for ${column.name} in round ${round.round}`}
-                              disabled={disableInputs}
-                            >
-                              <Check className="h-3 w-3" />
-                            </button>
-                            <button
-                              type="button"
-                              className={`inline-flex h-5 w-5 items-center justify-center rounded-md border p-0 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50 ${
-                                made === false
-                                  ? 'border-destructive bg-destructive text-white hover:bg-[color-mix(in_oklch,_var(--destructive)_85%,_black_15%)] dark:text-white'
-                                  : 'border-border bg-card/70 text-muted-foreground hover:bg-card dark:bg-surface-muted/80 dark:text-surface-muted-foreground'
-                              }`}
-                              onClick={() => {
-                                if (disableInputs || !onToggleMade) return;
-                                onToggleMade(round.round, column.id, false);
-                              }}
-                              aria-pressed={made === false}
-                              aria-label={`Mark missed for ${column.name} in round ${round.round}`}
-                              disabled={disableInputs}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            {showDetails ? (
-                              <>
-                                <FitRow
-                                  id={cellKeyId}
-                                  className="flex items-center justify-between px-1 py-0.5"
-                                  maxRem={0.65}
-                                  minRem={0.5}
-                                  full={
-                                    <>
-                                      <span className="text-foreground">Bid: {bid}</span>
-                                      <span>
-                                        <span className="text-foreground mr-1">Round:</span>
-                                        <span
-                                          className={`${made ? 'text-status-scored' : 'text-destructive'}`}
-                                        >
-                                          {roundDelta(bid, made)}
-                                        </span>
-                                      </span>
-                                    </>
-                                  }
-                                />
-                                <FitRow
-                                  className="flex items-center justify-between px-1 py-0.5"
-                                  maxRem={0.65}
-                                  minRem={0.5}
-                                  abbrevAtRem={0.55}
-                                  full={
-                                    <>
-                                      <span
-                                        className={`${made ? 'text-status-scored' : 'text-destructive'}`}
-                                      >
-                                        {made ? 'Made' : 'Missed'}
-                                      </span>
-                                      <span>
-                                        <span className="text-foreground mr-1">Total:</span>
-                                        {cumulative < 0 ? (
-                                          <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-destructive">
-                                            <span className="text-destructive leading-none">
-                                              {Math.abs(cumulative)}
-                                            </span>
-                                          </span>
-                                        ) : (
-                                          <span className="text-foreground">{cumulative}</span>
-                                        )}
-                                      </span>
-                                    </>
-                                  }
-                                  abbrev={
-                                    <>
-                                      <span
-                                        className={`${made ? 'text-status-scored' : 'text-destructive'}`}
-                                      >
-                                        {made ? 'Made' : 'Missed'}
-                                      </span>
-                                      <span>
-                                        <span className="text-foreground mr-1">Tot:</span>
-                                        {cumulative < 0 ? (
-                                          <span className="relative inline-flex items-center justify-center align-middle w-[2ch] h-[2ch] rounded-full border-2 border-destructive">
-                                            <span className="text-destructive leading-none">
-                                              {Math.abs(cumulative)}
-                                            </span>
-                                          </span>
-                                        ) : (
-                                          <span className="text-foreground">{cumulative}</span>
-                                        )}
-                                      </span>
-                                    </>
-                                  }
-                                />
-                              </>
-                            ) : (
-                              <div
-                                id={cellKeyId}
-                                className="grid grid-cols-[1fr_auto_1fr] items-center px-1 py-1 select-none"
-                              >
-                                <span className="w-full text-right font-extrabold text-xl text-foreground">
-                                  {bid}
-                                </span>
-                                <span className="px-1 font-extrabold text-xl text-foreground">
-                                  -
-                                </span>
-                                <div className="w-full text-left">
-                                  {cumulative < 0 ? (
-                                    <span className="relative inline-flex items-center justify-center align-middle w-[4ch] h-[4ch] rounded-full border-2 border-destructive">
-                                      <span className="font-extrabold text-lg text-destructive leading-none">
-                                        {Math.abs(cumulative)}
-                                      </span>
-                                    </span>
-                                  ) : (
-                                    <span className="font-extrabold text-xl text-foreground">
-                                      {cumulative}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
+                        {cellContent}
                       </div>
                     );
                   })}

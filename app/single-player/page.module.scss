@@ -1,0 +1,167 @@
+@use '../../styles/mixins/state' as state;
+@use '../../styles/mixins/typography' as typography;
+@use '../../styles/tokens/spacing' as spacing;
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loadingScreen {
+  min-block-size: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  padding: spacing.spacing('space-3');
+}
+
+.loadingStatus {
+  display: flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}
+
+.spinner {
+  inline-size: 1rem;
+  block-size: 1rem;
+  animation: spin 0.8s linear infinite;
+  color: var(--color-muted-foreground);
+}
+
+.setupScreen {
+  min-block-size: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: spacing.spacing('space-4');
+  background: var(--color-background);
+}
+
+.setupCard {
+  width: min(100%, 28rem);
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in oklch, var(--color-border) 85%, transparent);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
+  padding: spacing.spacing('space-4');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.setupTitle {
+  @include typography.heading('heading-md');
+  font-weight: 700;
+  margin-bottom: spacing.spacing('space-1');
+}
+
+.setupCopy {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+  margin-bottom: spacing.spacing('space-2');
+}
+
+.setupActions {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.primaryAction {
+  width: 100%;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  padding-block: spacing.spacing('space-2');
+  padding-inline: spacing.spacing('space-3');
+  font-weight: 600;
+  cursor: pointer;
+  @include state.transition-colors();
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--color-primary) 90%, black 10%);
+  }
+
+  &:disabled {
+    @include state.disabled();
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+}
+
+.quickStartLabel {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+  margin-bottom: spacing.spacing('space-1');
+}
+
+.quickStartOptions {
+  display: flex;
+  gap: spacing.spacing('space-2');
+  margin-bottom: spacing.spacing('space-2');
+}
+
+.quickCountButton {
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklch, var(--color-border) 85%, transparent);
+  background: var(--color-card);
+  color: var(--color-foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  @include state.transition-colors();
+
+  &:hover {
+    background: color-mix(in oklch, var(--color-muted) 35%, transparent);
+  }
+}
+
+.quickCountButtonActive {
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  border-color: color-mix(in oklch, var(--color-muted-foreground) 35%, transparent);
+}
+
+.secondaryAction {
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklch, var(--color-border) 85%, transparent);
+  background: transparent;
+  color: var(--color-foreground);
+  padding-block: spacing.spacing('space-2');
+  padding-inline: spacing.spacing('space-3');
+  font-weight: 600;
+  cursor: pointer;
+  @include state.transition-colors();
+
+  &:hover {
+    background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+  }
+}
+
+.botBadge {
+  margin-inline-start: spacing.spacing('space-1');
+  padding-block: 0.125rem;
+  padding-inline: 0.375rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in oklch, var(--color-border) 85%, transparent);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+}

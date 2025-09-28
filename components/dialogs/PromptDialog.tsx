@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import clsx from 'clsx';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import styles from './prompt-dialog.module.scss';
 
 export type PromptDialogOptions = {
   title: string;
@@ -99,22 +101,31 @@ function PromptDialogContent({
 
   const confirmLabel = options?.confirmLabel ?? 'Confirm';
   const cancelLabel = options?.cancelLabel ?? 'Cancel';
+  const hasExplicitDescription = Boolean(options?.description);
+  const fallbackDescription =
+    options?.description ??
+    (options?.inputLabel
+      ? `Enter a value for ${options.inputLabel} and choose ${confirmLabel}.`
+      : `Provide a value, then choose ${confirmLabel} to continue.`);
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onCancel() : undefined)}>
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogContent showCloseButton={false} className={styles.content}>
+        <form onSubmit={handleSubmit} className={styles.form}>
           <DialogHeader>
             <DialogTitle>{options?.title}</DialogTitle>
-            {options?.description ? (
-              <DialogDescription className="text-left sm:text-left whitespace-pre-line">
-                {options.description}
-              </DialogDescription>
-            ) : null}
+            <DialogDescription
+              className={clsx(
+                styles.description,
+                !hasExplicitDescription && styles.descriptionHidden,
+              )}
+            >
+              {fallbackDescription}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className={styles.fieldGroup}>
             {options?.inputLabel ? (
-              <Label htmlFor={inputId} className="text-sm font-medium">
+              <Label htmlFor={inputId} className={styles.label}>
                 {options.inputLabel}
               </Label>
             ) : null}
@@ -129,7 +140,7 @@ function PromptDialogContent({
               placeholder={options?.placeholder}
               autoFocus
             />
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {error ? <p className={styles.error}>{error}</p> : null}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onCancel}>

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterAll, describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import type { AppState } from '@/lib/state/types';
@@ -48,33 +48,35 @@ const baseState: AppState = {
 const appendMany = vi.fn(async () => 1);
 const append = vi.fn(async () => 1);
 
-vi.mock('@/components/state-provider', async () => {
-  return {
-    useAppState: () => ({
-      state: baseState,
-      height: 0,
-      ready: true,
-      append,
-      appendMany,
-      isBatchPending: false,
-      previewAt: async () => baseState,
-      warnings: [],
-      clearWarnings: () => {},
-    }),
-  };
-});
+if (typeof document !== 'undefined') {
+  vi.mock('@/components/state-provider', async () => {
+    return {
+      useAppState: () => ({
+        state: baseState,
+        height: 0,
+        ready: true,
+        append,
+        appendMany,
+        isBatchPending: false,
+        previewAt: async () => baseState,
+        warnings: [],
+        clearWarnings: () => {},
+      }),
+    };
+  });
 
-// Mock bots to avoid any side effects
-vi.mock('@/lib/single-player', async () => {
-  return {
-    bots: {
-      botBid: () => 0,
-      botPlay: () => ({ suit: 'clubs', rank: 2 }),
-    },
-    startRound: vi.fn(),
-    winnerOfTrick: vi.fn(),
-  };
-});
+  // Mock bots to avoid any side effects
+  vi.mock('@/lib/single-player', async () => {
+    return {
+      bots: {
+        botBid: () => 0,
+        botPlay: () => ({ suit: 'clubs', rank: 2 }),
+      },
+      startRound: vi.fn(),
+      winnerOfTrick: vi.fn(),
+    };
+  });
+}
 
 // Skip when no DOM environment is available (no jsdom)
 const suite = typeof document === 'undefined' ? describe.skip : describe;
@@ -111,4 +113,8 @@ suite('UI reveal gating', () => {
     root.unmount();
     div.remove();
   });
+});
+
+afterAll(() => {
+  vi.resetModules();
 });

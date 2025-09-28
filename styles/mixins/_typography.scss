@@ -1,0 +1,39 @@
+@use '../tokens/typography' as type-tokens;
+
+$font-sans: var(--font-sans);
+$font-mono: var(--font-mono);
+
+@mixin apply($token, $family: $font-sans, $color: var(--color-foreground)) {
+  font-family: $family;
+  color: $color;
+  @include type-tokens.apply($token);
+}
+
+@mixin display($size: 'display-md') {
+  @include apply($size);
+}
+
+@mixin heading($size: 'heading-md') {
+  @include apply($size);
+}
+
+@mixin body($size: 'body-md') {
+  @include apply($size);
+}
+
+@mixin label($size: 'label-sm') {
+  text-transform: uppercase;
+  @include apply($size);
+}
+
+@mixin monospace($size: 'body-sm') {
+  @include apply($size, $font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@mixin line-clamp($lines) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

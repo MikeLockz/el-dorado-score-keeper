@@ -1,7 +1,7 @@
 **Bundle Size Optimization Plan**
 
 - **Goal:** Reduce shipped JavaScript and CSS per route to improve startup time, interactivity, and hosting cost. Target initial route JS ≤ 80–120 kB gzip and keep subsequent route chunks ≤ 50 kB where feasible.
-- **Scope:** Next.js 15 app router with static export (`output: 'export'`), Tailwind CSS v4, Radix UI components, `lucide-react` icons, client-side IndexedDB state.
+- **Scope:** Next.js 15 app router with static export (`output: 'export'`), scoped Sass modules, Radix UI components, `lucide-react` icons, client-side IndexedDB state.
 
 **How We’ll Measure**
 

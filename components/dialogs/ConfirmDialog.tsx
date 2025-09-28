@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import clsx from 'clsx';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import styles from './confirm-dialog.module.scss';
 
 export type ConfirmDialogOptions = {
   title: string;
@@ -52,17 +54,26 @@ function ConfirmDialogContent({
   const confirmLabel = options?.confirmLabel ?? 'Confirm';
   const cancelLabel = options?.cancelLabel ?? 'Cancel';
   const variant = options?.variant === 'destructive' ? 'destructive' : 'default';
+  const hasExplicitDescription = Boolean(options?.description);
+  const fallbackDescription =
+    options?.description ??
+    (options?.title
+      ? `Confirm the action “${options.title}” to continue.`
+      : `Confirm this action to continue.`);
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onCancel() : undefined)}>
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
+      <DialogContent showCloseButton={false} className={styles.content}>
         <DialogHeader>
           <DialogTitle>{options?.title}</DialogTitle>
-          {options?.description ? (
-            <DialogDescription className="text-left sm:text-left whitespace-pre-line">
-              {options.description}
-            </DialogDescription>
-          ) : null}
+          <DialogDescription
+            className={clsx(
+              styles.description,
+              !hasExplicitDescription && styles.descriptionHidden,
+            )}
+          >
+            {fallbackDescription}
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>

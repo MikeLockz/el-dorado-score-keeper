@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
+import clsx from 'clsx';
+
 import { useAppState } from '@/components/state-provider';
 import { Button, Card } from '@/components/ui';
 import { events, selectPlayersOrdered, selectArchivedPlayers, selectAllRosters } from '@/lib/state';
 import type { AppState, KnownAppEvent } from '@/lib/state';
 import { useNewGameRequest } from '@/lib/game-flow';
-import { uuid, cn } from '@/lib/utils';
+import { uuid } from '@/lib/utils';
 import {
   Loader2,
   Plus,
@@ -23,6 +25,8 @@ import {
 import { usePromptDialog } from '@/components/dialogs/PromptDialog';
 import { useConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
+
+import styles from './player-management.module.scss';
 
 function orderedRosterIds(roster: AppState['rosters'][string]) {
   const entries = Object.entries(roster.displayOrder ?? {}).sort((a, b) => a[1] - b[1]);
@@ -539,30 +543,30 @@ export default function PlayerManagement() {
   const archivedRosters = rosters.filter((r) => r.archived);
 
   return (
-    <div className="space-y-6">
-      <Card className="p-4 space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3">
+    <div className={styles.root}>
+      <Card className={styles.sectionCard}>
+        <header className={styles.sectionHeader}>
           <div>
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Users className="h-5 w-5" aria-hidden="true" />{' '}
+            <h2 className={styles.sectionTitle}>
+              <Users className={styles.headingIcon} aria-hidden="true" />{' '}
               {viewingArchivedPlayers ? 'Archived players' : 'Players'}
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className={styles.sectionDescription}>
               {viewingArchivedPlayers
                 ? 'Restore archived players back to your active list.'
                 : 'Manage active players, reorder seating, and maintain archived profiles.'}
             </p>
           </div>
           {!viewingArchivedPlayers ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className={styles.sectionActions}>
               <Button
                 onClick={() => void handleAddPlayer()}
                 disabled={!ready || playerPending !== null}
               >
                 {playerPending === 'add' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <Loader2 className={styles.spinner} aria-hidden="true" />
                 ) : (
-                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  <Plus aria-hidden="true" />
                 )}
                 Add Player
               </Button>
@@ -571,34 +575,32 @@ export default function PlayerManagement() {
                 onClick={() => void handleResetPlayers()}
                 disabled={!ready || players.length === 0 || playerPending !== null}
               >
-                <RotateCcw className="h-4 w-4" aria-hidden="true" /> Reset All
+                <RotateCcw aria-hidden="true" /> Reset All
               </Button>
             </div>
           ) : null}
         </header>
 
         {viewingArchivedPlayers ? (
-          <div className="space-y-3">
-            <div className="flex justify-end">
+          <div className={styles.noticeStack}>
+            <div className={styles.infoRow}>
               <button
                 type="button"
-                className="text-sm text-primary underline-offset-4 hover:underline"
+                className={styles.sectionLink}
                 onClick={() => setPlayerView('active')}
               >
                 Back to players
               </button>
             </div>
             {archivedPlayers.length === 0 ? (
-              <div className="rounded-md border border-dashed border-muted p-6 text-center text-sm text-muted-foreground">
-                No archived players yet.
-              </div>
+              <div className={styles.noticeCard}>No archived players yet.</div>
             ) : (
-              <div className="rounded-md border divide-y">
+              <div className={styles.archivedList}>
                 {archivedPlayers.map((player) => (
-                  <div key={player.id} className="flex items-center justify-between p-3 text-sm">
-                    <div>
-                      <div className="font-medium">{player.name}</div>
-                      <div className="text-xs text-muted-foreground">
+                  <div key={player.id} className={styles.archivedRow}>
+                    <div className={styles.archivedInfo}>
+                      <div className={styles.playerName}>{player.name}</div>
+                      <div className={styles.archivedMeta}>
                         {player.type === 'bot' ? 'Bot' : 'Human'} • Archived{' '}
                         {new Date(player.archivedAt).toLocaleString()}
                       </div>
@@ -609,7 +611,7 @@ export default function PlayerManagement() {
                       onClick={() => void handleRestorePlayer(player)}
                       disabled={!ready || playerPending !== null}
                     >
-                      <Undo2 className="h-4 w-4" aria-hidden="true" /> Restore
+                      <Undo2 aria-hidden="true" /> Restore
                     </Button>
                   </div>
                 ))}
@@ -619,42 +621,43 @@ export default function PlayerManagement() {
         ) : (
           <>
             {players.length === 0 ? (
-              <div className="rounded-md border border-dashed border-muted p-6 text-center space-y-3">
-                <p className="text-sm text-muted-foreground">No active players yet.</p>
-                <div className="flex items-center justify-center gap-2">
-                  <label className="text-sm" htmlFor="auto-count">
-                    Auto-create
-                  </label>
-                  <select
-                    id="auto-count"
-                    className="h-9 rounded-md border px-2 text-sm"
-                    value={autoCreateCount}
-                    onChange={(event) => setAutoCreateCount(Number(event.target.value))}
-                  >
-                    {[2, 3, 4, 5, 6].map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    variant="outline"
-                    onClick={() => void handleAutoCreatePlayers()}
-                    disabled={!ready || playerPending !== null}
-                  >
-                    <UserPlus className="h-4 w-4" aria-hidden="true" /> Create
-                  </Button>
+              <div className={styles.noticeCard}>
+                <div className={styles.noticeStack}>
+                  <p>No active players yet.</p>
+                  <div className={styles.noticeActions}>
+                    <label htmlFor="auto-count">Auto-create</label>
+                    <select
+                      id="auto-count"
+                      className={styles.select}
+                      value={autoCreateCount}
+                      onChange={(event) => setAutoCreateCount(Number(event.target.value))}
+                    >
+                      {[2, 3, 4, 5, 6].map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      variant="outline"
+                      onClick={() => void handleAutoCreatePlayers()}
+                      disabled={!ready || playerPending !== null}
+                    >
+                      <UserPlus aria-hidden="true" /> Generate
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="border rounded-md divide-y" role="list">
+              <div className={styles.playerList} role="list">
                 {localOrder.map((player) => (
                   <div
                     key={player.id}
                     role="listitem"
-                    className={cn(
-                      'flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between transition-colors bg-background',
-                      draggingId === player.id ? 'opacity-60' : undefined,
+                    className={clsx(
+                      styles.playerRow,
+                      styles.playerRowDraggable,
+                      draggingId === player.id && styles.playerRowDragging,
                     )}
                     draggable
                     aria-label={`Drag to reorder ${player.name}`}
@@ -688,25 +691,25 @@ export default function PlayerManagement() {
                       onDragEnd(localOrder);
                     }}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-muted text-sm font-medium text-muted-foreground">
-                        <ArrowUpDown className="h-4 w-4" aria-hidden="true" />
+                    <div className={styles.playerHeader}>
+                      <span className={styles.dragIcon}>
+                        <ArrowUpDown aria-hidden="true" />
                       </span>
                       <div>
-                        <div className="text-sm font-medium">{player.name}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className={styles.playerName}>{player.name}</div>
+                        <div className={styles.playerMeta}>
                           {player.type === 'bot' ? 'Bot' : 'Human'}
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className={styles.playerActions}>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => void handleTogglePlayerType(player)}
                         disabled={!ready || playerPending !== null}
                       >
-                        <Bot className="h-4 w-4" aria-hidden="true" />{' '}
+                        <Bot aria-hidden="true" />{' '}
                         {player.type === 'human' ? 'Mark Bot' : 'Mark Human'}
                       </Button>
                       <Button
@@ -724,7 +727,7 @@ export default function PlayerManagement() {
                         onClick={() => void handleRemovePlayer(player)}
                         disabled={!ready || playerPending !== null}
                       >
-                        <Trash2 className="h-4 w-4" aria-hidden="true" /> Remove
+                        <Trash2 aria-hidden="true" /> Remove
                       </Button>
                     </div>
                   </div>
@@ -733,10 +736,10 @@ export default function PlayerManagement() {
             )}
 
             {archivedPlayers.length > 0 ? (
-              <div className="pt-3 text-right">
+              <div className={styles.playerFooter}>
                 <button
                   type="button"
-                  className="text-sm text-primary underline-offset-4 hover:underline"
+                  className={styles.infoText}
                   onClick={() => setPlayerView('archived')}
                 >
                   See archived players
@@ -747,25 +750,25 @@ export default function PlayerManagement() {
         )}
       </Card>
 
-      <Card className="p-4 space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3">
+      <Card className={styles.rosterCard}>
+        <header className={styles.sectionHeader}>
           <div>
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Archive className="h-5 w-5" aria-hidden="true" /> Rosters
+            <h2 className={styles.sectionTitle}>
+              <Archive className={styles.headingIcon} aria-hidden="true" /> Rosters
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className={styles.sectionDescription}>
               Save player lineups and load them into score card or single player modes.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className={styles.rosterActions}>
             <Button
               onClick={() => void handleRosterCreate()}
               disabled={!ready || rosterPending !== null}
             >
               {rosterPending === 'create' ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                <Loader2 className={styles.spinner} aria-hidden="true" />
               ) : (
-                <Plus className="h-4 w-4" aria-hidden="true" />
+                <Plus aria-hidden="true" />
               )}
               Create Roster
             </Button>
@@ -774,45 +777,45 @@ export default function PlayerManagement() {
               onClick={() => void handleResetRosters()}
               disabled={!ready || rosterPending !== null || activeRosters.length === 0}
             >
-              <RotateCcw className="h-4 w-4" aria-hidden="true" /> Archive All
+              <RotateCcw aria-hidden="true" /> Archive All
             </Button>
           </div>
         </header>
 
         {activeRosters.length === 0 ? (
-          <div className="rounded-md border border-dashed border-muted p-6 text-center space-y-3 text-sm text-muted-foreground">
+          <div className={styles.rosterEmpty}>
             <p>No active rosters yet.</p>
             <Button
               variant="outline"
               onClick={() => void handleAutoCreateRoster()}
               disabled={!ready || rosterPending !== null}
             >
-              <UserPlus className="h-4 w-4" aria-hidden="true" /> Create default roster
+              <UserPlus aria-hidden="true" /> Create default roster
             </Button>
           </div>
         ) : (
-          <div className="grid gap-3">
+          <div className={styles.rosterGrid}>
             {activeRosters.map((roster) => {
               const detail = rosterMap[roster.rosterId];
               const playerCount = roster.players;
               return (
-                <div key={roster.rosterId} className="rounded-md border p-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div key={roster.rosterId} className={styles.rosterItem}>
+                  <div className={styles.rosterHeader}>
                     <div>
-                      <div className="text-sm font-semibold">{roster.name}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className={styles.rosterTitle}>{roster.name}</div>
+                      <div className={styles.rosterMeta}>
                         {playerCount} {playerCount === 1 ? 'player' : 'players'} • Created{' '}
                         {new Date(roster.createdAt).toLocaleDateString()}
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className={styles.rosterActionsInline}>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => void handleLoadRosterToScorecard(roster)}
                         disabled={!ready || rosterPending !== null || newGamePending}
                       >
-                        <Play className="h-4 w-4" aria-hidden="true" /> Load Score Card
+                        <Play aria-hidden="true" /> Load Score Card
                       </Button>
                       <Button
                         size="sm"
@@ -820,7 +823,7 @@ export default function PlayerManagement() {
                         onClick={() => void handleLoadRosterToSingle(roster)}
                         disabled={!ready || rosterPending !== null}
                       >
-                        <Users className="h-4 w-4" aria-hidden="true" /> Load Single Player
+                        <Users aria-hidden="true" /> Load Single Player
                       </Button>
                       <Button
                         size="sm"
@@ -837,12 +840,12 @@ export default function PlayerManagement() {
                         onClick={() => void handleRosterArchive(roster)}
                         disabled={!ready || rosterPending !== null}
                       >
-                        <Trash2 className="h-4 w-4" aria-hidden="true" /> Archive
+                        <Trash2 aria-hidden="true" /> Archive
                       </Button>
                     </div>
                   </div>
                   {detail ? (
-                    <div className="mt-2 text-xs text-muted-foreground">
+                    <div className={clsx(styles.rosterPlayers, styles.mtSmall)}>
                       {orderedRosterIds(detail)
                         .map((id) => `${detail.playersById[id] ?? id}`)
                         .join(', ')}
@@ -855,35 +858,32 @@ export default function PlayerManagement() {
         )}
 
         {archivedRosters.length > 0 ? (
-          <div className="space-y-2">
+          <div className={styles.noticeStack}>
             <button
               type="button"
-              className="text-sm text-primary underline-offset-4 hover:underline"
+              className={styles.archivedToggle}
               onClick={() => setShowArchivedRosters((prev) => !prev)}
             >
               {showArchivedRosters ? 'Hide archived rosters' : 'Show archived rosters'}
             </button>
             {showArchivedRosters ? (
-              <div className="rounded-md border divide-y">
+              <div className={styles.archivedRostersList}>
                 {archivedRosters.map((roster) => (
-                  <div
-                    key={roster.rosterId}
-                    className="flex items-center justify-between p-3 text-sm"
-                  >
-                    <div>
-                      <div className="font-medium">{roster.name}</div>
-                      <div className="text-xs text-muted-foreground">
+                  <div key={roster.rosterId} className={styles.archivedRow}>
+                    <div className={styles.archivedInfo}>
+                      <div className={styles.playerName}>{roster.name}</div>
+                      <div className={styles.archivedMeta}>
                         {roster.players} {roster.players === 1 ? 'player' : 'players'}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className={styles.rosterActionsInline}>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => void handleRosterRestore(roster)}
                         disabled={!ready || rosterPending !== null}
                       >
-                        <Undo2 className="h-4 w-4" aria-hidden="true" /> Restore
+                        <Undo2 aria-hidden="true" /> Restore
                       </Button>
                     </div>
                   </div>

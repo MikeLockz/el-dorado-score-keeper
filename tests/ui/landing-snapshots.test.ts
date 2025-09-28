@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { Compass, Flame, Calculator } from 'lucide-react';
 import ModeCard from '@/components/landing/ModeCard';
+import modeCardStyles from '@/components/landing/mode-card.module.scss';
 
 function sanitize(html: string): string {
   // Remove class and data-* attributes for stability; collapse whitespace; simplify SVGs
@@ -16,6 +17,22 @@ function sanitize(html: string): string {
 }
 
 describe('ModeCard snapshots (structure only)', () => {
+  it('applies the scoped module class to the card container', () => {
+    const card = React.createElement(ModeCard as any, {
+      icon: React.createElement(Compass as any, { className: 'h-5 w-5' }),
+      title: 'Single Player',
+      description: 'Play solo against adaptive AI. Practice strategies and unlock achievements.',
+      primary: { label: 'Start', href: '/single-player', ariaLabel: 'Start Single Player' },
+      secondary: null,
+      ariaLabel: 'Start single player mode — play solo vs AI.',
+    });
+
+    const markup = renderToStaticMarkup(card);
+
+    expect(markup).toContain(modeCardStyles.card);
+    expect(markup).toContain('data-slot="card"');
+  });
+
   it('renders Single Player, Multiplayer, and Score Card cards', () => {
     const tree = React.createElement(
       'div',

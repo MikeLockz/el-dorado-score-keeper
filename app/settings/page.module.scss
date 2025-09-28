@@ -1,0 +1,37 @@
+@use '../../styles/mixins/layout' as layout;
+@use '../../styles/mixins/typography' as typography;
+@use '../../styles/tokens/spacing' as spacing;
+
+.container {
+  margin-inline: auto;
+  max-inline-size: 56rem;
+  padding-inline: spacing.spacing('space-3');
+  padding-block: spacing.spacing('space-6');
+}
+
+.heading {
+  @include typography.heading('heading-sm');
+  margin-block-end: spacing.spacing('space-4');
+}
+
+.section {
+  @include layout.stack('space-3');
+}
+
+.sectionTitle {
+  @include typography.body('body-sm');
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin: 0;
+}
+
+.sectionDescription {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+  margin: 0;
+  margin-block-end: spacing.spacing('space-3');
+}
+
+.buttonGroup {
+  @include layout.inline-cluster('space-2');
+}

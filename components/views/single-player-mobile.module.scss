@@ -1,0 +1,199 @@
+@use '../../styles/mixins/state' as state;
+@use '../../styles/tokens/spacing' as spacing;
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.tableSurface {
+  position: relative;
+  flex: 1;
+}
+
+.overlayMessage {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: calc(52px + 3rem);
+  z-index: 30;
+  margin-inline: spacing.spacing('space-2');
+  margin-bottom: spacing.spacing('space-2');
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
+  background: var(--card);
+  padding-inline: spacing.spacing('space-3');
+  padding-block: spacing.spacing('space-2');
+  font-size: 0.75rem;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+
+.overlayLabel {
+  color: var(--muted-foreground);
+}
+
+.handDockShell {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 40;
+  border-top: 1px solid color-mix(in oklch, var(--border) 92%, transparent);
+  background: var(--background);
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 52px);
+}
+
+.bidBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: spacing.spacing('space-2');
+  padding-inline: spacing.spacing('space-2');
+  padding-block: spacing.spacing('space-2');
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
+  background: var(--card);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.bidButton {
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklch, var(--color-status-bidding) 40%, transparent);
+  background: var(--color-status-bidding);
+  color: var(--color-status-bidding-foreground);
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 160ms ease;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--color-status-bidding) 90%, black 10%);
+  }
+
+  &:focus-visible {
+    @include state.focus-ring(var(--color-status-bidding));
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.bidValue {
+  min-inline-size: 1.5rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--foreground);
+}
+
+.bidConfirm {
+  margin-inline-start: spacing.spacing('space-1');
+  inline-size: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklch, var(--primary) 40%, transparent);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding-inline: spacing.spacing('space-2');
+  padding-block: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background-color 160ms ease;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--primary) 88%, var(--foreground) 12%);
+  }
+
+  &:focus-visible {
+    @include state.focus-ring(var(--primary));
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.actionsBar {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: spacing.spacing('space-2');
+  padding-inline: spacing.spacing('space-2');
+  padding-block: spacing.spacing('space-2');
+  border-top: 1px solid color-mix(in oklch, var(--border) 92%, transparent);
+  background: color-mix(in oklch, var(--background) 85%, transparent);
+  backdrop-filter: blur(12px);
+  min-block-size: 52px;
+}
+
+.detailsButton {
+  border: none;
+  background: none;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  transition: color 160ms ease;
+
+  &:hover {
+    color: var(--foreground);
+  }
+
+  &:focus-visible {
+    @include state.focus-ring(var(--ring));
+  }
+}
+
+.primaryButton {
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding-inline: spacing.spacing('space-3');
+  padding-block: spacing.spacing('space-2');
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 160ms ease;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--primary) 88%, var(--foreground) 12%);
+  }
+
+  &:focus-visible {
+    @include state.focus-ring(var(--primary));
+  }
+
+  &:disabled,
+  &[aria-disabled='true'] {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.loadingLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+}
+
+.spinner {
+  inline-size: 1rem;
+  block-size: 1rem;
+  animation: spin 1s linear infinite;
+}

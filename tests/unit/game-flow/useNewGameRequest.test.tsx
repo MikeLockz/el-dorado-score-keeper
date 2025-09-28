@@ -13,11 +13,9 @@ type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 
 type NewGameConfirmSetter = (impl: { show: (options?: any) => Promise<boolean> }) => void;
-
-const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
 const setNewGameConfirm = (globalThis as any).__setNewGameConfirm as NewGameConfirmSetter;
 
-vi.restoreAllMocks();
+const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
 
 const stateModule = await import('@/lib/state');
 const archiveCurrentGameAndResetMock = vi
@@ -84,9 +82,13 @@ describe('useNewGameRequest', () => {
     const state = cloneState();
     context.state = state;
 
-    const { result } = renderHook(() => useNewGameRequest());
+    const { result } = renderHook(() => {
+      setMockAppState(context);
+      return useNewGameRequest();
+    });
 
     await act(async () => {
+      setMockAppState(context);
       const ok = await result.current.startNewGame();
       expect(ok).toBe(true);
     });
@@ -104,9 +106,13 @@ describe('useNewGameRequest', () => {
 
     const confirmSpy: ConfirmHandler = vi.fn().mockResolvedValue(false);
     const onCancelled = vi.fn();
-    const { result } = renderHook(() => useNewGameRequest({ confirm: confirmSpy, onCancelled }));
+    const { result } = renderHook(() => {
+      setMockAppState(context);
+      return useNewGameRequest({ confirm: confirmSpy, onCancelled, forceHasProgress: true });
+    });
 
     await act(async () => {
+      setMockAppState(context);
       const ok = await result.current.startNewGame();
       expect(ok).toBe(false);
     });
@@ -121,9 +127,15 @@ describe('useNewGameRequest', () => {
     context.isBatchPending = true;
     setMockAppState(context);
 
-    const { result } = renderHook(() => useNewGameRequest({ requireIdle: true }));
+    const { result, rerender } = renderHook(() => {
+      setMockAppState(context);
+      return useNewGameRequest({ requireIdle: true, forceHasProgress: true });
+    });
 
     await act(async () => {
+      context.isBatchPending = true;
+      setMockAppState(context);
+      rerender();
       const ok = await result.current.startNewGame();
       expect(ok).toBe(false);
     });
@@ -141,10 +153,14 @@ describe('useNewGameRequest', () => {
     const deferred = createDeferred();
     archiveCurrentGameAndResetMock.mockReturnValueOnce(deferred);
 
-    const { result } = renderHook(() => useNewGameRequest({ confirm: confirmSpy }));
+    const { result } = renderHook(() => {
+      setMockAppState(context);
+      return useNewGameRequest({ confirm: confirmSpy, forceHasProgress: true });
+    });
 
     let startPromise: Promise<boolean> | undefined;
     await act(async () => {
+      setMockAppState(context);
       startPromise = result.current.startNewGame();
       await Promise.resolve();
     });
@@ -175,9 +191,13 @@ describe('useNewGameRequest', () => {
     setMockAppState(context);
 
     const confirmSpy: ConfirmHandler = vi.fn().mockResolvedValue(true);
-    const { result } = renderHook(() => useNewGameRequest({ confirm: confirmSpy }));
+    const { result } = renderHook(() => {
+      setMockAppState(context);
+      return useNewGameRequest({ confirm: confirmSpy, forceHasProgress: true });
+    });
 
     await act(async () => {
+      setMockAppState(context);
       const ok = await result.current.startNewGame({ skipConfirm: true });
       expect(ok).toBe(true);
     });
@@ -194,11 +214,17 @@ describe('useNewGameRequest', () => {
     setMockAppState(context);
 
     const confirmSpy: ConfirmHandler = vi.fn().mockResolvedValue(true);
-    const { result } = renderHook(() =>
-      useNewGameRequest({ confirm: confirmSpy, telemetry: { enabled: true } }),
-    );
+    const { result } = renderHook(() => {
+      setMockAppState(context);
+      return useNewGameRequest({
+        confirm: confirmSpy,
+        telemetry: { enabled: true },
+        forceHasProgress: true,
+      });
+    });
 
     await act(async () => {
+      setMockAppState(context);
       const ok = await result.current.startNewGame();
       expect(ok).toBe(true);
     });
@@ -223,11 +249,18 @@ describe('useNewGameRequest', () => {
 
     const confirmSpy: ConfirmHandler = vi.fn().mockResolvedValue(false);
     const onCancelled = vi.fn();
-    const { result } = renderHook(() =>
-      useNewGameRequest({ confirm: confirmSpy, onCancelled, telemetry: { enabled: true } }),
-    );
+    const { result } = renderHook(() => {
+      setMockAppState(context);
+      return useNewGameRequest({
+        confirm: confirmSpy,
+        onCancelled,
+        telemetry: { enabled: true },
+        forceHasProgress: true,
+      });
+    });
 
     await act(async () => {
+      setMockAppState(context);
       const ok = await result.current.startNewGame();
       expect(ok).toBe(false);
     });
@@ -278,10 +311,14 @@ describe('useNewGameRequest', () => {
       const deferred = createDeferred();
       archiveCurrentGameAndResetMock.mockReturnValueOnce(deferred);
 
-      const { result, unmount } = renderHook(() => useNewGameRequest({ confirm: confirmSpy }));
+      const { result, unmount } = renderHook(() => {
+        setMockAppState(context);
+        return useNewGameRequest({ confirm: confirmSpy, forceHasProgress: true });
+      });
 
       let startPromise: Promise<boolean> | undefined;
       await act(async () => {
+        setMockAppState(context);
         startPromise = result.current.startNewGame();
         await Promise.resolve();
       });

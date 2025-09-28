@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import clsx from 'clsx';
 
-import { cn } from '@/lib/utils';
+import styles from './skeleton.module.scss';
 
 const Skeleton = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, 'aria-hidden': ariaHidden, ...props }, ref) => {
@@ -10,7 +11,7 @@ const Skeleton = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
       <div
         ref={ref}
         aria-hidden={ariaHidden ?? true}
-        className={cn('animate-pulse rounded-md bg-surface-muted', className)}
+        className={clsx(styles.skeleton, className)}
         {...props}
       />
     );

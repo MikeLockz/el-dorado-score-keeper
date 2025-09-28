@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import clsx from 'clsx';
+
 import {
   Dialog,
   DialogContent,
@@ -10,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import styles from './new-game-confirm.module.scss';
 
 export type NewGameConfirmCopy = {
   title: string;
@@ -62,14 +64,12 @@ function NewGameConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onCancel() : undefined)}>
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
+      <DialogContent showCloseButton={false} className={styles.content}>
         <DialogHeader>
           <DialogTitle>{merged.title}</DialogTitle>
-          <DialogDescription className="text-left sm:text-left whitespace-pre-line">
-            {merged.description}
-          </DialogDescription>
+          <DialogDescription className={styles.description}>{merged.description}</DialogDescription>
         </DialogHeader>
-        <DialogFooter className="sm:justify-end sm:flex-row">
+        <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
             {merged.cancelLabel}
           </Button>
@@ -77,7 +77,7 @@ function NewGameConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={pending}
-            className={cn(pending ? 'pointer-events-none opacity-70' : null)}
+            className={clsx(pending && styles.confirmPending)}
             autoFocus
           >
             {pending ? 'Archiving…' : merged.confirmLabel}

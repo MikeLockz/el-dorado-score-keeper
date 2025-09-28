@@ -23,7 +23,24 @@ const createState = (): AppState => {
   };
   return {
     players: { human: 'Human Player', bot1: 'Bot Alpha' },
-    playerDetails: {},
+    playerDetails: {
+      human: {
+        name: 'Human Player',
+        type: 'human',
+        archived: false,
+        archivedAt: null,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      bot1: {
+        name: 'Bot Alpha',
+        type: 'bot',
+        archived: false,
+        archivedAt: null,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    },
     scores: { human: 5, bot1: 2 },
     rounds,
     rosters: {
@@ -69,6 +86,7 @@ const createState = (): AppState => {
 };
 
 let stateRef: AppState = createState();
+let mockContext: MockAppStateHook;
 
 const originalMatchMedia = typeof window !== 'undefined' ? window.matchMedia : undefined;
 
@@ -113,7 +131,7 @@ suite('SinglePlayerPage responsive selection', () => {
     append.mockClear();
     appendMany.mockClear();
     stateRef = createState();
-    setMockAppState({
+    mockContext = {
       state: stateRef,
       append,
       appendMany,
@@ -126,7 +144,8 @@ suite('SinglePlayerPage responsive selection', () => {
       timeTravelHeight: null,
       setTimeTravelHeight: () => {},
       timeTraveling: false,
-    });
+    } as MockAppStateHook;
+    setMockAppState(mockContext);
     container = document.createElement('div');
     document.body.appendChild(container);
     root = ReactDOM.createRoot(container);
@@ -149,6 +168,7 @@ suite('SinglePlayerPage responsive selection', () => {
   });
 
   it('renders desktop view when media query matches', async () => {
+    setMockAppState(mockContext);
     installMatchMedia(true);
     const { default: SinglePlayerPage } = await import('@/app/single-player/page');
     root!.render(<SinglePlayerPage />);
@@ -160,6 +180,7 @@ suite('SinglePlayerPage responsive selection', () => {
   });
 
   it('defaults to mobile view without matchMedia support', async () => {
+    setMockAppState(mockContext);
     delete (window as any).matchMedia;
     const { default: SinglePlayerPage } = await import('@/app/single-player/page');
     root!.render(<SinglePlayerPage />);

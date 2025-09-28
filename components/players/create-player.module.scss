@@ -1,0 +1,31 @@
+@use '../../styles/tokens/spacing' as spacing;
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: calc(#{spacing.spacing('space-2')} * 0.75);
+}
+
+.controls {
+  display: flex;
+  gap: spacing.spacing('space-2');
+  align-items: center;
+}
+
+.input {
+  min-height: 2.25rem;
+}
+
+.submitButton {
+  min-height: 2.25rem;
+}
+
+.helper {
+  font-size: 0.72rem;
+  line-height: 1.1;
+  color: var(--color-muted-foreground);
+}
+
+.helperDestructive {
+  color: var(--color-destructive);
+}
