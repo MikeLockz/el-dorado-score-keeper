@@ -36,9 +36,10 @@ export default function LandingPage() {
       const ok = await startNewGame();
       if (!ok && requestedModeRef.current === mode) {
         requestedModeRef.current = null;
+        router.push(mode === 'single' ? '/single-player' : '/scorecard');
       }
     },
-    [newGamePending, startNewGame],
+    [newGamePending, router, startNewGame],
   );
 
   return (

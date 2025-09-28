@@ -498,3 +498,23 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
     bc.close();
   } catch {}
 }
+
+export type GameMode = 'single-player' | 'scorecard';
+
+export function deriveGameMode(game: GameRecord): GameMode {
+  const declaredMode = game.summary.mode;
+  if (declaredMode === 'single-player' || declaredMode === 'scorecard') {
+    return declaredMode;
+  }
+
+  const spPhase = game.summary.sp?.phase;
+  if (spPhase && spPhase !== 'setup' && spPhase !== 'game-summary' && spPhase !== 'done') {
+    return 'single-player';
+  }
+
+  return 'scorecard';
+}
+
+export function deriveGameRoute(game: GameRecord): '/single-player' | '/scorecard' {
+  return deriveGameMode(game) === 'single-player' ? '/single-player' : '/scorecard';
+}

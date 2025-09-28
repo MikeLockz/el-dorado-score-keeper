@@ -5,7 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, Button } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
-import { listGames, type GameRecord, restoreGame } from '@/lib/state/io';
+import {
+  listGames,
+  type GameRecord,
+  restoreGame,
+  deriveGameMode,
+  deriveGameRoute,
+} from '@/lib/state/io';
 import { formatDateTime } from '@/lib/format';
 import { Loader2 } from 'lucide-react';
 
@@ -40,8 +46,7 @@ export default function QuickLinks() {
       setPendingId(game.id);
       try {
         await restoreGame(undefined, game.id);
-        const mode = deriveMode(game);
-        router.push(mode === 'single-player' ? '/single-player' : '/scorecard');
+        router.push(deriveGameRoute(game));
       } catch (error) {
         console.warn('Failed to resume game from quick links', error);
         setPendingId(null);
@@ -74,7 +79,7 @@ export default function QuickLinks() {
           ) : recents.length > 0 ? (
             <div className={styles.recentsList}>
               {recents.map((game) => {
-                const mode = deriveMode(game);
+                const mode = deriveGameMode(game);
                 const handLabel = deriveHandLabel(game, mode);
                 const playersLabel = derivePlayersLabel(game.summary.players);
                 const lastPlayed = formatDateTime(game.finishedAt);
@@ -148,17 +153,6 @@ export default function QuickLinks() {
       </Card>
     </section>
   );
-}
-
-function deriveMode(game: GameRecord): 'single-player' | 'scorecard' {
-  if (game.summary.mode === 'single-player' || game.summary.mode === 'scorecard') {
-    return game.summary.mode;
-  }
-  const spPhase = game.summary.sp?.phase;
-  if (spPhase && spPhase !== 'setup' && spPhase !== 'game-summary' && spPhase !== 'done') {
-    return 'single-player';
-  }
-  return 'scorecard';
 }
 
 function modeLabel(mode: 'single-player' | 'scorecard'): string {

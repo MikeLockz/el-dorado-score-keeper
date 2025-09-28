@@ -6,7 +6,7 @@ import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import clsx from 'clsx';
 import { Button, Card, Skeleton } from '@/components/ui';
 import { Loader2, MoreHorizontal } from 'lucide-react';
-import { type GameRecord, listGames, deleteGame, restoreGame } from '@/lib/state';
+import { type GameRecord, listGames, deleteGame, restoreGame, deriveGameRoute } from '@/lib/state';
 import { formatDateTime } from '@/lib/format';
 import {
   useNewGameRequest,
@@ -38,6 +38,7 @@ export default function GamesPage() {
   const handleResumeCurrentGame = React.useCallback(() => {
     const target = resumeRouteRef.current;
     if (!target) return;
+    resumeRouteRef.current = null;
     router.push(target);
   }, [router]);
   const { startNewGame, pending: startPending } = useNewGameRequest({
@@ -81,7 +82,10 @@ export default function GamesPage() {
 
   const onNewGame = async () => {
     resumeRouteRef.current = resumeRoute;
-    await startNewGame();
+    const ok = await startNewGame();
+    if (!ok) {
+      handleResumeCurrentGame();
+    }
   };
 
   const requestAction = React.useCallback(
@@ -106,9 +110,10 @@ export default function GamesPage() {
 
     try {
       if (action.type === 'restore') {
+        const redirectPath = deriveGameRoute(action.game);
         await restoreGame(undefined, action.game.id);
         setStatusMessage(`Restored "${title}". Redirecting to current game.`);
-        router.push('/');
+        router.push(redirectPath);
       } else {
         await deleteGame(undefined, action.game.id);
         setStatusMessage(`Deleted "${title}".`);
