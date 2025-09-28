@@ -3,7 +3,8 @@
 import * as React from 'react';
 import { X } from 'lucide-react';
 
-import { cn, uuid } from '@/lib/utils';
+import styles from './toast.module.scss';
+import { uuid } from '@/lib/utils';
 
 type ToastVariant = 'default' | 'success' | 'warning' | 'destructive';
 
@@ -36,15 +37,6 @@ export function useToast() {
   if (!value) throw new Error('useToast must be used within a ToastProvider');
   return value;
 }
-
-const VARIANT_CLASS: Record<ToastVariant, string> = {
-  default: 'bg-card text-card-foreground border border-border shadow-lg dark:border-border/50',
-  success:
-    'bg-status-complete-surface text-status-complete-foreground border border-status-complete shadow-lg',
-  warning:
-    'bg-status-bidding-surface text-status-bidding-foreground border border-status-bidding/70 shadow-lg',
-  destructive: 'bg-destructive text-destructive-foreground border border-destructive/70 shadow-lg',
-};
 
 const DEFAULT_DURATION = 4000;
 
@@ -132,10 +124,10 @@ function ToastViewport({
 
   if (!isMounted) return null;
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[120] flex justify-center px-4">
-      <ul className="flex w-full max-w-sm flex-col gap-3" role="status" aria-live="polite">
+    <div className={styles.viewport}>
+      <ul className={styles.list} role="status" aria-live="polite">
         {toasts.map((toast) => (
-          <li key={toast.id} className="pointer-events-auto">
+          <li key={toast.id} className={styles.item}>
             <ToastCard toast={toast} onDismiss={onDismiss} />
           </li>
         ))}
@@ -147,24 +139,18 @@ function ToastViewport({
 function ToastCard({ toast, onDismiss }: { toast: ToastState; onDismiss: (id: string) => void }) {
   const { id, title, description, variant = 'default' } = toast;
   return (
-    <div
-      className={cn(
-        'relative overflow-hidden rounded-md border px-4 py-3 shadow-lg transition-[transform,opacity] focus-within:ring-2 focus-within:ring-ring/50 focus:outline-none',
-        VARIANT_CLASS[variant] ?? VARIANT_CLASS.default,
-      )}
-      role="alert"
-    >
+    <div className={styles.toastCard} data-variant={variant} role="alert">
       <button
         type="button"
         onClick={() => onDismiss(id)}
-        className="absolute right-2 top-2 inline-flex size-7 items-center justify-center rounded-sm text-current/70 transition hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+        className={styles.dismissButton}
         aria-label="Dismiss notification"
       >
-        <X className="h-4 w-4" aria-hidden="true" />
+        <X aria-hidden="true" />
       </button>
-      <div className="pr-6 text-sm">
-        <p className="font-semibold">{title}</p>
-        {description ? <p className="mt-1 text-[13px] text-current/80">{description}</p> : null}
+      <div className={styles.body}>
+        <p className={styles.title}>{title}</p>
+        {description ? <p className={styles.description}>{description}</p> : null}
       </div>
     </div>
   );

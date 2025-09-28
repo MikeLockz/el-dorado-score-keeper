@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { beforeEach, vi } from 'vitest';
+import { INITIAL_STATE } from '@/lib/state';
 
 // Ensure JSX that relies on the global React object (e.g. Next layouts) keeps working
 if (!(globalThis as any).React) {
@@ -17,6 +18,39 @@ type RestoreGameFn = (typeof import('@/lib/state/io'))['restoreGame'];
 type DeleteGameFn = (typeof import('@/lib/state/io'))['deleteGame'];
 
 const appStateRef: { current: MockAppState | null } = { current: null };
+const useAppStateMockFn = vi.fn<[], MockAppState>(() => {
+  if (!appStateRef.current) {
+    throw new Error('Test attempted to access useAppState without configuring a mock.');
+  }
+  return appStateRef.current;
+});
+
+function cloneState<T>(value: T): T {
+  try {
+    return structuredClone(value);
+  } catch {
+    return JSON.parse(JSON.stringify(value)) as T;
+  }
+}
+
+function createDefaultAppState(): MockAppState {
+  const context: Partial<MockAppState> = {};
+  Object.assign(context, {
+    state: cloneState(INITIAL_STATE),
+    height: 0,
+    ready: true,
+    append: vi.fn(async () => 0),
+    appendMany: vi.fn(async () => 0),
+    isBatchPending: false,
+    previewAt: async () => (context as MockAppState).state,
+    warnings: [],
+    clearWarnings: () => {},
+    timeTravelHeight: null,
+    setTimeTravelHeight: () => {},
+    timeTraveling: false,
+  });
+  return context as MockAppState;
+}
 
 (globalThis as any).__setMockAppState = (value: MockAppState) => {
   appStateRef.current = value;
@@ -81,7 +115,14 @@ const fetchMock = vi.fn(async () => ({
 };
 
 beforeEach(() => {
-  appStateRef.current = null;
+  appStateRef.current = createDefaultAppState();
+  useAppStateMockFn.mockReset();
+  useAppStateMockFn.mockImplementation(() => {
+    if (!appStateRef.current) {
+      throw new Error('Test attempted to access useAppState without configuring a mock.');
+    }
+    return appStateRef.current;
+  });
   routerRef.current = createRouter();
   newGameConfirmMock = {
     show: async () => true,
@@ -92,16 +133,9 @@ beforeEach(() => {
   fetchMock.mockClear();
 });
 
-vi.mock('@/components/state-provider', async () => {
-  return {
-    useAppState: () => {
-      if (!appStateRef.current) {
-        throw new Error('Test attempted to access useAppState without configuring a mock.');
-      }
-      return appStateRef.current;
-    },
-  };
-});
+vi.mock('@/components/state-provider', async () => ({
+  useAppState: useAppStateMockFn,
+}));
 
 vi.mock('@/components/dialogs/NewGameConfirm', async () => {
   const React = await import('react');

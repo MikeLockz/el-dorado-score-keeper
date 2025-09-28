@@ -1,21 +1,24 @@
 'use client';
 import React from 'react';
+
+import { Card } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import { selectLeaders } from '@/lib/state';
-import { Card } from '@/components/ui';
+
+import styles from './leaderboard.module.scss';
 
 export default function Leaderboard({ limit = 5 }: { limit?: number }) {
   const { state } = useAppState();
   const leaders = selectLeaders(state).slice(0, limit);
   if (leaders.length === 0) return null;
   return (
-    <Card className="p-2 mb-2">
-      <div className="text-xs font-semibold text-muted-foreground mb-1">Leaders</div>
-      <ul className="text-sm">
+    <Card className={styles.card}>
+      <div className={styles.heading}>Leaders</div>
+      <ul className={styles.list}>
         {leaders.map((l) => (
-          <li key={l.id} className="flex items-center justify-between py-0.5">
-            <span className="truncate mr-2">{l.name}</span>
-            <span className="font-mono font-semibold">{l.score}</span>
+          <li key={l.id} className={styles.listItem}>
+            <span className={styles.name}>{l.name}</span>
+            <span className={styles.score}>{l.score}</span>
           </li>
         ))}
       </ul>

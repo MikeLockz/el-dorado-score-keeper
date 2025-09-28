@@ -4,9 +4,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import clsx from 'clsx';
 import { Button } from '@/components/ui';
 import { Menu } from 'lucide-react';
-import { cn } from '@/lib/utils';
+
+import styles from './header.module.scss';
 
 export default function Header() {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -29,12 +31,7 @@ export default function Header() {
       <Link
         key={`inline-${item.href}`}
         href={item.href}
-        className={cn(
-          'rounded-full px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-          active
-            ? 'bg-surface-muted text-foreground shadow-sm'
-            : 'text-muted-foreground hover:text-foreground hover:bg-surface-subtle',
-        )}
+        className={clsx(styles.navLink, active && styles.navLinkActive)}
         aria-current={active ? 'page' : undefined}
       >
         {item.label}
@@ -42,30 +39,24 @@ export default function Header() {
     );
   };
 
-  const itemBase =
-    'block w-full text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer px-3 py-2';
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-      <div className="w-full px-3 lg:px-6 h-12 flex items-center gap-4">
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-sm font-semibold tracking-wide focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 rounded-full px-2 py-1"
-          aria-label="Go to home"
-        >
+    <header className={styles.header}>
+      <div className={styles.inner}>
+        <Link href="/" className={styles.brand} aria-label="Go to home">
           <Image
             src={`${basePath}/el-dorado-card-game-logo.png`}
             alt="El Dorado logo"
             width={24}
             height={24}
-            className="h-5 w-5 object-contain"
+            className={styles.brandLogo}
           />
           <span>El Dorado</span>
         </Link>
-        <nav aria-label="Primary" className="hidden md:flex items-center gap-1">
+        <nav aria-label="Primary" className={styles.primaryNav}>
           {primaryNav.map((item) => renderInlineLink(item))}
         </nav>
-        <div className="ml-auto flex items-center gap-3">
-          <nav aria-label="Secondary" className="hidden md:flex items-center gap-1">
+        <div className={styles.navCluster}>
+          <nav aria-label="Secondary" className={styles.secondaryNav}>
             {secondaryNav.map((item) => renderInlineLink(item))}
           </nav>
           <DropdownMenu.Root>
@@ -74,24 +65,19 @@ export default function Header() {
                 variant="outline"
                 size="sm"
                 aria-label="Open navigation menu"
-                className="h-8 px-2 md:hidden"
+                className={styles.menuButton}
               >
-                <Menu className="h-4 w-4" />
+                <Menu className={styles.menuIcon} />
               </Button>
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content
-              align="end"
-              sideOffset={8}
-              className="min-w-[200px] rounded-md border bg-popover p-0 text-popover-foreground shadow-md"
-            >
+            <DropdownMenu.Content align="end" sideOffset={8} className={styles.dropdownContent}>
               {primaryNav.map((item) => (
                 <DropdownMenu.Item
                   key={`dropdown-${item.href}`}
                   asChild
-                  className={cn(
-                    itemBase,
-                    isActive(item.href) &&
-                      'bg-accent text-accent-foreground font-semibold relative z-10',
+                  className={clsx(
+                    styles.dropdownItem,
+                    isActive(item.href) && styles.dropdownItemActive,
                   )}
                 >
                   <Link href={item.href} aria-current={isActive(item.href) ? 'page' : undefined}>
@@ -99,15 +85,16 @@ export default function Header() {
                   </Link>
                 </DropdownMenu.Item>
               ))}
-              {secondaryNav.length ? <DropdownMenu.Separator className="h-px bg-border" /> : null}
+              {secondaryNav.length ? (
+                <DropdownMenu.Separator className={styles.dropdownSeparator} />
+              ) : null}
               {secondaryNav.map((item) => (
                 <DropdownMenu.Item
                   key={`dropdown-${item.href}`}
                   asChild
-                  className={cn(
-                    itemBase,
-                    isActive(item.href) &&
-                      'bg-accent text-accent-foreground font-semibold relative z-10',
+                  className={clsx(
+                    styles.dropdownItem,
+                    isActive(item.href) && styles.dropdownItemActive,
                   )}
                 >
                   <Link href={item.href} aria-current={isActive(item.href) ? 'page' : undefined}>

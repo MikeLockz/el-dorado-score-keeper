@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { waitFor } from '@testing-library/react';
@@ -14,10 +14,6 @@ const suite = typeof document === 'undefined' ? describe.skip : describe;
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 
 const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
-
-vi.mock('@/lib/game-flow', () => ({
-  useNewGameRequest: () => ({ startNewGame, pending: false }),
-}));
 
 type MockContext = {
   state: AppState;
@@ -87,9 +83,12 @@ function buildState(): AppState {
 }
 
 suite('PlayersPage UI', () => {
-  beforeEach(() => {
-    vi.resetModules();
+  beforeEach(async () => {
     vi.clearAllMocks();
+    vi.doMock('@/lib/game-flow', () => ({
+      useNewGameRequest: () => ({ startNewGame, pending: false }),
+    }));
+
     const state = buildState();
     mockAppState = {
       state,
@@ -106,6 +105,10 @@ suite('PlayersPage UI', () => {
       timeTraveling: false,
     };
     setMockAppState(mockAppState);
+  });
+
+  afterEach(() => {
+    vi.doUnmock('@/lib/game-flow');
   });
 
   async function renderWithProviders(element: React.ReactElement) {

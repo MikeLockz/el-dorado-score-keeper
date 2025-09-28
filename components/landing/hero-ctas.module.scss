@@ -1,0 +1,10 @@
+@use '../../styles/tokens/spacing' as spacing;
+
+.heroCtas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: spacing.spacing('space-3');
+  margin-top: spacing.spacing('space-4');
+}

@@ -1,0 +1,32 @@
+@use '../../styles/mixins/typography' as typography;
+@use '../../styles/tokens/spacing' as spacing;
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-inline: spacing.spacing('space-6');
+  padding-block: spacing.spacing('space-6');
+  gap: spacing.spacing('space-3');
+}
+
+.title {
+  @include typography.heading('heading-sm');
+  font-weight: 600;
+}
+
+.message {
+  @include typography.body('body-sm');
+  color: var(--muted-foreground);
+  max-inline-size: 28rem;
+}
+
+.link {
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-thickness: 0.1em;
+  text-underline-offset: 0.2em;
+}

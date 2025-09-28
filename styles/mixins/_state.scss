@@ -1,0 +1,28 @@
+@mixin focus-ring($color: var(--color-ring), $width: 2px, $offset: 2px) {
+  outline: $width solid $color;
+  outline-offset: $offset;
+  box-shadow: 0 0 0 calc($width / 2) rgba(0, 0, 0, 0);
+}
+
+@mixin transition-colors($duration: 150ms, $timing: ease-in-out) {
+  transition:
+    background-color $duration $timing,
+    border-color $duration $timing,
+    color $duration $timing,
+    box-shadow $duration $timing,
+    transform $duration $timing;
+}
+
+@mixin disabled {
+  pointer-events: none;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@mixin high-contrast-text {
+  color: var(--color-foreground);
+  @media (prefers-contrast: more) {
+    color: var(--color-foreground);
+    text-decoration-thickness: max(2px, 0.1em);
+  }
+}

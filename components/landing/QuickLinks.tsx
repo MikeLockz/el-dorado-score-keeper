@@ -9,6 +9,8 @@ import { listGames, type GameRecord, restoreGame } from '@/lib/state/io';
 import { formatDateTime } from '@/lib/format';
 import { Loader2 } from 'lucide-react';
 
+import styles from './quick-links.module.scss';
+
 export default function QuickLinks() {
   const { ready, height } = useAppState();
   const [recents, setRecents] = React.useState<GameRecord[] | null>(null);
@@ -51,11 +53,11 @@ export default function QuickLinks() {
   );
 
   return (
-    <section className="space-y-2" aria-label="Quick Links">
-      <h2 className="text-base font-semibold">Quick Links</h2>
-      <Card className="p-3 text-sm">
-        <div className="flex flex-wrap items-center gap-3">
-          <Link href="/rules" className="text-primary underline-offset-4 hover:underline">
+    <section className={styles.quickLinks} aria-label="Quick Links">
+      <h2 className={styles.heading}>Quick Links</h2>
+      <Card className={styles.card}>
+        <div className={styles.linksRow}>
+          <Link href="/rules" className={styles.link}>
             How To Play
           </Link>
           {showResume ? (
@@ -66,11 +68,11 @@ export default function QuickLinks() {
             </Button>
           ) : null}
         </div>
-        <div className="mt-3">
+        <div className={styles.recentsContainer}>
           {recents === null ? (
-            <div className="text-muted-foreground">Loading recent sessions…</div>
+            <div className={styles.loading}>Loading recent sessions…</div>
           ) : recents.length > 0 ? (
-            <div className="space-y-2">
+            <div className={styles.recentsList}>
               {recents.map((game) => {
                 const mode = deriveMode(game);
                 const handLabel = deriveHandLabel(game, mode);
@@ -95,21 +97,21 @@ export default function QuickLinks() {
                         void resumeGame(game);
                       }
                     }}
-                    className={`flex flex-col gap-2 rounded-md border border-border/70 bg-card/60 px-3 py-2 transition hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:flex-row sm:items-center sm:justify-between ${pending ? 'opacity-70' : ''}`}
+                    className={styles.resumeItem}
                   >
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="font-semibold text-foreground">{modeLabel(mode)}</span>
-                      <span className="text-muted-foreground">•</span>
-                      <span>{playersLabel}</span>
+                    <div className={styles.resumeMeta}>
+                      <span>{modeLabel(mode)}</span>
+                      <span className={styles.resumeSeparator}>•</span>
+                      <span className={styles.resumeMetaDetail}>{playersLabel}</span>
                       {handLabel ? (
                         <>
-                          <span className="text-muted-foreground">•</span>
-                          <span>{handLabel}</span>
+                          <span className={styles.resumeSeparator}>•</span>
+                          <span className={styles.resumeMetaDetail}>{handLabel}</span>
                         </>
                       ) : null}
                     </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <span className="text-xs text-muted-foreground">{lastPlayed}</span>
+                    <div className={styles.resumeActions}>
+                      <span className={styles.resumeDate}>{lastPlayed}</span>
                       <Button
                         size="sm"
                         variant="outline"
@@ -121,8 +123,8 @@ export default function QuickLinks() {
                         disabled={pending}
                       >
                         {pending ? (
-                          <span className="inline-flex items-center gap-1">
-                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                          <span className={styles.resumeButtonContent}>
+                            <Loader2 className={styles.spinner} aria-hidden="true" />
                             Resume
                           </span>
                         ) : (
@@ -133,14 +135,14 @@ export default function QuickLinks() {
                   </div>
                 );
               })}
-              <div className="flex justify-end">
-                <Link href="/games" className="text-primary underline-offset-4 hover:underline">
+              <div className={styles.recentsFooter}>
+                <Link href="/games" className={styles.link}>
                   View all games
                 </Link>
               </div>
             </div>
           ) : (
-            <div className="text-muted-foreground">Your games will appear here.</div>
+            <div className={styles.empty}>Your games will appear here.</div>
           )}
         </div>
       </Card>

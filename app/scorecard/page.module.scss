@@ -1,0 +1,7 @@
+@use '../../styles/tokens/spacing' as spacing;
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}

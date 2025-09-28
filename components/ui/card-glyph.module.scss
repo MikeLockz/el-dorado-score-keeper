@@ -1,0 +1,71 @@
+@use '../../styles/mixins/layout' as layout;
+@use '../../styles/mixins/typography' as typography;
+
+.cardGlyph {
+  @include typography.body('body-md');
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 100%;
+  @include layout.inline-cluster('space-1');
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--foreground);
+  color: var(--background);
+  padding: 0;
+  --glyph-font-size: 1rem;
+  font-size: var(--glyph-font-size);
+  line-height: 1;
+
+  &[data-size='sm'] {
+    --glyph-font-size: 0.8rem;
+  }
+
+  &[data-size='lg'] {
+    --glyph-font-size: 1.125rem;
+  }
+
+  &[data-padded='true'] {
+    padding: calc(var(--space-1) / 2);
+  }
+
+  &[data-suit='hearts'] .suit,
+  &[data-suit='diamonds'] .suit {
+    color: var(--destructive);
+  }
+}
+
+.rank {
+  font-weight: 700;
+  font-size: var(--glyph-font-size);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.suit {
+  font-size: var(--glyph-font-size);
+  line-height: 1;
+}
+
+.suitGlyph {
+  @include typography.body('body-sm');
+  @include layout.inline-cluster('space-1');
+  justify-content: center;
+  padding-inline: var(--space-1);
+  padding-block: calc(var(--space-1) / 2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+.suitGlyphSymbol {
+  line-height: 1;
+}
+
+.suitGlyph[data-suit='hearts'] .suitGlyphSymbol,
+.suitGlyph[data-suit='diamonds'] .suitGlyphSymbol {
+  color: var(--destructive);
+}

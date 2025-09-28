@@ -2,7 +2,10 @@
 
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+
 import { Button } from '@/components/ui';
+
+import styles from './page.module.scss';
 
 export default function SettingsPage() {
   const { theme, setTheme, systemTheme, resolvedTheme } = useTheme();
@@ -17,15 +20,15 @@ export default function SettingsPage() {
     : 'system';
 
   return (
-    <div className="mx-auto max-w-4xl px-3 py-6">
-      <h1 className="text-xl font-semibold mb-4">Settings</h1>
-      <section className="space-y-3">
+    <div className={styles.container}>
+      <h1 className={styles.heading}>Settings</h1>
+      <section className={styles.section}>
         <div>
-          <h2 className="text-sm font-medium text-foreground mb-2">Theme</h2>
-          <p className="text-sm text-muted-foreground mb-3">
+          <h2 className={styles.sectionTitle}>Theme</h2>
+          <p className={styles.sectionDescription}>
             Choose how the app looks. When set to System, it follows your device setting.
           </p>
-          <div className="inline-flex items-center gap-2">
+          <div className={styles.buttonGroup}>
             <Button
               type="button"
               variant={current === 'light' ? 'default' : 'outline'}

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import clsx from 'clsx';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -11,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import styles from './confirm-dialog.module.scss';
 
 export type ConfirmDialogOptions = {
   title: string;
@@ -62,14 +63,11 @@ function ConfirmDialogContent({
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onCancel() : undefined)}>
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
+      <DialogContent showCloseButton={false} className={styles.content}>
         <DialogHeader>
           <DialogTitle>{options?.title}</DialogTitle>
           <DialogDescription
-            className={cn(
-              'text-left sm:text-left whitespace-pre-line',
-              hasExplicitDescription ? undefined : 'sr-only',
-            )}
+            className={clsx(styles.description, !hasExplicitDescription && styles.descriptionHidden)}
           >
             {fallbackDescription}
           </DialogDescription>

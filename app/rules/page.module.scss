@@ -1,0 +1,66 @@
+@use '../../styles/mixins/typography' as typography;
+@use '../../styles/tokens/spacing' as spacing;
+
+.page {
+  max-inline-size: 42rem;
+  margin-inline: auto;
+  padding: spacing.spacing('space-3');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.title {
+  text-align: center;
+  @include typography.heading('heading-sm');
+  font-weight: 700;
+  color: var(--color-foreground);
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.sectionCard {
+  padding: spacing.spacing('space-3');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+}
+
+.sectionHeading {
+  @include typography.heading('heading-sm');
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.sectionBody {
+  @include typography.body('body-sm');
+  line-height: 1.6;
+  color: var(--color-foreground);
+}
+
+.sectionListOrdered,
+.sectionListUnordered {
+  margin: 0;
+  padding-inline-start: 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+  @include typography.body('body-sm');
+  color: var(--color-foreground);
+}
+
+.sectionListOrdered {
+  list-style: decimal;
+}
+
+.sectionListUnordered {
+  list-style: disc;
+}
+
+.listLabel {
+  font-weight: 600;
+  color: var(--color-foreground);
+}

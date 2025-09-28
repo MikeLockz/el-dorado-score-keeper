@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterAll, describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import type { AppState } from '@/lib/state/types';
@@ -61,31 +61,33 @@ const defaultHookValue: StateHook = {
 
 const useAppStateMock = vi.fn(() => defaultHookValue);
 
-vi.mock('@/components/state-provider', async () => {
-  return {
-    useAppState: useAppStateMock,
-  };
-});
+if (typeof document !== 'undefined') {
+  vi.mock('@/components/state-provider', async () => {
+    return {
+      useAppState: useAppStateMock,
+    };
+  });
 
-vi.mock('@/lib/single-player', async () => {
-  return {
-    bots: {
-      botBid: () => 0,
-      botPlay: () => ({ suit: 'clubs', rank: 2 }),
-    },
-    startRound: vi.fn(),
-    winnerOfTrick: vi.fn(),
-    computeAdvanceBatch: vi.fn(() => []),
-  };
-});
+  vi.mock('@/lib/single-player', async () => {
+    return {
+      bots: {
+        botBid: () => 0,
+        botPlay: () => ({ suit: 'clubs', rank: 2 }),
+      },
+      startRound: vi.fn(),
+      winnerOfTrick: vi.fn(),
+      computeAdvanceBatch: vi.fn(() => []),
+    };
+  });
 
-vi.mock('@/lib/state', async (orig) => {
-  const mod = await (orig as any)();
-  return {
-    ...mod,
-    archiveCurrentGameAndReset,
-  };
-});
+  vi.mock('@/lib/state', async (orig) => {
+    const mod = await (orig as any)();
+    return {
+      ...mod,
+      archiveCurrentGameAndReset,
+    };
+  });
+}
 
 const suite = typeof document === 'undefined' ? describe.skip : describe;
 
@@ -225,4 +227,8 @@ suite('Game Summary UI', () => {
     root.unmount();
     container.remove();
   });
+});
+
+afterAll(() => {
+  vi.resetModules();
 });

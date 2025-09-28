@@ -4,7 +4,10 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Check, X, Plus, Minus } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
-import React, { Fragment } from 'react';
+import clsx from 'clsx';
+import React from 'react';
+
+import styles from './rounds-view.module.scss';
 
 function uuid() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return (crypto as any).randomUUID();
@@ -23,21 +26,32 @@ function labelForRoundState(s: RoundState) {
         : 'Scored';
 }
 
-function getRoundStateStyles(state: RoundState) {
+function getRoundStateClass(state: RoundState) {
   switch (state) {
     case 'locked':
-      return 'bg-status-locked text-status-locked-foreground';
+      return styles.roundStateLocked;
     case 'bidding':
-      return 'bg-status-bidding text-status-bidding-foreground shadow-sm';
+      return styles.roundStateBidding;
     case 'complete':
-      return 'bg-status-complete text-status-complete-foreground';
+      return styles.roundStateComplete;
     case 'scored':
-      return 'bg-status-scored text-status-scored-foreground';
+      return styles.roundStateScored;
   }
 }
 
-function getPlayerCellBackgroundStyles(_state: RoundState) {
-  return 'bg-secondary';
+function getPlayerCellClass(state: RoundState) {
+  switch (state) {
+    case 'locked':
+      return styles.playerCellLocked;
+    case 'bidding':
+      return styles.playerCellBidding;
+    case 'complete':
+      return styles.playerCellComplete;
+    case 'scored':
+      return styles.playerCellScored;
+    default:
+      return styles.playerCellLocked;
+  }
 }
 
 export default function RoundsView() {
@@ -79,10 +93,12 @@ export default function RoundsView() {
     roundNum,
     tricks,
     playerId,
+    playerName,
   }: {
     roundNum: number;
     tricks: number;
     playerId: string;
+    playerName: string;
   }) {
     const rState = (state.rounds[roundNum]?.state ?? 'locked') as RoundState;
     const bid = state.rounds[roundNum]?.bids[playerId] ?? 0;
@@ -91,95 +107,91 @@ export default function RoundsView() {
     return (
       <div
         key={`${roundNum}-${playerId}`}
-        className={`border-b grid grid-cols-1 grid-rows-2 transition-all duration-200 ${getPlayerCellBackgroundStyles(rState)}`}
+        className={clsx(styles.playerCell, getPlayerCellClass(rState))}
       >
         {rState === 'locked' && (
           <>
-            <div className="border-b flex items-center justify-center px-1 py-0.5">
-              <span className="text-[0.6rem] text-muted-foreground">-</span>
+            <div className={styles.placeholderRow}>
+              <span>-</span>
             </div>
-            <div className="flex items-center justify-center px-1 py-0.5">
-              <span className="text-[0.6rem] text-muted-foreground">-</span>
+            <div className={styles.infoRow}>
+              <span>-</span>
             </div>
           </>
         )}
         {rState === 'bidding' && (
           <>
-            <div className="border-b flex items-center justify-between px-1 py-0.5">
+            <div className={styles.bidControls}>
               <Button
                 size="sm"
                 variant="outline"
-                className="h-4 w-4 p-0 bg-card/80 hover:bg-card border-status-bidding text-status-bidding-foreground"
+                className={styles.bidButton}
                 onClick={() => decrementBid(roundNum, playerId)}
                 disabled={bid <= 0}
               >
-                <Minus className="h-2 w-2" />
+                <Minus className={styles.iconTiny} />
               </Button>
-              <span className="text-[0.7rem] font-bold min-w-[1rem] text-center text-status-bidding-foreground bg-card/60 px-1 rounded">
-                {bid}
-              </span>
+              <span className={styles.bidValue}>{bid}</span>
               <Button
                 size="sm"
                 variant="outline"
-                className="h-4 w-4 p-0 bg-card/80 hover:bg-card border-status-bidding text-status-bidding-foreground"
+                className={styles.bidButton}
                 onClick={() => incrementBid(roundNum, playerId, max)}
                 disabled={bid >= max}
               >
-                <Plus className="h-2 w-2" />
+                <Plus className={styles.iconTiny} />
               </Button>
             </div>
-            <div className="flex items-center justify-between px-1 py-0.5">
-              <span className="text-[0.6rem] text-status-bidding-foreground font-medium">Bid</span>
-              <span className="w-8 h-5 text-center text-[0.65rem] font-semibold text-status-bidding-foreground">
-                {bid}
-              </span>
+            <div className={styles.bidSummary}>
+              <span className={styles.bidLabel}>Bid</span>
+              <span className={styles.bidCurrent}>{bid}</span>
             </div>
           </>
         )}
         {rState === 'complete' && (
           <>
-            <div className="border-b flex items-center justify-between px-1 py-0.5">
-              <span className="text-[0.6rem] text-status-complete-foreground font-medium">
-                Bid: {bid}
-              </span>
-            </div>
-            <div className="flex items-center justify-center gap-1 py-0.5">
-              <Button
-                size="sm"
-                variant={made === true ? 'default' : 'outline'}
-                className="h-5 w-5 p-0 bg-card/80 hover:bg-card border-status-complete"
+            <div className={styles.completeSummary}>Bid: {bid}</div>
+            <div className={styles.completeControls}>
+              <button
+                type="button"
+                className={clsx(styles.completeButton, made === true && styles.completeButtonActive)}
                 onClick={() => toggleMade(roundNum, playerId, true)}
+                aria-pressed={made === true}
+                aria-label={`Mark made for ${playerName}`}
               >
-                <Check className="h-3 w-3" />
-              </Button>
-              <Button
-                size="sm"
-                variant={made === false ? 'destructive' : 'outline'}
-                className="h-5 w-5 p-0 bg-card/80 hover:bg-card border-status-complete"
+                <Check className={styles.iconSmall} />
+              </button>
+              <button
+                type="button"
+                className={clsx(
+                  styles.completeButton,
+                  styles.completeButtonMiss,
+                  made === false && styles.completeButtonActive,
+                )}
                 onClick={() => toggleMade(roundNum, playerId, false)}
+                aria-pressed={made === false}
+                aria-label={`Mark missed for ${playerName}`}
               >
-                <X className="h-3 w-3" />
-              </Button>
+                <X className={styles.iconSmall} />
+              </button>
             </div>
           </>
         )}
         {rState === 'scored' && (
           <>
-            <div className="border-b flex items-center justify-between px-1 py-0.5">
-              <span className="text-[0.6rem] font-medium text-status-scored-foreground">
-                {made ? 'Made' : 'Missed'}
-              </span>
-              <span className="text-[0.6rem] text-status-scored-foreground">Bid: {bid}</span>
+            <div className={styles.scoredSummary}>
+              <span>{made ? 'Made' : 'Missed'}</span>
+              <span>Bid: {bid}</span>
             </div>
-            <div className="flex items-center justify-between px-1 py-0.5">
+            <div className={styles.scoredTotals}>
               <span
-                className={`text-[0.6rem] font-semibold ${made ? 'text-status-scored-foreground' : 'text-destructive'}`}
+                className={clsx(
+                  made ? styles.scoredValuePositive : styles.scoredValueNegative,
+                )}
               >
                 {(made ? 1 : -1) * (5 + bid)}
               </span>
-              <span className="font-bold text-[0.65rem] text-status-scored-foreground">
-                {state.scores[playerId] ?? 0}
-              </span>
+              <span className={styles.scoreTotal}>{state.scores[playerId] ?? 0}</span>
             </div>
           </>
         )}
@@ -222,21 +234,21 @@ export default function RoundsView() {
   };
 
   return (
-    <div className="p-2 max-w-md mx-auto">
-      <h1 className="text-lg font-bold mb-2 text-center">Rounds</h1>
-      <Card className="overflow-hidden shadow-lg">
+    <div className={styles.root}>
+      <h1 className={styles.title}>Rounds</h1>
+      <Card className={styles.card}>
         {/* Header row */}
         <div
-          className="grid text-[0.65rem] sm:text-xs"
+          className={styles.gridHeader}
           style={{ gridTemplateColumns: `3rem repeat(${players.length}, 1fr)` }}
         >
-          <div className="bg-surface-muted text-surface-muted-foreground p-1 font-bold text-center border-b border-r border-border">
+          <div className={styles.gridHeaderCell}>
             Rd
           </div>
           {players.map((p) => (
             <div
               key={p.id}
-              className="bg-surface-muted text-surface-muted-foreground p-1 font-bold text-center border-b border-border"
+              className={styles.gridHeaderCell}
             >
               {p.name.substring(0, 2)}
             </div>
@@ -247,15 +259,18 @@ export default function RoundsView() {
         {Array.from({ length: 10 }, (_, i) => ({ round: i + 1, tricks: 10 - i })).map((round) => (
           <div
             key={round.round}
-            className="grid"
+            className={styles.roundRow}
             style={{ gridTemplateColumns: `3rem repeat(${players.length}, 1fr)` }}
           >
             <div
-              className={`p-1 text-center border-b border-r flex flex-col justify-center transition-all duration-200 ${getRoundStateStyles((state.rounds[round.round]?.state ?? 'locked') as RoundState)}`}
+              className={clsx(
+                styles.roundCell,
+                getRoundStateClass((state.rounds[round.round]?.state ?? 'locked') as RoundState),
+              )}
               onClick={() => cycleRoundState(round.round)}
             >
-              <div className="font-bold text-sm">{round.tricks}</div>
-              <div className="text-[0.55rem] mt-0.5 font-semibold">
+              <div className={styles.roundStateValue}>{round.tricks}</div>
+              <div className={styles.roundStateLabel}>
                 {labelForRoundState((state.rounds[round.round]?.state ?? 'locked') as RoundState)}
               </div>
             </div>
@@ -265,6 +280,7 @@ export default function RoundsView() {
                 roundNum={round.round}
                 tricks={round.tricks}
                 playerId={p.id}
+                playerName={p.name}
               />
             ))}
           </div>

@@ -1,4 +1,7 @@
 import React from 'react';
+import clsx from 'clsx';
+
+import styles from './card-glyph.module.scss';
 
 type Suit = 'clubs' | 'diamonds' | 'hearts' | 'spades';
 
@@ -18,12 +21,6 @@ function rankLabel(rank: number): string {
           : String(rank);
 }
 
-function suitContrastClass(suit: Suit): string {
-  // Hearts/diamonds lean on the destructive token so red suits stay aligned with theme palettes.
-  if (suit === 'hearts' || suit === 'diamonds') return 'text-destructive';
-  return '';
-}
-
 export function CardGlyph({
   suit,
   rank,
@@ -39,24 +36,17 @@ export function CardGlyph({
   title?: string;
   padded?: boolean;
 }) {
-  const text = size === 'sm' ? 'text-[0.8rem]' : size === 'lg' ? 'text-lg' : 'text-base';
-  const rankText = size === 'sm' ? 'text-[0.8rem]' : size === 'lg' ? 'text-lg' : 'text-base';
-
   return (
     <span
-      className={
-        // Fill parent container (width/height) while keeping content centered
-        `box-border w-full h-full inline-flex items-center justify-center gap-1 rounded border ${text} ` +
-        (padded ? 'p-0.5 ' : '') +
-        // In light mode, make chip dark; in dark mode, make chip light for contrast
-        // Always add a subtle border to separate from backgrounds
-        `bg-foreground text-background border-border ` +
-        (className ?? '')
-      }
+      data-slot="card-glyph"
+      data-size={size}
+      data-suit={suit}
+      data-padded={padded ? 'true' : undefined}
+      className={clsx(styles.cardGlyph, className)}
       title={title ?? `${rankLabel(rank)} of ${suit}`}
     >
-      <span className={`font-bold leading-none ${rankText}`}>{rankLabel(rank)}</span>
-      <span className={`${suitContrastClass(suit)} leading-none`}>{suitSymbol(suit)}</span>
+      <span className={styles.rank}>{rankLabel(rank)}</span>
+      <span className={styles.suit}>{suitSymbol(suit)}</span>
     </span>
   );
 }
@@ -72,14 +62,12 @@ export function SuitGlyph({
 }) {
   return (
     <span
-      className={
-        `inline-flex items-center rounded border px-1 py-0.5 text-sm ` +
-        `bg-foreground text-background border-border ` +
-        (className ?? '')
-      }
+      data-slot="suit-glyph"
+      data-suit={suit}
+      className={clsx(styles.suitGlyph, className)}
       title={title ?? suit}
     >
-      <span className={`${suitContrastClass(suit)}`}>{suitSymbol(suit)}</span>
+      <span className={styles.suitGlyphSymbol}>{suitSymbol(suit)}</span>
     </span>
   );
 }

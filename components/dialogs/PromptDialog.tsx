@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import clsx from 'clsx';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
+import styles from './prompt-dialog.module.scss';
 
 export type PromptDialogOptions = {
   title: string;
@@ -109,22 +110,19 @@ function PromptDialogContent({
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onCancel() : undefined)}>
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogContent showCloseButton={false} className={styles.content}>
+        <form onSubmit={handleSubmit} className={styles.form}>
           <DialogHeader>
             <DialogTitle>{options?.title}</DialogTitle>
             <DialogDescription
-              className={cn(
-                'text-left sm:text-left whitespace-pre-line',
-                hasExplicitDescription ? undefined : 'sr-only',
-              )}
+              className={clsx(styles.description, !hasExplicitDescription && styles.descriptionHidden)}
             >
               {fallbackDescription}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className={styles.fieldGroup}>
             {options?.inputLabel ? (
-              <Label htmlFor={inputId} className="text-sm font-medium">
+              <Label htmlFor={inputId} className={styles.label}>
                 {options.inputLabel}
               </Label>
             ) : null}
@@ -139,7 +137,7 @@ function PromptDialogContent({
               placeholder={options?.placeholder}
               autoFocus
             />
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {error ? <p className={styles.error}>{error}</p> : null}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onCancel}>

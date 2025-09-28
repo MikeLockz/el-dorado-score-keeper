@@ -1,12 +1,16 @@
 'use client';
 
 import React, { Fragment } from 'react';
+import clsx from 'clsx';
+
 import { Button, Card, Input } from '@/components/ui';
 import { Edit, Trash, Plus, Copy } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
 import { events } from '@/lib/state';
 import { selectActiveRoster, selectPlayersOrderedFor } from '@/lib/state/selectors';
 import { uuid } from '@/lib/utils';
+
+import styles from './sp-roster-management.module.scss';
 
 export default function SpRosterManagement() {
   const { state, append, appendMany, ready } = useAppState();
@@ -80,15 +84,15 @@ export default function SpRosterManagement() {
   const [name, setName] = React.useState('');
 
   return (
-    <Card className="overflow-hidden">
-      <div className="p-3 border-b flex items-center justify-between">
-        <div>
-          <div className="font-semibold">Single Player Roster</div>
-          <div className="text-xs text-muted-foreground">
+    <Card className={styles.card}>
+      <div className={styles.header}>
+        <div className={styles.headerInfo}>
+          <div className={styles.headerTitle}>Single Player Roster</div>
+          <div className={styles.headerDescription}>
             Manage players used by Single Player mode.
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className={styles.headerActions}>
           <Button
             size="sm"
             variant="outline"
@@ -103,7 +107,7 @@ export default function SpRosterManagement() {
             onClick={() => void cloneFromScorecard()}
             disabled={!scRoster}
           >
-            <Copy className="h-4 w-4 mr-1" /> Use Score Card
+            <Copy aria-hidden="true" /> Use Score Card
           </Button>
           <Button size="sm" onClick={() => void createEmptyRoster()} disabled={!!rosterId}>
             Create
@@ -112,18 +116,18 @@ export default function SpRosterManagement() {
       </div>
 
       {!rosterId ? (
-        <div className="p-3 text-sm text-muted-foreground">
+        <div className={styles.emptyMessage}>
           No Single Player roster yet. Create one or copy from Score Card.
         </div>
       ) : (
-        <div className="grid grid-cols-[1fr_auto] gap-x-2 text-sm">
-          <div className="col-span-2 p-2">
-            <div className="flex gap-2 items-center">
+        <div className={styles.body}>
+          <div className={clsx(styles.formRow)}>
+            <div className={styles.formControls}>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Add player name"
-                className="h-9"
+                className={styles.formInput}
               />
               <Button
                 onClick={() => {
@@ -133,18 +137,18 @@ export default function SpRosterManagement() {
                   setName('');
                 }}
                 disabled={!name.trim()}
-                className="h-9"
+                className={styles.formButton}
               >
-                <Plus className="h-4 w-4 mr-1" /> Add
+                <Plus aria-hidden="true" /> Add
               </Button>
             </div>
           </div>
-          <div className="bg-surface-muted text-surface-muted-foreground p-2 font-bold">Player</div>
-          <div className="bg-surface-muted text-surface-muted-foreground p-2 font-bold text-center">
+          <div className={styles.headerCell}>Player</div>
+          <div className={clsx(styles.headerCell, styles.headerCellActions)}>
             Actions
           </div>
           {ready && !minReached && players.length >= 3 && (
-            <div className="col-span-2 px-2 py-1 text-xs text-muted-foreground bg-surface-subtle border-b italic">
+            <div className={styles.tipRow}>
               Tip: drag names to reorder
             </div>
           )}
@@ -192,36 +196,38 @@ export default function SpRosterManagement() {
                     }}
                     aria-grabbed={draggingId === p.id || undefined}
                     aria-label={`Drag to reorder ${p.name}`}
-                    className={`p-2 border-b truncate ${
-                      draggingId === p.id ? 'opacity-60' : ''
-                    } ${!minReached ? 'cursor-grab active:cursor-grabbing select-none' : ''}`}
+                    className={clsx(
+                      styles.playerCell,
+                      draggingId === p.id && styles.playerCellDragging,
+                      !minReached && styles.playerCellDraggable,
+                    )}
                   >
                     {p.name}
                   </div>
-                  <div className="p-2 border-b text-center flex items-center justify-center gap-2">
+                  <div className={styles.actionsCell}>
                     <Button
                       size="sm"
                       variant="destructive"
                       onClick={() => void removePlayer(p.id, p.name)}
-                      className="h-7 px-2"
+                      className={styles.actionButton}
                       disabled={minReached}
                       title="Remove from SP roster"
                     >
-                      <Trash className="h-4 w-4" />
+                      <Trash aria-hidden="true" />
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => void renamePlayer(p.id, p.name)}
-                      className="h-7 px-2"
+                      className={styles.actionButton}
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit aria-hidden="true" />
                     </Button>
                   </div>
                 </Fragment>
               ))}
               {players.length === 0 && (
-                <div className="col-span-2 p-4 text-center text-muted-foreground">
+                <div className={styles.emptyRow}>
                   Add players to get started.
                 </div>
               )}
@@ -230,13 +236,13 @@ export default function SpRosterManagement() {
             <>
               {Array.from({ length: 4 }).map((_, i) => (
                 <Fragment key={`placeholder-${i}`}>
-                  <div className="p-2 border-b truncate text-muted-foreground">-</div>
-                  <div className="p-2 border-b text-center flex items-center justify-center gap-2">
-                    <Button size="sm" variant="outline" disabled className="h-7 px-2">
-                      <Edit className="h-4 w-4" />
+                  <div className={clsx(styles.playerCell, styles.placeholderCell)}>-</div>
+                  <div className={styles.actionsCell}>
+                    <Button size="sm" variant="outline" disabled className={styles.actionButton}>
+                      <Edit aria-hidden="true" />
                     </Button>
-                    <Button size="sm" variant="destructive" disabled className="h-7 px-2">
-                      <Trash className="h-4 w-4" />
+                    <Button size="sm" variant="destructive" disabled className={styles.actionButton}>
+                      <Trash aria-hidden="true" />
                     </Button>
                   </div>
                 </Fragment>

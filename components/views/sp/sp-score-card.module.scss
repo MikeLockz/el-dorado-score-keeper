@@ -1,0 +1,97 @@
+@use '../../../styles/tokens/spacing' as spacing;
+
+.root {
+  margin-top: spacing.spacing('space-4');
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid color-mix(in oklch, var(--border) 92%, transparent);
+  font-size: 0.75rem;
+  line-height: 1.1rem;
+}
+
+.table caption {
+  margin-bottom: spacing.spacing('space-2');
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tableHead {
+  background: color-mix(in oklch, var(--muted) 60%, transparent);
+  color: var(--muted-foreground);
+}
+
+.tableHeadCell,
+.tableCell {
+  border: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
+  padding-inline: spacing.spacing('space-2');
+  padding-block: spacing.spacing('space-1');
+}
+
+.tableHeadCell {
+  font-weight: 600;
+  text-align: left;
+  color: var(--foreground);
+}
+
+.tableHeadCellNumeric {
+  text-align: center;
+}
+
+.tableHeadSubLabel {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.tableRow:nth-of-type(odd) {
+  background: color-mix(in oklch, var(--muted) 10%, transparent);
+}
+
+.tableCellNumeric {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.tableCellRight {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tableFooter {
+  background: color-mix(in oklch, var(--muted) 40%, transparent);
+}
+
+.scorePositive {
+  color: var(--color-status-scored-foreground);
+}
+
+.scoreNegative {
+  color: var(--destructive);
+}
+
+.scoreNeutral {
+  color: var(--foreground);
+}
+
+.playerTotalLabel {
+  color: var(--muted-foreground);
+}

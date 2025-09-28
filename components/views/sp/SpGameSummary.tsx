@@ -1,4 +1,5 @@
 import React from 'react';
+import clsx from 'clsx';
 
 import ScorecardGrid, {
   type ScorecardPlayerColumn,
@@ -6,6 +7,8 @@ import ScorecardGrid, {
 } from '../scorecard/ScorecardGrid';
 import SpScoreCard from './SpScoreCard';
 import type { ScoreCardRound } from './useSinglePlayerViewModel';
+
+import styles from './sp-game-summary.module.scss';
 
 export type GameTotal = Readonly<{ id: string; name: string; total: number; isWinner: boolean }>;
 
@@ -40,29 +43,33 @@ export default function SpGameSummary(props: {
   } = props;
   const isPanel = variant === 'panel';
   const showDetailsToggle = typeof onDetailsToggle === 'function';
-  const containerClass = isPanel
-    ? 'flex h-full flex-col'
-    : `relative min-h-[100dvh]${showDetailsToggle ? ' pb-[calc(52px+env(safe-area-inset-bottom))]' : ''}`;
-  const headerPadding = isPanel ? 'px-4 py-4' : 'p-3';
-  const mainPadding = isPanel ? 'flex-1 overflow-auto px-4 py-4' : 'p-3';
-  const titleClass = `${isPanel ? 'text-lg' : 'text-base'} font-semibold mt-1`;
-  const detailsButtonBase = `${
-    isPanel ? 'text-sm ' : ''
-  }text-muted-foreground hover:text-foreground hover:underline ${detailsActive ? 'text-foreground underline' : ''}`;
+  const rootClass = clsx(
+    styles.root,
+    isPanel ? styles.panelRoot : styles.fullRoot,
+    !isPanel && showDetailsToggle && styles.fullWithDetailsNav,
+  );
+  const headerClass = clsx(styles.header, isPanel ? styles.panelHeader : styles.fullHeader);
+  const mainClass = isPanel ? styles.panelMain : styles.fullMain;
+  const titleClass = clsx(styles.title, isPanel && styles.panelTitle);
+  const detailsButtonClass = clsx(
+    styles.detailsButton,
+    isPanel && styles.panelDetailsButton,
+    detailsActive && styles.detailsButtonActive,
+  );
   return (
-    <div className={containerClass}>
-      <header className={`border-b ${headerPadding}`}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
+    <div className={rootClass}>
+      <header className={headerClass}>
+        <div className={styles.headerInner}>
+          <div className={styles.titleGroup}>
             <div className={titleClass}>{title}</div>
             {typeof seed === 'number' && Number.isFinite(seed) && (
-              <div className="mt-1 text-xs text-muted-foreground">Seed: {seed}</div>
+              <div className={styles.seed}>Seed: {seed}</div>
             )}
           </div>
           {onClose && (
             <button
               type="button"
-              className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+              className={styles.closeButton}
               onClick={onClose}
               aria-label={closeLabel ?? 'Close summary'}
             >
@@ -71,7 +78,7 @@ export default function SpGameSummary(props: {
           )}
         </div>
       </header>
-      <main className={mainPadding}>
+      <main className={mainClass}>
         {scoreCardGrid && scoreCardGrid.rounds.length > 0 ? (
           <ScorecardGrid
             columns={scoreCardGrid.columns}
@@ -89,10 +96,10 @@ export default function SpGameSummary(props: {
       </main>
       {isPanel
         ? showDetailsToggle && (
-            <footer className="border-t px-4 py-3 flex flex-wrap items-center justify-end gap-2">
+            <footer className={styles.panelFooter}>
               <button
                 type="button"
-                className={detailsButtonBase}
+                className={detailsButtonClass}
                 aria-label="Round details"
                 aria-pressed={detailsActive ?? false}
                 onClick={onDetailsToggle}
@@ -102,13 +109,10 @@ export default function SpGameSummary(props: {
             </footer>
           )
         : showDetailsToggle && (
-            <nav
-              className="fixed left-0 right-0 bottom-0 z-30 grid grid-cols-1 gap-2 px-2 py-2 border-t bg-background/85 backdrop-blur"
-              style={{ minHeight: 52 }}
-            >
+            <nav className={styles.fullDetailsNav}>
               <button
                 type="button"
-                className={detailsButtonBase}
+                className={detailsButtonClass}
                 aria-label="Round details"
                 aria-pressed={detailsActive ?? false}
                 onClick={onDetailsToggle}

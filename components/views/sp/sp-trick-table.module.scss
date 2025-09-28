@@ -1,0 +1,65 @@
+@use '../../../styles/tokens/spacing' as spacing;
+
+.root {
+  display: grid;
+  gap: spacing.spacing('space-1');
+  padding-inline: spacing.spacing('space-2');
+  padding-block: spacing.spacing('space-2');
+  padding-bottom: 7rem;
+}
+
+.headerRow {
+  display: grid;
+  grid-template-columns: minmax(64px, 1fr) 36px 52px 64px;
+  font-size: 0.625rem;
+  line-height: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.headerCard {
+  text-align: right;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(64px, 1fr) 36px 52px 64px;
+  align-items: center;
+  gap: spacing.spacing('space-1');
+  border-radius: var(--radius-md);
+  border: 2px solid color-mix(in oklch, var(--border) 80%, transparent);
+  padding-inline: spacing.spacing('space-2');
+  padding-block: spacing.spacing('space-1');
+  background: color-mix(in oklch, var(--card) 60%, transparent);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.rowWinner {
+  border-width: 2px;
+  border-color: var(--color-status-scored);
+  background: color-mix(in oklch, var(--color-status-scored) 10%, var(--card));
+  color: var(--color-status-scored-foreground);
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+
+.playerName {
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.numeric {
+  font-size: 0.875rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.cardCell {
+  font-size: 0.875rem;
+  text-align: right;
+}
+
+.cardEmpty {
+  color: var(--muted-foreground);
+}

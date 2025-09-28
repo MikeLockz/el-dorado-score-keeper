@@ -26,5 +26,5 @@ Each status exposes base, foreground, and surface variants (`bg-status-bidding`,
 
 - Prefer semantic tokens over raw Tailwind color scales (`bg-sky-100`, `text-slate-500`, etc.).
 - When introducing a new badge or subtle block, start with `surface-*` tokens and only reach for bespoke colors if a token is missing.
-- Tokens are defined in `styles/globals.css`; updating light/dark variants there automatically updates every consumer.
+- Tokens are defined in `styles/global.scss`; updating light/dark variants there automatically updates every consumer.
 - If you need a new semantic color, add the CSS variables for light/dark themes and mirror the `@theme inline` mapping so Tailwind exposes it.

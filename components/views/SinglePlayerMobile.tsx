@@ -13,6 +13,8 @@ import SpHandDock from './sp/SpHandDock';
 import { deriveSpCtaMeta } from './sp/cta-state';
 import { useSinglePlayerViewModel } from './sp/useSinglePlayerViewModel';
 
+import styles from './single-player-mobile.module.scss';
+
 type Props = {
   humanId: string;
   rng: () => number;
@@ -105,8 +107,8 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   }, [ctaMeta.stage]);
 
   const advanceLabel = isProcessingAdvance ? (
-    <span className="flex items-center gap-2">
-      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+    <span className={styles.loadingLabel}>
+      <Loader2 className={styles.spinner} aria-hidden="true" />
       {loadingLabel}
     </span>
   ) : (
@@ -246,7 +248,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-background text-foreground">
+    <div className={styles.root}>
       <SpHeaderBar
         handNow={handNow}
         tricksThisRound={tricksThisRound}
@@ -257,7 +259,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
       />
 
       {/* Surface: Compact Trick Table */}
-      <main className="relative flex-1">
+      <main className={styles.tableSurface}>
         {/* Compact Table */}
         <SpTrickTable
           rotated={rotated}
@@ -275,25 +277,21 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         const trickIdle = trickPlays.length === 0;
         if (!snap || reveal || !trickIdle) return null;
         return (
-          <div className="fixed left-0 right-0 bottom-[calc(52px+3rem)] z-30 mx-2 mb-2 rounded border bg-card px-3 py-2 text-xs shadow">
-            <span className="text-muted-foreground">Last Trick:</span>{' '}
-            <span className="font-semibold">{playerName(snap.winnerId)}</span>
+          <div className={styles.overlayMessage}>
+            <span className={styles.overlayLabel}>Last Trick:</span>{' '}
+            <span>{playerName(snap.winnerId)}</span>
           </div>
         );
       })()}
 
       {/* Hand Dock */}
-      <section
-        className="fixed left-0 right-0 z-40 border-t bg-background shadow"
-        style={{ bottom: 'calc(var(--safe-area-inset-bottom, 0px) + 52px)' }}
-        aria-label="Your hand"
-      >
+      <section className={styles.handDockShell} aria-label="Your hand">
         {spPhase === 'bidding' && (
-          <div className="px-2 py-2 border-b bg-card flex items-center justify-center gap-2">
-            <span className="text-xs text-muted-foreground">Your bid</span>
+          <div className={styles.bidBar}>
+            <span>Your bid</span>
             <button
               type="button"
-              className="h-7 w-7 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90"
+              className={styles.bidButton}
               onClick={() =>
                 void append(
                   events.bidSet({
@@ -308,10 +306,10 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             >
               −
             </button>
-            <span className="font-bold text-base min-w-[1.5rem] text-center">{humanBid}</span>
+            <span className={styles.bidValue}>{humanBid}</span>
             <button
               type="button"
-              className="h-7 w-7 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90"
+              className={styles.bidButton}
               onClick={() =>
                 void append(
                   events.bidSet({
@@ -328,7 +326,7 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
             </button>
             <button
               type="button"
-              className="ml-1 h-7 px-2 rounded border bg-primary text-primary-foreground hover:bg-primary/90"
+              className={styles.bidConfirm}
               onClick={() => void onConfirmBid(humanBid)}
               disabled={isBatchPending}
             >
@@ -354,22 +352,18 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
       </section>
 
       {/* Actions Bar */}
-      <nav
-        className="fixed left-0 right-0 bottom-0 z-30 grid grid-cols-2 gap-2 px-2 py-2 border-t bg-background/85 backdrop-blur"
-        style={{ minHeight: 52 }}
-        aria-label="Primary actions"
-      >
+      <nav className={styles.actionsBar} aria-label="Primary actions">
         <>
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground hover:underline"
+            className={styles.detailsButton}
             onClick={() => setShowSummary(true)}
             aria-label="Round details"
           >
             Details
           </button>
           <button
-            className="rounded bg-primary text-primary-foreground px-3 py-2 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={styles.primaryButton}
             onClick={onAdvance}
             disabled={advanceDisabled}
             aria-disabled={advanceDisabled}

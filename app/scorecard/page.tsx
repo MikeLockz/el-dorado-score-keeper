@@ -1,8 +1,10 @@
 import CurrentGame from '@/components/views/CurrentGame';
 
+import styles from './page.module.scss';
+
 export default function ScorecardPage() {
   return (
-    <div className="space-y-3">
+    <div className={styles.container}>
       <CurrentGame />
     </div>
   );

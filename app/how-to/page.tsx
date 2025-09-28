@@ -14,18 +14,20 @@ export const metadata: Metadata = {
   },
 };
 
+import styles from './page.module.scss';
+
 export default function HowToRedirectPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6 py-16 text-center">
+    <main className={styles.container}>
       <script
         dangerouslySetInnerHTML={{
           __html: `window.location.replace('${TARGET}');`,
         }}
       />
-      <h1 className="text-lg font-semibold">Redirecting to the Rules…</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
+      <h1 className={styles.title}>Redirecting to the Rules…</h1>
+      <p className={styles.message}>
         If you are not redirected,{' '}
-        <a href={TARGET} className="underline">
+        <a href={TARGET} className={styles.link}>
           open the rules page
         </a>
         .

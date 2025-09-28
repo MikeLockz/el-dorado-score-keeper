@@ -1,0 +1,32 @@
+@use '../../styles/mixins/typography' as typography;
+@use '../../styles/tokens/spacing' as spacing;
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+  @include typography.body('body-sm');
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: var(--foreground);
+  user-select: none;
+  cursor: default;
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  &[data-disabled='true'] {
+    pointer-events: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  :global([data-disabled='true']) &,
+  :global(.peer:disabled) + &,
+  :global(.peer:disabled) ~ & {
+    pointer-events: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

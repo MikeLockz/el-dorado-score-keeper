@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterAll, describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import type { AppState } from '@/lib/state/types';
@@ -36,54 +36,56 @@ const baseSummaryState = (roundNo = 1): AppState => ({
 const append = vi.fn(async () => 1);
 const appendMany = vi.fn(async () => 1);
 
-vi.mock('@/components/state-provider', async () => {
-  return {
-    useAppState: () => ({
-      state: baseSummaryState(1),
-      height: 0,
-      ready: true,
-      append,
-      appendMany,
-      isBatchPending: false,
-      previewAt: async () => baseSummaryState(1),
-      warnings: [],
-      clearWarnings: () => {},
-    }),
-  };
-});
+if (typeof document !== 'undefined') {
+  vi.mock('@/components/state-provider', async () => {
+    return {
+      useAppState: () => ({
+        state: baseSummaryState(1),
+        height: 0,
+        ready: true,
+        append,
+        appendMany,
+        isBatchPending: false,
+        previewAt: async () => baseSummaryState(1),
+        warnings: [],
+        clearWarnings: () => {},
+      }),
+    };
+  });
 
-vi.mock('@/lib/single-player', async () => {
-  return {
-    bots: {
-      botBid: () => 0,
-      botPlay: () => ({ suit: 'clubs', rank: 2 }),
-    },
-    startRound: vi.fn((cfg: any) => ({
-      order: cfg.players,
-      trump: 'hearts',
-      trumpCard: { suit: 'hearts', rank: 12 },
-      hands: { p1: [], p2: [] },
-      firstToAct: cfg.players[0],
-    })),
-    winnerOfTrick: vi.fn(),
-    computeAdvanceBatch: (s: AppState) => [
-      {
-        type: 'sp/deal',
-        payload: {
-          roundNo: (s.sp.roundNo ?? 0) + 1,
-          dealerId: 'p2',
-          order: ['p1', 'p2'],
-          trump: 'hearts',
-          trumpCard: { suit: 'hearts', rank: 12 },
-          hands: { p1: [], p2: [] },
-        },
+  vi.mock('@/lib/single-player', async () => {
+    return {
+      bots: {
+        botBid: () => 0,
+        botPlay: () => ({ suit: 'clubs', rank: 2 }),
       },
-      { type: 'sp/leader-set', payload: { leaderId: 'p1' } },
-      { type: 'sp/phase-set', payload: { phase: 'bidding' } },
-      { type: 'round/state-set', payload: { round: (s.sp.roundNo ?? 0) + 1, state: 'bidding' } },
-    ],
-  };
-});
+      startRound: vi.fn((cfg: any) => ({
+        order: cfg.players,
+        trump: 'hearts',
+        trumpCard: { suit: 'hearts', rank: 12 },
+        hands: { p1: [], p2: [] },
+        firstToAct: cfg.players[0],
+      })),
+      winnerOfTrick: vi.fn(),
+      computeAdvanceBatch: (s: AppState) => [
+        {
+          type: 'sp/deal',
+          payload: {
+            roundNo: (s.sp.roundNo ?? 0) + 1,
+            dealerId: 'p2',
+            order: ['p1', 'p2'],
+            trump: 'hearts',
+            trumpCard: { suit: 'hearts', rank: 12 },
+            hands: { p1: [], p2: [] },
+          },
+        },
+        { type: 'sp/leader-set', payload: { leaderId: 'p1' } },
+        { type: 'sp/phase-set', payload: { phase: 'bidding' } },
+        { type: 'round/state-set', payload: { round: (s.sp.roundNo ?? 0) + 1, state: 'bidding' } },
+      ],
+    };
+  });
+}
 
 const suite = typeof document === 'undefined' ? describe.skip : describe;
 
@@ -122,4 +124,8 @@ suite('Summary UI', () => {
     root.unmount();
     div.remove();
   });
+});
+
+afterAll(() => {
+  vi.resetModules();
 });

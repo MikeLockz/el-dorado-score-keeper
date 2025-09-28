@@ -1,0 +1,68 @@
+@import './generated/preflight.css';
+
+:root {
+  color-scheme: light dark;
+  scrollbar-color: var(--color-muted-foreground) transparent;
+}
+
+html {
+  min-height: 100%;
+  font-family: var(--font-sans);
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  border-color: var(--color-border);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+:where(button, [type='button'], [type='submit'], [role='button']) {
+  cursor: pointer;
+}
+
+:where(button:disabled,
+  [type='button']:disabled,
+  [type='submit']:disabled,
+  [aria-disabled='true']) {
+  cursor: not-allowed;
+}
+
+[data-slot='dialog-portal'],
+[data-sonner-toaster],
+[data-radix-popper-content-wrapper] {
+  isolation: isolate;
+  z-index: 60;
+}
+
+[data-slot='dialog-content'] {
+  outline: none;
+}
+
+::-webkit-scrollbar {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--color-muted) 80%, transparent);
+  border-radius: var(--radius-md);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

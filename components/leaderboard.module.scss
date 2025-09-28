@@ -1,0 +1,47 @@
+@use '../styles/mixins/layout' as layout;
+@use '../styles/mixins/typography' as typography;
+@use '../styles/tokens/spacing' as spacing;
+
+.card {
+  margin-block-end: spacing.spacing('space-2');
+  padding: spacing.spacing('space-2');
+  @include layout.stack('space-2');
+}
+
+.heading {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: spacing.spacing('space-1');
+  @include typography.body('body-sm');
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: calc(#{spacing.spacing('space-1')} / 2);
+}
+
+.name {
+  flex: 1;
+  margin-inline-end: spacing.spacing('space-2');
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score {
+  @include typography.monospace('body-sm');
+  font-weight: 600;
+}

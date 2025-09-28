@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterAll, describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import type { AppState } from '@/lib/state/types';
@@ -64,32 +64,34 @@ const appendMany = vi.fn(async (batch: any[]) => {
   return 1;
 });
 
-vi.mock('@/components/state-provider', async () => {
-  return {
-    useAppState: () => ({
-      state: baseState,
-      height: 0,
-      ready: true,
-      append,
-      appendMany,
-      isBatchPending: false,
-      previewAt: async () => baseState,
-      warnings: [],
-      clearWarnings: () => {},
-    }),
-  };
-});
+if (typeof document !== 'undefined') {
+  vi.mock('@/components/state-provider', async () => {
+    return {
+      useAppState: () => ({
+        state: baseState,
+        height: 0,
+        ready: true,
+        append,
+        appendMany,
+        isBatchPending: false,
+        previewAt: async () => baseState,
+        warnings: [],
+        clearWarnings: () => {},
+      }),
+    };
+  });
 
-vi.mock('@/lib/single-player', async () => {
-  return {
-    bots: {
-      botBid: () => 0,
-      botPlay: () => ({ suit: 'clubs', rank: 2 }),
-    },
-    startRound: vi.fn(),
-    winnerOfTrick: vi.fn(),
-  };
-});
+  vi.mock('@/lib/single-player', async () => {
+    return {
+      bots: {
+        botBid: () => 0,
+        botPlay: () => ({ suit: 'clubs', rank: 2 }),
+      },
+      startRound: vi.fn(),
+      winnerOfTrick: vi.fn(),
+    };
+  });
+}
 
 const suite = typeof document === 'undefined' ? describe.skip : describe;
 
@@ -131,4 +133,8 @@ suite('UI reveal → clear → finalize flow', () => {
     root.unmount();
     div.remove();
   });
+});
+
+afterAll(() => {
+  vi.resetModules();
 });

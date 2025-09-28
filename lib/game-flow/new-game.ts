@@ -150,10 +150,12 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
   } = options;
   const app = useAppState();
   const confirmController = useNewGameConfirm();
-  const { state, timeTraveling, isBatchPending } = app;
+  const { state, timeTraveling } = app;
   const [pending, setPending] = React.useState(false);
   const liveStateRef = React.useRef<AppState>(state);
   const telemetryRef = React.useRef<NewGameTelemetryConfig | undefined>(telemetry);
+  const appRef = React.useRef(app);
+  appRef.current = app;
 
   React.useEffect(() => {
     telemetryRef.current = telemetry;
@@ -247,7 +249,8 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
     async (requestOptions: StartNewGameOptions = {}) => {
       const { skipConfirm = false } = requestOptions;
       if (pending) return false;
-      if (requireIdle && isBatchPending) return false;
+      const latestApp = appRef.current ?? app;
+      if (requireIdle && latestApp?.isBatchPending) return false;
 
       const effectiveState = timeTraveling ? liveStateRef.current : state;
       const hasProgress = forceHasProgress ?? hasInProgressGame(effectiveState);
@@ -355,7 +358,6 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
       }
     },
     [
-      isBatchPending,
       confirm,
       confirmMessage,
       onBeforeStart,
@@ -367,6 +369,7 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
       requireIdle,
       state,
       timeTraveling,
+      app,
       confirmController,
       emitTelemetry,
     ],

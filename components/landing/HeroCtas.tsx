@@ -4,9 +4,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui';
 import { logEvent } from '@/lib/client-log';
 
+import styles from './hero-ctas.module.scss';
+
 export default function HeroCtas() {
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+    <div className={styles.heroCtas}>
       <Button asChild>
         <Link
           href="/single-player"

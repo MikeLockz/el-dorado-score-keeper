@@ -13,6 +13,8 @@ import { CardGlyph } from '@/components/ui';
 import { deriveSpCtaMeta } from './sp/cta-state';
 import { useSinglePlayerViewModel } from './sp/useSinglePlayerViewModel';
 
+import styles from './single-player-desktop.module.scss';
+
 type Props = {
   humanId: string;
   rng: () => number;
@@ -106,8 +108,8 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
   }, [ctaMeta.stage]);
 
   const advanceLabel = isProcessingAdvance ? (
-    <span className="flex items-center gap-2">
-      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+    <span className={styles.loadingLabel}>
+      <Loader2 className={styles.spinner} aria-hidden="true" />
       {loadingLabel}
     </span>
   ) : (
@@ -206,7 +208,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
       return order[(idx + 1) % order.length] ?? null;
     })();
     return (
-      <div className="min-h-dvh bg-background text-foreground">
+      <div className={styles.summaryShell}>
         <SpRoundSummary
           roundNo={spRoundNo}
           trump={trump}
@@ -245,90 +247,85 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
   }
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <header className="border-b bg-card/95 px-8 py-4 shadow-sm">
-        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-6">
-          <div className="space-y-1">
-            <h1 className="text-xl font-semibold">Single Player</h1>
-            <p className="text-sm text-muted-foreground">
+    <div className={styles.root}>
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <div className={styles.headerTitleGroup}>
+            <h1 className={styles.headerTitle}>Single Player</h1>
+            <p className={styles.headerSubtitle}>
               Round {spRoundNo + 1} · {tricksThisRound} tricks
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-6 text-sm">
-            <div className="flex flex-col">
-              <span className="text-xs uppercase text-muted-foreground">Hand</span>
-              <span className="font-semibold tabular-nums">
+          <div className={styles.headerStats}>
+            <div className={styles.headerStat}>
+              <span className={styles.headerStatLabel}>Hand</span>
+              <span className={styles.headerStatValue}>
                 {handNow}/{tricksThisRound}
               </span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs uppercase text-muted-foreground">Trump</span>
-              <span className="flex items-center gap-2">
+            <div className={styles.headerStat}>
+              <span className={styles.headerStatLabel}>Trump</span>
+              <span className={styles.headerTrumpValue}>
                 {trump && trumpCard ? (
                   <CardGlyph suit={trump} rank={trumpCard.rank} size="md" padded />
                 ) : (
                   '—'
                 )}
-                <span className="text-xs text-muted-foreground">
+                <span className={styles.headerTrumpMeta}>
                   Broken: {isTrumpBroken ? 'Yes' : 'No'}
                 </span>
               </span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs uppercase text-muted-foreground">Dealer</span>
-              <span>{dealerName ?? '—'}</span>
+            <div className={styles.headerStat}>
+              <span className={styles.headerStatLabel}>Dealer</span>
+              <span className={styles.headerStatValue}>{dealerName ?? '—'}</span>
             </div>
           </div>
         </div>
       </header>
-      <main className="mx-auto flex max-w-[1200px] flex-1 flex-col gap-6 px-8 py-6">
-        <div className="grid grid-cols-[minmax(260px,320px)_minmax(0,1fr)] gap-6">
-          <aside
-            className="flex h-full flex-col rounded-lg border bg-card shadow-sm"
-            aria-label="Round overview"
-          >
-            <div className="border-b px-4 py-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Round Overview
-              </h2>
+      <main className={styles.main}>
+        <div className={styles.contentGrid}>
+          <aside className={styles.sidebar} aria-label="Round overview">
+            <div className={styles.sidebarHeader}>
+              <h2 className={styles.sidebarHeading}>Round Overview</h2>
             </div>
-            <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4">
-              <section>
-                <h3 className="text-xs font-semibold uppercase text-muted-foreground">Bids</h3>
-                <dl className="mt-2 space-y-2 text-sm">
+            <div className={styles.sidebarBody}>
+              <section className={styles.sidebarSection}>
+                <h3 className={styles.sidebarSectionHeading}>Bids</h3>
+                <dl className={styles.sidebarList}>
                   {spOrder.map((pid) => (
-                    <div key={`bid-${pid}`} className="flex items-center justify-between gap-3">
-                      <dt className="truncate font-medium">{playerLabel(pid)}</dt>
-                      <dd className="tabular-nums text-right">{currentBids[pid] ?? 0}</dd>
+                    <div key={`bid-${pid}`} className={styles.sidebarRow}>
+                      <dt className={styles.sidebarRowLabel}>{playerLabel(pid)}</dt>
+                      <dd className={styles.sidebarRowValue}>{currentBids[pid] ?? 0}</dd>
                     </div>
                   ))}
                 </dl>
               </section>
-              <section>
-                <h3 className="text-xs font-semibold uppercase text-muted-foreground">
-                  Round Scores
-                </h3>
-                <dl className="mt-2 space-y-2 text-sm">
+              <section className={styles.sidebarSection}>
+                <h3 className={styles.sidebarSectionHeading}>Round Scores</h3>
+                <dl className={styles.sidebarList}>
                   {spOrder.map((pid) => (
-                    <div key={`score-${pid}`} className="flex items-center justify-between gap-3">
-                      <dt className="truncate font-medium">{playerLabel(pid)}</dt>
-                      <dd className="tabular-nums text-right">{roundTotals[pid] ?? 0}</dd>
+                    <div key={`score-${pid}`} className={styles.sidebarRow}>
+                      <dt className={styles.sidebarRowLabel}>{playerLabel(pid)}</dt>
+                      <dd className={styles.sidebarRowValue}>{roundTotals[pid] ?? 0}</dd>
                     </div>
                   ))}
                 </dl>
               </section>
-              <section className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Tricks won</span>
-                  <span className="tabular-nums font-semibold">{totalTricksSoFar}</span>
+              <section className={styles.sidebarMeta}>
+                <div className={styles.sidebarMetaRow}>
+                  <span className={styles.sidebarMetaLabel}>Tricks won</span>
+                  <span className={styles.sidebarMetaValue}>{totalTricksSoFar}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Current state</span>
-                  <span className="capitalize">{spPhase}</span>
+                <div className={styles.sidebarMetaRow}>
+                  <span className={styles.sidebarMetaLabel}>Current state</span>
+                  <span className={styles.sidebarMetaValue} style={{ textTransform: 'capitalize' }}>
+                    {spPhase}
+                  </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Dealer next</span>
-                  <span>
+                <div className={styles.sidebarMetaRow}>
+                  <span className={styles.sidebarMetaLabel}>Dealer next</span>
+                  <span className={styles.sidebarMetaValue}>
                     {(() => {
                       const cur = state.sp?.dealerId ?? spOrder[0] ?? null;
                       if (!cur || spOrder.length === 0) return '—';
@@ -340,30 +337,22 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                   </span>
                 </div>
               </section>
-              <section className="space-y-3 text-sm">
-                <div className="flex items-center justify-between rounded border px-3 py-2">
-                  <span className="text-muted-foreground">Trump broken</span>
-                  <span className="font-semibold text-foreground">
-                    {isTrumpBroken ? 'Yes' : 'No'}
-                  </span>
+              <section className={styles.sidebarStatusSection}>
+                <div className={styles.sidebarStatusCard}>
+                  <span>Trump broken</span>
+                  <span className={styles.sidebarStatusValue}>{isTrumpBroken ? 'Yes' : 'No'}</span>
                 </div>
                 {reveal && (
-                  <div
-                    role="status"
-                    aria-live="polite"
-                    className="rounded-md border border-status-scored/40 bg-status-scored/10 px-3 py-2 text-sm"
-                  >
-                    <span className="text-muted-foreground">Hand winner:</span>{' '}
-                    <span className="font-semibold text-status-scored">
-                      {playerLabel(reveal.winnerId)}
-                    </span>
+                  <div role="status" aria-live="polite" className={styles.sidebarReveal}>
+                    <span className={styles.sidebarRevealLabel}>Hand winner:</span>
+                    <span className={styles.sidebarRevealValue}>{playerLabel(reveal.winnerId)}</span>
                   </div>
                 )}
               </section>
-              <div className="border-t pt-4 text-sm">
+              <div className={styles.sidebarFooter}>
                 <button
                   type="button"
-                  className={`font-semibold text-primary hover:underline ${showSummary ? 'underline' : ''}`}
+                  className={styles.summaryToggle}
                   onClick={toggleSummaryView}
                   aria-pressed={showSummary}
                   aria-expanded={showSummary}
@@ -374,11 +363,11 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
               </div>
             </div>
           </aside>
-          <section className="flex flex-col gap-6">
+          <section className={styles.mainColumn}>
             {showSummary ? (
               <div
                 id="sp-game-summary-panel"
-                className="flex flex-col rounded-lg border bg-card shadow-sm"
+                className={styles.summaryPanel}
                 aria-label="Full game summary"
               >
                 <SpGameSummary
@@ -394,13 +383,11 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
               </div>
             ) : (
               <>
-                <div className="rounded-lg border bg-card shadow-sm">
-                  <div className="border-b px-4 py-3">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                      Current Trick
-                    </h2>
+                <div className={styles.panel}>
+                  <div className={styles.panelHeader}>
+                    <h2 className={styles.panelHeading}>Current Trick</h2>
                   </div>
-                  <div className="max-h-[50vh] overflow-auto px-4 py-4 [&>section]:space-y-3 [&>section]:p-0 [&>section]:pb-4">
+                  <div className={styles.trickPanelBody}>
                     <SpTrickTable
                       rotated={rotated}
                       playerName={playerLabel}
@@ -411,17 +398,17 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                     />
                   </div>
                 </div>
-                <div className="rounded-lg border bg-card shadow-sm" aria-label="Play controls">
+                <div className={styles.panel} aria-label="Play controls">
                   {spPhase === 'bidding' && (
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-muted-foreground">Your bid</span>
-                        <span className="font-semibold tabular-nums">{humanBid}</span>
+                    <div className={styles.bidControls}>
+                      <div className={styles.bidSummary}>
+                        <span className={styles.sidebarMetaLabel}>Your bid</span>
+                        <span className={styles.bidSummaryValue}>{humanBid}</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className={styles.bidButtons}>
                         <button
                           type="button"
-                          className="h-8 w-8 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-status-bidding"
+                          className={styles.bidAdjustButton}
                           onClick={() =>
                             void append(
                               events.bidSet({
@@ -438,7 +425,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                         </button>
                         <button
                           type="button"
-                          className="h-8 w-8 rounded border bg-status-bidding text-status-bidding-foreground hover:bg-status-bidding/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-status-bidding"
+                          className={styles.bidAdjustButton}
                           onClick={() =>
                             void append(
                               events.bidSet({
@@ -455,7 +442,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                         </button>
                         <button
                           type="button"
-                          className="ml-2 rounded bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
+                          className={styles.confirmBidButton}
                           onClick={() => void onConfirmBid(humanBid)}
                           disabled={isBatchPending}
                         >
@@ -464,7 +451,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                       </div>
                     </div>
                   )}
-                  <div className="px-2 pb-2">
+                  <div className={styles.handDockRegion}>
                     <SpHandDock
                       suitOrder={suitOrder}
                       humanBySuit={humanBySuit}
@@ -479,11 +466,8 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                       onPlayCard={playSelectedCard}
                     />
                   </div>
-                  <div
-                    className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3"
-                    aria-label="Turn actions"
-                  >
-                    <div className="text-sm text-muted-foreground">
+                  <div className={styles.actionsRow} aria-label="Turn actions">
+                    <div className={styles.actionsMessage}>
                       {reveal
                         ? totalTricksSoFar >= tricksThisRound
                           ? isFinalRound
@@ -496,7 +480,7 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                     </div>
                     <button
                       type="button"
-                      className="rounded bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
+                      className={styles.primaryActionButton}
                       onClick={onAdvance}
                       disabled={advanceDisabled}
                       aria-disabled={advanceDisabled}
@@ -515,9 +499,9 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
             const trickIdle = trickPlays.length === 0;
             if (!snap || reveal || !trickIdle) return null;
             return (
-              <div className="rounded-lg border bg-card px-4 py-3 text-sm shadow-sm">
-                <span className="text-muted-foreground">Last trick:</span>{' '}
-                <span className="font-semibold">{playerLabel(snap.winnerId)}</span>
+              <div className={styles.lastTrickBanner}>
+                <span className={styles.lastTrickLabel}>Last trick:</span>{' '}
+                <span className={styles.sidebarStatusValue}>{playerLabel(snap.winnerId)}</span>
               </div>
             );
           })()}

@@ -1,0 +1,43 @@
+@use '../../styles/mixins/layout' as layout;
+@use '../../styles/mixins/typography' as typography;
+
+.content {
+  max-inline-size: 28rem;
+}
+
+.form {
+  @include layout.stack('space-4');
+}
+
+.description {
+  @include typography.body('body-sm');
+  text-align: left;
+  white-space: pre-line;
+}
+
+.descriptionHidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.fieldGroup {
+  @include layout.stack('space-2');
+}
+
+.label {
+  @include typography.body('body-sm');
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.error {
+  @include typography.body('body-sm');
+  color: var(--color-destructive);
+}

@@ -1,0 +1,150 @@
+@use '../../../styles/mixins/state' as state;
+@use '../../../styles/mixins/typography' as typography;
+@use '../../../styles/tokens/spacing' as spacing;
+
+.root {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  color: inherit;
+}
+
+.panelRoot {
+  height: 100%;
+}
+
+.fullRoot {
+  position: relative;
+  min-height: 100dvh;
+}
+
+.fullWithDetailsNav {
+  padding-bottom: calc(52px + env(safe-area-inset-bottom));
+}
+
+.header {
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 95%, transparent);
+}
+
+.panelHeader {
+  padding-inline: spacing.spacing('space-4');
+  padding-block: spacing.spacing('space-4');
+}
+
+.fullHeader {
+  padding: spacing.spacing('space-3');
+}
+
+.headerInner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: spacing.spacing('space-3');
+}
+
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+}
+
+.title {
+  @include typography.heading('heading-sm');
+  color: var(--card-foreground);
+}
+
+.panelTitle {
+  @include typography.heading('heading-md');
+}
+
+.seed {
+  @include typography.body('body-sm');
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted-foreground);
+}
+
+.closeButton {
+  color: var(--muted-foreground);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 160ms ease;
+
+  &:hover {
+    color: var(--foreground);
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    @include state.focus-ring(var(--ring));
+  }
+}
+
+.panelMain {
+  flex: 1;
+  overflow: auto;
+  padding-inline: spacing.spacing('space-4');
+  padding-block: spacing.spacing('space-4');
+}
+
+.fullMain {
+  padding: spacing.spacing('space-3');
+}
+
+.detailsButton {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+  text-underline-offset: 0.25rem;
+  transition: color 160ms ease;
+
+  &:hover {
+    color: var(--foreground);
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    @include state.focus-ring(var(--ring));
+  }
+}
+
+.panelDetailsButton {
+  font-size: 0.75rem;
+}
+
+.detailsButtonActive {
+  color: var(--foreground);
+  text-decoration: underline;
+}
+
+.panelFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: spacing.spacing('space-2');
+  border-top: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
+  padding-inline: spacing.spacing('space-4');
+  padding-block: spacing.spacing('space-3');
+}
+
+.fullDetailsNav {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 30;
+  display: grid;
+  gap: spacing.spacing('space-2');
+  padding-inline: spacing.spacing('space-2');
+  padding-block: spacing.spacing('space-2');
+  border-top: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
+  background: color-mix(in oklch, var(--background) 85%, transparent);
+  backdrop-filter: blur(12px);
+  min-block-size: 52px;
+}

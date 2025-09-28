@@ -1,11 +1,13 @@
 import type React from 'react';
 import type { Metadata, Viewport } from 'next';
-import '@/app/globals.css';
+import '@/styles/global.scss';
 import { ThemeProvider } from '@/components/theme-provider';
 import StateRoot from '@/components/state-root';
 import { AppErrorBoundary } from '@/components/error-boundary';
 import Devtools from '@/components/devtools';
 import Header from '@/components/header';
+
+import styles from './layout.module.scss';
 
 // Use system fonts to avoid network fetches during build
 
@@ -46,24 +48,28 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans">
+      <body className={styles.body}>
         {/* Skip link for keyboard/screen reader users */}
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-card focus:text-foreground focus:px-3 focus:py-2 focus:rounded-md focus:shadow"
+          className={styles.skipLink}
         >
           Skip to content
         </a>
         <ThemeProvider
-          attribute="class"
+          attribute="data-theme"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          value={{
+            light: 'light',
+            dark: 'dark',
+          }}
         >
           <AppErrorBoundary>
             <StateRoot>
               <Header />
-              <main id="main" className="min-h-screen bg-background">
+              <main id="main" className={styles.main}>
                 {children}
               </main>
               {process.env.NODE_ENV !== 'production' ? <Devtools /> : null}

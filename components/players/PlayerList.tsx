@@ -1,10 +1,14 @@
 'use client';
 
 import React, { Fragment } from 'react';
+import clsx from 'clsx';
+
 import { Button, Card } from '@/components/ui';
 import { Edit, Trash, Plus } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
 import { events, selectPlayersOrdered, selectNextActionableRound } from '@/lib/state';
+
+import styles from './player-list.module.scss';
 
 export default function PlayerList() {
   const { state, append, ready } = useAppState();
@@ -39,14 +43,14 @@ export default function PlayerList() {
   };
 
   return (
-    <Card className="overflow-hidden">
-      <div className="grid grid-cols-[1fr_auto] gap-x-2 text-sm">
-        <div className="bg-surface-muted text-surface-muted-foreground p-2 font-bold">Player</div>
-        <div className="bg-surface-muted text-surface-muted-foreground p-2 font-bold text-center">
+    <Card className={styles.card}>
+      <div className={styles.grid}>
+        <div className={styles.headerCell}>Player</div>
+        <div className={clsx(styles.headerCell, styles.headerCellActions)}>
           Actions
         </div>
         {ready && !minReached && players.length >= 3 && (
-          <div className="col-span-2 px-2 py-1 text-xs text-muted-foreground bg-surface-subtle border-b italic">
+          <div className={styles.tipRow}>
             Tip: drag names to reorder
           </div>
         )}
@@ -94,11 +98,15 @@ export default function PlayerList() {
                   }}
                   aria-grabbed={draggingId === p.id || undefined}
                   aria-label={`Drag to reorder ${p.name}`}
-                  className={`p-2 border-b truncate ${draggingId === p.id ? 'opacity-60' : ''} ${!minReached ? 'cursor-grab active:cursor-grabbing select-none' : ''}`}
+                  className={clsx(
+                    styles.playerCell,
+                    draggingId === p.id && styles.playerCellDragging,
+                    !minReached && styles.playerCellDraggable,
+                  )}
                 >
                   {p.name}
                 </div>
-                <div className="p-2 border-b text-center flex items-center justify-center gap-2">
+                <div className={styles.actionsCell}>
                   {(() => {
                     const isDropped = state.rounds[nextRound]?.present?.[p.id] === false;
                     if (isDropped) {
@@ -107,10 +115,10 @@ export default function PlayerList() {
                           size="sm"
                           variant="outline"
                           onClick={() => void resumePlayer(p.id)}
-                          className="h-7 px-2"
+                          className={styles.actionButton}
                           title="Re-add from next round"
                         >
-                          <Plus className="h-4 w-4" />
+                          <Plus aria-hidden="true" />
                         </Button>
                       );
                     }
@@ -120,11 +128,11 @@ export default function PlayerList() {
                         size="sm"
                         variant="destructive"
                         onClick={() => void removePlayer(p.id, p.name)}
-                        className="h-7 px-2"
+                        className={styles.actionButton}
                         disabled={minReached}
                         title="Remove (soft drop) from next round"
                       >
-                        <Trash className="h-4 w-4" />
+                        <Trash aria-hidden="true" />
                       </Button>
                     );
                   })()}
@@ -132,15 +140,15 @@ export default function PlayerList() {
                     size="sm"
                     variant="outline"
                     onClick={() => void renamePlayer(p.id, p.name)}
-                    className="h-7 px-2"
+                    className={styles.actionButton}
                   >
-                    <Edit className="h-4 w-4" />
+                    <Edit aria-hidden="true" />
                   </Button>
                 </div>
               </Fragment>
             ))}
             {players.length === 0 && (
-              <div className="col-span-2 p-4 text-center text-muted-foreground">
+              <div className={clsx(styles.emptyRow, styles.placeholderCell)}>
                 Add players to get started.
               </div>
             )}
@@ -149,13 +157,13 @@ export default function PlayerList() {
           <>
             {Array.from({ length: 4 }).map((_, i) => (
               <Fragment key={`placeholder-${i}`}>
-                <div className="p-2 border-b truncate text-muted-foreground">-</div>
-                <div className="p-2 border-b text-center flex items-center justify-center gap-2">
-                  <Button size="sm" variant="outline" disabled className="h-7 px-2">
-                    <Edit className="h-4 w-4" />
+                <div className={clsx(styles.playerCell, styles.placeholderCell)}>-</div>
+                <div className={clsx(styles.actionsCell, styles.placeholderActions)}>
+                  <Button size="sm" variant="outline" disabled className={styles.actionButton}>
+                    <Edit aria-hidden="true" />
                   </Button>
-                  <Button size="sm" variant="destructive" disabled className="h-7 px-2">
-                    <Trash className="h-4 w-4" />
+                  <Button size="sm" variant="destructive" disabled className={styles.actionButton}>
+                    <Trash aria-hidden="true" />
                   </Button>
                 </div>
               </Fragment>

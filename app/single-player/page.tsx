@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
 
 import { startRound, mulberry32, deriveSeed } from '@/lib/single-player';
@@ -19,6 +20,8 @@ import {
 import { uuid } from '@/lib/utils';
 import { useSinglePlayerEngine } from '@/lib/single-player/use-engine';
 import { INITIAL_STATE } from '@/lib/state';
+
+import styles from './page.module.scss';
 
 export default function SinglePlayerPage() {
   const { state, append, appendMany, ready, isBatchPending } = useAppState();
@@ -177,20 +180,12 @@ export default function SinglePlayerPage() {
   const suitSymbol = React.useCallback((suit: string): string => {
     return suit === 'spades' ? '♠' : suit === 'hearts' ? '♥' : suit === 'diamonds' ? '♦' : '♣';
   }, []);
-  const suitColorClass = React.useCallback((suit: string): string => {
-    // Hearts/Diamonds in red; Clubs/Spades default foreground
-    return suit === 'hearts' || suit === 'diamonds' ? 'text-destructive' : 'text-foreground';
-  }, []);
   const suitOrder = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
   const nameFor = React.useCallback(
     (pid: string) => activePlayers.find((ap) => ap.id === pid)?.name ?? pid,
     [activePlayers],
   );
-  const BotBadge = () => (
-    <span className="ml-1 text-[10px] uppercase rounded px-1 border border-border text-muted-foreground">
-      BOT
-    </span>
-  );
+  const BotBadge = () => <span className={styles.botBadge}>BOT</span>;
 
   const isDev = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
 
@@ -255,9 +250,9 @@ export default function SinglePlayerPage() {
 
   if (!ready) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center bg-background text-foreground">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+      <div className={styles.loadingScreen}>
+        <div className={styles.loadingStatus} role="status">
+          <Loader2 className={styles.spinner} aria-hidden="true" />
           Loading single player…
         </div>
       </div>
@@ -266,16 +261,16 @@ export default function SinglePlayerPage() {
 
   if (!spRoster) {
     return (
-      <div className="min-h-dvh flex items-center justify-center p-4">
-        <div className="max-w-md w-full rounded border bg-card p-4 shadow">
-          <h1 className="text-xl font-semibold mb-2">Set up Single Player</h1>
-          <p className="text-sm text-muted-foreground mb-4">
+      <div className={styles.setupScreen}>
+        <div className={styles.setupCard}>
+          <h1 className={styles.setupTitle}>Set up Single Player</h1>
+          <p className={styles.setupCopy}>
             Choose players for Single Player. You can copy your Score Card players or start a quick
             game.
           </p>
-          <div className="space-y-3">
+          <div className={styles.setupActions}>
             <button
-              className="w-full rounded bg-primary text-primary-foreground px-3 py-2 hover:bg-primary/90 disabled:opacity-50"
+              className={styles.primaryAction}
               disabled={!scRoster}
               onClick={async () => {
                 const rid = uuid();
@@ -301,12 +296,15 @@ export default function SinglePlayerPage() {
               Use Score Card players
             </button>
             <div>
-              <div className="text-sm text-muted-foreground mb-1">Quick start</div>
-              <div className="flex gap-2 mb-2">
+              <div className={styles.quickStartLabel}>Quick start</div>
+              <div className={styles.quickStartOptions}>
                 {[2, 3, 4, 5, 6].map((n) => (
                   <button
                     key={`qc-${n}`}
-                    className={`h-8 w-8 rounded border text-sm ${quickCount === n ? 'bg-muted' : ''}`}
+                    className={clsx(
+                      styles.quickCountButton,
+                      quickCount === n && styles.quickCountButtonActive,
+                    )}
                     onClick={() => setQuickCount(n)}
                     aria-label={`Set players to ${n}`}
                   >
@@ -315,12 +313,12 @@ export default function SinglePlayerPage() {
                 ))}
               </div>
               <button
-                className="w-full rounded border px-3 py-2 hover:bg-muted/20"
+                className={styles.secondaryAction}
                 onClick={async () => {
                   const rid = uuid();
                   const name = 'Single Player';
                   const ids: string[] = [];
-                  // First is the human
+                  // Ensure the human player is first in the quick start roster.
                   const humanId = uuid();
                   ids.push(humanId);
                   const evts = [events.rosterCreated({ rosterId: rid, name, type: 'single' })];
