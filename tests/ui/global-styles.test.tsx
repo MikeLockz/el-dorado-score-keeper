@@ -18,7 +18,7 @@ describe('global styles', () => {
   it('defines CSS custom properties for both themes', () => {
     expect(compiledCss).toContain(':root {');
     expect(compiledCss).toContain('--color-background');
-    expect(compiledCss).toContain(":root[data-theme=dark]");
+    expect(compiledCss).toContain(':root[data-theme=dark]');
   });
 
   it('keeps legacy short aliases mapped to semantic variables', () => {

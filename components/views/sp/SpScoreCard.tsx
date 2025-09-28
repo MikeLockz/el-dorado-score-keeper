@@ -31,11 +31,7 @@ export default function SpScoreCard({ rounds, totals, players }: Props) {
           <caption className={styles.visuallyHidden}>Score card history</caption>
           <thead className={styles.tableHead}>
             <tr className={styles.tableRow}>
-              <th
-                scope="col"
-                className={styles.tableHeadCell}
-                rowSpan={2}
-              >
+              <th scope="col" className={styles.tableHeadCell} rowSpan={2}>
                 Round
               </th>
               {players.map((player) => (
@@ -54,30 +50,21 @@ export default function SpScoreCard({ rounds, totals, players }: Props) {
                 <th
                   key={`head-${player.id}-bid`}
                   scope="col"
-                  className={clsx(
-                    styles.tableHeadCell,
-                    styles.tableHeadCellNumeric,
-                  )}
+                  className={clsx(styles.tableHeadCell, styles.tableHeadCellNumeric)}
                 >
                   <span className={styles.tableHeadSubLabel}>Bid</span>
                 </th>,
                 <th
                   key={`head-${player.id}-taken`}
                   scope="col"
-                  className={clsx(
-                    styles.tableHeadCell,
-                    styles.tableHeadCellNumeric,
-                  )}
+                  className={clsx(styles.tableHeadCell, styles.tableHeadCellNumeric)}
                 >
                   <span className={styles.tableHeadSubLabel}>Took</span>
                 </th>,
                 <th
                   key={`head-${player.id}-score`}
                   scope="col"
-                  className={clsx(
-                    styles.tableHeadCell,
-                    styles.tableHeadCellNumeric,
-                  )}
+                  className={clsx(styles.tableHeadCell, styles.tableHeadCellNumeric)}
                 >
                   <span className={styles.tableHeadSubLabel}>Round</span>
                 </th>,

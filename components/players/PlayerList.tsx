@@ -46,13 +46,9 @@ export default function PlayerList() {
     <Card className={styles.card}>
       <div className={styles.grid}>
         <div className={styles.headerCell}>Player</div>
-        <div className={clsx(styles.headerCell, styles.headerCellActions)}>
-          Actions
-        </div>
+        <div className={clsx(styles.headerCell, styles.headerCellActions)}>Actions</div>
         {ready && !minReached && players.length >= 3 && (
-          <div className={styles.tipRow}>
-            Tip: drag names to reorder
-          </div>
+          <div className={styles.tipRow}>Tip: drag names to reorder</div>
         )}
         {ready ? (
           <>

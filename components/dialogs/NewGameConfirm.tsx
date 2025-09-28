@@ -67,9 +67,7 @@ function NewGameConfirmDialog({
       <DialogContent showCloseButton={false} className={styles.content}>
         <DialogHeader>
           <DialogTitle>{merged.title}</DialogTitle>
-          <DialogDescription className={styles.description}>
-            {merged.description}
-          </DialogDescription>
+          <DialogDescription className={styles.description}>{merged.description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>

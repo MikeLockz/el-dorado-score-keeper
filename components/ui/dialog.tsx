@@ -54,10 +54,7 @@ function DialogContent({
       >
         {children}
         {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            className={clsx(styles.closeButton)}
-          >
+          <DialogPrimitive.Close data-slot="dialog-close" className={clsx(styles.closeButton)}>
             <XIcon />
             <span className={styles.visuallyHidden}>Close</span>
           </DialogPrimitive.Close>
@@ -69,21 +66,13 @@ function DialogContent({
 
 function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
-    <div
-      data-slot="dialog-header"
-      className={clsx(styles.dialogHeader, className)}
-      {...props}
-    />
+    <div data-slot="dialog-header" className={clsx(styles.dialogHeader, className)} {...props} />
   );
 }
 
 function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return (
-    <div
-      data-slot="dialog-footer"
-      className={clsx(styles.dialogFooter, className)}
-      {...props}
-    />
+    <div data-slot="dialog-footer" className={clsx(styles.dialogFooter, className)} {...props} />
   );
 }
 

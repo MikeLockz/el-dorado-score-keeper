@@ -75,7 +75,7 @@ export default function SpRoundSummary(props: {
         <div className={styles.autoMessage}>
           {autoCanceled ? 'Auto-advance canceled' : `Auto-advance in ${autoSecs}s… (tap to cancel)`}
         </div>
-        
+
         <ScorecardGrid
           columns={scoreCardGrid.columns}
           rounds={scoreCardGrid.rounds}
@@ -85,11 +85,7 @@ export default function SpRoundSummary(props: {
       </main>
       <nav className={styles.actionsBar}>
         <button />
-        <button
-          className={styles.primaryButton}
-          onClick={onContinue}
-          disabled={!!disabled}
-        >
+        <button className={styles.primaryButton} onClick={onContinue} disabled={!!disabled}>
           {isLastRound ? 'Finish Game' : 'Next Round'}
         </button>
       </nav>

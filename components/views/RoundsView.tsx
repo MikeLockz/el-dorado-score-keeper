@@ -154,7 +154,10 @@ export default function RoundsView() {
             <div className={styles.completeControls}>
               <button
                 type="button"
-                className={clsx(styles.completeButton, made === true && styles.completeButtonActive)}
+                className={clsx(
+                  styles.completeButton,
+                  made === true && styles.completeButtonActive,
+                )}
                 onClick={() => toggleMade(roundNum, playerId, true)}
                 aria-pressed={made === true}
                 aria-label={`Mark made for ${playerName}`}
@@ -185,9 +188,7 @@ export default function RoundsView() {
             </div>
             <div className={styles.scoredTotals}>
               <span
-                className={clsx(
-                  made ? styles.scoredValuePositive : styles.scoredValueNegative,
-                )}
+                className={clsx(made ? styles.scoredValuePositive : styles.scoredValueNegative)}
               >
                 {(made ? 1 : -1) * (5 + bid)}
               </span>
@@ -242,14 +243,9 @@ export default function RoundsView() {
           className={styles.gridHeader}
           style={{ gridTemplateColumns: `3rem repeat(${players.length}, 1fr)` }}
         >
-          <div className={styles.gridHeaderCell}>
-            Rd
-          </div>
+          <div className={styles.gridHeaderCell}>Rd</div>
           {players.map((p) => (
-            <div
-              key={p.id}
-              className={styles.gridHeaderCell}
-            >
+            <div key={p.id} className={styles.gridHeaderCell}>
               {p.name.substring(0, 2)}
             </div>
           ))}

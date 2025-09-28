@@ -30,7 +30,9 @@
   padding-inline: spacing.spacing('space-2');
   padding-block: spacing.spacing('space-1');
   background: color-mix(in oklch, var(--card) 60%, transparent);
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .rowWinner {

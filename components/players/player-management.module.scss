@@ -52,7 +52,9 @@
   color: var(--color-primary);
   text-decoration: none;
   text-underline-offset: 0.25rem;
-  transition: color 160ms ease, text-decoration-color 160ms ease;
+  transition:
+    color 160ms ease,
+    text-decoration-color 160ms ease;
 
   &:hover,
   &:focus-visible {
@@ -108,7 +110,9 @@
   flex-direction: column;
   gap: spacing.spacing('space-3');
   padding: spacing.spacing('space-3');
-  transition: background-color 160ms ease, opacity 160ms ease;
+  transition:
+    background-color 160ms ease,
+    opacity 160ms ease;
 }
 
 .playerRowDraggable {
@@ -126,7 +130,9 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .playerRow {
-    transition: background-color 160ms ease, opacity 160ms ease;
+    transition:
+      background-color 160ms ease,
+      opacity 160ms ease;
   }
 }
 

@@ -21,9 +21,9 @@ export default function RulesPage() {
           <ol className={styles.sectionListOrdered}>
             <li>
               <span className={styles.listLabel}>Bidding</span>: Each player sets a bid from 0 up to
-              the round’s trick count. Bidding proceeds in table order starting with the player after
-              the dealer; the dealer bids last. This is the same order as who plays first in the
-              round.
+              the round’s trick count. Bidding proceeds in table order starting with the player
+              after the dealer; the dealer bids last. This is the same order as who plays first in
+              the round.
             </li>
             <li>
               <span className={styles.listLabel}>Complete</span>: After play, mark for each player

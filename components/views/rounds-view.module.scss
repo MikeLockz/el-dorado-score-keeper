@@ -71,7 +71,9 @@
   justify-content: center;
   gap: spacing.spacing('space-1');
   cursor: pointer;
-  transition: background-color 160ms ease, color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
 }
 
 .roundStateValue {
@@ -173,7 +175,9 @@
   border: 1px solid color-mix(in oklch, var(--color-status-bidding) 45%, transparent);
   background: color-mix(in oklch, var(--card) 85%, transparent);
   color: var(--color-status-bidding-foreground);
-  transition: background-color 160ms ease, color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
 
   &:hover:not(:disabled) {
     background: color-mix(in oklch, var(--color-status-bidding) 25%, transparent);
@@ -241,7 +245,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 160ms ease, color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
 
   &:hover:not(:disabled) {
     background: color-mix(in oklch, var(--color-status-complete) 25%, transparent);

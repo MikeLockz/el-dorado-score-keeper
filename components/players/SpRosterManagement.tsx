@@ -88,9 +88,7 @@ export default function SpRosterManagement() {
       <div className={styles.header}>
         <div className={styles.headerInfo}>
           <div className={styles.headerTitle}>Single Player Roster</div>
-          <div className={styles.headerDescription}>
-            Manage players used by Single Player mode.
-          </div>
+          <div className={styles.headerDescription}>Manage players used by Single Player mode.</div>
         </div>
         <div className={styles.headerActions}>
           <Button
@@ -144,13 +142,9 @@ export default function SpRosterManagement() {
             </div>
           </div>
           <div className={styles.headerCell}>Player</div>
-          <div className={clsx(styles.headerCell, styles.headerCellActions)}>
-            Actions
-          </div>
+          <div className={clsx(styles.headerCell, styles.headerCellActions)}>Actions</div>
           {ready && !minReached && players.length >= 3 && (
-            <div className={styles.tipRow}>
-              Tip: drag names to reorder
-            </div>
+            <div className={styles.tipRow}>Tip: drag names to reorder</div>
           )}
           {ready ? (
             <>
@@ -227,9 +221,7 @@ export default function SpRosterManagement() {
                 </Fragment>
               ))}
               {players.length === 0 && (
-                <div className={styles.emptyRow}>
-                  Add players to get started.
-                </div>
+                <div className={styles.emptyRow}>Add players to get started.</div>
               )}
             </>
           ) : (
@@ -241,7 +233,12 @@ export default function SpRosterManagement() {
                     <Button size="sm" variant="outline" disabled className={styles.actionButton}>
                       <Edit aria-hidden="true" />
                     </Button>
-                    <Button size="sm" variant="destructive" disabled className={styles.actionButton}>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled
+                      className={styles.actionButton}
+                    >
                       <Trash aria-hidden="true" />
                     </Button>
                   </div>

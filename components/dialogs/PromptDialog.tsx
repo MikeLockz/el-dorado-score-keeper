@@ -115,7 +115,10 @@ function PromptDialogContent({
           <DialogHeader>
             <DialogTitle>{options?.title}</DialogTitle>
             <DialogDescription
-              className={clsx(styles.description, !hasExplicitDescription && styles.descriptionHidden)}
+              className={clsx(
+                styles.description,
+                !hasExplicitDescription && styles.descriptionHidden,
+              )}
             >
               {fallbackDescription}
             </DialogDescription>

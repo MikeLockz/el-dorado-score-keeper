@@ -126,7 +126,9 @@
 .playerCell {
   display: grid;
   grid-template-columns: 1fr;
-  transition: background-color 200ms ease, border-color 200ms ease;
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease;
   outline: none;
 
   &:focus-visible {
@@ -237,7 +239,10 @@
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
-  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
 }
 
 .bidAdjustButton {
@@ -295,7 +300,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 
   &:hover:not(:disabled) {
     background: var(--card);

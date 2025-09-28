@@ -520,7 +520,10 @@ export default function ScorecardGrid({
                         <div className={styles.completeControls}>
                           <button
                             type="button"
-                            className={clsx(styles.toggleButton, made === true && styles.toggleButtonMade)}
+                            className={clsx(
+                              styles.toggleButton,
+                              made === true && styles.toggleButtonMade,
+                            )}
                             onClick={() => {
                               if (disableInputs || !onToggleMade) return;
                               onToggleMade(round.round, column.id, true);
@@ -533,7 +536,10 @@ export default function ScorecardGrid({
                           </button>
                           <button
                             type="button"
-                            className={clsx(styles.toggleButton, made === false && styles.toggleButtonMiss)}
+                            className={clsx(
+                              styles.toggleButton,
+                              made === false && styles.toggleButtonMiss,
+                            )}
                             onClick={() => {
                               if (disableInputs || !onToggleMade) return;
                               onToggleMade(round.round, column.id, false);
@@ -561,7 +567,9 @@ export default function ScorecardGrid({
                                   <span className={styles.detailLabel}>Round:</span>
                                   <span
                                     className={clsx(
-                                      made ? styles.detailBadgePositive : styles.detailBadgeNegative,
+                                      made
+                                        ? styles.detailBadgePositive
+                                        : styles.detailBadgeNegative,
                                     )}
                                   >
                                     {roundDelta(bid, made)}

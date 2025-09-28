@@ -20,8 +20,10 @@ const rule = {
     },
     schema: [],
     messages: {
-      relative: 'Sass modules must be imported using a relative path scoped to the component directory.',
-      sibling: 'Sass modules must live in the same folder as their component. Move the stylesheet next to the importer or create a local alias.',
+      relative:
+        'Sass modules must be imported using a relative path scoped to the component directory.',
+      sibling:
+        'Sass modules must live in the same folder as their component. Move the stylesheet next to the importer or create a local alias.',
     },
   },
   create(context) {

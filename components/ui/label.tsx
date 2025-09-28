@@ -8,11 +8,7 @@ import styles from './label.module.scss';
 
 function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimitive.Root>) {
   return (
-    <LabelPrimitive.Root
-      data-slot="label"
-      className={clsx(styles.label, className)}
-      {...props}
-    />
+    <LabelPrimitive.Root data-slot="label" className={clsx(styles.label, className)} {...props} />
   );
 }
 

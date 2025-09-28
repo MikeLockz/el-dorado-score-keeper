@@ -35,10 +35,12 @@ body {
   cursor: pointer;
 }
 
-:where(button:disabled,
+:where(
+  button:disabled,
   [type='button']:disabled,
   [type='submit']:disabled,
-  [aria-disabled='true']) {
+  [aria-disabled='true']
+) {
   cursor: not-allowed;
 }
 

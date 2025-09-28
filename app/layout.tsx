@@ -50,10 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className={styles.body}>
         {/* Skip link for keyboard/screen reader users */}
-        <a
-          href="#main"
-          className={styles.skipLink}
-        >
+        <a href="#main" className={styles.skipLink}>
           Skip to content
         </a>
         <ThemeProvider

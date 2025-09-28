@@ -345,7 +345,9 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
                 {reveal && (
                   <div role="status" aria-live="polite" className={styles.sidebarReveal}>
                     <span className={styles.sidebarRevealLabel}>Hand winner:</span>
-                    <span className={styles.sidebarRevealValue}>{playerLabel(reveal.winnerId)}</span>
+                    <span className={styles.sidebarRevealValue}>
+                      {playerLabel(reveal.winnerId)}
+                    </span>
                   </div>
                 )}
               </section>

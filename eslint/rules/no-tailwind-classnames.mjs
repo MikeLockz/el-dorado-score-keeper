@@ -94,7 +94,8 @@ const rule = {
     },
     schema: [],
     messages: {
-      tailwindToken: 'Tailwind utility "{{token}}" is not allowed. Use scoped Sass modules or shared mixins instead.',
+      tailwindToken:
+        'Tailwind utility "{{token}}" is not allowed. Use scoped Sass modules or shared mixins instead.',
     },
   },
   create(context) {

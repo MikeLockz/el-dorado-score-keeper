@@ -38,15 +38,12 @@ export default function GamesPage() {
     void load();
   }, [load]);
 
-  const [menuOpen, setMenuOpen] = React.useState<
-    | null
-    | {
-        id: string;
-        x: number;
-        y: number;
-        openUp?: boolean;
-      }
-  >(null);
+  const [menuOpen, setMenuOpen] = React.useState<null | {
+    id: string;
+    x: number;
+    y: number;
+    openUp?: boolean;
+  }>(null);
   const [pendingAction, setPendingAction] = React.useState<PendingAction | null>(null);
   const [optimisticState, setOptimisticState] = React.useState<
     Record<string, 'restoring' | 'deleting'>
@@ -196,7 +193,9 @@ export default function GamesPage() {
                             <div className={styles.titleMeta}>{formatDateTime(g.finishedAt)}</div>
                           </div>
                         </td>
-                        <td className={clsx(styles.cell, styles.cellCenter)}>{g.summary.players}</td>
+                        <td className={clsx(styles.cell, styles.cellCenter)}>
+                          {g.summary.players}
+                        </td>
                         <td className={clsx(styles.cell, styles.cellCenter, styles.cellEmphasis)}>
                           {g.summary.winnerName ?? '-'}
                         </td>

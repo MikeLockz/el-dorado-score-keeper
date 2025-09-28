@@ -89,7 +89,13 @@ function formatMap(value: Record<string, unknown>, indentLevel = 1): string {
 }
 
 function buildColorsScss(tokens: TokenBag['colors']): string {
-  const sections: string[] = [HEADER, "@use 'sass:map';", "@use 'sass:string';", '', '$color-tokens: ('];
+  const sections: string[] = [
+    HEADER,
+    "@use 'sass:map';",
+    "@use 'sass:string';",
+    '',
+    '$color-tokens: (',
+  ];
   for (const themeName of COLOR_THEME_ORDER) {
     const mapForTheme = tokens[themeName as keyof TokenBag['colors']];
     if (!mapForTheme) continue;
