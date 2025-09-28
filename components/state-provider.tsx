@@ -107,12 +107,12 @@ export function StateProvider({
     };
   }, []);
 
-  async function append(e: AppEvent) {
+  const append = React.useCallback(async (e: AppEvent) => {
     if (!instRef.current) throw new Error('State instance not ready');
     return instRef.current.append(e);
-  }
+  }, []);
 
-  async function appendMany(evts: AppEvent[]) {
+  const appendMany = React.useCallback(async (evts: AppEvent[]) => {
     if (!instRef.current) throw new Error('State instance not ready');
     setPendingBatches((n) => n + 1);
     try {
@@ -120,7 +120,7 @@ export function StateProvider({
     } finally {
       setPendingBatches((n) => Math.max(0, n - 1));
     }
-  }
+  }, []);
 
   async function previewAt(h: number): Promise<AppState> {
     if (h === height) return state;

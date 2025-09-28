@@ -91,7 +91,7 @@
   @include state.transition-colors();
 
   &:hover {
-    color: var(--primary-foreground);
+    color: var(--foreground);
     text-decoration: underline;
   }
 

@@ -1,14 +1,40 @@
-import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { waitFor } from '@testing-library/react';
 
 import type { AppState, RoundData } from '@/lib/state/types';
+import { INITIAL_STATE } from '@/lib/state/types';
 
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 
-const stateProviderModule = await import('@/components/state-provider');
-const useAppStateMock = vi.spyOn(stateProviderModule, 'useAppState');
+const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
+
+function cloneState<T>(value: T): T {
+  try {
+    return structuredClone(value);
+  } catch {
+    return JSON.parse(JSON.stringify(value)) as T;
+  }
+}
+
+function createDefaultMockContext(): MockAppStateHook {
+  const state = cloneState(INITIAL_STATE);
+  return {
+    state,
+    height: 0,
+    ready: true,
+    append: vi.fn(async () => 0),
+    appendMany: vi.fn(async () => 0),
+    isBatchPending: false,
+    previewAt: async () => state,
+    warnings: [],
+    clearWarnings: () => {},
+    timeTravelHeight: null,
+    setTimeTravelHeight: () => {},
+    timeTraveling: false,
+  } as MockAppStateHook;
+}
 
 const mockBatch = [{ type: 'sp/trick/cleared', payload: {} }];
 
@@ -127,7 +153,7 @@ suite('SinglePlayerDesktop view', () => {
       setTimeTravelHeight: () => {},
       timeTraveling: false,
     } as MockAppStateHook;
-    useAppStateMock.mockReturnValue(mockContext);
+    setMockAppState(mockContext);
     container = document.createElement('div');
     document.body.appendChild(container);
     root = ReactDOM.createRoot(container);
@@ -138,11 +164,7 @@ suite('SinglePlayerDesktop view', () => {
     if (container) container.remove();
     container = null;
     root = null;
-    useAppStateMock.mockReset();
-  });
-
-  afterAll(() => {
-    useAppStateMock.mockRestore();
+    setMockAppState(createDefaultMockContext());
   });
 
   it('renders desktop overview and routes actions through shared view model', async () => {

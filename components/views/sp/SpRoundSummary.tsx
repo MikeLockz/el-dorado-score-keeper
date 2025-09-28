@@ -75,25 +75,16 @@ export default function SpRoundSummary(props: {
         <div className={styles.autoMessage}>
           {autoCanceled ? 'Auto-advance canceled' : `Auto-advance in ${autoSecs}s… (tap to cancel)`}
         </div>
-        {scoreCardGrid && scoreCardGrid.rounds.length > 0 ? (
-          <ScorecardGrid
-            columns={scoreCardGrid.columns}
-            rounds={scoreCardGrid.rounds}
-            disableInputs
-            disableRoundStateCycling
-          />
-        ) : (
-          <SpScoreCard
-            rounds={scoreCardRounds}
-            totals={scoreCardTotals}
-            players={players.map((p) => ({ id: p.id, name: p.name }))}
-          />
-        )}
+        
+        <ScorecardGrid
+          columns={scoreCardGrid.columns}
+          rounds={scoreCardGrid.rounds}
+          disableInputs
+          disableRoundStateCycling
+        />
       </main>
       <nav className={styles.actionsBar}>
-        <button className={styles.detailsButton} aria-label="Round details" onClick={onCancelAuto}>
-          Details
-        </button>
+        <button />
         <button
           className={styles.primaryButton}
           onClick={onContinue}

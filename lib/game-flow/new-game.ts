@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { archiveCurrentGameAndReset } from '@/lib/state';
 import type { AppState } from '@/lib/state';
-import { logEvent } from '@/lib/client-log';
+import * as clientLog from '@/lib/client-log';
 import { useAppState } from '@/components/state-provider';
 import { useNewGameConfirm } from '@/components/dialogs/NewGameConfirm';
 
@@ -90,6 +89,11 @@ const DEFAULT_TELEMETRY_EVENT_NAMES: Record<NewGameTelemetryEvent, string> = {
   skip: 'new_game_skipped',
   error: 'new_game_error',
 };
+
+async function archiveCurrentGameAndResetLive(): Promise<void> {
+  const mod = await import('@/lib/state');
+  await mod.archiveCurrentGameAndReset();
+}
 
 export function hasScorecardProgress(state: AppState): boolean {
   const anyScores = Object.values(state.scores ?? {}).some(
@@ -193,7 +197,7 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
         }
         const eventName = config.events?.[event] ?? DEFAULT_TELEMETRY_EVENT_NAMES[event];
         if (!eventName) return;
-        logEvent(eventName, payload);
+        clientLog.logEvent(eventName, payload);
       } catch {}
     },
     [dbName, requireIdle],
@@ -312,7 +316,7 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
           return Date.now();
         };
         const startedAt = mark();
-        await archiveCurrentGameAndReset();
+        await archiveCurrentGameAndResetLive();
         const finishedAt = mark();
         const durationMs = Math.max(0, finishedAt - startedAt);
 
