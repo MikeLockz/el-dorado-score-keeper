@@ -49,6 +49,14 @@ NEXT_PUBLIC_APP_ENV=production               # optional environment tag
 
 - Leave the flag disabled (`false`) in local setups by default; enable it when you want to inspect HyperDX events.
 - Remove any legacy `OBSERVABILITY_ENABLED`, `HYPERDX_API_KEY`, or server-only variables—they no longer have an effect.
+- HyperDX blocks `localhost` origins. When you want to exercise telemetry locally, run the lightweight proxy (`pnpm observability:proxy`) and point `NEXT_PUBLIC_HDX_HOST` to `http://localhost:5050` (or your chosen port). Optional overrides:
+
+```
+HDX_PROXY_PORT=5050
+HDX_PROXY_TARGET=https://in.hyperdx.io
+```
+
+- The proxy injects permissive CORS headers and forwards requests to the upstream ingestion host.
 
 ---
 
