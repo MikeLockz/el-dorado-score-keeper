@@ -210,7 +210,7 @@ export function StateProvider({
         console.log('[app state]', JSON.parse(JSON.stringify(ttState ?? state)));
       globalThis.__SET_TT = (h: number | null) => setTtHeight(h);
     } catch {}
-  }, [state, ttState, height]);
+  }, [state, ttState, height, append, appendMany, setTtHeight]);
 
   return <StateCtx.Provider value={value}>{children}</StateCtx.Provider>;
 }

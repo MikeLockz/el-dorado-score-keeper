@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import path from 'node:path';
+import path from 'path';
 import { compileString } from 'sass';
 
 const stylesDir = path.resolve(__dirname, '../../../styles');

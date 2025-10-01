@@ -4,6 +4,7 @@ import { useAppState } from '@/components/state-provider';
 import type { AppState, RoundState } from '@/lib/state';
 import { exportBundle } from '@/lib/state';
 import { formatTime } from '@/lib/format';
+import { captureBrowserMessage } from '@/lib/observability/browser';
 
 export default function Devtools() {
   const {
@@ -209,7 +210,11 @@ export default function Devtools() {
                   try {
                     await navigator.clipboard.writeText(JSON.stringify(state, null, 2));
                   } catch (e) {
-                    console.warn('copy state failed', e);
+                    const reason = e instanceof Error ? e.message : 'Unknown error';
+                    captureBrowserMessage('devtools.copy-state.failed', {
+                      level: 'warn',
+                      attributes: { reason },
+                    });
                   }
                 })();
               }}
@@ -231,7 +236,11 @@ export default function Devtools() {
                     const bundle = await exportBundle('app-db');
                     await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
                   } catch (e) {
-                    console.warn('copy bundle failed', e);
+                    const reason = e instanceof Error ? e.message : 'Unknown error';
+                    captureBrowserMessage('devtools.copy-bundle.failed', {
+                      level: 'warn',
+                      attributes: { reason },
+                    });
                   }
                 })();
               }}

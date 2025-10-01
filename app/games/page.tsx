@@ -8,12 +8,9 @@ import { Button, Card, Skeleton } from '@/components/ui';
 import { Loader2, MoreHorizontal } from 'lucide-react';
 import { type GameRecord, listGames, deleteGame, restoreGame, deriveGameRoute } from '@/lib/state';
 import { formatDateTime } from '@/lib/format';
-import {
-  useNewGameRequest,
-  hasScorecardProgress,
-  hasSinglePlayerProgress,
-} from '@/lib/game-flow';
+import { useNewGameRequest, hasScorecardProgress, hasSinglePlayerProgress } from '@/lib/game-flow';
 import { useAppState } from '@/components/state-provider';
+import { captureBrowserException, captureBrowserMessage } from '@/lib/observability/browser';
 
 import styles from './page.module.scss';
 
@@ -48,15 +45,26 @@ export default function GamesPage() {
     onCancelled: handleResumeCurrentGame,
   });
 
+  const describeError = React.useCallback((error: unknown) => {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'string') return error;
+    return 'Unknown error';
+  }, []);
+
   const load = React.useCallback(async () => {
     try {
       const list = await listGames();
       setGames(list);
-    } catch (error) {
-      console.warn('Failed to load games', error);
+    } catch (error: unknown) {
+      captureBrowserMessage('games.load.failed', {
+        level: 'warn',
+        attributes: {
+          reason: describeError(error),
+        },
+      });
       setGames([]);
     }
-  }, []);
+  }, [describeError]);
 
   React.useEffect(() => {
     void load();
@@ -119,8 +127,13 @@ export default function GamesPage() {
         setStatusMessage(`Deleted "${title}".`);
         await load();
       }
-    } catch (error) {
-      console.error(`Failed to ${action.type} game`, error);
+    } catch (error: unknown) {
+      captureBrowserException(error, {
+        scope: 'games.page',
+        action: action.type,
+        gameId: action.game.id,
+        reason: describeError(error),
+      });
       setStatusMessage(
         `Unable to ${action.type === 'restore' ? 'restore' : 'delete'} "${title}". Please try again.`,
       );
@@ -132,7 +145,7 @@ export default function GamesPage() {
         return next;
       });
     }
-  }, [pendingAction, load, router]);
+  }, [pendingAction, load, router, describeError]);
 
   return (
     <>

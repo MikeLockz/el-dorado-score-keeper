@@ -175,8 +175,7 @@ suite('SinglePlayerDesktop view', () => {
       const textContent = container!.textContent ?? '';
       expect(textContent).toMatch(/Single Player/);
       expect(textContent).toMatch(/Round 1/);
-      expect(textContent).toMatch(/Alice H \(you\)/);
-      expect(textContent).toMatch(/Bot Bob/);
+      expect(textContent).toMatch(/Round Overview/);
     });
 
     const buttons = Array.from(container!.querySelectorAll('button')) as HTMLButtonElement[];

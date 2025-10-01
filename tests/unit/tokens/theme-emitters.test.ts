@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readFile } from 'fs/promises';
+import path from 'path';
 import tokens from '../../../styles/tokens.json';
 
 function formatTheme(theme: Record<string, string>): string {

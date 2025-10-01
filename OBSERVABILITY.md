@@ -1,288 +1,98 @@
-# HyperDX Observability Integration
+# HyperDX Observability Integration (Browser-Only)
 
-This document describes how to wire HyperDX into the El Dorado score keeper so we gain end-to-end visibility (traces, logs, metrics, and frontend events) without shipping personally identifiable information. The integration leans on HyperDX's managed OpenTelemetry collector and the official Next.js helpers.
-
----
-
-## Goals and Scope
-
-- Surface actionable telemetry for the Next.js 15 app, background jobs, and the Cloudflare analytics relay.
-- Unify logs, traces, and metrics so we can pivot between them during incident response.
-- Capture high-signal browser events (navigations, unhandled errors, slow interactions) in the same workspace as backend traces.
-- Keep the integration opt-in per environment via environment variables; no telemetry is emitted when credentials are absent.
+The El Dorado score keeper now runs entirely as a client-side application. HyperDX instrumentation is confined to the browser bundle so no Node.js runtime, OTLP collector, or `/api` endpoints are required. This document captures the current shape of the integration and how to work with it.
 
 ---
 
-## Components at a Glance
+## Goals
 
-| Area | Instrumentation | Expected Signals |
-| ---- | --------------- | ---------------- |
-| Next.js server (Node runtime) | HyperDX OpenTelemetry SDK (`@hyperdx/node-next`) | HTTP traces, route-level spans, custom spans, structured logs |
-| Next.js browser bundle | HyperDX browser SDK (`@hyperdx/browser`) | Page views, UX timings, console errors, client logs |
-| Edge runtime / route handlers | Same OTel init as Node; spans exported via OTLP | Edge handler traces, cold start metrics |
-| Cloudflare analytics relay | OTel SDK for Workers (`@hyperdx/otel-worker`) | Worker request traces, fetch errors |
-| CI & local dev | HyperDX CLI (`@hyperdx/cli`) for smoke validation | Local telemetry forwarding, redaction checks |
-
-> Library names reflect the current HyperDX distribution. Verify versions with `pnpm view <package> versions` before landing changes.
+- Track high-signal user flows (page views, CTA clicks, unhandled errors) directly from the browser.
+- Keep telemetry optional per environment (`NEXT_PUBLIC_OBSERVABILITY_ENABLED`).
+- Avoid shipping personally identifiable information and keep payloads lightweight.
+- Preserve developer ergonomics in local dev, CI, and tests without requiring server mocks.
 
 ---
 
-## 1. Dependencies
+## Architecture Overview
 
-Install the SDKs (runtime + browser) and the CLI helper. Lock exact versions in `package.json` to avoid surprise upgrades.
+| Area                   | Implementation                     | Notes                                                                     |
+| ---------------------- | ---------------------------------- | ------------------------------------------------------------------------- |
+| Next.js browser bundle | `@hyperdx/browser` via provider    | Lazy-loaded on the client, no impact when disabled or during static export |
+| Client logging         | `lib/client-log.ts` + console fallbacks | Emits structured events (`client.error`, etc.) without hitting `/api`    |
+| Domain spans           | `lib/observability/spans.ts`       | Reuses the HyperDX browser SDK when enabled, otherwise devolves to no-ops |
+
+There is no server runtime instrumentation, no `/api/log` route, and no dependency on `@hyperdx/node-next` or other Node-specific packages.
+
+---
+
+## Dependencies
+
+Install only the browser SDK (already present in `package.json`):
 
 ```bash
-pnpm add -E @hyperdx/node-next @hyperdx/browser
-pnpm add -D -E @hyperdx/cli
+pnpm add -E @hyperdx/browser
 ```
 
-For Cloudflare Workers:
-
-```bash
-pnpm add -w -E @hyperdx/otel-worker --filter cloudflare-analytics-worker...
-```
-
-> Use `-E` to record the full semver and keep dependency updates intentional.
+The CLI (`@hyperdx/cli`) remains available for optional smoke testing but is not required for core functionality.
 
 ---
 
-## 2. Environment Variables
-
-Add the following variables to each deployment platform. Never commit secrets.
+## Environment Variables
 
 ```
-# Server / OTLP credentials
-HYPERDX_API_KEY=hdx_prod_integration_key
-HYPERDX_INGEST_URL=https://in-otel.hyperdx.io/v1/traces   # leave default if unused
-HYPERDX_ENV=production
-HYPERDX_SERVICE_NAME=el-dorado-score-keeper
-
-# Browser SDK
+NEXT_PUBLIC_OBSERVABILITY_ENABLED=true
 NEXT_PUBLIC_HDX_API_KEY=hdx_browser_project_key
-NEXT_PUBLIC_HDX_HOST=https://in.hyperdx.io   # optional override
-NEXT_PUBLIC_APP_ENV=production
-
-# Worker (optional override if using a dedicated key)
-CLOUDFLARE_HDX_API_KEY=hdx_worker_key
-CLOUDFLARE_HDX_SERVICE_NAME=analytics-relay
+NEXT_PUBLIC_HDX_HOST=https://in.hyperdx.io   # optional
+NEXT_PUBLIC_HDX_SERVICE_NAME=el-dorado-score-keeper-web   # optional override
+NEXT_PUBLIC_APP_ENV=production               # optional environment tag
 ```
 
-- Local development: create `.env.local` and `.dev.vars` (for Wrangler) with sandbox keys supplied by HyperDX.
-- CI: store secrets in the GitHub Actions environment so preview deployments stream telemetry.
+- Leave the flag disabled (`false`) in local setups by default; enable it when you want to inspect HyperDX events.
+- Remove any legacy `OBSERVABILITY_ENABLED`, `HYPERDX_API_KEY`, or server-only variables—they no longer have an effect.
 
 ---
 
-## 3. Server Instrumentation (Next.js)
+## Browser Provider
 
-1. Create `instrumentation.ts` at the repo root (Next.js auto-runs this before bootstrapping routes).
-
-   ```ts
-   // instrumentation.ts
-   import { registerOTel } from '@hyperdx/node-next';
-   import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
-
-   export async function register() {
-     if (process.env.NODE_ENV !== 'production') {
-       diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
-     }
-
-     if (!process.env.HYPERDX_API_KEY) {
-       return; // HyperDX disabled locally or in test runs
-     }
-
-     await registerOTel({
-       serviceName: process.env.HYPERDX_SERVICE_NAME ?? 'el-dorado-score-keeper',
-       environment: process.env.HYPERDX_ENV ?? process.env.NEXT_PUBLIC_APP_ENV ?? 'development',
-       apiKey: process.env.HYPERDX_API_KEY,
-       ingestUrl: process.env.HYPERDX_INGEST_URL,
-       captureHttpHeaders: ['user-agent', 'x-request-id'],
-       resourceAttributes: {
-         'service.version': process.env.OMMIT_SHA ?? process.env.GIT_COMMIT ?? 'dev',
-         'deployment.region': process.env.REGION ?? 'local',
-       },
-       enableConsoleInstrumentation: true,
-       enableFsInstrumentation: false,
-     });
-   }
-   ```
-
-2. Next.js automatically bundles the OTel SDK during build and boot. Keep the file tree flat (no `import` cycles) to ensure the registration runs before any route handler executes.
-
-3. Add a `prestart` hook to guard that instrumentation runs in production builds:
-
-   ```json
-   "scripts": {
-     "prestart": "node -e \"require('./instrumentation.ts')\"",
-     "start": "next start",
-     "dev": "next dev",
-     "build": "next build"
-   }
-   ```
-
-4. Standardize structured logging:
-
-   ```ts
-   // lib/log.ts (new)
-   import { telemetry } from '@hyperdx/node-next/log';
-
-   export const log = telemetry.createLogger({
-     service: process.env.HYPERDX_SERVICE_NAME ?? 'el-dorado-score-keeper',
-     version: process.env.COMMIT_SHA ?? 'dev',
-   });
-   ```
-
-   Replace `console.*` calls in API routes / server actions with `log.info`, `log.error`, etc. to ensure logs tie back to spans.
+- `app/hyperdx-provider.tsx` is a client component that wraps the app.
+- On first render (and whenever the path/search changes) it initialises `@hyperdx/browser` via `ensureBrowserTelemetry()`.
+- The provider tracks `page.viewed` with the current URL, title, and referrer. Duplicate page views are ignored.
+- Errors during initialisation are logged via `captureBrowserException` and retried when the provider renders again.
 
 ---
 
-## 4. Browser Instrumentation
+## Logging and Error Reporting
 
-1. Create a client-provider component. This mirrors the PostHog provider pattern already in the repo.
-
-   ```tsx
-   // app/hyperdx-provider.tsx
-   'use client';
-
-   import { PropsWithChildren, useEffect } from 'react';
-   import { init, captureException, captureMessage } from '@hyperdx/browser';
-   import { usePathname } from 'next/navigation';
-
-   const KEY = process.env.NEXT_PUBLIC_HDX_API_KEY;
-   const HOST = process.env.NEXT_PUBLIC_HDX_HOST ?? 'https://in.hyperdx.io';
-
-   export function HyperDXProvider({ children }: PropsWithChildren) {
-     const pathname = usePathname();
-
-     useEffect(() => {
-       if (!KEY) return;
-       init({
-         apiKey: KEY,
-         host: HOST,
-         service: 'el-dorado-score-keeper-web',
-         environment: process.env.NEXT_PUBLIC_APP_ENV ?? 'development',
-         captureConsole: ['error', 'warn'],
-         enablePerformance: true,
-       });
-     }, []);
-
-     useEffect(() => {
-       if (!KEY) return;
-       window.HDX?.track('page.viewed', { pathname });
-     }, [pathname]);
-
-     return children;
-   }
-
-   export { captureException, captureMessage };
-   ```
-
-2. Wrap the root layout:
-
-   ```tsx
-   // app/layout.tsx
-   import { HyperDXProvider } from './hyperdx-provider';
-
-   export default function RootLayout({ children }: { children: React.ReactNode }) {
-     return (
-       <html lang="en">
-         <body>
-           <HyperDXProvider>
-             {children}
-           </HyperDXProvider>
-         </body>
-       </html>
-     );
-   }
-   ```
-
-3. Replace ad-hoc `console.error` calls in client components with `captureException` so errors ship with stack traces and breadcrumbs.
-
-4. Optional: bridge to existing analytics events by forwarding PostHog actions to HyperDX (or conversely) when you want a unified funnel view.
+- `lib/client-log.ts` exposes `logEvent(type, attributes)` which:
+  - Resolves the active path (or `'unknown'` when `window` is unavailable).
+  - Tracks the event through `trackBrowserEvent`.
+  - Mirrors the payload to `console.info` in non-production builds for quick debugging.
+- `components/error-boundary.tsx` calls `captureBrowserException` and `logEvent('client.error', …)` when React surfaces an error. No network request is performed.
+- Other components can import the same helpers to capture warnings (`captureBrowserMessage`) or domain-specific events.
 
 ---
 
-## 5. Cloudflare Worker Instrumentation
+## Spans and Diagnostics
 
-1. Add the worker SDK:
-
-   ```ts
-   // cloudflare/analytics-worker/src/worker.ts
-   import { wrapFetch, createWorkerTelemetry } from '@hyperdx/otel-worker';
-
-   const telemetry = createWorkerTelemetry({
-     apiKey: CLOUDFLARE_HDX_API_KEY,
-     service: CLOUDFLARE_HDX_SERVICE_NAME ?? 'analytics-relay',
-     environment: HYPERDX_ENV ?? 'production',
-   });
-
-   export default {
-     async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-       return telemetry.trace('worker.fetch', async (span) => {
-         span.setAttribute('worker.route', new URL(request.url).pathname);
-         return wrapFetch(env, request, ctx);
-       });
-     },
-   } satisfies ExportedHandler<Env>;
-   ```
-
-2. Add secrets to Wrangler:
-
-   ```bash
-   wrangler secret put CLOUDFLARE_HDX_API_KEY
-   wrangler secret put CLOUDFLARE_HDX_SERVICE_NAME
-   ```
-
-3. Locally, run `pnpm exec hyperdx tunnel --service analytics-relay` while invoking the worker to stream traces into the dashboard.
+- `lib/observability/spans.ts` hosts helper utilities (`withSpan`, `recordSpanError`). These use the browser tracer when available.
+- When observability is disabled, the helpers still invoke callbacks but skip span creation and only log to the console in development for debugging.
+- Any errors outside of a browser context (e.g. Vitest running in Node) trigger a dev-mode warning instead of attempting to reach a server logger.
 
 ---
 
-## 6. Data Hygiene & PII Controls
+## Testing Strategy
 
-- Redact player names or free-form text before logging. Prefer identifiers already used in state (UUIDs, hashed keys).
-- Use HyperDX sampling rules to drop noisy spans (e.g., health checks). Start with 100% sampling, then tune.
-- Configure event mappers on the HyperDX UI to drop query parameters like `?token=`.
-- Ensure cookies and local storage values are excluded by leveraging the SDK's `attributeAllowList`.
-
----
-
-## 7. Dashboards, Alerts, and Runbooks
-
-1. **Dashboards**
-   - App health: request throughput, latency percentiles, error ratio, slowest routes.
-   - Frontend UX: Core Web Vitals, JS error counts, rage click heatmap.
-   - Worker: Slack relay success rate, retry counts, outbound latency to Slack.
-
-2. **Alerts**
-   - Page load P95 > 4000 ms for 5 minutes.
-   - API error rate > 2% for `/api/game/*`.
-   - Worker outbound failures > 5 in 10 minutes.
-
-3. **Runbooks**
-   - Link each alert to a Notion/markdown runbook that explains triage steps and HyperDX queries to run.
+- Unit tests stub the browser helper module (`@/lib/observability/browser`) to assert the correct telemetry calls without pulling in the real SDK.
+- Scripts and Vitest projects no longer reference Node-specific HyperDX packages, so tests run without additional mocks.
+- Playwright smoke tests can still enable the browser flag to verify end-to-end telemetry if desired.
 
 ---
 
-## 8. Verification Workflow
+## Operational Checklist
 
-1. `pnpm dev` with `.env.local` secrets -> confirm spans appear in HyperDX Live view.
-2. `pnpm test` should still pass; instrumentation must not break Vitest (no global side effects).
-3. Run a production build: `pnpm build && pnpm start`. Validate `register()` logs "HyperDX OTel registered" during boot.
-4. Exercise the Cloudflare worker via `wrangler dev` and check for traces grouped under `analytics-relay`.
+1. Enable `NEXT_PUBLIC_OBSERVABILITY_ENABLED` and `NEXT_PUBLIC_HDX_API_KEY` for the environment you want to observe.
+2. Deploy the static site (GitHub Pages, Netlify, etc.).
+3. Trigger common flows and verify events (`page.viewed`, `client.error`, domain spans) appear in HyperDX with the right attributes.
+4. Keep the SDK version pinned in `package.json` and update intentionally.
 
----
-
-## 9. Rollout Plan
-
-1. Land the server-side instrumentation behind feature flags. Default off until secrets exist.
-2. Deploy to preview environment with sandbox keys; verify dashboards.
-3. Switch production secrets in the deployment platform. Monitor error rates for regressions.
-4. After stabilization, enforce structured logging and add lint rule banning `console.*` on the server.
-
----
-
-## 10. FAQ
-
-- **Do we need a backend collector?** No. HyperDX provides a managed OTLP endpoint when you supply the API key.
-- **Will this affect bundle size?** The browser SDK adds ~12 KB gzipped. Lazy-load it if we notice LCP regressions.
-- **How do we disable telemetry for E2E tests?** Omit the env vars (default behavior) or set `NEXT_PUBLIC_APP_ENV=test`, then conditionally skip `init`.
-
+With the server footprint removed, the observability stack remains lightweight, browser-only, and compatible with fully static hosting.

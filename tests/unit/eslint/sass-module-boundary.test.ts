@@ -1,6 +1,6 @@
 import { describe, it } from 'vitest';
 import tsParser from '@typescript-eslint/parser';
-import path from 'node:path';
+import path from 'path';
 import { RuleTester } from 'eslint';
 import plugin from '../../../eslint/rules/sass-module-boundary.mjs';
 

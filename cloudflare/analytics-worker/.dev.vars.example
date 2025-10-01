@@ -1,0 +1,4 @@
+# HyperDX observability (Cloudflare worker)
+CLOUDFLARE_HDX_API_KEY= # secret
+CLOUDFLARE_HDX_SERVICE_NAME=analytics-relay
+CLOUDFLARE_HDX_ENV=development
