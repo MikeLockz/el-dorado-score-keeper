@@ -149,9 +149,7 @@ suite('Landing Page UI', () => {
       prefetch: vi.fn().mockResolvedValue(undefined),
     });
 
-    const confirmShow = vi
-      .fn<(options?: unknown) => Promise<boolean>>()
-      .mockResolvedValue(false);
+    const confirmShow = vi.fn<(options?: unknown) => Promise<boolean>>().mockResolvedValue(false);
     setNewGameConfirm({ show: confirmShow });
 
     const { default: LandingPage } = await import('@/app/landing/page');

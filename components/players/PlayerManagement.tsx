@@ -25,6 +25,7 @@ import {
 import { usePromptDialog } from '@/components/dialogs/PromptDialog';
 import { useConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
+import { captureBrowserException } from '@/lib/observability/browser';
 
 import styles from './player-management.module.scss';
 
@@ -65,6 +66,32 @@ function nextPlayerLabel(players: PlayerRow[], archived: ReturnType<typeof selec
   }
   return `Player ${max + 1}`;
 }
+
+const describeError = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'Unknown error';
+};
+
+const reportPlayerError = (action: string, error: Error) => {
+  const reason = error.message || describeError(error);
+  captureBrowserException(error, {
+    scope: 'player-management',
+    action,
+    reason,
+  });
+};
+
+const runWithPlayerError = async (action: string, op: () => Promise<void>) => {
+  try {
+    await op();
+    return true;
+  } catch (error: unknown) {
+    const normalized = error instanceof Error ? error : new Error(describeError(error));
+    reportPlayerError(action, normalized);
+    return false;
+  }
+};
 
 function ensureUniqueName(
   name: string,
@@ -132,14 +159,11 @@ export default function PlayerManagement() {
     const unique = ensureUniqueName(name, players, archivedPlayers);
     if (!unique) return;
     const id = uuid();
-    try {
-      setPlayerPending('add');
+    setPlayerPending('add');
+    await runWithPlayerError('add-player', async () => {
       await append(events.playerAdded({ id, name: unique, type: 'human' }));
-    } catch (error) {
-      console.error('Failed to add player', error);
-    } finally {
-      setPlayerPending(null);
-    }
+    });
+    setPlayerPending(null);
   }, [append, players, archivedPlayers, promptDialog]);
 
   const handleRenamePlayer = React.useCallback(
@@ -160,14 +184,11 @@ export default function PlayerManagement() {
       if (!name || name.trim() === player.name.trim()) return;
       const unique = ensureUniqueName(name, players, archivedPlayers, player.id);
       if (!unique) return;
-      try {
-        setPlayerPending('rename');
+      setPlayerPending('rename');
+      await runWithPlayerError('rename-player', async () => {
         await append(events.playerRenamed({ id: player.id, name: unique }));
-      } catch (error) {
-        console.error('Failed to rename player', error);
-      } finally {
-        setPlayerPending(null);
-      }
+      });
+      setPlayerPending(null);
     },
     [append, players, archivedPlayers, promptDialog],
   );
@@ -175,14 +196,11 @@ export default function PlayerManagement() {
   const handleTogglePlayerType = React.useCallback(
     async (player: PlayerRow) => {
       const next = player.type === 'human' ? 'bot' : 'human';
-      try {
-        setPlayerPending('type');
+      setPlayerPending('type');
+      await runWithPlayerError('toggle-player-type', async () => {
         await append(events.playerTypeSet({ id: player.id, type: next }));
-      } catch (error) {
-        console.error('Failed to update player type', error);
-      } finally {
-        setPlayerPending(null);
-      }
+      });
+      setPlayerPending(null);
     },
     [append],
   );
@@ -205,28 +223,22 @@ export default function PlayerManagement() {
         variant: 'destructive',
       });
       if (!confirmed) return;
-      try {
-        setPlayerPending('remove');
+      setPlayerPending('remove');
+      await runWithPlayerError('remove-player', async () => {
         await append(events.playerRemoved({ id: player.id }));
-      } catch (error) {
-        console.error('Failed to remove player', error);
-      } finally {
-        setPlayerPending(null);
-      }
+      });
+      setPlayerPending(null);
     },
     [append, players.length, confirmDialog, toast],
   );
 
   const handleRestorePlayer = React.useCallback(
     async (player: ReturnType<typeof selectArchivedPlayers>[number]) => {
-      try {
-        setPlayerPending('add');
+      setPlayerPending('add');
+      await runWithPlayerError('restore-player', async () => {
         await append(events.playerRestored({ id: player.id }));
-      } catch (error) {
-        console.error('Failed to restore player', error);
-      } finally {
-        setPlayerPending(null);
-      }
+      });
+      setPlayerPending(null);
     },
     [append],
   );
@@ -241,17 +253,17 @@ export default function PlayerManagement() {
       variant: 'destructive',
     });
     if (!confirmed) return;
-    try {
-      setPlayerPending('reset');
-      const removals = players.map((p, idx) =>
-        events.playerRemoved({ id: p.id }, { ts: Date.now() + idx }),
-      );
-      await appendMany(removals);
-    } catch (error) {
-      console.error('Failed to reset players', error);
-    } finally {
-      setPlayerPending(null);
-    }
+    setPlayerPending('reset');
+    const removals = players.map((p, idx) =>
+      events.playerRemoved({ id: p.id }, { ts: Date.now() + idx }),
+    );
+    await runWithPlayerError(
+      'reset-players',
+      async () => {
+        await appendMany(removals);
+      },
+    );
+    setPlayerPending(null);
   }, [appendMany, players, confirmDialog]);
 
   const handleAutoCreatePlayers = React.useCallback(async () => {
@@ -279,14 +291,11 @@ export default function PlayerManagement() {
       used.add(key);
       eventsToAppend.push(events.playerAdded({ id: uuid(), name: candidate, type: 'human' }));
     }
-    try {
-      setPlayerPending('add');
+    setPlayerPending('add');
+    await runWithPlayerError('auto-create-players', async () => {
       await appendMany(eventsToAppend);
-    } catch (error) {
-      console.error('Failed to auto-create players', error);
-    } finally {
-      setPlayerPending(null);
-    }
+    });
+    setPlayerPending(null);
   }, [appendMany, players, archivedPlayers, autoCreateCount, toast]);
 
   const onDragEnd = React.useCallback(
@@ -311,14 +320,11 @@ export default function PlayerManagement() {
     });
     if (!name) return;
     const rid = uuid();
-    try {
-      setRosterPending('create');
+    setRosterPending('create');
+    await runWithPlayerError('create-roster', async () => {
       await append(events.rosterCreated({ rosterId: rid, name: name.trim(), type: 'scorecard' }));
-    } catch (error) {
-      console.error('Failed to create roster', error);
-    } finally {
-      setRosterPending(null);
-    }
+    });
+    setRosterPending(null);
   }, [append, promptDialog, rosters]);
 
   const handleRosterRename = React.useCallback(
@@ -332,14 +338,11 @@ export default function PlayerManagement() {
         validate: (value) => (!value.trim() ? 'Please enter a roster name.' : null),
       });
       if (!name || name.trim() === roster.name.trim()) return;
-      try {
-        setRosterPending('rename');
+      setRosterPending('rename');
+      await runWithPlayerError('rename-roster', async () => {
         await append(events.rosterRenamed({ rosterId: roster.rosterId, name: name.trim() }));
-      } catch (error) {
-        console.error('Failed to rename roster', error);
-      } finally {
-        setRosterPending(null);
-      }
+      });
+      setRosterPending(null);
     },
     [append, promptDialog],
   );
@@ -354,28 +357,22 @@ export default function PlayerManagement() {
         variant: 'destructive',
       });
       if (!confirmed) return;
-      try {
-        setRosterPending('archive');
+      setRosterPending('archive');
+      await runWithPlayerError('archive-roster', async () => {
         await append(events.rosterArchived({ rosterId: roster.rosterId }));
-      } catch (error) {
-        console.error('Failed to archive roster', error);
-      } finally {
-        setRosterPending(null);
-      }
+      });
+      setRosterPending(null);
     },
     [append, confirmDialog],
   );
 
   const handleRosterRestore = React.useCallback(
     async (roster: RosterSummary) => {
-      try {
-        setRosterPending('restore');
+      setRosterPending('restore');
+      await runWithPlayerError('restore-roster', async () => {
         await append(events.rosterRestored({ rosterId: roster.rosterId }));
-      } catch (error) {
-        console.error('Failed to restore roster', error);
-      } finally {
-        setRosterPending(null);
-      }
+      });
+      setRosterPending(null);
     },
     [append],
   );
@@ -467,30 +464,24 @@ export default function PlayerManagement() {
 
   const handleLoadRosterToScorecard = React.useCallback(
     async (roster: RosterSummary) => {
-      try {
-        setRosterPending('load-score');
+      setRosterPending('load-score');
+      await runWithPlayerError('load-roster-scorecard', async () => {
         const ok = await startNewGame();
         if (!ok) return;
         await applyRosterToScorecard(roster.rosterId);
-      } catch (error) {
-        console.error('Failed to load roster into score card', error);
-      } finally {
-        setRosterPending(null);
-      }
+      });
+      setRosterPending(null);
     },
     [applyRosterToScorecard, startNewGame],
   );
 
   const handleLoadRosterToSingle = React.useCallback(
     async (roster: RosterSummary) => {
-      try {
-        setRosterPending('load-single');
+      setRosterPending('load-single');
+      await runWithPlayerError('load-roster-single-player', async () => {
         await applyRosterToSingle(roster.rosterId);
-      } catch (error) {
-        console.error('Failed to load roster into single player', error);
-      } finally {
-        setRosterPending(null);
-      }
+      });
+      setRosterPending(null);
     },
     [applyRosterToSingle],
   );
@@ -498,24 +489,24 @@ export default function PlayerManagement() {
   const handleAutoCreateRoster = React.useCallback(async () => {
     const rid = uuid();
     const defaultPlayers = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
-    try {
-      setRosterPending('auto');
-      const eventsList: KnownAppEvent[] = [
-        events.rosterCreated({ rosterId: rid, name: 'Default Roster', type: 'scorecard' }),
-      ];
-      const order: string[] = [];
-      defaultPlayers.forEach((name) => {
-        const id = uuid();
-        eventsList.push(events.rosterPlayerAdded({ rosterId: rid, id, name, type: 'human' }));
-        order.push(id);
-      });
-      eventsList.push(events.rosterPlayersReordered({ rosterId: rid, order }));
-      await appendMany(eventsList);
-    } catch (error) {
-      console.error('Failed to create default roster', error);
-    } finally {
-      setRosterPending(null);
-    }
+    setRosterPending('auto');
+    await runWithPlayerError(
+      'create-default-roster',
+      async () => {
+        const eventsList: KnownAppEvent[] = [
+          events.rosterCreated({ rosterId: rid, name: 'Default Roster', type: 'scorecard' }),
+        ];
+        const order: string[] = [];
+        defaultPlayers.forEach((name) => {
+          const id = uuid();
+          eventsList.push(events.rosterPlayerAdded({ rosterId: rid, id, name, type: 'human' }));
+          order.push(id);
+        });
+        eventsList.push(events.rosterPlayersReordered({ rosterId: rid, order }));
+        await appendMany(eventsList);
+      },
+    );
+    setRosterPending(null);
   }, [appendMany]);
 
   const handleResetRosters = React.useCallback(async () => {
@@ -529,14 +520,14 @@ export default function PlayerManagement() {
       variant: 'destructive',
     });
     if (!confirmed) return;
-    try {
-      setRosterPending('reset');
-      await appendMany(activeRosters.map((r) => events.rosterArchived({ rosterId: r.rosterId })));
-    } catch (error) {
-      console.error('Failed to archive all rosters', error);
-    } finally {
-      setRosterPending(null);
-    }
+    setRosterPending('reset');
+    await runWithPlayerError(
+      'archive-all-rosters',
+      async () => {
+        await appendMany(activeRosters.map((r) => events.rosterArchived({ rosterId: r.rosterId })));
+      },
+    );
+    setRosterPending(null);
   }, [appendMany, rosters, confirmDialog]);
 
   const activeRosters = rosters.filter((r) => !r.archived);

@@ -1,4 +1,5 @@
 import type React from 'react';
+import { Suspense } from 'react';
 import type { Metadata, Viewport } from 'next';
 import '@/styles/global.scss';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -6,6 +7,7 @@ import StateRoot from '@/components/state-root';
 import { AppErrorBoundary } from '@/components/error-boundary';
 import Devtools from '@/components/devtools';
 import Header from '@/components/header';
+import { HyperDXProvider } from './hyperdx-provider';
 
 import styles from './layout.module.scss';
 
@@ -63,15 +65,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             dark: 'dark',
           }}
         >
-          <AppErrorBoundary>
-            <StateRoot>
-              <Header />
-              <main id="main" className={styles.main}>
-                {children}
-              </main>
-              {process.env.NODE_ENV !== 'production' ? <Devtools /> : null}
-            </StateRoot>
-          </AppErrorBoundary>
+          <Suspense fallback={null}>
+            <HyperDXProvider>
+              <AppErrorBoundary>
+                <StateRoot>
+                  <Header />
+                  <main id="main" className={styles.main}>
+                    {children}
+                  </main>
+                  {process.env.NODE_ENV !== 'production' ? <Devtools /> : null}
+                </StateRoot>
+              </AppErrorBoundary>
+            </HyperDXProvider>
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>

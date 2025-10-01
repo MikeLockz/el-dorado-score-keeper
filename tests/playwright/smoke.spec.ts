@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { mkdir, writeFile } from 'fs/promises';
+import { dirname, resolve } from 'path';
 
 const routes: Array<{ path: string; screenshot: string }> = [
   { path: '/landing', screenshot: 'landing.png' },

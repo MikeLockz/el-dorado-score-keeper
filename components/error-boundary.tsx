@@ -1,6 +1,9 @@
 'use client';
 import React from 'react';
 
+import { captureBrowserException } from '@/lib/observability/browser';
+import { logEvent } from '@/lib/client-log';
+
 declare global {
   interface Window {
     analyticsAuthToken?: string;
@@ -139,7 +142,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 }
 
 // Lightweight client logger that posts to a debug endpoint and console
-async function logClientError(payload: {
+function logClientError(payload: {
   errorId: string;
   message: string;
   stack?: string | undefined;
@@ -148,39 +151,13 @@ async function logClientError(payload: {
   ua?: string | undefined;
 }) {
   try {
-    // Always mirror to console for local visibility
-    console.error('[ui error]', payload);
-  } catch {}
-  try {
-    // Scope: prefer Worker or no-op only for Single Player route; otherwise use default /api/log
-    const worker = process.env.NEXT_PUBLIC_ANALYTICS_WORKER_URL;
-    const bp = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    const curPath = payload.path || (typeof window !== 'undefined' ? window.location.pathname : '');
-    const isSinglePlayer =
-      !!curPath &&
-      (curPath === `${bp}/single-player/` || curPath.startsWith(`${bp}/single-player/`));
-    const isGhPages =
-      typeof window !== 'undefined' && /\.github\.io$/i.test(window.location.hostname);
-
-    let endpoint: string | null = '/api/log';
-    if (isSinglePlayer) {
-      if (worker && typeof worker === 'string' && worker.trim().length > 0) {
-        endpoint = worker;
-      } else if (isGhPages) {
-        endpoint = null; // Avoid 405 noise on static hosting for SP page
-      }
-    }
-
-    if (!endpoint) return; // Skip network logging per scope
-    const authToken = typeof window !== 'undefined' ? window.analyticsAuthToken : undefined;
-    await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      // Include authToken passthrough for Workers that enforce it
-      body: JSON.stringify({ type: 'error', ...payload, authToken }),
-      keepalive: true,
-      // Allow posting cross-origin to Workers
-      mode: endpoint.startsWith('http') ? 'cors' : 'same-origin',
+    logEvent('client.error', {
+      errorId: payload.errorId,
+      message: payload.message,
+      stack: payload.stack,
+      componentStack: payload.componentStack,
+      path: payload.path,
+      ua: payload.ua,
     });
   } catch {
     // Swallow logging errors
@@ -201,6 +178,16 @@ export function AppErrorBoundary({ children }: { children: React.ReactNode }) {
           }
           return 'Unknown error';
         })();
+        const path =
+          typeof window !== 'undefined' && typeof window.location?.pathname === 'string'
+            ? window.location.pathname
+            : undefined;
+        captureBrowserException(error, {
+          scope: 'app.error-boundary',
+          errorId: info.errorId,
+          path,
+          hasComponentStack: info.componentStack ? 'yes' : 'no',
+        });
         const payload: {
           errorId: string;
           message: string;
@@ -214,8 +201,8 @@ export function AppErrorBoundary({ children }: { children: React.ReactNode }) {
         };
         const maybeStack: unknown = (error as { stack?: unknown })?.stack;
         if (typeof maybeStack === 'string') payload.stack = maybeStack;
-        if (typeof window !== 'undefined' && typeof window.location?.pathname === 'string') {
-          payload.path = window.location.pathname;
+        if (path) {
+          payload.path = path;
         }
         if (typeof navigator !== 'undefined' && typeof navigator.userAgent === 'string') {
           payload.ua = navigator.userAgent;

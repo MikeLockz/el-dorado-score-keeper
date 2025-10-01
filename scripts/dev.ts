@@ -1,5 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process';
-import process from 'node:process';
+import { spawn, type ChildProcess } from 'child_process';
 
 type ManagedProcess = {
   name: string;

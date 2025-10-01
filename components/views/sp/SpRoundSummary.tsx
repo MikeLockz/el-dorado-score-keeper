@@ -5,7 +5,6 @@ import ScorecardGrid, {
   type ScorecardPlayerColumn,
   type ScorecardRoundView,
 } from '../scorecard/ScorecardGrid';
-import SpScoreCard from './SpScoreCard';
 import type { ScoreCardRound } from './useSinglePlayerViewModel';
 
 import styles from './sp-round-summary.module.scss';
@@ -43,15 +42,12 @@ export default function SpRoundSummary(props: {
     trump,
     dealerName,
     nextLeaderName,
-    players,
     autoCanceled,
     remainingMs,
     onCancelAuto,
     onContinue,
     isLastRound,
     disabled,
-    scoreCardRounds,
-    scoreCardTotals,
     scoreCardGrid,
   } = props;
   const autoSecs = Math.ceil((remainingMs ?? 0) / 1000);

@@ -1,4 +1,4 @@
-import path from 'node:path';
+import path from 'path';
 
 function isSassModule(source) {
   return typeof source === 'string' && source.endsWith('.module.scss');

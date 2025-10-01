@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readFile } from 'fs/promises';
+import path from 'path';
 
 const basePath = path.resolve(__dirname, '../../../styles/base.scss');
 

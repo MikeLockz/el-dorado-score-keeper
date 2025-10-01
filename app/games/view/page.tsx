@@ -8,6 +8,7 @@ import { type GameRecord, getGame, restoreGame } from '@/lib/state';
 import { analyzeGame } from '@/lib/analytics';
 import { formatDuration } from '@/lib/utils';
 import { formatDateTime } from '@/lib/format';
+import { captureBrowserMessage } from '@/lib/observability/browser';
 
 import styles from './page.module.scss';
 
@@ -24,7 +25,14 @@ function GameDetailPageInner() {
         const rec = id ? await getGame(undefined, id) : null;
         if (on) setGame(rec);
       } catch (e) {
-        console.warn('Failed to load game', e);
+        const reason = e instanceof Error ? e.message : typeof e === 'string' ? e : 'Unknown error';
+        captureBrowserMessage('games.detail.load.failed', {
+          level: 'warn',
+          attributes: {
+            reason,
+            gameId: id,
+          },
+        });
         if (on) setGame(null);
       }
     })();

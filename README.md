@@ -182,3 +182,14 @@ More details and the full tracking snippet live in `ANALYTICS.md`.
 - v1: stores `events` (with unique `eventId` index), `state`, and `snapshots`.
 - v2: adds `games` store with non‑unique `createdAt` index for listing archived games.
 - Migrations use `onupgradeneeded` with `oldVersion` guards to avoid redundant index creation. Upgrading from v1→v2 only creates the `games` store/index and preserves existing data.
+
+## Observability
+
+HyperDX is opt-in. By default the app ships without telemetry until you set the feature flags and browser credentials.
+
+1. Duplicate `.env.local.example` to `.env.local` and provide sandbox values for `NEXT_PUBLIC_HDX_API_KEY`. Leave `NEXT_PUBLIC_OBSERVABILITY_ENABLED=false` until you are ready to validate.
+2. Set `NEXT_PUBLIC_OBSERVABILITY_ENABLED=true` when you want to validate HyperDX in the browser. Missing credentials keep the integration dormant.
+3. Run `pnpm observability:smoke` to open a local tunnel via the HyperDX CLI. The helper exits early with guidance when flags or credentials are absent.
+4. The root layout wraps the app in `HyperDXProvider`, which lazily loads the HyperDX browser SDK and emits `page.viewed` events on navigation. Client components can call `captureBrowserException` / `captureBrowserMessage` from `lib/observability/browser` to record structured telemetry instead of `console.*`.
+
+Cloudflare worker environments can copy `cloudflare/analytics-worker/.dev.vars.example` to `.dev.vars` and supply `CLOUDFLARE_HDX_API_KEY` when worker traces are needed.

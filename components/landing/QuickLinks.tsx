@@ -14,6 +14,7 @@ import {
 } from '@/lib/state/io';
 import { formatDateTime } from '@/lib/format';
 import { Loader2 } from 'lucide-react';
+import { captureBrowserMessage } from '@/lib/observability/browser';
 
 import styles from './quick-links.module.scss';
 
@@ -47,8 +48,16 @@ export default function QuickLinks() {
       try {
         await restoreGame(undefined, game.id);
         router.push(deriveGameRoute(game));
-      } catch (error) {
-        console.warn('Failed to resume game from quick links', error);
+      } catch (error: unknown) {
+        const reason = error instanceof Error ? error.message : 'Unknown error';
+        captureBrowserMessage('quick-links.resume.failed', {
+          level: 'warn',
+          attributes: {
+            gameId: game.id,
+            reason,
+            mode: deriveGameMode(game),
+          },
+        });
         setPendingId(null);
       } finally {
         setPendingId((prev) => (prev === game.id ? null : prev));

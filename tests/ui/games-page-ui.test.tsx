@@ -66,18 +66,20 @@ type UseNewGameRequestOptions = Parameters<UseNewGameRequest>[0];
 
 const startNewGameSpy = vi.hoisted(() => vi.fn(async () => true));
 
-vi.spyOn(gameFlowModule, 'useNewGameRequest').mockImplementation((options?: UseNewGameRequestOptions) => ({
-  startNewGame: async (...args) => {
-    const result = await startNewGameSpy(...args);
-    if (result) {
-      options?.onSuccess?.();
-    } else {
-      options?.onCancelled?.();
-    }
-    return result;
-  },
-  pending: false,
-}));
+vi.spyOn(gameFlowModule, 'useNewGameRequest').mockImplementation(
+  (options?: UseNewGameRequestOptions) => ({
+    startNewGame: async (...args) => {
+      const result = await startNewGameSpy(...args);
+      if (result) {
+        options?.onSuccess?.();
+      } else {
+        options?.onCancelled?.();
+      }
+      return result;
+    },
+    pending: false,
+  }),
+);
 
 const push = vi.fn();
 

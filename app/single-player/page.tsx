@@ -20,6 +20,7 @@ import {
 import { uuid } from '@/lib/utils';
 import { useSinglePlayerEngine } from '@/lib/single-player/use-engine';
 import { INITIAL_STATE } from '@/lib/state';
+import { captureBrowserMessage } from '@/lib/observability/browser';
 
 import styles from './page.module.scss';
 
@@ -118,8 +119,16 @@ export default function SinglePlayerPage() {
         events.spLeaderSet({ leaderId: deal.firstToAct }),
         events.roundStateSet({ round: spRoundNo, state: 'bidding' }),
       ]);
-    } catch (e) {
-      console.warn('Failed to persist deal', e);
+    } catch (error: unknown) {
+      const reason =
+        error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+      captureBrowserMessage('single-player.persist.failed', {
+        level: 'warn',
+        attributes: {
+          reason,
+          phase: spPhase,
+        },
+      });
     }
   };
 
