@@ -41,11 +41,18 @@ jobs:
           NEXT_TELEMETRY_DISABLED: '1'
           # Inject GitHub variable into the Next.js build
           NEXT_PUBLIC_ANALYTICS_WORKER_URL: ${{ vars.NEXT_PUBLIC_ANALYTICS_WORKER_URL }}
+          NEXT_PUBLIC_OBSERVABILITY_ENABLED: ${{ vars.NEXT_PUBLIC_OBSERVABILITY_ENABLED }}
+          NEXT_PUBLIC_HDX_API_KEY: ${{ vars.NEXT_PUBLIC_HDX_API_KEY }}
+          NEXT_PUBLIC_HDX_HOST: ${{ vars.NEXT_PUBLIC_HDX_HOST }}
+          NEXT_PUBLIC_HDX_SERVICE_NAME: ${{ vars.NEXT_PUBLIC_HDX_SERVICE_NAME }}
+          NEXT_PUBLIC_APP_ENV: ${{ vars.NEXT_PUBLIC_APP_ENV }}
           # Force basePath for GitHub Project Pages (e.g., /<repo>)
           # next.config.mjs reads BASE_PATH (or NEXT_PUBLIC_BASE_PATH) with priority
           BASE_PATH: /${{ github.event.repository.name }}
         run: |
           echo "NEXT_PUBLIC_ANALYTICS_WORKER_URL=${NEXT_PUBLIC_ANALYTICS_WORKER_URL}"
+          echo "NEXT_PUBLIC_OBSERVABILITY_ENABLED=${NEXT_PUBLIC_OBSERVABILITY_ENABLED}"
+          echo "NEXT_PUBLIC_APP_ENV=${NEXT_PUBLIC_APP_ENV}"
           echo "BASE_PATH=${BASE_PATH}"
           pnpm build
           # For older Next versions, export step is required. Harmless if not needed.
