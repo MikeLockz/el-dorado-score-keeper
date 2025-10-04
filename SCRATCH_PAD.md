@@ -1,5 +1,8 @@
 Add idempotency-focused tests for SP events if we tighten reducers to handle duplicates more defensively (e.g., guard duplicate sp/trick/played).
 
+Vendor registry landed — default alias is `@obs/browser-vendor/newrelic/browser-agent`; custom providers can shadow `@obs/browser-vendor/custom`.
+New Relic baseline captured 2025-10-03 — env rename to `NEXT_PUBLIC_NEW_RELIC_*` landed with Phase 4; Phase 6 removed the legacy `NEXT_PUBLIC_HDX_*` vars entirely.
+
 - shouldn't round 10 be first because it has 10 tricks? If it is the final round, why would it set the previous round to bidding? There won't be any more rounds after the final round.
 - first make a plan on how to fix it so that rounds decrease in number by the number of tricks available in each round. First round is 10 and last round is 1.
 
@@ -11,7 +14,7 @@ Remove vercel and v0 from readme and remove from github actions and remove any o
 
 Add a toggle to the debug panel to enable/disable event logging to the console.
 
-Add hyperdx for logging and monitoring. api key 9745ea4b-c080-4baf-a5a5-2a836b9c0e19
+Legacy HyperDX TODOs superseded by New Relic rollout; keep scratchpad focused on current telemetry work.
 
 Do we have the data stored to expand each round to show all the hands played in that round? Each player's card and which won the trick? Do we have timestamps for each trick played?
 

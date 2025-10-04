@@ -1,4 +1,11 @@
-import { getHyperDXConfig, isObservabilityEnabled, type HyperDXConfig } from '@/config/observability';
+import { getBrowserObservabilityProvider } from '@/config/observability-provider';
+import {
+  getBrowserTelemetryConfig,
+  isObservabilityEnabled,
+  type BrowserTelemetryConfig,
+} from '@/config/observability';
+import { loadBrowserTelemetryAdapter } from '@/lib/observability/vendors/registry';
+import type { BrowserTelemetryAdapter } from '@/lib/observability/vendors/types';
 import { sanitizeAttributes, type SpanAttributesInput } from '@/lib/observability/spans';
 
 type BrowserMessageOptions = {
@@ -10,20 +17,6 @@ export type BrowserTelemetry = {
   track: (event: string, attributes?: SpanAttributesInput) => void;
   captureException: (error: unknown, attributes?: SpanAttributesInput) => void;
   captureMessage: (message: string, options?: BrowserMessageOptions) => void;
-};
-
-type HyperDXLike = {
-  init: (config: {
-    apiKey: string;
-    service: string;
-    url?: string;
-    consoleCapture?: boolean;
-    debug?: boolean;
-  }) => void;
-  addAction: (event: string, attributes?: Record<string, unknown>) => void;
-  recordException: (error: unknown, attributes?: Record<string, unknown>) => void;
-  setGlobalAttributes?: (attributes: Record<string, string>) => void;
-  getSessionUrl?: () => string | undefined;
 };
 
 const noopTelemetry: BrowserTelemetry = {
@@ -43,22 +36,20 @@ const resolveErrorMessage = (error: unknown) => {
   return 'Unknown error';
 };
 
-const loadHyperDX = async (): Promise<HyperDXLike | null> => {
+const loadBrowserVendor = async (): Promise<BrowserTelemetryAdapter | null> => {
   if (!isBrowserEnvironment()) {
     return null;
   }
+
   try {
-    const mod = await import('@hyperdx/browser');
-    const candidate = (mod && 'default' in mod ? mod.default : mod) as HyperDXLike | undefined;
-    if (candidate && typeof candidate.init === 'function') {
-      return candidate;
-    }
+    const provider = getBrowserObservabilityProvider();
+    return await loadBrowserTelemetryAdapter(provider);
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {
-      console.warn('[observability] Failed to load HyperDX browser SDK; telemetry disabled.', error);
+      console.warn('[observability] Failed to load browser telemetry vendor.', error);
     }
+    return null;
   }
-  return null;
 };
 
 const createTelemetry = async (): Promise<BrowserTelemetry> => {
@@ -66,49 +57,67 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
     return noopTelemetry;
   }
 
-  let config: Extract<HyperDXConfig, { runtime: 'browser'; enabled: true }>;
+  let config: Extract<BrowserTelemetryConfig, { runtime: 'browser'; enabled: true }>;
   try {
-    const resolved = getHyperDXConfig('browser');
+    const resolved = getBrowserTelemetryConfig('browser');
     if (!resolved.enabled) {
       return noopTelemetry;
     }
     config = resolved;
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {
-      console.warn('[observability] Browser telemetry misconfigured; HyperDX disabled.', error);
+      console.warn('[observability] Browser telemetry misconfigured; vendor disabled.', error);
     }
     return noopTelemetry;
   }
 
-  const hyperdx = await loadHyperDX();
-  if (!hyperdx) {
+  let adapter: BrowserTelemetryAdapter;
+  const provider = getBrowserObservabilityProvider();
+
+  if (provider === 'newrelic' && !config.newRelic) {
+    const mod = await import('@/lib/observability/vendors/newrelic/log-adapter');
+    adapter = mod.default;
+  } else {
+    adapter = await loadBrowserVendor();
+  }
+  if (!adapter) {
     return noopTelemetry;
   }
 
   try {
-    hyperdx.init({
+    const initPayload = {
       apiKey: config.apiKey,
       service: config.serviceName,
       url: config.host,
       consoleCapture: true,
-      debug: process.env.NODE_ENV !== 'production',
-    });
+      debug: process.env.NODE_ENV !== 'production' && Boolean(config.newRelic),
+      ...(config.newRelic ? { newRelic: config.newRelic } : {}),
+    } as const;
+
+    const initResult = adapter.init(initPayload);
+    if (initResult && typeof (initResult as Promise<unknown>).then === 'function') {
+      (initResult as Promise<unknown>).catch((error) => {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[observability] Browser telemetry vendor init rejected.', error);
+        }
+      });
+    }
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {
-      console.warn('[observability] HyperDX init failed; telemetry disabled.', error);
+      console.warn('[observability] Browser telemetry vendor init failed; telemetry disabled.', error);
     }
     return noopTelemetry;
   }
 
-  if (typeof hyperdx.setGlobalAttributes === 'function') {
+  if (typeof adapter.setGlobalAttributes === 'function') {
     try {
-      hyperdx.setGlobalAttributes({
+      adapter.setGlobalAttributes({
         environment: config.environment,
         service: config.serviceName,
       });
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
-        console.warn('[observability] Failed to set HyperDX global attributes.', error);
+        console.warn('[observability] Failed to set browser telemetry vendor global attributes.', error);
       }
     }
   }
@@ -123,7 +132,7 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
     }
     base.environment = config.environment;
     base.service = config.serviceName;
-    const sessionUrl = hyperdx.getSessionUrl?.();
+    const sessionUrl = adapter.getSessionUrl?.();
     if (sessionUrl) {
       base.sessionUrl = sessionUrl;
     }
@@ -133,7 +142,7 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
   const telemetry: BrowserTelemetry = {
     track: (event, attributes) => {
       try {
-        hyperdx.addAction(event, attachEnvironment(attributes));
+        adapter.addAction(event, attachEnvironment(attributes));
       } catch (error) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[observability] Failed to track browser event.', {
@@ -145,7 +154,7 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
     },
     captureException: (error, attributes) => {
       try {
-        hyperdx.recordException(error, attachEnvironment(attributes));
+        adapter.recordException(error, attachEnvironment(attributes));
       } catch (err) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[observability] Failed to record browser exception.', {
@@ -162,7 +171,7 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
         ...(options?.attributes ?? {}),
       });
       try {
-        hyperdx.addAction('browser.message', payload);
+        adapter.addAction('browser.message', payload);
       } catch (error) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[observability] Failed to record browser message.', {
@@ -206,6 +215,10 @@ export const isBrowserTelemetryEnabled = () =>
 
 export const getBrowserTelemetry = () => activeTelemetry;
 
+/**
+ * Mirrors captured exceptions to the active browser telemetry adapter while keeping
+ * development console output for quick diagnosis during local work.
+ */
 export const captureBrowserException = (error: unknown, attributes?: SpanAttributesInput) => {
   if (process.env.NODE_ENV !== 'production') {
     console.error('[observability] exception captured', error, attributes);
@@ -213,6 +226,10 @@ export const captureBrowserException = (error: unknown, attributes?: SpanAttribu
   activeTelemetry.captureException(error, attributes);
 };
 
+/**
+ * Records a structured browser message (mapped to New Relic page actions) and logs the
+ * payload to the console in non-production environments for visibility.
+ */
 export const captureBrowserMessage = (message: string, options?: BrowserMessageOptions) => {
   const level = options?.level ?? 'info';
   if (process.env.NODE_ENV !== 'production') {
@@ -223,6 +240,10 @@ export const captureBrowserMessage = (message: string, options?: BrowserMessageO
   activeTelemetry.captureMessage(message, options);
 };
 
+/**
+ * Sends a custom telemetry event; the active adapter augments the payload with environment
+ * metadata and, for New Relic, SPA route context before forwarding it to the vendor API.
+ */
 export const trackBrowserEvent = (event: string, attributes?: SpanAttributesInput) => {
   activeTelemetry.track(event, attributes);
 };

@@ -31,7 +31,7 @@ vi.mock('@/lib/observability/browser', () => ({
   captureBrowserMessage: vi.fn(),
 }));
 
-describe('HyperDXProvider', () => {
+describe('BrowserTelemetryProvider', () => {
   beforeEach(() => {
     telemetryMocks.track.mockClear();
     telemetryMocks.captureException.mockClear();
@@ -49,11 +49,11 @@ describe('HyperDXProvider', () => {
 
   it('skips initialization when observability is disabled', async () => {
     isEnabled.mockReturnValue(false);
-    const { HyperDXProvider } = await import('@/app/hyperdx-provider');
+    const { BrowserTelemetryProvider } = await import('@/app/browser-telemetry-provider');
     render(
-      <HyperDXProvider>
+      <BrowserTelemetryProvider>
         <div>child</div>
-      </HyperDXProvider>,
+      </BrowserTelemetryProvider>,
     );
 
     await Promise.resolve();
@@ -64,12 +64,12 @@ describe('HyperDXProvider', () => {
   });
 
   it('initializes once and tracks unique route changes', async () => {
-    const { HyperDXProvider } = await import('@/app/hyperdx-provider');
+    const { BrowserTelemetryProvider } = await import('@/app/browser-telemetry-provider');
 
     const view = render(
-      <HyperDXProvider>
+      <BrowserTelemetryProvider>
         <div>child</div>
-      </HyperDXProvider>,
+      </BrowserTelemetryProvider>,
     );
 
     await waitFor(() => {
@@ -83,9 +83,9 @@ describe('HyperDXProvider', () => {
     navState.pathname = '/players';
     navState.search = 'tab=archived';
     view.rerender(
-      <HyperDXProvider>
+      <BrowserTelemetryProvider>
         <div>child</div>
-      </HyperDXProvider>,
+      </BrowserTelemetryProvider>,
     );
 
     await waitFor(() => {

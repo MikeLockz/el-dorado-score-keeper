@@ -15,7 +15,7 @@ const buildPathKey = (pathname: string, search: string) => {
   return `${pathname}?${search}`;
 };
 
-export function HyperDXProvider({ children }: PropsWithChildren) {
+export function BrowserTelemetryProvider({ children }: PropsWithChildren) {
   const pathname = usePathname() || '/';
   const searchParams = useSearchParams();
   const search = useMemo(() => searchParams?.toString() ?? '', [searchParams]);
@@ -31,7 +31,7 @@ export function HyperDXProvider({ children }: PropsWithChildren) {
 
     if (!initializationRef.current) {
       initializationRef.current = ensureBrowserTelemetry().catch((error) => {
-        captureBrowserException(error, { context: 'hyperdx-init' });
+        captureBrowserException(error, { context: 'newrelic-init' });
         return ensureBrowserTelemetry();
       });
     }
@@ -54,7 +54,7 @@ export function HyperDXProvider({ children }: PropsWithChildren) {
         });
       })
       .catch((error) => {
-        captureBrowserException(error, { context: 'hyperdx-pageview' });
+        captureBrowserException(error, { context: 'newrelic-pageview' });
       });
 
     return () => {

@@ -7,7 +7,7 @@ import StateRoot from '@/components/state-root';
 import { AppErrorBoundary } from '@/components/error-boundary';
 import Devtools from '@/components/devtools';
 import Header from '@/components/header';
-import { HyperDXProvider } from './hyperdx-provider';
+import { BrowserTelemetryProvider } from './browser-telemetry-provider';
 
 import styles from './layout.module.scss';
 
@@ -66,7 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <Suspense fallback={null}>
-            <HyperDXProvider>
+            <BrowserTelemetryProvider>
               <AppErrorBoundary>
                 <StateRoot>
                   <Header />
@@ -76,7 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   {process.env.NODE_ENV !== 'production' ? <Devtools /> : null}
                 </StateRoot>
               </AppErrorBoundary>
-            </HyperDXProvider>
+            </BrowserTelemetryProvider>
           </Suspense>
         </ThemeProvider>
       </body>

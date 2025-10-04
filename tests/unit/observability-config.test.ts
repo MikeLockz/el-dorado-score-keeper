@@ -1,15 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { getHyperDXConfig, isObservabilityEnabled } from '@/config/observability';
+import { getBrowserTelemetryConfig, isObservabilityEnabled } from '@/config/observability';
 
 const ORIGINAL_ENV = { ...process.env };
 
 const trackedKeys = [
   'NEXT_PUBLIC_OBSERVABILITY_ENABLED',
-  'NEXT_PUBLIC_HDX_API_KEY',
-  'NEXT_PUBLIC_HDX_HOST',
-  'NEXT_PUBLIC_HDX_SERVICE_NAME',
+  'NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_HOST',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_SERVICE_NAME',
   'NEXT_PUBLIC_APP_ENV',
+  'NEXT_PUBLIC_NEW_RELIC_APP_ID',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL',
+  'NEXT_PUBLIC_NEW_RELIC_ALLOW_DEV_AGENT',
 ];
 
 const restoreEnv = () => {
@@ -44,26 +49,26 @@ describe('isObservabilityEnabled', () => {
   });
 });
 
-describe('getHyperDXConfig', () => {
+describe('getBrowserTelemetryConfig', () => {
   it('returns disabled config when the browser flag is false', () => {
-    process.env.NEXT_PUBLIC_HDX_API_KEY = 'public-key';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'public-key';
 
-    const config = getHyperDXConfig('browser');
+    const config = getBrowserTelemetryConfig('browser');
 
     expect(config).toEqual({ runtime: 'browser', enabled: false });
   });
 
   it('returns browser config with derived defaults', () => {
     process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
-    process.env.NEXT_PUBLIC_HDX_API_KEY = 'public-key';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'public-key';
 
-    const config = getHyperDXConfig('browser');
+    const config = getBrowserTelemetryConfig('browser');
 
     expect(config).toMatchObject({
       runtime: 'browser',
       enabled: true,
       apiKey: 'public-key',
-      host: undefined,
+      host: 'https://log-api.newrelic.com',
       environment: 'development',
       serviceName: 'el-dorado-score-keeper-web',
     });
@@ -71,20 +76,102 @@ describe('getHyperDXConfig', () => {
 
   it('returns browser config with explicit overrides', () => {
     process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
-    process.env.NEXT_PUBLIC_HDX_API_KEY = 'public-key';
-    process.env.NEXT_PUBLIC_HDX_HOST = 'https://sandbox.hyperdx.io';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'public-key';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_HOST = 'https://observability.example';
     process.env.NEXT_PUBLIC_APP_ENV = 'preview';
-    process.env.NEXT_PUBLIC_HDX_SERVICE_NAME = 'custom-service';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SERVICE_NAME = 'custom-service';
 
-    const config = getHyperDXConfig('browser');
+    const config = getBrowserTelemetryConfig('browser');
 
     expect(config).toEqual({
       runtime: 'browser',
       enabled: true,
       apiKey: 'public-key',
-      host: 'https://sandbox.hyperdx.io',
+      host: 'https://observability.example',
       environment: 'preview',
       serviceName: 'custom-service',
+    });
+  });
+
+  it('derives agent configuration when New Relic script metadata is present', () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY = 'browser-license-key';
+    process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID = 'app-id';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL = 'https://js-agent.newrelic.com/loader.js';
+    process.env.NEXT_PUBLIC_APP_ENV = 'production';
+
+    const config = getBrowserTelemetryConfig('browser');
+
+    expect(config).toMatchObject({
+      newRelic: {
+        applicationId: 'app-id',
+        licenseKey: 'browser-license-key',
+        loaderScriptUrl: 'https://js-agent.newrelic.com/loader.js',
+      },
+    });
+  });
+
+  it('falls back to the default loader script when none is configured explicitly', () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'public-license';
+    process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID = 'app-id';
+    process.env.NEXT_PUBLIC_APP_ENV = 'production';
+    delete process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL;
+
+    const config = getBrowserTelemetryConfig('browser');
+
+    expect(config).toMatchObject({
+      newRelic: {
+        applicationId: 'app-id',
+        licenseKey: 'public-license',
+        loaderScriptUrl: 'https://js-agent.newrelic.com/nr-loader-spa-current.min.js',
+      },
+    });
+  });
+
+  it('skips the browser agent in dev-like environments by default', () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'public-license';
+    process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID = 'app-id';
+    process.env.NEXT_PUBLIC_APP_ENV = 'development';
+
+    const config = getBrowserTelemetryConfig('browser');
+
+    expect(config.runtime).toBe('browser');
+    expect(config.enabled).toBe(true);
+    expect(config.newRelic).toBeUndefined();
+  });
+
+  it('allows enabling the browser agent in dev-like environments via override', () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'public-license';
+    process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID = 'app-id';
+    process.env.NEXT_PUBLIC_APP_ENV = 'development';
+    process.env.NEXT_PUBLIC_NEW_RELIC_ALLOW_DEV_AGENT = 'true';
+
+    const config = getBrowserTelemetryConfig('browser');
+
+    expect(config.newRelic).toMatchObject({
+      applicationId: 'app-id',
+      loaderScriptUrl: 'https://js-agent.newrelic.com/nr-loader-spa-current.min.js',
+    });
+  });
+
+  it('normalizes beacon endpoints when the dev agent override is enabled', () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'public-license';
+    process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID = 'app-id';
+    process.env.NEXT_PUBLIC_APP_ENV = 'development';
+    process.env.NEXT_PUBLIC_NEW_RELIC_ALLOW_DEV_AGENT = 'true';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_BEACON = 'http://localhost:5050/';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_ERROR_BEACON = 'https://localhost:5050';
+
+    const config = getBrowserTelemetryConfig('browser');
+
+    expect(config.newRelic).toMatchObject({
+      beacon: 'localhost:5050',
+      errorBeacon: 'localhost:5050',
+      init: expect.objectContaining({ ssl: false }),
     });
   });
 });

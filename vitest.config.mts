@@ -56,6 +56,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      '@obs/browser-vendor': path.resolve(__dirname, 'lib/observability/vendors'),
+      '@opentelemetry/api': path.resolve(__dirname, 'tests/mocks/opentelemetry-api.ts'),
     },
   },
 });

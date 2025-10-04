@@ -3,13 +3,13 @@ import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
 import { brotliDecompressSync, gunzipSync, inflateSync } from 'zlib';
 
-const DEFAULT_TARGET = 'https://in.hyperdx.io';
+const DEFAULT_TARGET = 'https://log-api.newrelic.com';
 const DEFAULT_PORT = 5050;
 
-const upstreamTarget = process.env.HDX_PROXY_TARGET ?? DEFAULT_TARGET;
+const upstreamTarget = process.env.NR_PROXY_TARGET ?? DEFAULT_TARGET;
 const upstreamUrl = new URL(upstreamTarget);
-const listenPort = Number.parseInt(process.env.HDX_PROXY_PORT ?? '', 10) || DEFAULT_PORT;
-const verboseLogging = /^(1|true|yes|on)$/i.test(process.env.HDX_PROXY_VERBOSE ?? '');
+const listenPort = Number.parseInt(process.env.NR_PROXY_PORT ?? '', 10) || DEFAULT_PORT;
+const verboseLogging = /^(1|true|yes|on)$/i.test(process.env.NR_PROXY_VERBOSE ?? '');
 
 const isHttps = upstreamUrl.protocol === 'https:';
 const forwardRequest = isHttps ? httpsRequest : httpRequest;
@@ -82,10 +82,39 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
 
   const targetUrl = new URL(req.url, upstreamUrl);
 
-  const headers: Record<string, number | string | string[]> = {
-    ...req.headers,
-    host: upstreamUrl.host,
-  };
+  const headers: Record<string, number | string | string[]> = {};
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (!key) continue;
+    const lower = key.toLowerCase();
+    if (
+      lower === 'connection' ||
+      lower === 'proxy-connection' ||
+      lower === 'keep-alive' ||
+      lower === 'transfer-encoding' ||
+      lower === 'upgrade' ||
+      lower === 'x-forwarded-proto' ||
+      lower === 'x-forwarded-port' ||
+      lower === 'x-forwarded-host' ||
+      lower === 'origin'
+    ) {
+      continue;
+    }
+    headers[lower] = value as number | string | string[];
+  }
+
+  headers.host = upstreamUrl.host;
+
+  // Strip hop-by-hop headers that proxies should not forward
+  delete headers.connection;
+  delete headers['proxy-connection'];
+  delete headers['keep-alive'];
+  delete headers['transfer-encoding'];
+  delete headers['upgrade'];
+
+  // New Relic expects HTTPS regardless of proxy scheme, remove x-forwarded-proto hints
+  delete headers['x-forwarded-proto'];
+  delete headers['x-forwarded-port'];
+  delete headers['x-forwarded-host'];
 
   const proxyRequest = forwardRequest(
     {
@@ -147,7 +176,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
 
   if (verboseLogging) {
     console.info('[observability] proxy request', req.method, targetUrl.pathname);
-    const apiKeyHeader = headers['x-hdx-api-key'] ?? headers.authorization;
+    const apiKeyHeader = headers['api-key'] ?? headers.authorization;
     if (apiKeyHeader) {
       const normalized = Array.isArray(apiKeyHeader)
         ? apiKeyHeader[0]
@@ -200,7 +229,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     respondWithError(
       res,
       502,
-      'Failed to reach HyperDX',
+      'Failed to reach New Relic',
       (error as Error).message,
       req.headers.origin,
       req.headers['access-control-request-headers'],
@@ -210,9 +239,9 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
 
 server.listen(listenPort, () => {
   console.info(
-    `[observability] HyperDX proxy listening on http://localhost:${listenPort} -> ${upstreamUrl.origin}`,
+    `[observability] New Relic proxy listening on http://localhost:${listenPort} -> ${upstreamUrl.origin}`,
   );
-  console.info('[observability] Configure NEXT_PUBLIC_HDX_HOST to this proxy to bypass CORS in dev.');
+  console.info('[observability] Configure NEXT_PUBLIC_NEW_RELIC_BROWSER_HOST to this proxy to bypass CORS in dev.');
 });
 
 server.on('error', (error) => {

@@ -11,15 +11,28 @@ import {
 const ORIG_ENV = { ...process.env };
 const trackedEnvKeys = [
   'NEXT_PUBLIC_OBSERVABILITY_ENABLED',
-  'NEXT_PUBLIC_HDX_API_KEY',
-  'NEXT_PUBLIC_HDX_SERVICE_NAME',
-  'NEXT_PUBLIC_HDX_HOST',
+  'NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_SERVICE_NAME',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_HOST',
   'NEXT_PUBLIC_APP_ENV',
+  'NEXT_PUBLIC_OBSERVABILITY_PROVIDER',
+  'NEXT_PUBLIC_NEW_RELIC_APP_ID',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_ACCOUNT_ID',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_TRUST_KEY',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_AGENT_ID',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_XPID',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_BEACON',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_ERROR_BEACON',
+  'NEXT_PUBLIC_NEW_RELIC_BROWSER_INIT',
+  'NEXT_PUBLIC_NEW_RELIC_ALLOW_DEV_AGENT',
 ];
 
 const originalWindow = (globalThis as { window?: Window }).window;
 
-const hyperdx = vi.hoisted(() => ({
+const browserVendor = vi.hoisted(() => ({
   init: vi.fn(),
   addAction: vi.fn(),
   recordException: vi.fn(),
@@ -27,8 +40,32 @@ const hyperdx = vi.hoisted(() => ({
   getSessionUrl: vi.fn(),
 }));
 
-vi.mock('@hyperdx/browser', () => ({
-  default: hyperdx,
+const customVendor = vi.hoisted(() => ({
+  init: vi.fn(),
+  addAction: vi.fn(),
+  recordException: vi.fn(),
+  setGlobalAttributes: vi.fn(),
+  getSessionUrl: vi.fn(),
+}));
+
+const logAdapter = vi.hoisted(() => ({
+  init: vi.fn(),
+  addAction: vi.fn(),
+  recordException: vi.fn(),
+  setGlobalAttributes: vi.fn(),
+  getSessionUrl: vi.fn(),
+}));
+
+vi.mock('@obs/browser-vendor/newrelic/browser-agent', () => ({
+  default: browserVendor,
+}));
+
+vi.mock('@obs/browser-vendor/custom', () => ({
+  default: customVendor,
+}));
+
+vi.mock('@/lib/observability/vendors/newrelic/log-adapter', () => ({
+  default: logAdapter,
 }));
 
 const restoreEnv = () => {
@@ -49,12 +86,23 @@ const restoreEnv = () => {
 
 beforeEach(() => {
   restoreEnv();
-  Object.values(hyperdx).forEach((fn) => {
+  Object.values(browserVendor).forEach((fn) => {
     if (typeof fn?.mockClear === 'function') {
       fn.mockClear();
     }
   });
-  hyperdx.getSessionUrl.mockReturnValue(undefined);
+  Object.values(customVendor).forEach((fn) => {
+    if (typeof fn?.mockClear === 'function') {
+      fn.mockClear();
+    }
+  });
+  Object.values(logAdapter).forEach((fn) => {
+    if (typeof fn?.mockClear === 'function') {
+      fn.mockClear();
+    }
+  });
+  browserVendor.getSessionUrl.mockReturnValue(undefined);
+  customVendor.getSessionUrl.mockReturnValue(undefined);
   __resetBrowserTelemetryForTests();
 });
 
@@ -66,44 +114,54 @@ afterEach(() => {
 describe('browser telemetry guards', () => {
   it('treats SSR environments as disabled', async () => {
     process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
-    process.env.NEXT_PUBLIC_HDX_API_KEY = 'key-123';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'key-123';
     const originalWindow = (globalThis as { window?: Window }).window;
     (globalThis as { window?: Window }).window = undefined;
 
     expect(isBrowserTelemetryEnabled()).toBe(false);
     const telemetry = await ensureBrowserTelemetry();
     telemetry.track('ssr-test');
-    expect(hyperdx.addAction).not.toHaveBeenCalled();
+    expect(browserVendor.addAction).not.toHaveBeenCalled();
 
     (globalThis as { window?: Window }).window = originalWindow;
   });
 
-  it('loads HyperDX when enabled and credentials provided', async () => {
+  it('loads browser vendor when enabled and credentials provided', async () => {
     process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
-    process.env.NEXT_PUBLIC_HDX_API_KEY = 'browser-key';
-    process.env.NEXT_PUBLIC_HDX_SERVICE_NAME = 'front-end';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'browser-key';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SERVICE_NAME = 'front-end';
     process.env.NEXT_PUBLIC_APP_ENV = 'test';
-    hyperdx.getSessionUrl.mockReturnValue('https://example.test/session');
+    process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID = 'app-123';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY = 'license-123';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL =
+      'https://js-agent.newrelic.com/nr-loader-spa-1234.min.js';
+    browserVendor.getSessionUrl.mockReturnValue('https://example.test/session');
     (globalThis as { window?: Window }).window = {} as Window;
 
     const telemetry = await ensureBrowserTelemetry();
-    expect(hyperdx.init).toHaveBeenCalledWith(
+    expect(browserVendor.init).toHaveBeenCalledWith(
       expect.objectContaining({
         apiKey: 'browser-key',
         service: 'front-end',
+        newRelic: expect.objectContaining({
+          applicationId: 'app-123',
+          loaderScriptUrl: 'https://js-agent.newrelic.com/nr-loader-spa-1234.min.js',
+          licenseKey: 'license-123',
+        }),
       }),
     );
-    expect(hyperdx.setGlobalAttributes).toHaveBeenCalledWith({
+    expect(browserVendor.setGlobalAttributes).toHaveBeenCalledWith({
       environment: 'test',
       service: 'front-end',
     });
+    expect(logAdapter.init).not.toHaveBeenCalled();
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
 
     captureBrowserException(new Error('boom'), { feature: 'players' });
-    expect(hyperdx.recordException).toHaveBeenCalledWith(
+    expect(browserVendor.recordException).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({
         feature: 'players',
@@ -116,7 +174,7 @@ describe('browser telemetry guards', () => {
     captureBrowserMessage('page.viewed', {
       attributes: { location: '/games' },
     });
-    expect(hyperdx.addAction).toHaveBeenCalledWith(
+    expect(browserVendor.addAction).toHaveBeenCalledWith(
       'browser.message',
       expect.objectContaining({
         message: 'page.viewed',
@@ -126,7 +184,7 @@ describe('browser telemetry guards', () => {
     );
 
     telemetry.track('custom.event', { scope: 'test' });
-    expect(hyperdx.addAction).toHaveBeenCalledWith(
+    expect(browserVendor.addAction).toHaveBeenCalledWith(
       'custom.event',
       expect.objectContaining({ scope: 'test', environment: 'test' }),
     );
@@ -140,12 +198,62 @@ describe('browser telemetry guards', () => {
     infoSpy.mockRestore();
   });
 
+  it('supports switching to a custom vendor', async () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'browser-key';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SERVICE_NAME = 'front-end';
+    process.env.NEXT_PUBLIC_OBSERVABILITY_PROVIDER = 'custom';
+    process.env.NEXT_PUBLIC_APP_ENV = 'qa';
+    (globalThis as { window?: Window }).window = {} as Window;
+
+    const telemetry = await ensureBrowserTelemetry();
+
+    expect(customVendor.init).toHaveBeenCalled();
+    expect(browserVendor.init).not.toHaveBeenCalled();
+
+    telemetry.track('custom-event');
+    expect(customVendor.addAction).toHaveBeenCalledWith(
+      'custom-event',
+      expect.objectContaining({
+        environment: 'qa',
+        service: 'front-end',
+      }),
+    );
+    expect(browserVendor.addAction).not.toHaveBeenCalled();
+  });
+
   it('degrades gracefully when config is missing', async () => {
     process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
-    delete process.env.NEXT_PUBLIC_HDX_API_KEY;
+    delete process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY;
 
     const telemetry = await ensureBrowserTelemetry();
     telemetry.track('missing-config');
-    expect(hyperdx.addAction).not.toHaveBeenCalled();
+    expect(browserVendor.addAction).not.toHaveBeenCalled();
+    expect(customVendor.addAction).not.toHaveBeenCalled();
+    expect(logAdapter.addAction).not.toHaveBeenCalled();
+  });
+
+  it('uses the log adapter in dev environments unless explicitly enabled', async () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'browser-key';
+    process.env.NEXT_PUBLIC_APP_ENV = 'development';
+    process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID = 'app-123';
+    (globalThis as { window?: Window }).window = {} as Window;
+
+    const telemetry = await ensureBrowserTelemetry();
+
+    expect(browserVendor.init).not.toHaveBeenCalled();
+    expect(logAdapter.init).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: 'browser-key',
+        service: expect.stringContaining('el-dorado-score-keeper'),
+      }),
+    );
+
+    telemetry.track('dev-event');
+    expect(logAdapter.addAction).toHaveBeenCalledWith(
+      'dev-event',
+      expect.objectContaining({ environment: 'development' }),
+    );
   });
 });

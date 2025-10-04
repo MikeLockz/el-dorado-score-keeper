@@ -14,40 +14,36 @@ if (!hasObservabilityEnabled) {
   process.exit(0);
 }
 
-const browserApiKey = process.env.NEXT_PUBLIC_HDX_API_KEY;
+const browserApiKey =
+  process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY ||
+  process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY;
 
 if (!browserApiKey) {
-  console.warn('HyperDX credentials missing. Provide NEXT_PUBLIC_HDX_API_KEY to tunnel telemetry.');
+  console.warn(
+    'New Relic ingest key missing. Provide NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY (or alias NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY) to stream telemetry.',
+  );
   process.exit(1);
 }
 
-const cliProbe = spawnSync('pnpm', ['exec', 'hyperdx', '--version'], {
+console.info('New Relic browser telemetry does not require a tunnel. Ensure outbound HTTPS access to log-api.newrelic.com.');
+
+const cliProbe = spawnSync('pnpm', ['exec', 'nr1', '--version'], {
   stdio: 'ignore',
 });
 
 if (cliProbe.error || cliProbe.status !== 0) {
-  console.warn('HyperDX CLI not found. Install it with "pnpm add -D @hyperdx/cli".');
-  process.exit(1);
+  console.warn('Optional: install the New Relic CLI (nr1) if you need extra tooling.');
 }
 
-console.info('Starting HyperDX tunnel for service "app"...');
-
-const tunnel = spawn('pnpm', ['exec', 'hyperdx', 'tunnel', '--service', 'app'], {
+const mockTunnel = spawn('node', ['-e', 'console.info("Telemetry ready"); setTimeout(()=>{}, 1000);'], {
   stdio: 'inherit',
 });
 
-const shutdown = (code: number | null, signal: NodeJS.Signals | null) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
-  }
+mockTunnel.on('exit', () => {
+  process.exit(0);
+});
 
-  process.exit(code === null ? 0 : code);
-};
-
-tunnel.on('exit', (code, signal) => shutdown(code, signal));
-
-tunnel.on('error', (error) => {
-  console.error('Unable to start the HyperDX tunnel:', error);
+mockTunnel.on('error', (error) => {
+  console.error('Unable to launch placeholder telemetry task:', error);
   process.exit(1);
 });

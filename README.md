@@ -185,12 +185,12 @@ More details and the full tracking snippet live in `ANALYTICS.md`.
 
 ## Observability
 
-HyperDX is opt-in. By default the app ships without telemetry until you set the feature flags and browser credentials.
+New Relic Browser telemetry is opt-in. By default the app ships without telemetry until you enable the flag and supply browser credentials.
 
-1. Duplicate `.env.local.example` to `.env.local` and provide sandbox values for `NEXT_PUBLIC_HDX_API_KEY`. Leave `NEXT_PUBLIC_OBSERVABILITY_ENABLED=false` until you are ready to validate.
-2. Set `NEXT_PUBLIC_OBSERVABILITY_ENABLED=true` when you want to validate HyperDX in the browser. Missing credentials keep the integration dormant.
-3. HyperDX rejects `localhost` origins. When you want telemetry locally, run `pnpm observability:proxy` (defaults to `http://localhost:5050`) and set `NEXT_PUBLIC_HDX_HOST` to that URL; override the upstream or port with `HDX_PROXY_TARGET` / `HDX_PROXY_PORT` as needed.
-4. Run `pnpm observability:smoke` to open a local tunnel via the HyperDX CLI. The helper exits early with guidance when flags or credentials are absent.
-5. The root layout wraps the app in `HyperDXProvider`, which lazily loads the HyperDX browser SDK and emits `page.viewed` events on navigation. Client components can call `captureBrowserException` / `captureBrowserMessage` from `lib/observability/browser` to record structured telemetry instead of `console.*`.
+1. Duplicate `.env.local.example` to `.env.local` and provide sandbox values for `NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY`. Leave `NEXT_PUBLIC_OBSERVABILITY_ENABLED=false` until you are ready to validate.
+2. Set `NEXT_PUBLIC_OBSERVABILITY_ENABLED=true` when you want to validate telemetry in the browser. Missing credentials keep the integration dormant.
+3. New Relic ingest endpoints reject `localhost` origins. When you want telemetry locally, run `pnpm observability:proxy` (defaults to `http://localhost:5050`) and set `NEXT_PUBLIC_NEW_RELIC_BROWSER_HOST` to that URL; override the upstream or port with `NR_PROXY_TARGET` / `NR_PROXY_PORT` as needed.
+4. Run `pnpm observability:smoke` to execute the lightweight readiness probe. The helper exits early with guidance when flags or credentials are absent.
+5. The root layout wraps the app in `BrowserTelemetryProvider`, which lazily initialises the pluggable vendor registry and emits `page.viewed` events on navigation. Client components can call `captureBrowserException` / `captureBrowserMessage` from `lib/observability/browser` to record structured telemetry instead of `console.*`.
 
-Cloudflare worker environments can copy `cloudflare/analytics-worker/.dev.vars.example` to `.dev.vars` and supply `CLOUDFLARE_HDX_API_KEY` when worker traces are needed.
+Cloudflare worker environments can copy `cloudflare/analytics-worker/.dev.vars.example` to `.dev.vars` and supply the equivalent New Relic credentials when worker traces are needed.
