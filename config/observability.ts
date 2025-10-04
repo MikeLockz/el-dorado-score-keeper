@@ -181,6 +181,15 @@ const resolvePosthogBrowserConfig = (): PosthogBrowserConfig => {
   };
 };
 
+const resolveOptionalPosthogBrowserConfig = (): PosthogBrowserConfig | undefined => {
+  const hasKey = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
+  if (!hasKey) {
+    return undefined;
+  }
+
+  return resolvePosthogBrowserConfig();
+};
+
 export const getBrowserTelemetryConfig = (
   runtime: ObservabilityRuntime,
 ): BrowserTelemetryConfig => {
@@ -236,7 +245,7 @@ export const getBrowserTelemetryConfig = (
 
   const newRelic = provider === 'newrelic' ? resolveNewRelicBrowserAgentConfig(config) : undefined;
 
-  const posthog = provider === 'custom' ? resolvePosthogBrowserConfig() : undefined;
+  const posthog = provider === 'custom' ? resolveOptionalPosthogBrowserConfig() : undefined;
 
   const result: BrowserConfigWithAgent = {
     ...config,
