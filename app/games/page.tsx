@@ -43,6 +43,7 @@ export default function GamesPage() {
       router.push('/');
     },
     onCancelled: handleResumeCurrentGame,
+    analytics: { source: 'games' },
   });
 
   const describeError = React.useCallback((error: unknown) => {
@@ -90,7 +91,14 @@ export default function GamesPage() {
 
   const onNewGame = async () => {
     resumeRouteRef.current = resumeRoute;
-    const ok = await startNewGame();
+    const inferredMode: 'single-player' | 'scorecard' =
+      resumeRoute === '/single-player' ? 'single-player' : 'scorecard';
+    const ok = await startNewGame({
+      analytics: {
+        mode: inferredMode,
+        source: 'games.new-game',
+      },
+    });
     if (!ok) {
       handleResumeCurrentGame();
     }

@@ -5,8 +5,13 @@ import {
   captureBrowserMessage,
   ensureBrowserTelemetry,
   isBrowserTelemetryEnabled,
+  trackBrowserEvent,
   __resetBrowserTelemetryForTests,
 } from '@/lib/observability/browser';
+import {
+  __resetAnalyticsPreferenceForTests,
+  setAnalyticsPreference,
+} from '@/lib/observability/privacy';
 
 const ORIG_ENV = { ...process.env };
 const trackedEnvKeys = [
@@ -28,6 +33,9 @@ const trackedEnvKeys = [
   'NEXT_PUBLIC_NEW_RELIC_BROWSER_ERROR_BEACON',
   'NEXT_PUBLIC_NEW_RELIC_BROWSER_INIT',
   'NEXT_PUBLIC_NEW_RELIC_ALLOW_DEV_AGENT',
+  'NEXT_PUBLIC_POSTHOG_KEY',
+  'NEXT_PUBLIC_POSTHOG_HOST',
+  'NEXT_PUBLIC_POSTHOG_DEBUG',
 ];
 
 const originalWindow = (globalThis as { window?: Window }).window;
@@ -48,6 +56,16 @@ const customVendor = vi.hoisted(() => ({
   getSessionUrl: vi.fn(),
 }));
 
+const posthogVendor = vi.hoisted(() => ({
+  init: vi.fn(),
+  addAction: vi.fn(),
+  recordException: vi.fn(),
+  setGlobalAttributes: vi.fn(),
+  getSessionUrl: vi.fn(),
+}));
+
+const syncOptOut = vi.hoisted(() => vi.fn());
+
 const logAdapter = vi.hoisted(() => ({
   init: vi.fn(),
   addAction: vi.fn(),
@@ -62,6 +80,16 @@ vi.mock('@obs/browser-vendor/newrelic/browser-agent', () => ({
 
 vi.mock('@obs/browser-vendor/custom', () => ({
   default: customVendor,
+}));
+
+vi.mock('@obs/browser-vendor/posthog', () => ({
+  default: posthogVendor,
+}));
+
+vi.mock('@/lib/observability/vendors/posthog', () => ({
+  __esModule: true,
+  default: posthogVendor,
+  syncOptOut,
 }));
 
 vi.mock('@/lib/observability/vendors/newrelic/log-adapter', () => ({
@@ -86,12 +114,20 @@ const restoreEnv = () => {
 
 beforeEach(() => {
   restoreEnv();
+  __resetAnalyticsPreferenceForTests();
+  syncOptOut.mockClear();
+  setAnalyticsPreference('enabled');
   Object.values(browserVendor).forEach((fn) => {
     if (typeof fn?.mockClear === 'function') {
       fn.mockClear();
     }
   });
   Object.values(customVendor).forEach((fn) => {
+    if (typeof fn?.mockClear === 'function') {
+      fn.mockClear();
+    }
+  });
+  Object.values(posthogVendor).forEach((fn) => {
     if (typeof fn?.mockClear === 'function') {
       fn.mockClear();
     }
@@ -255,5 +291,97 @@ describe('browser telemetry guards', () => {
       'dev-event',
       expect.objectContaining({ environment: 'development' }),
     );
+  });
+
+  it('loads the PostHog adapter when provider is posthog', async () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_OBSERVABILITY_PROVIDER = 'posthog';
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_123';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'placeholder';
+    process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID = 'ignored';
+    process.env.NEXT_PUBLIC_APP_ENV = 'staging';
+    (globalThis as { window?: Window }).window = {} as Window;
+
+    const telemetry = await ensureBrowserTelemetry();
+    expect(posthogVendor.init).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: 'phc_123',
+        service: expect.any(String),
+      }),
+    );
+    expect(posthogVendor.setGlobalAttributes).toHaveBeenCalledWith({
+      environment: 'staging',
+      service: expect.any(String),
+    });
+
+    telemetry.track('page.viewed', { path: '/rules' });
+    expect(posthogVendor.addAction).toHaveBeenCalledWith(
+      'page.viewed',
+      expect.objectContaining({ path: '/rules', environment: 'staging' }),
+    );
+
+    expect(browserVendor.init).not.toHaveBeenCalled();
+    expect(customVendor.init).not.toHaveBeenCalled();
+  });
+
+  it('respects analytics preference opt-out and opt-in', async () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'browser-key';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SERVICE_NAME = 'front-end';
+    process.env.NEXT_PUBLIC_APP_ENV = 'test';
+    process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID = 'app-123';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY = 'license-123';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL =
+      'https://js-agent.newrelic.com/nr-loader-spa-1234.min.js';
+    (globalThis as { window?: Window }).window = {} as Window;
+
+    await ensureBrowserTelemetry();
+    browserVendor.addAction.mockClear();
+
+    trackBrowserEvent('game.started', { game_id: 'test', mode: 'scorecard', player_count: 4 });
+    expect(browserVendor.addAction).toHaveBeenCalledTimes(1);
+
+    setAnalyticsPreference('disabled');
+    browserVendor.addAction.mockClear();
+
+    trackBrowserEvent('players.added', {
+      game_id: 'test',
+      added_count: 1,
+      total_players: 5,
+      input_method: 'manual',
+    });
+    expect(browserVendor.addAction).not.toHaveBeenCalled();
+
+    setAnalyticsPreference('enabled');
+    await ensureBrowserTelemetry();
+    browserVendor.addAction.mockClear();
+
+    trackBrowserEvent('round.finalized', {
+      game_id: 'test',
+      round_number: 1,
+      scoring_variant: 'scorecard',
+    });
+    expect(browserVendor.addAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws on disallowed payload keys when analytics enabled in development', async () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'browser-key';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SERVICE_NAME = 'front-end';
+    process.env.NEXT_PUBLIC_APP_ENV = 'test';
+    process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID = 'app-123';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY = 'license-123';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL =
+      'https://js-agent.newrelic.com/nr-loader-spa-1234.min.js';
+    (globalThis as { window?: Window }).window = {} as Window;
+
+    await ensureBrowserTelemetry();
+
+    expect(() =>
+      trackBrowserEvent('game.started', {
+        game_id: 'abc',
+        email: 'player@example.com',
+      }),
+    ).toThrow(/Disallowed telemetry attribute/);
   });
 });

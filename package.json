@@ -24,7 +24,8 @@
     "tokens:sync": "node --import tsx scripts/tokens/sync.ts",
     "tokens:watch": "node --watch --import tsx scripts/tokens/sync.ts",
     "observability:smoke": "node --import tsx scripts/observability/smoke.ts",
-    "observability:proxy": "node --import tsx scripts/observability/proxy.ts"
+    "observability:proxy": "node --import tsx scripts/observability/proxy.ts",
+    "posthog:bootstrap": "node --import tsx scripts/posthog/bootstrap-dashboards.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -68,6 +69,7 @@
     "next": "15.2.4",
     "next-intl": "^4.3.9",
     "next-themes": "latest",
+    "posthog-js": "^1.270.1",
     "react": "^19",
     "react-day-picker": "9.8.0",
     "react-dom": "^19",

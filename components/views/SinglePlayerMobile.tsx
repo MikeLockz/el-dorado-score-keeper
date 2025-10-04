@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 
 import { events, roundDelta } from '@/lib/state';
 import { computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
+import { applyRoundAnalyticsFromEvents } from '@/lib/observability/events';
 import SpRoundSummary from './sp/SpRoundSummary';
 import SpGameSummary from './sp/SpGameSummary';
 import SpHeaderBar from './sp/SpHeaderBar';
@@ -88,10 +89,20 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     if (advanceDisabled) return;
     const startHeight = height;
     setPendingHeight(startHeight);
-    void appendMany(userAdvanceBatch).catch(() => {
-      setPendingHeight((prev) => (prev === startHeight ? null : prev));
-    });
-  }, [advanceDisabled, appendMany, height, userAdvanceBatch]);
+    const promise = Promise.resolve(appendMany(userAdvanceBatch));
+    promise
+      .then(() =>
+        applyRoundAnalyticsFromEvents(userAdvanceBatch, {
+          mode: 'single-player',
+          playerCount: players.length,
+          source: 'single-player.advance',
+        }),
+      )
+      .catch(() => {
+        setPendingHeight((prev) => (prev === startHeight ? null : prev));
+      });
+    void promise;
+  }, [advanceDisabled, appendMany, height, userAdvanceBatch, players.length]);
 
   const loadingLabel = React.useMemo(() => {
     switch (ctaMeta.stage) {
@@ -155,13 +166,21 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
           intent: 'auto',
           summaryAutoAdvanceMs: autoMs,
         });
-        if (batch.length > 0) void appendMany(batch);
+        if (batch.length > 0) {
+          void Promise.resolve(appendMany(batch)).then(() =>
+            applyRoundAnalyticsFromEvents(batch, {
+              mode: 'single-player',
+              playerCount: players.length,
+              source: 'single-player.summary-auto',
+            }),
+          );
+        }
       }
     };
     tick();
     const id = setInterval(tick, 250);
     return () => clearInterval(id);
-  }, [state, summaryEnteredAt, spPhase, autoCanceled, appendMany]);
+  }, [state, summaryEnteredAt, spPhase, autoCanceled, appendMany, players.length]);
 
   // Card selection and play helpers (declare before any returns)
   const [selected, setSelected] = React.useState<SpCard | null>(null);
@@ -207,7 +226,14 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
           if (isBatchPending) return;
           setAutoCanceled(true);
           const batch = computeAdvanceBatch(state, Date.now(), { intent: 'user' });
-          if (batch.length > 0) void appendMany(batch);
+          if (batch.length > 0)
+            void Promise.resolve(appendMany(batch)).then(() =>
+              applyRoundAnalyticsFromEvents(batch, {
+                mode: 'single-player',
+                playerCount: players.length,
+                source: 'single-player.summary-continue',
+              }),
+            );
         }}
         isLastRound={isLastRound}
         disabled={isBatchPending}

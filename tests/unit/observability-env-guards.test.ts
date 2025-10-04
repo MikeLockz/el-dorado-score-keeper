@@ -8,6 +8,10 @@ const trackedKeys = [
   'NEXT_PUBLIC_OBSERVABILITY_ENABLED',
   'NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY',
   'NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY',
+  'NEXT_PUBLIC_OBSERVABILITY_PROVIDER',
+  'NEXT_PUBLIC_POSTHOG_KEY',
+  'NEXT_PUBLIC_POSTHOG_HOST',
+  'NEXT_PUBLIC_POSTHOG_DEBUG',
 ];
 
 const restoreEnv = () => {
@@ -33,6 +37,7 @@ afterEach(() => {
 describe('observability env guards', () => {
   it('throws when browser observability is enabled without a public API key', () => {
     process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_OBSERVABILITY_PROVIDER = 'newrelic';
 
     expect(() => getBrowserTelemetryConfig('browser')).toThrowError(
       'NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY must be defined when browser observability is enabled',
@@ -42,6 +47,7 @@ describe('observability env guards', () => {
   it('allows custom providers to skip the New Relic license key', () => {
     process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
     process.env.NEXT_PUBLIC_OBSERVABILITY_PROVIDER = 'custom';
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_local';
 
     expect(getBrowserTelemetryConfig('browser')).toEqual({
       runtime: 'browser',
@@ -50,6 +56,11 @@ describe('observability env guards', () => {
       host: 'https://log-api.newrelic.com',
       environment: 'development',
       serviceName: 'el-dorado-score-keeper-web',
+      posthog: {
+        apiKey: 'phc_local',
+        host: 'https://us.i.posthog.com',
+        debug: false,
+      },
     });
   });
 });

@@ -346,3 +346,18 @@ Verification steps
 - Check Slack for a message like:
   - `📄 /  ·  🔗 https://google.com\n🧭 Chrome  ·  🌐 203.0.113.42\nhttps://...`
 - Confirm only one event on first navigation (reload should not resend).
+
+## PostHog Dashboards Automation
+
+- Automate creation of the PostHog dashboards introduced in the analytics rollout guide instead of reconfiguring them by hand.
+- Required environment variables:
+  - `POSTHOG_PERSONAL_API_KEY` – personal key with **write** access to the target project.
+  - `POSTHOG_PROJECT_ID` – numeric project identifier from PostHog settings.
+  - Optional `POSTHOG_API_HOST` if using a self-hosted PostHog instance (`https://app.posthog.com` by default).
+- Inspect the outbound payloads first:
+  ```bash
+  POSTHOG_PERSONAL_API_KEY=phx_demo POSTHOG_PROJECT_ID=12345 \
+    pnpm posthog:bootstrap --dry-run --json
+  ```
+- Remove `--dry-run` to upsert the trends, funnel, and HogQL insights defined in `scripts/posthog/insights.ts`. The script reports per-insight `created`/`updated` status and exits non-zero on API errors.
+- Re-run the command after event schema changes or when provisioning new environments so dashboards stay consistent across staging and production.

@@ -24,6 +24,7 @@ export default function LandingPage() {
   const { startNewGame, pending: newGamePending } = useNewGameRequest({
     onSuccess: handleNavigateToMode,
     onCancelled: handleNavigateToMode,
+    analytics: { source: 'landing' },
   });
 
   const singlePlayerActive = hasSinglePlayerProgress(state);
@@ -33,7 +34,12 @@ export default function LandingPage() {
     async (mode: 'single' | 'scorecard') => {
       if (newGamePending) return;
       requestedModeRef.current = mode;
-      const ok = await startNewGame();
+      const ok = await startNewGame({
+        analytics: {
+          mode: mode === 'single' ? 'single-player' : 'scorecard',
+          source: mode === 'single' ? 'landing.single' : 'landing.scorecard',
+        },
+      });
       if (!ok && requestedModeRef.current === mode) {
         requestedModeRef.current = null;
         router.push(mode === 'single' ? '/single-player' : '/scorecard');

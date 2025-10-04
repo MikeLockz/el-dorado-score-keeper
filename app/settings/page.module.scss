@@ -35,3 +35,39 @@
 .buttonGroup {
   @include layout.inline-cluster('space-2');
 }
+
+.sectionGroup {
+  @include layout.stack('space-6');
+}
+
+.preferenceToggle {
+  align-items: center;
+  display: inline-flex;
+  gap: spacing.spacing('space-2');
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.preferenceToggleInput {
+  block-size: 1.25rem;
+  inline-size: 1.25rem;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.preferenceToggleLabel {
+  @include typography.body('body-sm');
+}
+
+.preferenceHelper {
+  @include typography.body('body-xs');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.preferenceHelperDev {
+  @include typography.body('body-xs');
+  color: var(--color-muted-foreground);
+  font-style: italic;
+  margin: 0;
+}

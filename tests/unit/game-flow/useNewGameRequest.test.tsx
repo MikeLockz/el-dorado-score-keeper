@@ -25,6 +25,11 @@ const archiveCurrentGameAndResetMock = vi
 const clientLogModule = await import('@/lib/client-log');
 const logEventMock = vi.spyOn(clientLogModule, 'logEvent').mockImplementation(() => {});
 
+const analyticsEventsModule = await import('@/lib/observability/events');
+const trackGameStartedMock = vi
+  .spyOn(analyticsEventsModule, 'trackGameStarted')
+  .mockImplementation(() => {});
+
 const { useNewGameRequest } = await import('@/lib/game-flow');
 
 function cloneState(): Mutable<AppState> {
@@ -96,6 +101,7 @@ describe('useNewGameRequest', () => {
     expect(newGameConfirmShow).not.toHaveBeenCalled();
     expect(archiveCurrentGameAndResetMock).toHaveBeenCalledTimes(1);
     expect(result.current.pending).toBe(false);
+    expect(trackGameStartedMock).toHaveBeenCalledTimes(1);
   });
 
   it('requests confirmation when progress exists and honours cancellation', async () => {
@@ -121,6 +127,7 @@ describe('useNewGameRequest', () => {
     expect(newGameConfirmShow).not.toHaveBeenCalled();
     expect(archiveCurrentGameAndResetMock).not.toHaveBeenCalled();
     expect(onCancelled).toHaveBeenCalledTimes(1);
+    expect(trackGameStartedMock).not.toHaveBeenCalled();
   });
 
   it('blocks when requireIdle is true and a batch is pending', async () => {
@@ -141,6 +148,7 @@ describe('useNewGameRequest', () => {
     });
 
     expect(archiveCurrentGameAndResetMock).not.toHaveBeenCalled();
+    expect(trackGameStartedMock).not.toHaveBeenCalled();
   });
 
   it('clears pending when a reset storage event fires', async () => {
@@ -182,6 +190,8 @@ describe('useNewGameRequest', () => {
     await act(async () => {
       expect(await startPromise!).toBe(true);
     });
+
+    expect(trackGameStartedMock).toHaveBeenCalledTimes(1);
   });
 
   it('skips confirmation when skipConfirm option is provided', async () => {
@@ -205,6 +215,7 @@ describe('useNewGameRequest', () => {
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(newGameConfirmShow).not.toHaveBeenCalled();
     expect(archiveCurrentGameAndResetMock).toHaveBeenCalledTimes(1);
+    expect(trackGameStartedMock).toHaveBeenCalledTimes(1);
   });
 
   it('emits telemetry for confirmed requests when enabled', async () => {
@@ -239,6 +250,7 @@ describe('useNewGameRequest', () => {
         timeTraveling: false,
       }),
     );
+    expect(trackGameStartedMock).toHaveBeenCalledTimes(1);
   });
 
   it('emits telemetry when a confirmation is cancelled', async () => {
@@ -275,6 +287,7 @@ describe('useNewGameRequest', () => {
         skipConfirm: false,
       }),
     );
+    expect(trackGameStartedMock).not.toHaveBeenCalled();
   });
 
   it('clears pending when a broadcast reset event fires', async () => {
@@ -338,6 +351,8 @@ describe('useNewGameRequest', () => {
       await act(async () => {
         expect(await startPromise!).toBe(true);
       });
+
+      expect(trackGameStartedMock).toHaveBeenCalledTimes(1);
 
       unmount();
     } finally {

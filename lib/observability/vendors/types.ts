@@ -11,6 +11,12 @@ export type NewRelicBrowserAgentConfig = {
   init?: Record<string, unknown> | undefined;
 };
 
+export type PosthogBrowserConfig = {
+  apiKey: string;
+  host?: string;
+  debug?: boolean;
+};
+
 export type BrowserVendorInitConfig = {
   apiKey: string;
   service: string;
@@ -18,6 +24,7 @@ export type BrowserVendorInitConfig = {
   consoleCapture?: boolean;
   debug?: boolean;
   newRelic?: NewRelicBrowserAgentConfig;
+  posthog?: PosthogBrowserConfig;
 };
 
 export type BrowserTelemetryAdapter = {

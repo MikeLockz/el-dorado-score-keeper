@@ -5,6 +5,7 @@ import type { AppState } from '@/lib/state';
 import * as clientLog from '@/lib/client-log';
 import { useAppState } from '@/components/state-provider';
 import { useNewGameConfirm } from '@/components/dialogs/NewGameConfirm';
+import { trackGameStarted, type AnalyticsGameMode } from '@/lib/observability/events';
 
 const DEFAULT_CONFIRM_MESSAGE =
   'You have an in-progress game. Starting a new one will archive current progress and reset scores.';
@@ -44,6 +45,8 @@ export type UseNewGameRequestOptions = {
   telemetry?: NewGameTelemetryConfig;
   /** Internal/testing override: force the has-progress detection result. */
   forceHasProgress?: boolean;
+  /** Default analytics metadata for subsequent `startNewGame` calls. */
+  analytics?: NewGameAnalyticsContext;
 };
 
 export type StartNewGameOptions = {
@@ -52,6 +55,8 @@ export type StartNewGameOptions = {
    * Useful for completed sessions where the next game starts immediately.
    */
   skipConfirm?: boolean;
+  /** Analytics overrides scoped to this invocation. */
+  analytics?: NewGameAnalyticsContext;
 };
 
 export type StartNewGameResult = {
@@ -81,6 +86,11 @@ export type NewGameTelemetryConfig = {
   events?: Partial<Record<NewGameTelemetryEvent, string | null>>;
   /** Custom tracker invoked instead of `logEvent`. */
   track?: (event: NewGameTelemetryEvent, payload: NewGameTelemetryPayload) => void;
+};
+
+export type NewGameAnalyticsContext = {
+  source?: string;
+  mode?: AnalyticsGameMode;
 };
 
 const DEFAULT_TELEMETRY_EVENT_NAMES: Record<NewGameTelemetryEvent, string> = {
@@ -151,6 +161,7 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
     onError,
     telemetry,
     forceHasProgress,
+    analytics: analyticsDefaults,
   } = options;
   const app = useAppState();
   const confirmController = useNewGameConfirm();
@@ -158,12 +169,17 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
   const [pending, setPending] = React.useState(false);
   const liveStateRef = React.useRef<AppState>(state);
   const telemetryRef = React.useRef<NewGameTelemetryConfig | undefined>(telemetry);
+  const analyticsRef = React.useRef<NewGameAnalyticsContext | undefined>(analyticsDefaults);
   const appRef = React.useRef(app);
   appRef.current = app;
 
   React.useEffect(() => {
     telemetryRef.current = telemetry;
   }, [telemetry]);
+
+  React.useEffect(() => {
+    analyticsRef.current = analyticsDefaults;
+  }, [analyticsDefaults]);
 
   React.useEffect(() => {
     if (!timeTraveling) {
@@ -251,7 +267,7 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
 
   const startNewGame = React.useCallback(
     async (requestOptions: StartNewGameOptions = {}) => {
-      const { skipConfirm = false } = requestOptions;
+      const { skipConfirm = false, analytics: analyticsOverride } = requestOptions;
       if (pending) return false;
       const latestApp = appRef.current ?? app;
       if (requireIdle && latestApp?.isBatchPending) return false;
@@ -260,6 +276,10 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
       const hasProgress = forceHasProgress ?? hasInProgressGame(effectiveState);
       const needsConfirmation = !skipConfirm && hasProgress;
       let skipReason: NewGameTelemetryPayload['skipReason'] | null = null;
+      const analyticsContext: NewGameAnalyticsContext = {
+        ...(analyticsRef.current ?? {}),
+        ...(analyticsOverride ?? {}),
+      };
 
       if (needsConfirmation) {
         const handler: ConfirmHandler =
@@ -319,6 +339,19 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
         await archiveCurrentGameAndResetLive();
         const finishedAt = mark();
         const durationMs = Math.max(0, finishedAt - startedAt);
+
+        const resolvedMode: AnalyticsGameMode =
+          analyticsContext.mode ??
+          (hasSinglePlayerProgress(effectiveState) ? 'single-player' : 'scorecard');
+        const playerCount = Object.keys(effectiveState.players ?? {}).length;
+        const source = analyticsContext.source ?? 'unknown';
+
+        trackGameStarted({
+          mode: resolvedMode,
+          playerCount,
+          source,
+          hasExistingProgress: hasProgress,
+        });
 
         if (skipReason) {
           emitTelemetry('skip', {

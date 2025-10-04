@@ -15,12 +15,12 @@ The El Dorado score keeper runs entirely in the browser. Observability is delive
 
 ## Architecture Overview
 
-| Area                   | Implementation                                                | Notes                                                                 |
-| ---------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Next.js browser bundle | `lib/observability/browser.ts` + vendor registry              | Lazy-loaded on the client, falls back to no-ops during static export  |
-| Vendor adapters        | `lib/observability/vendors/<provider>`                        | `newrelic/browser-agent` is the default; log shim retained for fallback |
-| Client logging         | `lib/client-log.ts` + console fallbacks                       | Emits structured events (`client.error`, etc.) without hitting `/api` |
-| Domain spans           | `lib/observability/spans.ts`                                  | Reuses the active browser adapter when enabled, otherwise no-ops      |
+| Area                   | Implementation                                   | Notes                                                                   |
+| ---------------------- | ------------------------------------------------ | ----------------------------------------------------------------------- |
+| Next.js browser bundle | `lib/observability/browser.ts` + vendor registry | Lazy-loaded on the client, falls back to no-ops during static export    |
+| Vendor adapters        | `lib/observability/vendors/<provider>`           | `newrelic/browser-agent` is the default; log shim retained for fallback |
+| Client logging         | `lib/client-log.ts` + console fallbacks          | Emits structured events (`client.error`, etc.) without hitting `/api`   |
+| Domain spans           | `lib/observability/spans.ts`                     | Reuses the active browser adapter when enabled, otherwise no-ops        |
 
 There is no server runtime instrumentation, no `/api/log` route, and no dependency on Node-specific packages.
 
@@ -32,7 +32,7 @@ There is no server runtime instrumentation, no `/api/log` route, and no dependen
 - The browser loader (`lib/observability/browser.ts`) resolves the provider and imports the matching adapter via the bundler alias `@obs/browser-vendor/*`.
 - `lib/observability/vendors/newrelic/browser-agent.ts` loads the official Browser agent, queues calls until the SDK is ready, and falls back to the in-repo log shim when configuration or loading fails.
 - `lib/observability/vendors/newrelic/log-adapter.ts` remains as the lightweight fallback used when the agent cannot boot or when configuration is incomplete.
-- `lib/observability/vendors/custom.ts` is a placeholder that returns a no-op adapter. Teams can shadow this module in their build to supply an alternative vendor without editing core code.
+- `lib/observability/vendors/custom.ts` fans out telemetry to both PostHog and New Relic. Use `NEXT_PUBLIC_OBSERVABILITY_PROVIDER=custom` (with both credentials configured) when you need dual analytics. Downstream consumers can still shadow this module if they prefer a different split.
 - When a provider fails to load or throws during `init`, the loader degrades to a shared no-op adapter so the public telemetry helpers stay safe to call.
 
 ---
@@ -59,6 +59,11 @@ NEXT_PUBLIC_NEW_RELIC_BROWSER_BEACON=bam.nr-data.net          # optional
 NEXT_PUBLIC_NEW_RELIC_BROWSER_ERROR_BEACON=bam.nr-data.net    # optional
 NEXT_PUBLIC_NEW_RELIC_BROWSER_INIT={"distributed_tracing":{"enabled":true}}
 NEXT_PUBLIC_NEW_RELIC_ALLOW_DEV_AGENT=false
+
+# PostHog (required when provider is "posthog" or "custom")
+NEXT_PUBLIC_POSTHOG_KEY=phc_project_key
+NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com   # optional override
+NEXT_PUBLIC_POSTHOG_DEBUG=false                     # optional verbose logging
 ```
 
 - Leave the flag disabled (`false`) in local setups by default; enable it when you want to inspect telemetry.

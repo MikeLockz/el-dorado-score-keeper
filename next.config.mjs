@@ -56,10 +56,7 @@ const nextConfig = {
     config.resolve = config.resolve || {};
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
-      '@obs/browser-vendor': path.resolve(
-        process.cwd(),
-        'lib/observability/vendors',
-      ),
+      '@obs/browser-vendor': path.resolve(process.cwd(), 'lib/observability/vendors'),
     };
     return config;
   },

@@ -21,6 +21,7 @@ import { uuid } from '@/lib/utils';
 import { useSinglePlayerEngine } from '@/lib/single-player/use-engine';
 import { INITIAL_STATE } from '@/lib/state';
 import { captureBrowserMessage } from '@/lib/observability/browser';
+import { applyRoundAnalyticsFromEvents } from '@/lib/observability/events';
 
 import styles from './page.module.scss';
 
@@ -107,7 +108,7 @@ export default function SinglePlayerPage() {
     );
     // Persist deal + leader + set current scoring round to bidding atomically
     try {
-      await appendMany([
+      const batch = [
         events.spDeal({
           roundNo: spRoundNo,
           dealerId: dealer,
@@ -118,10 +119,21 @@ export default function SinglePlayerPage() {
         }),
         events.spLeaderSet({ leaderId: deal.firstToAct }),
         events.roundStateSet({ round: spRoundNo, state: 'bidding' }),
-      ]);
+      ] as const;
+
+      await appendMany([...batch]);
+      applyRoundAnalyticsFromEvents(batch, {
+        mode: 'single-player',
+        playerCount: players.length,
+        source: 'single-player.deal',
+      });
     } catch (error: unknown) {
       const reason =
-        error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Unknown error';
       captureBrowserMessage('single-player.persist.failed', {
         level: 'warn',
         attributes: {

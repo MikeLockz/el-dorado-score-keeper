@@ -53,7 +53,7 @@ This plan documents the work required to graduate the lightweight log-only adapt
 
 - Added `config/observability-provider.ts` to expose the browser vendor flag with sane defaults and dev warnings for unknown values.
 - Replaced the `@hyperdx/browser` alias with `@obs/browser-vendor/*` and introduced a vendor registry that lazy-loads providers.
-- Moved the New Relic log shim to `lib/observability/vendors/newrelic/log-adapter.ts`, added a reusable no-op adapter, and stubbed `lib/observability/vendors/custom.ts` for downstream overrides.
+- Moved the New Relic log shim to `lib/observability/vendors/newrelic/log-adapter.ts`, added a reusable no-op adapter, and wired `lib/observability/vendors/custom.ts` to fan out to both PostHog and New Relic when `NEXT_PUBLIC_OBSERVABILITY_PROVIDER=custom`.
 - Updated `lib/observability/browser.ts` to resolve vendors through the registry, preserving the observability boundary and soft-failing to the shared no-op adapter.
 - Extended existing unit coverage to assert provider switching behaviour and renamed documentation to reflect the new registry.
 
@@ -187,13 +187,13 @@ This plan documents the work required to graduate the lightweight log-only adapt
 
 #### Phase 5 QA Matrix
 
-| Flow | Steps | Expected New Relic Signals |
-| ---- | ----- | -------------------------- |
-| Login/landing | Load `/`, open drawer, navigate to `Login` | `PageView` with `route.name=/`, `PageAction` `navigation.drawer.opened`, no JS errors |
-| Start new game | From landing, choose `Start New Game`, complete setup | `PageAction` `game.started`, `PageView` route `/game/play`, SPA interaction renamed to `game/play` |
-| Continue existing game | Use continue CTA, resume play, end turn | `PageAction` `continue.clicked`, `JavaScriptError` count stays flat, AJAX timings recorded |
-| Error boundary | Trigger known safe error (e.g., cheat console action) | `JavaScriptError` with `error.message`, `PageAction` `client.error` including `attributes.context` |
-| Observability disabled | Toggle feature flag off, reload | No New Relic traffic, console info logs appear, helpers become silent |
+| Flow                   | Steps                                                 | Expected New Relic Signals                                                                         |
+| ---------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Login/landing          | Load `/`, open drawer, navigate to `Login`            | `PageView` with `route.name=/`, `PageAction` `navigation.drawer.opened`, no JS errors              |
+| Start new game         | From landing, choose `Start New Game`, complete setup | `PageAction` `game.started`, `PageView` route `/game/play`, SPA interaction renamed to `game/play` |
+| Continue existing game | Use continue CTA, resume play, end turn               | `PageAction` `continue.clicked`, `JavaScriptError` count stays flat, AJAX timings recorded         |
+| Error boundary         | Trigger known safe error (e.g., cheat console action) | `JavaScriptError` with `error.message`, `PageAction` `client.error` including `attributes.context` |
+| Observability disabled | Toggle feature flag off, reload                       | No New Relic traffic, console info logs appear, helpers become silent                              |
 
 #### Evidence Capture
 
@@ -257,6 +257,7 @@ This plan documents the work required to graduate the lightweight log-only adapt
 5. Cleanup/deprecation removal (Phase 6).
 
 Each PR should:
+
 - Include automated test run output in the description.
 - Tag relevant reviewers (observability owner, FE lead).
 - Link back to the tracking issue and this plan.

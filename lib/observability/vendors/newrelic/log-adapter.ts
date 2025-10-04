@@ -1,4 +1,7 @@
-import type { BrowserTelemetryAdapter, BrowserVendorInitConfig } from '@/lib/observability/vendors/types';
+import type {
+  BrowserTelemetryAdapter,
+  BrowserVendorInitConfig,
+} from '@/lib/observability/vendors/types';
 
 const DEFAULT_ENDPOINT = 'https://log-api.newrelic.com';
 

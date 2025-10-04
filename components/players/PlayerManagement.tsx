@@ -26,6 +26,7 @@ import { usePromptDialog } from '@/components/dialogs/PromptDialog';
 import { useConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { captureBrowserException } from '@/lib/observability/browser';
+import { trackPlayersAdded } from '@/lib/observability/events';
 
 import styles from './player-management.module.scss';
 
@@ -114,7 +115,9 @@ export default function PlayerManagement() {
   const archivedPlayers = React.useMemo(() => selectArchivedPlayers(state), [state]);
   const rosters = React.useMemo(() => selectAllRosters(state), [state]);
   const rosterMap = React.useMemo(() => state.rosters, [state.rosters]);
-  const { startNewGame, pending: newGamePending } = useNewGameRequest();
+  const { startNewGame, pending: newGamePending } = useNewGameRequest({
+    analytics: { source: 'players' },
+  });
   const promptDialog = usePromptDialog();
   const confirmDialog = useConfirmDialog();
   const { toast } = useToast();
@@ -160,10 +163,19 @@ export default function PlayerManagement() {
     if (!unique) return;
     const id = uuid();
     setPlayerPending('add');
-    await runWithPlayerError('add-player', async () => {
+    const ok = await runWithPlayerError('add-player', async () => {
       await append(events.playerAdded({ id, name: unique, type: 'human' }));
     });
     setPlayerPending(null);
+    if (ok) {
+      trackPlayersAdded({
+        addedCount: 1,
+        totalPlayers: Math.max(0, players.length + 1),
+        inputMethod: 'manual',
+        source: 'players.management.add',
+        mode: 'scorecard',
+      });
+    }
   }, [append, players, archivedPlayers, promptDialog]);
 
   const handleRenamePlayer = React.useCallback(
@@ -257,12 +269,9 @@ export default function PlayerManagement() {
     const removals = players.map((p, idx) =>
       events.playerRemoved({ id: p.id }, { ts: Date.now() + idx }),
     );
-    await runWithPlayerError(
-      'reset-players',
-      async () => {
-        await appendMany(removals);
-      },
-    );
+    await runWithPlayerError('reset-players', async () => {
+      await appendMany(removals);
+    });
     setPlayerPending(null);
   }, [appendMany, players, confirmDialog]);
 
@@ -292,10 +301,19 @@ export default function PlayerManagement() {
       eventsToAppend.push(events.playerAdded({ id: uuid(), name: candidate, type: 'human' }));
     }
     setPlayerPending('add');
-    await runWithPlayerError('auto-create-players', async () => {
+    const ok = await runWithPlayerError('auto-create-players', async () => {
       await appendMany(eventsToAppend);
     });
     setPlayerPending(null);
+    if (ok) {
+      trackPlayersAdded({
+        addedCount: eventsToAppend.length,
+        totalPlayers: Math.max(0, players.length + eventsToAppend.length),
+        inputMethod: 'auto-fill',
+        source: 'players.management.auto-create',
+        mode: 'scorecard',
+      });
+    }
   }, [appendMany, players, archivedPlayers, autoCreateCount, toast]);
 
   const onDragEnd = React.useCallback(
@@ -410,6 +428,15 @@ export default function PlayerManagement() {
       );
       const reorder = events.playersReordered({ order });
       await appendMany([...removeEvents, ...addEvents, reorder]);
+      if (addEvents.length > 0) {
+        trackPlayersAdded({
+          addedCount: addEvents.length,
+          totalPlayers: order.length,
+          inputMethod: 'roster-load',
+          source: 'players.apply-roster-scorecard',
+          mode: 'scorecard',
+        });
+      }
     },
     [appendMany, rosterMap, state.players, toast],
   );
@@ -466,7 +493,9 @@ export default function PlayerManagement() {
     async (roster: RosterSummary) => {
       setRosterPending('load-score');
       await runWithPlayerError('load-roster-scorecard', async () => {
-        const ok = await startNewGame();
+        const ok = await startNewGame({
+          analytics: { mode: 'scorecard', source: 'players.load-roster-scorecard' },
+        });
         if (!ok) return;
         await applyRosterToScorecard(roster.rosterId);
       });
@@ -490,22 +519,19 @@ export default function PlayerManagement() {
     const rid = uuid();
     const defaultPlayers = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
     setRosterPending('auto');
-    await runWithPlayerError(
-      'create-default-roster',
-      async () => {
-        const eventsList: KnownAppEvent[] = [
-          events.rosterCreated({ rosterId: rid, name: 'Default Roster', type: 'scorecard' }),
-        ];
-        const order: string[] = [];
-        defaultPlayers.forEach((name) => {
-          const id = uuid();
-          eventsList.push(events.rosterPlayerAdded({ rosterId: rid, id, name, type: 'human' }));
-          order.push(id);
-        });
-        eventsList.push(events.rosterPlayersReordered({ rosterId: rid, order }));
-        await appendMany(eventsList);
-      },
-    );
+    await runWithPlayerError('create-default-roster', async () => {
+      const eventsList: KnownAppEvent[] = [
+        events.rosterCreated({ rosterId: rid, name: 'Default Roster', type: 'scorecard' }),
+      ];
+      const order: string[] = [];
+      defaultPlayers.forEach((name) => {
+        const id = uuid();
+        eventsList.push(events.rosterPlayerAdded({ rosterId: rid, id, name, type: 'human' }));
+        order.push(id);
+      });
+      eventsList.push(events.rosterPlayersReordered({ rosterId: rid, order }));
+      await appendMany(eventsList);
+    });
     setRosterPending(null);
   }, [appendMany]);
 
@@ -521,12 +547,9 @@ export default function PlayerManagement() {
     });
     if (!confirmed) return;
     setRosterPending('reset');
-    await runWithPlayerError(
-      'archive-all-rosters',
-      async () => {
-        await appendMany(activeRosters.map((r) => events.rosterArchived({ rosterId: r.rosterId })));
-      },
-    );
+    await runWithPlayerError('archive-all-rosters', async () => {
+      await appendMany(activeRosters.map((r) => events.rosterArchived({ rosterId: r.rosterId })));
+    });
     setRosterPending(null);
   }, [appendMany, rosters, confirmDialog]);
 

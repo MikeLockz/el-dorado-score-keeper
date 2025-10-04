@@ -15,6 +15,10 @@ const trackedKeys = [
   'NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID',
   'NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL',
   'NEXT_PUBLIC_NEW_RELIC_ALLOW_DEV_AGENT',
+  'NEXT_PUBLIC_OBSERVABILITY_PROVIDER',
+  'NEXT_PUBLIC_POSTHOG_KEY',
+  'NEXT_PUBLIC_POSTHOG_HOST',
+  'NEXT_PUBLIC_POSTHOG_DEBUG',
 ];
 
 const restoreEnv = () => {
@@ -97,7 +101,8 @@ describe('getBrowserTelemetryConfig', () => {
     process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
     process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY = 'browser-license-key';
     process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID = 'app-id';
-    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL = 'https://js-agent.newrelic.com/loader.js';
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL =
+      'https://js-agent.newrelic.com/loader.js';
     process.env.NEXT_PUBLIC_APP_ENV = 'production';
 
     const config = getBrowserTelemetryConfig('browser');
@@ -107,6 +112,52 @@ describe('getBrowserTelemetryConfig', () => {
         applicationId: 'app-id',
         licenseKey: 'browser-license-key',
         loaderScriptUrl: 'https://js-agent.newrelic.com/loader.js',
+      },
+    });
+  });
+
+  it('returns PostHog config when the provider is posthog', () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_OBSERVABILITY_PROVIDER = 'posthog';
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test';
+    process.env.NEXT_PUBLIC_POSTHOG_HOST = 'https://eu.posthog.com';
+    process.env.NEXT_PUBLIC_POSTHOG_DEBUG = 'true';
+
+    const config = getBrowserTelemetryConfig('browser');
+
+    expect(config).toEqual({
+      runtime: 'browser',
+      enabled: true,
+      apiKey: 'phc_test',
+      host: 'https://eu.posthog.com',
+      environment: 'development',
+      serviceName: 'el-dorado-score-keeper-web',
+      debug: true,
+      posthog: {
+        apiKey: 'phc_test',
+        host: 'https://eu.posthog.com',
+        debug: true,
+      },
+    });
+  });
+
+  it('includes PostHog details when using the custom provider', () => {
+    process.env.NEXT_PUBLIC_OBSERVABILITY_ENABLED = 'true';
+    process.env.NEXT_PUBLIC_OBSERVABILITY_PROVIDER = 'custom';
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_456';
+    process.env.NEXT_PUBLIC_POSTHOG_HOST = 'https://us.i.posthog.com';
+    process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY = 'nr-license';
+
+    const config = getBrowserTelemetryConfig('browser');
+
+    expect(config).toMatchObject({
+      runtime: 'browser',
+      enabled: true,
+      apiKey: 'nr-license',
+      posthog: {
+        apiKey: 'phc_456',
+        host: 'https://us.i.posthog.com',
+        debug: false,
       },
     });
   });

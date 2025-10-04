@@ -23,8 +23,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/lib/observability/browser', () => ({
-  ensureBrowserTelemetry: (...args: Parameters<typeof ensureTelemetry>) =>
-    ensureTelemetry(...args),
+  ensureBrowserTelemetry: (...args: Parameters<typeof ensureTelemetry>) => ensureTelemetry(...args),
   isBrowserTelemetryEnabled: () => isEnabled(),
   captureBrowserException: (...args: Parameters<typeof captureException>) =>
     captureException(...args),

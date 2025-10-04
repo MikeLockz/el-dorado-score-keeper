@@ -2,7 +2,10 @@ import { z } from 'zod';
 
 import { getObservabilityFlags, type ObservabilityRuntime } from './flags';
 import { getBrowserObservabilityProvider } from './observability-provider';
-import type { NewRelicBrowserAgentConfig } from '@/lib/observability/vendors/types';
+import type {
+  NewRelicBrowserAgentConfig,
+  PosthogBrowserConfig,
+} from '@/lib/observability/vendors/types';
 
 const SERVICE_NAME_FALLBACK = 'el-dorado-score-keeper';
 const WEB_SERVICE_SUFFIX = '-web';
@@ -25,6 +28,8 @@ const NEW_RELIC_APP_ID_KEYS = [
   'NEXT_PUBLIC_NEW_RELIC_APP_ID',
   'NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID',
 ] as const;
+
+const DEFAULT_POSTHOG_HOST = 'https://us.i.posthog.com';
 
 const truthyValues = new Set(['1', 'true', 'yes', 'on']);
 const devLikeEnvironments = new Set(['development', 'dev', 'local']);
@@ -62,7 +67,8 @@ const STATIC_ENV: Record<PublicEnvKey, string | undefined> = {
   NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY: process.env.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY,
   NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY: process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_LICENSE_KEY,
   NEXT_PUBLIC_NEW_RELIC_BROWSER_HOST: process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_HOST,
-  NEXT_PUBLIC_NEW_RELIC_BROWSER_SERVICE_NAME: process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SERVICE_NAME,
+  NEXT_PUBLIC_NEW_RELIC_BROWSER_SERVICE_NAME:
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_SERVICE_NAME,
   NEXT_PUBLIC_NEW_RELIC_APP_ID: process.env.NEXT_PUBLIC_NEW_RELIC_APP_ID,
   NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID: process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID,
 };
@@ -104,6 +110,7 @@ const BrowserConfigSchema = z.object({
   host: z.string().url().default('https://log-api.newrelic.com'),
   environment: z.string().default('development'),
   serviceName: z.string().default(`${SERVICE_NAME_FALLBACK}${WEB_SERVICE_SUFFIX}`),
+  debug: z.boolean().optional(),
 });
 
 const NewRelicAgentConfigSchema = z
@@ -113,7 +120,8 @@ const NewRelicAgentConfigSchema = z
       .min(1, 'NEXT_PUBLIC_NEW_RELIC_APP_ID must not be empty'),
     licenseKey: z
       .string({
-        required_error: 'NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY is required when agent configuration is set',
+        required_error:
+          'NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY is required when agent configuration is set',
       })
       .min(1, 'NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY must not be empty'),
     loaderScriptUrl: z
@@ -142,7 +150,10 @@ type BrowserConfigWithAgent = BrowserConfig & {
 };
 
 export type BrowserTelemetryConfig =
-  | ({ runtime: ObservabilityRuntime; enabled: true } & BrowserConfigWithAgent)
+  | ({
+      runtime: ObservabilityRuntime;
+      enabled: true;
+    } & BrowserConfigWithAgent & { posthog?: PosthogBrowserConfig })
   | { runtime: ObservabilityRuntime; enabled: false };
 
 const resolveBrowserEnvironment = () => process.env.NEXT_PUBLIC_APP_ENV?.trim() || 'development';
@@ -150,6 +161,24 @@ const resolveBrowserEnvironment = () => process.env.NEXT_PUBLIC_APP_ENV?.trim() 
 export const isObservabilityEnabled = (_runtime: ObservabilityRuntime) => {
   const flags = getObservabilityFlags();
   return flags.browser;
+};
+
+const resolvePosthogBrowserConfig = (): PosthogBrowserConfig => {
+  const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
+  if (!apiKey) {
+    throw new Error(
+      'NEXT_PUBLIC_POSTHOG_KEY must be defined when browser observability provider is posthog',
+    );
+  }
+
+  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() || DEFAULT_POSTHOG_HOST;
+  const debug = isTruthyEnv(process.env.NEXT_PUBLIC_POSTHOG_DEBUG);
+
+  return {
+    apiKey,
+    host,
+    debug,
+  };
 };
 
 export const getBrowserTelemetryConfig = (
@@ -163,12 +192,30 @@ export const getBrowserTelemetryConfig = (
 
   const provider = getBrowserObservabilityProvider();
 
+  const environment = resolveBrowserEnvironment();
+  const serviceName =
+    selectEnvValue(NEW_RELIC_SERVICE_KEYS) || `${SERVICE_NAME_FALLBACK}${WEB_SERVICE_SUFFIX}`;
+
+  if (provider === 'posthog') {
+    const posthog = resolvePosthogBrowserConfig();
+
+    return {
+      runtime,
+      enabled: true,
+      apiKey: posthog.apiKey,
+      host: posthog.host ?? DEFAULT_POSTHOG_HOST,
+      environment,
+      serviceName,
+      debug: posthog.debug,
+      posthog,
+    };
+  }
+
   const parsed = BrowserConfigSchema.safeParse({
     apiKey: selectEnvValue(NEW_RELIC_LICENSE_KEYS),
     host: selectEnvValue(NEW_RELIC_HOST_KEYS),
-    environment: resolveBrowserEnvironment(),
-    serviceName:
-      selectEnvValue(NEW_RELIC_SERVICE_KEYS) || `${SERVICE_NAME_FALLBACK}${WEB_SERVICE_SUFFIX}`,
+    environment,
+    serviceName,
   });
 
   if (!parsed.success) {
@@ -189,6 +236,8 @@ export const getBrowserTelemetryConfig = (
 
   const newRelic = provider === 'newrelic' ? resolveNewRelicBrowserAgentConfig(config) : undefined;
 
+  const posthog = provider === 'custom' ? resolvePosthogBrowserConfig() : undefined;
+
   const result: BrowserConfigWithAgent = {
     ...config,
     ...(newRelic ? { newRelic } : {}),
@@ -198,6 +247,7 @@ export const getBrowserTelemetryConfig = (
     runtime,
     enabled: true,
     ...result,
+    ...(posthog ? { posthog } : {}),
   };
 };
 
@@ -252,7 +302,9 @@ const resolveNewRelicBrowserAgentConfig = (
   const agentId = process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_AGENT_ID?.trim() || undefined;
   const xpid = process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_XPID?.trim() || undefined;
   const beacon = normalizeAgentEndpoint(process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_BEACON);
-  const errorBeacon = normalizeAgentEndpoint(process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_ERROR_BEACON);
+  const errorBeacon = normalizeAgentEndpoint(
+    process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_ERROR_BEACON,
+  );
   const rawInit = process.env.NEXT_PUBLIC_NEW_RELIC_BROWSER_INIT?.trim();
 
   const isLocalHost = (host: string | undefined) =>
@@ -270,7 +322,9 @@ const resolveNewRelicBrowserAgentConfig = (
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'NEXT_PUBLIC_NEW_RELIC_BROWSER_INIT must be valid JSON';
+        error instanceof Error
+          ? error.message
+          : 'NEXT_PUBLIC_NEW_RELIC_BROWSER_INIT must be valid JSON';
       throw new Error(`NEXT_PUBLIC_NEW_RELIC_BROWSER_INIT ${message}`);
     }
   }

@@ -63,12 +63,12 @@ const setupAdapter = async ({ withAgent = true }: SetupOptions = {}): Promise<Ad
     };
   }
 
-  vi.stubGlobal('window', ({
+  vi.stubGlobal('window', {
     ...(withAgent ? { newrelic: agent } : {}),
-  } as unknown) as Window & typeof globalThis);
+  } as unknown as Window & typeof globalThis);
 
   vi.stubGlobal('document', {
-    createElement: vi.fn(() => ({} as HTMLScriptElement)),
+    createElement: vi.fn(() => ({}) as HTMLScriptElement),
     head: {
       appendChild: vi.fn(),
     },
@@ -108,7 +108,10 @@ describe('new relic browser adapter', () => {
 
     adapter.addAction('page.viewed', { ...attributes });
 
-    expect(agent.addPageAction).toHaveBeenCalledWith('page.viewed', expect.objectContaining(attributes));
+    expect(agent.addPageAction).toHaveBeenCalledWith(
+      'page.viewed',
+      expect.objectContaining(attributes),
+    );
     expect(agent.setCustomAttribute).toHaveBeenCalledWith('route.name', '/players?tab=archived');
     expect(agent.setCustomAttribute).toHaveBeenCalledWith('route.pathname', '/players');
     expect(agent.setCustomAttribute).toHaveBeenCalledWith('route.search', 'tab=archived');

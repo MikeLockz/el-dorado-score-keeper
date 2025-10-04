@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const DEFAULT_BROWSER_PROVIDER = 'newrelic' as const;
 
-const BrowserProviderSchema = z.enum(['newrelic', 'custom']);
+const BrowserProviderSchema = z.enum(['newrelic', 'posthog', 'custom']);
 
 export type BrowserObservabilityProvider = z.infer<typeof BrowserProviderSchema>;
 

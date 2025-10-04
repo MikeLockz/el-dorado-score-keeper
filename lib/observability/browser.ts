@@ -7,6 +7,13 @@ import {
 import { loadBrowserTelemetryAdapter } from '@/lib/observability/vendors/registry';
 import type { BrowserTelemetryAdapter } from '@/lib/observability/vendors/types';
 import { sanitizeAttributes, type SpanAttributesInput } from '@/lib/observability/spans';
+import { assertTelemetryPropertiesSafe } from '@/lib/observability/payload-guard';
+import {
+  getAnalyticsPreference,
+  subscribeToAnalyticsPreference,
+  syncAnalyticsPreferenceWithVendor,
+  type AnalyticsPreference,
+} from '@/lib/observability/privacy';
 
 type BrowserMessageOptions = {
   level?: 'info' | 'warn' | 'error';
@@ -28,6 +35,10 @@ const noopTelemetry: BrowserTelemetry = {
 let activeTelemetry: BrowserTelemetry = noopTelemetry;
 let initializationPromise: Promise<BrowserTelemetry> | null = null;
 
+let currentPreference: AnalyticsPreference = 'enabled';
+let preferenceSubscriptionInitialised = false;
+let preferenceSubscriptionCleanup: (() => void) | null = null;
+
 const isBrowserEnvironment = () => typeof window !== 'undefined';
 
 const resolveErrorMessage = (error: unknown) => {
@@ -35,6 +46,40 @@ const resolveErrorMessage = (error: unknown) => {
   if (typeof error === 'string') return error;
   return 'Unknown error';
 };
+
+const initializePreferenceSubscription = () => {
+  if (!isBrowserEnvironment()) {
+    currentPreference = 'enabled';
+    return;
+  }
+
+  if (preferenceSubscriptionInitialised) {
+    return;
+  }
+
+  preferenceSubscriptionInitialised = true;
+  currentPreference = getAnalyticsPreference();
+  syncAnalyticsPreferenceWithVendor();
+
+  preferenceSubscriptionCleanup = subscribeToAnalyticsPreference((next) => {
+    currentPreference = next;
+    if (next === 'disabled') {
+      activeTelemetry = noopTelemetry;
+      initializationPromise = null;
+      return;
+    }
+
+    initializationPromise = null;
+    syncAnalyticsPreferenceWithVendor();
+    ensureBrowserTelemetry().catch((error) => {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[observability] Failed to re-enable browser telemetry after opt-in.', error);
+      }
+    });
+  });
+};
+
+const isPreferenceEnabled = () => currentPreference !== 'disabled';
 
 const loadBrowserVendor = async (): Promise<BrowserTelemetryAdapter | null> => {
   if (!isBrowserEnvironment()) {
@@ -57,6 +102,10 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
     return noopTelemetry;
   }
 
+  if (!isPreferenceEnabled()) {
+    return noopTelemetry;
+  }
+
   let config: Extract<BrowserTelemetryConfig, { runtime: 'browser'; enabled: true }>;
   try {
     const resolved = getBrowserTelemetryConfig('browser');
@@ -71,7 +120,7 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
     return noopTelemetry;
   }
 
-  let adapter: BrowserTelemetryAdapter;
+  let adapter: BrowserTelemetryAdapter | null;
   const provider = getBrowserObservabilityProvider();
 
   if (provider === 'newrelic' && !config.newRelic) {
@@ -84,17 +133,20 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
     return noopTelemetry;
   }
 
+  const activeAdapter: BrowserTelemetryAdapter = adapter;
+
   try {
     const initPayload = {
       apiKey: config.apiKey,
       service: config.serviceName,
-      url: config.host,
+      ...(config.host ? { url: config.host } : {}),
       consoleCapture: true,
-      debug: process.env.NODE_ENV !== 'production' && Boolean(config.newRelic),
+      debug: Boolean(config.debug ?? (process.env.NODE_ENV !== 'production' && config.newRelic)),
       ...(config.newRelic ? { newRelic: config.newRelic } : {}),
+      ...(config.posthog ? { posthog: config.posthog } : {}),
     } as const;
 
-    const initResult = adapter.init(initPayload);
+    const initResult = activeAdapter.init(initPayload);
     if (initResult && typeof (initResult as Promise<unknown>).then === 'function') {
       (initResult as Promise<unknown>).catch((error) => {
         if (process.env.NODE_ENV !== 'production') {
@@ -104,23 +156,31 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
     }
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {
-      console.warn('[observability] Browser telemetry vendor init failed; telemetry disabled.', error);
+      console.warn(
+        '[observability] Browser telemetry vendor init failed; telemetry disabled.',
+        error,
+      );
     }
     return noopTelemetry;
   }
 
-  if (typeof adapter.setGlobalAttributes === 'function') {
+  if (typeof activeAdapter.setGlobalAttributes === 'function') {
     try {
-      adapter.setGlobalAttributes({
+      activeAdapter.setGlobalAttributes({
         environment: config.environment,
         service: config.serviceName,
       });
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
-        console.warn('[observability] Failed to set browser telemetry vendor global attributes.', error);
+        console.warn(
+          '[observability] Failed to set browser telemetry vendor global attributes.',
+          error,
+        );
       }
     }
   }
+
+  syncAnalyticsPreferenceWithVendor();
 
   const attachEnvironment = (attributes?: SpanAttributesInput) => {
     const sanitized = sanitizeAttributes(attributes);
@@ -141,8 +201,14 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
 
   const telemetry: BrowserTelemetry = {
     track: (event, attributes) => {
+      if (!isPreferenceEnabled()) {
+        return;
+      }
+      const sanitizedAttributes = sanitizeAttributes(attributes);
+      assertTelemetryPropertiesSafe(event, sanitizedAttributes ?? undefined);
       try {
-        adapter.addAction(event, attachEnvironment(attributes));
+        const payload = attachEnvironment(sanitizedAttributes ?? attributes);
+        activeAdapter.addAction(event, payload);
       } catch (error) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[observability] Failed to track browser event.', {
@@ -153,8 +219,14 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
       }
     },
     captureException: (error, attributes) => {
+      if (!isPreferenceEnabled()) {
+        return;
+      }
+      const sanitizedAttributes = sanitizeAttributes(attributes);
+      assertTelemetryPropertiesSafe('browser.exception', sanitizedAttributes ?? undefined);
       try {
-        adapter.recordException(error, attachEnvironment(attributes));
+        const payload = attachEnvironment(sanitizedAttributes ?? attributes);
+        activeAdapter.recordException(error, payload);
       } catch (err) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[observability] Failed to record browser exception.', {
@@ -164,14 +236,20 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
       }
     },
     captureMessage: (message, options) => {
+      if (!isPreferenceEnabled()) {
+        return;
+      }
       const level = options?.level ?? 'info';
-      const payload = attachEnvironment({
+      const baseAttributes: SpanAttributesInput = {
         message,
         level,
         ...(options?.attributes ?? {}),
-      });
+      };
+      const sanitizedAttributes = sanitizeAttributes(baseAttributes);
+      assertTelemetryPropertiesSafe('browser.message', sanitizedAttributes ?? undefined);
+      const payload = attachEnvironment(sanitizedAttributes ?? baseAttributes);
       try {
-        adapter.addAction('browser.message', payload);
+        activeAdapter.addAction('browser.message', payload);
       } catch (error) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[observability] Failed to record browser message.', {
@@ -187,6 +265,13 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
 };
 
 export const ensureBrowserTelemetry = async (): Promise<BrowserTelemetry> => {
+  initializePreferenceSubscription();
+
+  if (!isPreferenceEnabled()) {
+    activeTelemetry = noopTelemetry;
+    return noopTelemetry;
+  }
+
   if (activeTelemetry !== noopTelemetry) {
     return activeTelemetry;
   }
@@ -203,7 +288,12 @@ export const ensureBrowserTelemetry = async (): Promise<BrowserTelemetry> => {
   }
 
   try {
-    return await initializationPromise;
+    const telemetry = await initializationPromise;
+    if (!isPreferenceEnabled()) {
+      activeTelemetry = noopTelemetry;
+      return noopTelemetry;
+    }
+    return telemetry;
   } catch {
     activeTelemetry = noopTelemetry;
     return noopTelemetry;
@@ -251,4 +341,8 @@ export const trackBrowserEvent = (event: string, attributes?: SpanAttributesInpu
 export const __resetBrowserTelemetryForTests = () => {
   activeTelemetry = noopTelemetry;
   initializationPromise = null;
+  preferenceSubscriptionCleanup?.();
+  preferenceSubscriptionCleanup = null;
+  preferenceSubscriptionInitialised = false;
+  currentPreference = 'enabled';
 };

@@ -11,6 +11,7 @@ import {
   tricksForRound,
 } from '@/lib/state';
 import type { RoundState } from '@/lib/state';
+import { markRoundStart, trackRoundFinalized } from '@/lib/observability/events';
 import ScorecardGrid, {
   LiveOverlay,
   ScorecardGridProps,
@@ -143,10 +144,17 @@ export default function CurrentGame({
         );
         if (!allMarked) return;
         await append(events.roundFinalize({ round }));
+        trackRoundFinalized({
+          roundNumber: round,
+          scoringVariant: 'scorecard',
+          playerCount: players.length,
+          source: 'scorecard.round-cycle',
+        });
         return;
       }
       if (current === 'scored') {
         await append(events.roundStateSet({ round, state: 'bidding' }));
+        markRoundStart(round);
       }
     },
     [append, disableRoundStateCycling, players, state.rounds],

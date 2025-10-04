@@ -9,6 +9,7 @@ import { useAppState } from '@/components/state-provider';
 import { uuid } from '@/lib/utils';
 import type { UUID } from '@/lib/state';
 import { events } from '@/lib/state';
+import { trackPlayersAdded } from '@/lib/observability/events';
 
 import styles from './create-player.module.scss';
 
@@ -24,6 +25,13 @@ export default function CreatePlayer() {
     if (!n) return;
     const id: UUID = uuid();
     await append(events.playerAdded({ id, name: n }));
+    trackPlayersAdded({
+      addedCount: 1,
+      totalPlayers: Math.max(0, playerCount + 1),
+      inputMethod: 'manual-form',
+      source: 'players.create-player',
+      mode: 'scorecard',
+    });
     setName('');
   };
 

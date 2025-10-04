@@ -25,7 +25,9 @@ if (!browserApiKey) {
   process.exit(1);
 }
 
-console.info('New Relic browser telemetry does not require a tunnel. Ensure outbound HTTPS access to log-api.newrelic.com.');
+console.info(
+  'New Relic browser telemetry does not require a tunnel. Ensure outbound HTTPS access to log-api.newrelic.com.',
+);
 
 const cliProbe = spawnSync('pnpm', ['exec', 'nr1', '--version'], {
   stdio: 'ignore',
@@ -35,9 +37,13 @@ if (cliProbe.error || cliProbe.status !== 0) {
   console.warn('Optional: install the New Relic CLI (nr1) if you need extra tooling.');
 }
 
-const mockTunnel = spawn('node', ['-e', 'console.info("Telemetry ready"); setTimeout(()=>{}, 1000);'], {
-  stdio: 'inherit',
-});
+const mockTunnel = spawn(
+  'node',
+  ['-e', 'console.info("Telemetry ready"); setTimeout(()=>{}, 1000);'],
+  {
+    stdio: 'inherit',
+  },
+);
 
 mockTunnel.on('exit', () => {
   process.exit(0);

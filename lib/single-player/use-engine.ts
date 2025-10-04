@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { AppEvent, AppState } from '@/lib/state/types';
 import { selectSpIsRoundDone, selectSpNextToPlay } from '@/lib/state/selectors-sp';
+import { applyRoundAnalyticsFromEvents } from '@/lib/observability/events';
 import {
   prefillPrecedingBotBids,
   computeBotPlay,
@@ -37,7 +38,16 @@ export function useSinglePlayerEngine(params: UseEngineParams): void {
     const rState = state.rounds[currentRoundNo]?.state;
     if (rState !== 'bidding') return;
     const batch = prefillPrecedingBotBids(state, currentRoundNo, humanId, rng);
-    if (batch.length > 0) void appendMany(batch);
+    if (batch.length > 0) {
+      const promise = Promise.resolve(appendMany(batch));
+      void promise.then(() =>
+        applyRoundAnalyticsFromEvents(batch, {
+          mode: 'single-player',
+          playerCount: (state.sp.order ?? []).length,
+          source: 'single-player.engine.prefill',
+        }),
+      );
+    }
   }, [state, currentRoundNo, humanId, rng, appendMany, hasDeal, isBatchPending]);
 
   // Bot plays during playing phase
@@ -51,7 +61,16 @@ export function useSinglePlayerEngine(params: UseEngineParams): void {
     if (!next || next === humanId) return;
     const batch = computeBotPlay(state, next, rng);
     if (batch.length === 0) return;
-    const t = setTimeout(() => void appendMany(batch), 250);
+    const t = setTimeout(() => {
+      const promise = Promise.resolve(appendMany(batch));
+      void promise.then(() =>
+        applyRoundAnalyticsFromEvents(batch, {
+          mode: 'single-player',
+          playerCount: (state.sp.order ?? []).length,
+          source: 'single-player.engine.bot-play',
+        }),
+      );
+    }, 250);
     return () => clearTimeout(t);
   }, [state, phase, humanId, rng, appendMany, hasDeal, isBatchPending, isRoundDone]);
 
@@ -62,7 +81,16 @@ export function useSinglePlayerEngine(params: UseEngineParams): void {
     if (isBatchPending) return;
     const batch = resolveCompletedTrick(state);
     if (batch.length === 0) return;
-    const t = setTimeout(() => void appendMany(batch), 400);
+    const t = setTimeout(() => {
+      const promise = Promise.resolve(appendMany(batch));
+      void promise.then(() =>
+        applyRoundAnalyticsFromEvents(batch, {
+          mode: 'single-player',
+          playerCount: (state.sp.order ?? []).length,
+          source: 'single-player.engine.trick-resolution',
+        }),
+      );
+    }, 400);
     return () => clearTimeout(t);
   }, [state, phase, appendMany, hasDeal, isBatchPending]);
 
@@ -76,6 +104,11 @@ export function useSinglePlayerEngine(params: UseEngineParams): void {
     if (batch.length === 0) return;
     void (async () => {
       await appendMany(batch);
+      applyRoundAnalyticsFromEvents(batch, {
+        mode: 'single-player',
+        playerCount: (state.sp.order ?? []).length,
+        source: 'single-player.engine.auto-advance',
+      });
       if (onSaved) onSaved();
     })();
   }, [state, phase, isRoundDone, isBatchPending, appendMany, onSaved]);

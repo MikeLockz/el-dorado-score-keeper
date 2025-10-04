@@ -66,10 +66,7 @@ const setAgentAttribute = (agent: NewRelicBrowserAgent, key: string, value: unkn
   }
 };
 
-const applyRouteMetadata = (
-  agent: NewRelicBrowserAgent,
-  attributes: Record<string, unknown>,
-) => {
+const applyRouteMetadata = (agent: NewRelicBrowserAgent, attributes: Record<string, unknown>) => {
   const path = coerceString(attributes.path);
   const pathname = coerceString(attributes.pathname);
   const search = coerceString(attributes.search);
@@ -81,7 +78,11 @@ const applyRouteMetadata = (
   setAgentAttribute(agent, 'route.name', routeName ?? pathname);
   setAgentAttribute(agent, 'route.pathname', pathname);
   setAgentAttribute(agent, 'route.search', search);
-  setAgentAttribute(agent, 'page.url', path ?? (pathname && search ? `${pathname}?${search}` : pathname));
+  setAgentAttribute(
+    agent,
+    'page.url',
+    path ?? (pathname && search ? `${pathname}?${search}` : pathname),
+  );
   setAgentAttribute(agent, 'page.title', title);
   setAgentAttribute(agent, 'page.referrer', referrer);
 
@@ -110,8 +111,11 @@ const ensureFallback = () => {
   }
 
   fallbackInitialized = true;
-  logAdapter.init(lastInitConfig);
-  if (Object.keys(globalAttributes).length && typeof logAdapter.setGlobalAttributes === 'function') {
+  void logAdapter.init(lastInitConfig);
+  if (
+    Object.keys(globalAttributes).length &&
+    typeof logAdapter.setGlobalAttributes === 'function'
+  ) {
     logAdapter.setGlobalAttributes(globalAttributes);
   }
 };
@@ -213,9 +217,7 @@ const buildInitPayload = (config: NewRelicBrowserAgentConfig) => {
     ...existingLoader,
     accountID: config.accountId ?? (existingLoader.accountID as string | undefined),
     trustKey:
-      config.trustKey ??
-      config.accountId ??
-      (existingLoader.trustKey as string | undefined),
+      config.trustKey ?? config.accountId ?? (existingLoader.trustKey as string | undefined),
     agentID: config.agentId ?? (existingLoader.agentID as string | undefined),
     licenseKey: config.licenseKey,
     applicationID: config.applicationId,
@@ -225,10 +227,7 @@ const buildInitPayload = (config: NewRelicBrowserAgentConfig) => {
   const existingInfo = asRecord(win.NREUM.info);
   win.NREUM.info = {
     ...existingInfo,
-    beacon:
-      config.beacon ??
-      (existingInfo.beacon as string | undefined) ??
-      DEFAULT_BEACON_HOST,
+    beacon: config.beacon ?? (existingInfo.beacon as string | undefined) ?? DEFAULT_BEACON_HOST,
     errorBeacon:
       config.errorBeacon ??
       (existingInfo.errorBeacon as string | undefined) ??
@@ -300,7 +299,10 @@ const ensureAgentLoaded = (config: BrowserVendorInitConfig) => {
     })
     .catch((error) => {
       if (config.debug) {
-        console.warn('[observability] Failed to load New Relic Browser agent; using log fallback.', error);
+        console.warn(
+          '[observability] Failed to load New Relic Browser agent; using log fallback.',
+          error,
+        );
       }
       fallbackActive = true;
       resolvedAgent = null;
@@ -347,7 +349,9 @@ const adapter: BrowserTelemetryAdapter = {
       try {
         const agent = await agentPromise;
         if (!agent && config.debug) {
-          console.warn('[observability] New Relic agent unavailable after load; using log fallback.');
+          console.warn(
+            '[observability] New Relic agent unavailable after load; using log fallback.',
+          );
         }
       } catch (error) {
         if (config.debug) {
@@ -368,7 +372,10 @@ const adapter: BrowserTelemetryAdapter = {
             return;
           } catch (error) {
             if (lastInitConfig?.debug) {
-              console.warn('[observability] Failed to record New Relic action; using fallback.', error);
+              console.warn(
+                '[observability] Failed to record New Relic action; using fallback.',
+                error,
+              );
             }
           }
         }

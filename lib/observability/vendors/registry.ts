@@ -1,6 +1,9 @@
 import type { BrowserObservabilityProvider } from '@/config/observability-provider';
 import { createNoopBrowserAdapter } from '@/lib/observability/vendors/noop-adapter';
-import type { BrowserTelemetryAdapter, BrowserVendorLoader } from '@/lib/observability/vendors/types';
+import type {
+  BrowserTelemetryAdapter,
+  BrowserVendorLoader,
+} from '@/lib/observability/vendors/types';
 
 const createLoader = (loader: BrowserVendorLoader): BrowserVendorLoader => loader;
 
@@ -12,6 +15,25 @@ const registry: Record<BrowserObservabilityProvider, BrowserVendorLoader> = {
       | undefined;
     if (candidate && typeof candidate.init === 'function') {
       return candidate;
+    }
+    return createNoopBrowserAdapter();
+  }),
+  posthog: createLoader(async () => {
+    try {
+      const mod = await import('@obs/browser-vendor/posthog');
+      const candidate = (mod && 'default' in mod ? mod.default : mod) as
+        | BrowserTelemetryAdapter
+        | undefined;
+      if (candidate && typeof candidate.init === 'function') {
+        return candidate;
+      }
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[observability] PostHog adapter missing or invalid; falling back to noop.');
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[observability] Failed to load PostHog browser adapter.', error);
+      }
     }
     return createNoopBrowserAdapter();
   }),

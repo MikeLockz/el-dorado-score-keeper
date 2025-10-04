@@ -23,6 +23,7 @@ import type { AppState } from '@/lib/state/types';
 import { bots, computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
 import { canPlayCard as ruleCanPlayCard } from '@/lib/rules/sp';
 import type { Suit, Rank } from '@/lib/single-player/types';
+import { applyRoundAnalyticsFromEvents } from '@/lib/observability/events';
 import type {
   ScorecardPlayerColumn,
   ScorecardRoundEntry,
@@ -428,6 +429,11 @@ export function useSinglePlayerViewModel({ humanId, rng }: { humanId: string; rn
       const batch = buildConfirmBidBatch(state, { humanId, bid, derived, rng });
       if (batch.length === 0) return;
       await appendMany(batch);
+      applyRoundAnalyticsFromEvents(batch, {
+        mode: 'single-player',
+        playerCount: derived.players.length,
+        source: 'single-player.confirm-bid',
+      });
     },
     [appendMany, derived, humanId, isBatchPending, rng, state],
   );

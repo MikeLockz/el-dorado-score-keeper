@@ -1,6 +1,7 @@
 'use client';
 
 import { trackBrowserEvent } from '@/lib/observability/browser';
+import type { SpanAttributesInput } from '@/lib/observability/spans';
 
 const resolvePath = () => {
   if (typeof window === 'undefined') {
@@ -11,13 +12,13 @@ const resolvePath = () => {
 
 const buildTelemetryAttributes = (
   path: string,
-  extra?: Record<string, unknown>,
-): Record<string, unknown> => ({
+  extra?: SpanAttributesInput,
+): SpanAttributesInput => ({
   path,
   ...(extra ?? {}),
 });
 
-export function logEvent(type: string, extra?: Record<string, unknown>) {
+export function logEvent(type: string, extra?: SpanAttributesInput) {
   const path = resolvePath();
   const attributes = buildTelemetryAttributes(path, extra);
 

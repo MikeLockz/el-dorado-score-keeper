@@ -23,9 +23,10 @@ const resolveRequestedHeaders = (value: string | string[] | undefined) => {
 
 const corsHeaders = (origin: string | undefined, requestHeaders?: string | string[]) => {
   const resolvedHeaders = resolveRequestedHeaders(requestHeaders);
-  const allowHeaders = resolvedHeaders && resolvedHeaders.length > 0
-    ? resolvedHeaders
-    : 'Content-Type, Authorization, X-Requested-With, Accept, Origin, User-Agent, Content-Encoding';
+  const allowHeaders =
+    resolvedHeaders && resolvedHeaders.length > 0
+      ? resolvedHeaders
+      : 'Content-Type, Authorization, X-Requested-With, Accept, Origin, User-Agent, Content-Encoding';
 
   return {
     'access-control-allow-origin': origin ?? '*',
@@ -159,7 +160,10 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
                 decoded = inflateSync(buffer).toString('utf8');
               }
             } catch (decodeError) {
-              console.info('[observability] proxy response body (decode failed)', (decodeError as Error).message);
+              console.info(
+                '[observability] proxy response body (decode failed)',
+                (decodeError as Error).message,
+              );
               decoded = buffer.toString('base64');
             }
 
@@ -178,12 +182,9 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     console.info('[observability] proxy request', req.method, targetUrl.pathname);
     const apiKeyHeader = headers['api-key'] ?? headers.authorization;
     if (apiKeyHeader) {
-      const normalized = Array.isArray(apiKeyHeader)
-        ? apiKeyHeader[0]
-        : String(apiKeyHeader);
-      const masked = normalized.length > 8
-        ? `${normalized.slice(0, 4)}…${normalized.slice(-4)}`
-        : normalized;
+      const normalized = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : String(apiKeyHeader);
+      const masked =
+        normalized.length > 8 ? `${normalized.slice(0, 4)}…${normalized.slice(-4)}` : normalized;
       console.info('[observability] proxy api key detected', masked);
     } else {
       console.info('[observability] proxy api key missing');
@@ -210,7 +211,10 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
           decoded = inflateSync(buffer).toString('utf8');
         }
       } catch (decodeError) {
-        console.info('[observability] proxy request body (decode failed)', (decodeError as Error).message);
+        console.info(
+          '[observability] proxy request body (decode failed)',
+          (decodeError as Error).message,
+        );
         decoded = buffer.toString('base64');
       }
 
@@ -241,7 +245,9 @@ server.listen(listenPort, () => {
   console.info(
     `[observability] New Relic proxy listening on http://localhost:${listenPort} -> ${upstreamUrl.origin}`,
   );
-  console.info('[observability] Configure NEXT_PUBLIC_NEW_RELIC_BROWSER_HOST to this proxy to bypass CORS in dev.');
+  console.info(
+    '[observability] Configure NEXT_PUBLIC_NEW_RELIC_BROWSER_HOST to this proxy to bypass CORS in dev.',
+  );
 });
 
 server.on('error', (error) => {
