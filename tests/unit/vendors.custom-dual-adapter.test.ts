@@ -88,8 +88,14 @@ describe('custom dual telemetry adapter', () => {
     customAdapter.addAction('page.viewed', attributes);
     customAdapter.recordException(new Error('boom'), attributes);
 
-    expect(newRelicAdapter.setGlobalAttributes).toHaveBeenCalledWith({ service: 'web', env: 'test' });
-    expect(posthogAdapter.setGlobalAttributes).toHaveBeenCalledWith({ service: 'web', env: 'test' });
+    expect(newRelicAdapter.setGlobalAttributes).toHaveBeenCalledWith({
+      service: 'web',
+      env: 'test',
+    });
+    expect(posthogAdapter.setGlobalAttributes).toHaveBeenCalledWith({
+      service: 'web',
+      env: 'test',
+    });
 
     expect(newRelicAdapter.addAction).toHaveBeenCalledWith('page.viewed', attributes);
     expect(posthogAdapter.addAction).toHaveBeenCalledWith('page.viewed', attributes);

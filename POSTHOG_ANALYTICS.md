@@ -361,11 +361,11 @@ Phase 4 codifies the PostHog dashboards that product and support teams rely on. 
 - Capture the numeric project ID from `Project settings → Project ID`. Expose it to the script via `POSTHOG_PROJECT_ID`.
 - Optionally override the host (defaults to `https://app.posthog.com`) with `POSTHOG_API_HOST` for self-hosted clusters.
 
-| Key                      | Scope        | Purpose                                                  | Example                        |
-| ------------------------ | ------------ | -------------------------------------------------------- | ------------------------------ |
-| `POSTHOG_PERSONAL_API_KEY` | script only | Authenticates the REST calls (never commit this).        | `phx_live_abcdefghijklmnopqrstuvwxyz` |
-| `POSTHOG_PROJECT_ID`     | script only  | Targets the correct project (`/api/projects/:id`).       | `12345`                        |
-| `POSTHOG_API_HOST`       | script only  | Optional API base URL override for self-hosted PostHog.  | `https://posthog.internal`     |
+| Key                        | Scope       | Purpose                                                 | Example                               |
+| -------------------------- | ----------- | ------------------------------------------------------- | ------------------------------------- |
+| `POSTHOG_PERSONAL_API_KEY` | script only | Authenticates the REST calls (never commit this).       | `phx_live_abcdefghijklmnopqrstuvwxyz` |
+| `POSTHOG_PROJECT_ID`       | script only | Targets the correct project (`/api/projects/:id`).      | `12345`                               |
+| `POSTHOG_API_HOST`         | script only | Optional API base URL override for self-hosted PostHog. | `https://posthog.internal`            |
 
 The bootstrap script reads the variables at runtime; missing configuration should throw a descriptive error immediately.
 
@@ -406,11 +406,7 @@ interface CliConfig {
 }
 
 const loadConfig = (): CliConfig => {
-  const {
-    POSTHOG_API_HOST,
-    POSTHOG_PERSONAL_API_KEY,
-    POSTHOG_PROJECT_ID,
-  } = process.env;
+  const { POSTHOG_API_HOST, POSTHOG_PERSONAL_API_KEY, POSTHOG_PROJECT_ID } = process.env;
 
   if (!POSTHOG_PERSONAL_API_KEY) {
     throw new Error('Missing POSTHOG_PERSONAL_API_KEY — generate a personal key with write scope.');
@@ -551,7 +547,7 @@ const insights: InsightDefinition[] = [
     tags: ['automation', 'el-dorado'],
     kind: 'SQL',
     filters: {
-      query: `SELECT\n  toDate(timestamp) AS day,\n  countIf(event = 'game.started') AS games_started,\n  countIf(event = 'round.finalized') AS rounds_finalized,\n  round(countIf(event = 'round.finalized') * 1.0 / nullIf(countIf(event = 'game.started'), 0), 2) AS rounds_per_game\nFROM events\nWHERE timestamp >= dateSub('week', 4, now())\n  AND properties["env"] = 'production'\nGROUP BY day\nORDER BY day` ,
+      query: `SELECT\n  toDate(timestamp) AS day,\n  countIf(event = 'game.started') AS games_started,\n  countIf(event = 'round.finalized') AS rounds_finalized,\n  round(countIf(event = 'round.finalized') * 1.0 / nullIf(countIf(event = 'game.started'), 0), 2) AS rounds_per_game\nFROM events\nWHERE timestamp >= dateSub('week', 4, now())\n  AND properties["env"] = 'production'\nGROUP BY day\nORDER BY day`,
       insight: 'SQL',
     },
     query: {

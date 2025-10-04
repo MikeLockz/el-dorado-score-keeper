@@ -87,7 +87,9 @@ const DualTelemetryAdapter: BrowserTelemetryAdapter = {
         tasks.push(promise);
       }
     } else if (process.env.NODE_ENV !== 'production') {
-      console.info('[observability] Dual adapter: skipping New Relic initialisation (missing key).');
+      console.info(
+        '[observability] Dual adapter: skipping New Relic initialisation (missing key).',
+      );
     }
 
     const posthogConfig = buildPosthogInit(config);

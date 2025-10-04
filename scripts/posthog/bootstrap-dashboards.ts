@@ -17,7 +17,9 @@ export const loadConfig = (): CliConfig => {
 
   const apiKey = process.env.POSTHOG_PERSONAL_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error('Missing POSTHOG_PERSONAL_API_KEY — generate a personal API key with write access.');
+    throw new Error(
+      'Missing POSTHOG_PERSONAL_API_KEY — generate a personal API key with write access.',
+    );
   }
 
   const rawProjectId = process.env.POSTHOG_PROJECT_ID?.trim();
@@ -100,7 +102,10 @@ export const run = async () => {
     config = loadConfig();
   } catch (error) {
     process.exitCode = 1;
-    console.error('[posthog] Unable to load configuration.', error instanceof Error ? error.message : error);
+    console.error(
+      '[posthog] Unable to load configuration.',
+      error instanceof Error ? error.message : error,
+    );
     return;
   }
 

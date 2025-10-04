@@ -58,8 +58,8 @@ export function AnalyticsOptOutSection({ classes }: AnalyticsOptOutSectionProps)
           Analytics
         </h2>
         <p className={classes?.description}>
-          Control gameplay telemetry. Toggle to stop page views and event capture from being sent
-          to analytics services for this browser.
+          Control gameplay telemetry. Toggle to stop page views and event capture from being sent to
+          analytics services for this browser.
         </p>
       </div>
 

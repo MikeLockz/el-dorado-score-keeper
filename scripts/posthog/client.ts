@@ -1,4 +1,9 @@
-import { type CliConfig, type InsightPayload, type PostHogClient, type InsightRecord } from './types';
+import {
+  type CliConfig,
+  type InsightPayload,
+  type PostHogClient,
+  type InsightRecord,
+} from './types';
 
 const buildUrl = (base: string, path: string) => {
   const url = new URL(path, base);
