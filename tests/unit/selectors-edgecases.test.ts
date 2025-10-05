@@ -106,4 +106,42 @@ describe('selectors edge cases', () => {
     const totals = selectCumulativeScoresThrough(s, 10);
     expect(Object.keys(totals)).toEqual(['p1']);
   });
+
+  it('cumulative totals include roster-only players when legacy map is empty', () => {
+    const rosterId = 'single-1';
+    const state: AppState = {
+      ...INITIAL_STATE,
+      players: {},
+      scores: {},
+      rosters: {
+        [rosterId]: {
+          name: 'Solo Session',
+          playersById: { human: 'Alex', bot: 'Robo' },
+          playerTypesById: { human: 'human', bot: 'bot' },
+          displayOrder: { human: 0, bot: 1 },
+          type: 'single',
+          createdAt: 0,
+          archivedAt: null,
+        },
+      },
+      activeScorecardRosterId: null,
+      activeSingleRosterId: rosterId,
+      rounds: {
+        ...INITIAL_STATE.rounds,
+        1: {
+          ...INITIAL_STATE.rounds[1],
+          state: 'scored',
+          bids: { human: 1, bot: 0 },
+          made: { human: true, bot: false },
+          present: { human: true, bot: true },
+        },
+      },
+    };
+
+    const through = selectCumulativeScoresThrough(state, 1);
+    expect(through).toEqual({ human: 6, bot: -5 });
+
+    const allRounds = selectCumulativeScoresAllRounds(state);
+    expect(allRounds[1]).toEqual({ human: 6, bot: -5 });
+  });
 });

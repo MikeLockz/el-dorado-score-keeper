@@ -182,6 +182,12 @@ export const designTokens = {
       fontWeight: 400,
       letterSpacing: '0em',
     },
+    'body-xs': {
+      fontSize: '0.75rem',
+      lineHeight: '1.125rem',
+      fontWeight: 400,
+      letterSpacing: '0em',
+    },
     'label-sm': {
       fontSize: '0.75rem',
       lineHeight: '1rem',

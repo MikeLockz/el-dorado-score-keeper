@@ -30,6 +30,37 @@ function memo2<A1 extends object, A2 extends number | string, R>(fn: (a1: A1, a2
 
 export type Leader = { id: string; name: string; score: number };
 
+function collectPlayerIds(s: AppState): string[] {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+
+  const push = (id: string | null | undefined) => {
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    ordered.push(id);
+  };
+
+  for (const id of Object.keys(s.players ?? {})) push(id);
+
+  for (const roster of Object.values(s.rosters ?? {})) {
+    if (!roster) continue;
+    const displayEntries = Object.entries(roster.displayOrder ?? {})
+      .filter(([id]) => id)
+      .sort((a, b) => (a[1] ?? 0) - (b[1] ?? 0));
+    for (const [id] of displayEntries) push(id);
+    for (const id of Object.keys(roster.playersById ?? {})) push(id);
+  }
+
+  for (const round of Object.values(s.rounds ?? {})) {
+    if (!round) continue;
+    for (const id of Object.keys(round.bids ?? {})) push(id);
+    for (const id of Object.keys(round.made ?? {})) push(id);
+    for (const id of Object.keys(round.present ?? {})) push(id);
+  }
+
+  return ordered;
+}
+
 // Scores are already stored; expose identity-stable access and leaders list.
 export const selectScores = memo1((s: AppState) => s.scores);
 
@@ -236,11 +267,12 @@ export const selectRoundInfo = memo2((s: AppState, round: number): RoundInfo => 
 export const selectCumulativeScoresThrough = memo2(
   (s: AppState, round: number): Record<string, number> => {
     const totals: Record<string, number> = {};
-    for (const id of Object.keys(s.players)) totals[id] = 0;
+    const ids = collectPlayerIds(s);
+    for (const id of ids) totals[id] = 0;
     for (let r = 1; r <= round; r++) {
       const rd = s.rounds[r];
       if (!rd || rd.state !== 'scored') continue;
-      for (const id of Object.keys(s.players)) {
+      for (const id of ids) {
         if (rd.present?.[id] === false) continue;
         const bid = rd.bids[id] ?? 0;
         const made = rd.made[id] ?? false;
@@ -256,7 +288,7 @@ export type CumulativeByRound = Record<number, Record<string, number>>;
 
 export const selectCumulativeScoresAllRounds = memo1((s: AppState): CumulativeByRound => {
   // Build progressive totals once and snapshot after each round.
-  const ids = Object.keys(s.players);
+  const ids = collectPlayerIds(s);
   let running: Record<string, number> = {};
   for (const id of ids) running[id] = 0;
   const out: CumulativeByRound = {};

@@ -7,7 +7,7 @@
     "dev": "node --import tsx scripts/dev.ts",
     "dev:next": "next dev",
     "dev:pages": "BASE_PATH=/$npm_package_name pnpm run dev",
-    "build:pages": "BASE_PATH=/$npm_package_name next build && next export",
+    "build:pages": "BASE_PATH=/$npm_package_name next build",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "prestart": "node --import tsx instrumentation.ts",

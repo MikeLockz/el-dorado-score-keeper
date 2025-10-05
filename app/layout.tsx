@@ -1,6 +1,7 @@
 import type React from 'react';
 import { Suspense } from 'react';
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import '@/styles/global.scss';
 import { ThemeProvider } from '@/components/theme-provider';
 import StateRoot from '@/components/state-root';
@@ -51,6 +52,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={styles.body}>
+        <Script id="promote-css-preloads" strategy="beforeInteractive">
+          {`
+            (function () {
+              if (typeof document === 'undefined') return;
+              var promote = function () {
+                var links = document.querySelectorAll('link[rel="preload"][as="style"]');
+                links.forEach(function (link) {
+                  if (link.rel === 'stylesheet') return;
+                  link.rel = 'stylesheet';
+                  link.removeAttribute('as');
+                  if (!link.hasAttribute('data-precedence')) {
+                    link.setAttribute('data-precedence', 'next');
+                  }
+                });
+              };
+              if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                promote();
+              } else {
+                document.addEventListener('DOMContentLoaded', promote, { once: true });
+              }
+            })();
+          `}
+        </Script>
         {/* Skip link for keyboard/screen reader users */}
         <a href="#main" className={styles.skipLink}>
           Skip to content

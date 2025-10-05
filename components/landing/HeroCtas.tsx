@@ -18,16 +18,6 @@ export default function HeroCtas() {
           Start Single Player
         </Link>
       </Button>
-      <Button asChild variant="outline">
-        <Link href="/rules" aria-label="Host Game (coming soon)">
-          Host Game
-        </Link>
-      </Button>
-      <Button asChild variant="secondary">
-        <Link href="/scorecard" aria-label="Open Score Card">
-          Open Score Card
-        </Link>
-      </Button>
     </div>
   );
 }
