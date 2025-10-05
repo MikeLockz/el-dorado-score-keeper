@@ -54,7 +54,7 @@ export default function LandingPage() {
       <section className={styles.hero}>
         <h1 className={styles.heroTitle}>Set Out for El Dorado</h1>
         <p className={styles.heroCopy}>
-          Choose your path: practice solo, gather your party, or tally scores on the go.
+          A card game from south western Michigan.
         </p>
         <HeroCtas />
       </section>
@@ -64,7 +64,7 @@ export default function LandingPage() {
         <ModeCard
           icon={<Compass />}
           title="Single Player"
-          description="Play solo against adaptive AI. Practice strategies and unlock achievements."
+          description="Play against the computer. Practice strategies and unlock achievements."
           primary={
             singlePlayerActive
               ? {
@@ -97,7 +97,7 @@ export default function LandingPage() {
           icon={<Flame />}
           title="Multiplayer"
           description="Host a room or join with a code. Cross‑device, real‑time play."
-          primary={{ label: 'Host', href: '/rules', ariaLabel: 'Host Game (coming soon)' }}
+          primary={{ label: 'Host', href: '#', ariaLabel: 'Host Game (coming soon)' }}
           primaryEvent="mode_multiplayer_host_clicked"
           secondary={{ label: 'Join by code', href: '/rules' }}
           ariaLabel="Open multiplayer — host a room or join by code."

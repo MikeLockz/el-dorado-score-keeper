@@ -183,6 +183,12 @@ More details and the full tracking snippet live in `ANALYTICS.md`.
 - v2: adds `games` store with non‑unique `createdAt` index for listing archived games.
 - Migrations use `onupgradeneeded` with `oldVersion` guards to avoid redundant index creation. Upgrading from v1→v2 only creates the `games` store/index and preserves existing data.
 
+## Single Player Persistence
+
+- Every reducer-visible change writes an SP snapshot to IndexedDB (`STATE['sp/snapshot']`) and mirrors it to `localStorage` under `el-dorado:sp:snapshot:v1` with a trimmed `sp/game-index` map for deep links.
+- Snapshot writes emit `single-player.persist.snapshot` metrics (duration, failure streak, adapter status) and log fallback usage via `single-player.persist.fallback` when the localStorage mirror rehydrates a session.
+- When browser quota is exhausted the provider captures `sp.snapshot.persist.quota_exceeded`, surfaces an in-app warning toast, and continues retrying so progress resumes once space is available.
+
 ## Observability
 
 New Relic Browser telemetry is opt-in. By default the app ships without telemetry until you enable the flag and supply browser credentials.

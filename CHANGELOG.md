@@ -30,6 +30,11 @@ All notable changes related to End-of-Turn Improvements are documented here.
   - Per-player stats, round facts, CTA, auto-advance (10s default)
 - Phase 7: End-of-game summary
   - `sp.phase='game-summary'` with totals, winner(s), and Play Again
+- Single-player persistence resilience
+  - Snapshot writes emit `single-player.persist.snapshot` metrics with duration/failure streak data
+    and raise `sp.snapshot.persist.quota_exceeded` when storage approaches quota.
+  - Rehydrate fallback logs `single-player.persist.fallback` usage and surfaces warning toasts when
+    localStorage takeover or repeated failures degrade persistence.
 
 ### Docs
 

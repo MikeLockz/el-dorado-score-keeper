@@ -61,11 +61,26 @@ This document outlines changes to make the single‑player (SP) runtime fully re
 
 - Reducers:
   - Deal → play → clear trick → phase transitions → finalize; idempotency; trump‑broken logic.
-- Selectors:
+  - Selectors:
   - Rotation, next‑to‑play, live overlay, trump info, dealer name, is‑round‑done.
 - Integration:
   - Finish Round 10 → Round 10 remains scored; Round 9 becomes bidding; no flicker.
-  - Refresh mid‑trick restores seamlessly from `state.sp`.
+- Refresh mid‑trick restores seamlessly from `state.sp`.
+
+### Snapshot Schema Reference
+
+- `lib/state/persistence/sp-snapshot.ts` defines `SinglePlayerSnapshotV1` (versioned) capturing:
+  - `gameId`, `height`, `savedAt`, roster metadata, human player, and SP runtime slice.
+  - SP analytics payloads (`sessionSeed`, `roundTallies`) plus relevant score entries for active roster players.
+- Helpers:
+  - `buildSinglePlayerSnapshot(state, height, opts)` derives a pure snapshot or returns `null` when no active single-player session is present.
+  - `persistSpSnapshot(state, height, { adapters })` dedupes via FNV-53 checksum, writes to IndexedDB/localStorage adapters, and exposes error hooks.
+  - `loadLatestSnapshot()` / `clearSnapshot()` provide deterministic lookup & reset flows for later phases.
+- Game index retention: keeps the latest eight entries and prunes snapshots older than ~30 days to
+  avoid unbounded growth.
+- Local storage key: `el-dorado:sp:snapshot:v1` (≤200 KB). IndexedDB maintains a dedicated `STATE['sp/snapshot']` record plus `STATE['sp/game-index']` for `gameId → { height, savedAt }` lookups.
+- Debugging tip: clearing the SP cache requires removing both IndexedDB records (`sp/snapshot`, `sp/game-index`) and the localStorage mirror (`el-dorado:sp:snapshot:v1`). The new `clearSinglePlayerSnapshot(dbName)` helper performs this cleanup in one call.
+- Built-in adapters expose `createLocalStorageAdapter(storage?)` and `createIndexedDbAdapter(db)` for platform wiring while keeping unit tests framework-agnostic.
 
 ### 7) Archive & Restore
 

@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import { usePathname } from 'next/navigation';
 
 declare global {
   // Debug globals available in development builds
@@ -18,6 +19,17 @@ import {
   previewAt as previewFromDB,
   events,
 } from '@/lib/state';
+
+function extractSinglePlayerGameId(pathname: string | null): string | null {
+  if (!pathname) return null;
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length < 2) return null;
+  if (segments[0] !== 'single-player') return null;
+  const candidate = segments[1]?.trim();
+  if (!candidate) return null;
+  if (!/^[a-z0-9-]{6,}$/i.test(candidate)) return null;
+  return candidate;
+}
 
 type Warning = { code: string; info?: unknown; at: number };
 
@@ -45,6 +57,10 @@ export function StateProvider({
   children: React.ReactNode;
   onWarn?: (code: string, info?: unknown) => void;
 }) {
+  const pathname = usePathname();
+  const spGameId = React.useMemo(() => extractSinglePlayerGameId(pathname ?? null), [pathname]);
+  const initialSpGameIdRef = React.useRef<string | null>(spGameId);
+  const prevGameIdRef = React.useRef<string | null>(spGameId);
   const [state, setState] = React.useState<AppState>(INITIAL_STATE);
   const [height, setHeight] = React.useState(0);
   const [ready, setReady] = React.useState(false);
@@ -62,6 +78,10 @@ export function StateProvider({
   }, [onWarn]);
 
   React.useEffect(() => {
+    initialSpGameIdRef.current = spGameId;
+  }, [spGameId]);
+
+  React.useEffect(() => {
     let unsubs: (() => void) | null = null;
     let closed = false;
     void (async () => {
@@ -75,12 +95,14 @@ export function StateProvider({
             onWarnRef.current?.(code, info);
           } catch {}
         },
+        spGameId: initialSpGameIdRef.current,
       });
       if (closed) {
         inst.close();
         return;
       }
       instRef.current = inst;
+      prevGameIdRef.current = initialSpGameIdRef.current ?? null;
       // Mark initial state set and subsequent stream updates as transitions to
       // keep input responsive during rapid event bursts (e.g., bid spamming).
       React.startTransition(() => {
@@ -106,6 +128,15 @@ export function StateProvider({
       instRef.current = null;
     };
   }, []);
+
+  React.useEffect(() => {
+    const next = spGameId ?? null;
+    if (prevGameIdRef.current === next) return;
+    prevGameIdRef.current = next;
+    const inst = instRef.current;
+    if (!inst) return;
+    void inst.rehydrate({ spGameId: next });
+  }, [spGameId]);
 
   const append = React.useCallback(async (e: AppEvent) => {
     if (!instRef.current) throw new Error('State instance not ready');

@@ -58,7 +58,7 @@ export function ModeCard({
     );
     if (href) {
       return (
-        <Button asChild disabled={disabled || pending}>
+        <Button variant="secondary" asChild disabled={disabled || pending}>
           <Link
             href={href}
             aria-label={labelOverride ?? label}
@@ -80,6 +80,7 @@ export function ModeCard({
         type="button"
         onClick={onClick}
         disabled={disabled || pending}
+        variant='secondary'
         aria-label={labelOverride ?? label}
       >
         {content}

@@ -1,14 +1,22 @@
 import { openDB, storeNames, tx } from './db';
 import { AppEvent, AppState, INITIAL_STATE, reduce, type UUID } from './types';
 import { validateEventStrict } from './validation';
+import {
+  createIndexedDbAdapter,
+  createLocalStorageAdapter,
+  persistSpSnapshot,
+  type PersistSpSnapshotResult,
+} from './persistence/sp-snapshot';
+import { rehydrateSinglePlayerFromSnapshot } from './persistence/sp-rehydrate';
 import { uuid } from '@/lib/utils';
+import { captureBrowserMessage, trackBrowserEvent } from '@/lib/observability/browser';
 
 export type Instance = {
   append: (event: AppEvent) => Promise<number>;
   appendMany: (events: AppEvent[]) => Promise<number>;
   getState: () => AppState;
   getHeight: () => number;
-  rehydrate: () => Promise<void>;
+  rehydrate: (options?: { spGameId?: string | null; allowLocalFallback?: boolean }) => Promise<void>;
   close: () => void;
   subscribe: (cb: (s: AppState, h: number) => void) => () => void;
 };
@@ -23,11 +31,16 @@ export async function createInstance(opts?: {
   snapshotEvery?: number;
   keepRecentSnapshots?: number;
   anchorFactor?: number;
+  spGameId?: string | null;
+  allowSpLocalFallback?: boolean;
 }): Promise<Instance> {
   const dbName = opts?.dbName ?? 'app-db';
   const chanName = opts?.channelName ?? 'app-events';
   const useChannel = opts?.useChannel !== false;
   const onWarn = opts?.onWarn;
+  let targetSpGameId =
+    typeof opts?.spGameId === 'string' && opts.spGameId.trim() ? opts.spGameId.trim() : null;
+  const allowSpLocalFallback = opts?.allowSpLocalFallback !== false;
   let db = await openDB(dbName);
   async function replaceDB() {
     try {
@@ -64,6 +77,242 @@ export async function createInstance(opts?: {
   const notify = () => {
     for (const l of listeners) l(memoryState, height);
   };
+  const localSnapshotAdapter = createLocalStorageAdapter();
+  function logSnapshotWarning(code: string, info: unknown, currentHeight: number) {
+    const attributes: Record<string, unknown> = { code, height: currentHeight };
+    if (info instanceof Error) {
+      attributes.reason = info.message;
+      attributes.errorName = info.name;
+    } else if (typeof info === 'string') {
+      const trimmed = info.trim();
+      if (trimmed) attributes.reason = trimmed.slice(0, 200);
+    } else if (info && typeof info === 'object') {
+      let assigned = false;
+      for (const [key, value] of Object.entries(info as Record<string, unknown>)) {
+        if (attributes[key] !== undefined || value == null) continue;
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (!trimmed) continue;
+          attributes[key] = trimmed.slice(0, 200);
+          assigned = true;
+          continue;
+        }
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          attributes[key] = value;
+          assigned = true;
+          continue;
+        }
+        if (typeof value === 'boolean') {
+          attributes[key] = value;
+          assigned = true;
+        }
+      }
+      if (!assigned) {
+        try {
+          const serialized = JSON.stringify(info);
+          if (serialized) attributes.detail = serialized.slice(0, 500);
+        } catch {}
+      }
+    }
+    try {
+      captureBrowserMessage('single-player.persist.failed', {
+        level: 'warn',
+        attributes,
+      });
+    } catch {}
+  }
+
+  const readTimer = () =>
+    typeof performance !== 'undefined' && typeof performance.now === 'function'
+      ? performance.now()
+      : Date.now();
+
+  const SNAPSHOT_WARNING_DEBOUNCE_MS = 60_000;
+  const SNAPSHOT_FAILURE_THRESHOLD = 3;
+  let consecutiveSnapshotFailures = 0;
+  let lastRepeatedSnapshotWarningAt = 0;
+  const quotaWarningAt: Record<'indexed-db' | 'local-storage', number> = {
+    'indexed-db': 0,
+    'local-storage': 0,
+  };
+
+  const isQuotaError = (error: unknown): boolean => {
+    if (!error) return false;
+    if (error instanceof DOMException) {
+      if (
+        error.name === 'QuotaExceededError' ||
+        error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+        error.code === 22 ||
+        error.code === 1014
+      ) {
+        return true;
+      }
+    }
+    const name =
+      typeof (error as { name?: unknown }).name === 'string'
+        ? String((error as { name?: unknown }).name)
+        : null;
+    if (name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+      return true;
+    }
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : typeof (error as { message?: unknown }).message === 'string'
+            ? String((error as { message?: unknown }).message)
+            : null;
+    if (message && /quota/i.test(message)) return true;
+    return false;
+  };
+
+  async function emitQuotaDiagnostics(
+    target: 'indexed-db' | 'local-storage',
+    currentHeight: number,
+    sourceError: unknown,
+  ) {
+    const nowTs = Date.now();
+    if (nowTs - quotaWarningAt[target] < SNAPSHOT_WARNING_DEBOUNCE_MS) return;
+    quotaWarningAt[target] = nowTs;
+    let usage: number | undefined;
+    let quota: number | undefined;
+    if (typeof navigator !== 'undefined' && navigator.storage?.estimate) {
+      try {
+        const estimate = await navigator.storage.estimate();
+        if (typeof estimate?.usage === 'number' && Number.isFinite(estimate.usage)) {
+          usage = estimate.usage;
+        }
+        if (typeof estimate?.quota === 'number' && Number.isFinite(estimate.quota)) {
+          quota = estimate.quota;
+        }
+      } catch {}
+    }
+    const ratio =
+      typeof usage === 'number' && typeof quota === 'number' && quota > 0
+        ? Number((usage / quota).toFixed(3))
+        : undefined;
+    const info: Record<string, unknown> = {
+      target,
+      usageBytes: usage,
+      quotaBytes: quota,
+      usageRatio: ratio,
+    };
+    if (sourceError instanceof Error) {
+      info.reason = sourceError.message;
+      info.errorName = sourceError.name;
+    } else if (typeof sourceError === 'string') {
+      info.reason = sourceError;
+    }
+    logSnapshotWarning('sp.snapshot.persist.quota_exceeded', info, currentHeight);
+    trackBrowserEvent('single-player.persist.quota', {
+      adapter: target,
+      usage_bytes: usage,
+      quota_bytes: quota,
+      usage_ratio: ratio,
+      height: currentHeight,
+    });
+  }
+
+  async function handleSnapshotOutcome(
+    currentHeight: number,
+    outcome: { result: PersistSpSnapshotResult | null; durationMs: number; error: unknown },
+  ) {
+    const { result, durationMs, error } = outcome;
+    const snapshot = result?.snapshot ?? null;
+    const indexedDbFailed =
+      result?.errors?.some((entry) => entry.target === 'indexed-db') ?? false;
+    const localStorageFailed =
+      result?.errors?.some((entry) => entry.target === 'local-storage') ?? false;
+    const errorCount = (result?.errors?.length ?? 0) + (error ? 1 : 0);
+    const hadErrors = indexedDbFailed || localStorageFailed || Boolean(error);
+    if (hadErrors) {
+      consecutiveSnapshotFailures = Math.min(consecutiveSnapshotFailures + 1, 50);
+    } else {
+      consecutiveSnapshotFailures = 0;
+    }
+    const roundedDuration = Number.isFinite(durationMs)
+      ? Number(Math.max(0, durationMs).toFixed(2))
+      : 0;
+    const metrics: Record<string, unknown> = {
+      height: result?.height ?? currentHeight,
+      duration_ms: roundedDuration,
+      persisted: Boolean(result?.persisted),
+      skipped_reason: result?.skippedReason,
+      adapter_indexed_db_error: indexedDbFailed,
+      adapter_local_storage_error: localStorageFailed,
+      error_count: errorCount,
+      failure_streak: consecutiveSnapshotFailures,
+    };
+    if (snapshot?.gameId) metrics.game_id = snapshot.gameId;
+    if (snapshot?.savedAt) metrics.saved_at = snapshot.savedAt;
+    trackBrowserEvent('single-player.persist.snapshot', metrics);
+
+    if (!hadErrors) {
+      return;
+    }
+
+    if (indexedDbFailed) {
+      for (const entry of result?.errors ?? []) {
+        if (entry.target === 'indexed-db' && isQuotaError(entry.error)) {
+          await emitQuotaDiagnostics('indexed-db', result?.height ?? currentHeight, entry.error);
+        }
+      }
+    }
+    if (localStorageFailed) {
+      for (const entry of result?.errors ?? []) {
+        if (entry.target === 'local-storage' && isQuotaError(entry.error)) {
+          await emitQuotaDiagnostics('local-storage', result?.height ?? currentHeight, entry.error);
+        }
+      }
+    }
+    if (error && isQuotaError(error)) {
+      await emitQuotaDiagnostics('indexed-db', result?.height ?? currentHeight, error);
+    }
+
+    const nowTs = Date.now();
+    if (
+      consecutiveSnapshotFailures >= SNAPSHOT_FAILURE_THRESHOLD &&
+      nowTs - lastRepeatedSnapshotWarningAt >= SNAPSHOT_WARNING_DEBOUNCE_MS
+    ) {
+      lastRepeatedSnapshotWarningAt = nowTs;
+      logSnapshotWarning(
+        'sp.snapshot.persist.repeated_failures',
+        {
+          streak: consecutiveSnapshotFailures,
+          indexedDbFailed,
+          localStorageFailed,
+        },
+        result?.height ?? currentHeight,
+      );
+      trackBrowserEvent('single-player.persist.degraded', {
+        height: result?.height ?? currentHeight,
+        failure_streak: consecutiveSnapshotFailures,
+        indexed_db_failed: indexedDbFailed,
+        local_storage_failed: localStorageFailed,
+      });
+    }
+  }
+  async function persistSinglePlayerSnapshot(state: AppState | null, currentHeight: number) {
+    if (isClosed) return;
+    const started = readTimer();
+    let result: PersistSpSnapshotResult | null = null;
+    let thrown: unknown = null;
+    try {
+      result = await persistSpSnapshot(state, currentHeight, {
+        adapters: {
+          indexedDb: createIndexedDbAdapter(db),
+          localStorage: localSnapshotAdapter,
+        },
+        onWarn: (code, info) => logSnapshotWarning(code, info, currentHeight),
+      });
+    } catch (error) {
+      thrown = error;
+      logSnapshotWarning('sp.snapshot.persist.unhandled_exception', error, currentHeight);
+    }
+    const duration = Math.max(0, readTimer() - started);
+    await handleSnapshotOutcome(currentHeight, { result, durationMs: duration, error: thrown });
+  }
   // Snapshot tuning defaults; may be adjusted after inspecting event volume
   let snapshotEvery = 20;
   const keepRecentSnapshots = Math.max(0, Math.floor(opts?.keepRecentSnapshots ?? 5));
@@ -240,6 +489,92 @@ export async function createInstance(opts?: {
     }
     return next;
   }
+
+  async function attemptSinglePlayerRehydrate(
+    gameId: string | null,
+    allowLocalFallback: boolean,
+  ): Promise<boolean> {
+    const target = typeof gameId === 'string' && gameId.trim() ? gameId.trim() : null;
+    if (!target) return false;
+    const started = readTimer();
+    try {
+      const result = await rehydrateSinglePlayerFromSnapshot({
+        gameId: target,
+        adapters: {
+          indexedDb: createIndexedDbAdapter(db),
+          localStorage: localSnapshotAdapter,
+        },
+        baseState: upgradeState(INITIAL_STATE),
+        allowLocalStorageFallback: allowLocalFallback,
+        onWarn: (code, info) => logSnapshotWarning(code, info, height),
+      });
+      const durationMs = Number(Math.max(0, readTimer() - started).toFixed(2));
+      const metrics: Record<string, unknown> = {
+        game_id: target,
+        height: result.height,
+        applied: result.applied,
+        source: result.source ?? 'none',
+        duration_ms: durationMs,
+        allow_fallback: allowLocalFallback,
+        fallback_used: result.source === 'local-storage',
+      };
+      if (result.reason) metrics.reason = result.reason;
+      if (result.entry?.savedAt) metrics.saved_at = result.entry.savedAt;
+      trackBrowserEvent('single-player.persist.rehydrate', metrics);
+      if (result.source === 'local-storage') {
+        captureBrowserMessage('single-player.persist.fallback', {
+          level: result.applied ? 'info' : 'warn',
+          attributes: {
+            code: 'sp.snapshot.rehydrate.fallback',
+            gameId: target,
+            height: result.height,
+            applied: result.applied,
+            savedAt: result.entry?.savedAt ?? result.snapshot?.savedAt,
+            allowFallback: allowLocalFallback,
+          },
+        });
+        trackBrowserEvent('single-player.persist.fallback', {
+          game_id: target,
+          height: result.height,
+          adapter: 'local-storage',
+          applied: result.applied,
+          duration_ms: durationMs,
+        });
+      }
+      if (!result.applied || !result.state) {
+        if (result.reason) {
+          logSnapshotWarning(
+            'sp.snapshot.rehydrate.unapplied',
+            { gameId: target, reason: result.reason },
+            height,
+          );
+        }
+        return false;
+      }
+      memoryState = result.state;
+      height = result.height;
+      devLog('rehydrate.sp_snapshot_applied', {
+        gameId: target,
+        source: result.source,
+        height: result.height,
+      });
+      return true;
+    } catch (error) {
+      const durationMs = Number(Math.max(0, readTimer() - started).toFixed(2));
+      trackBrowserEvent('single-player.persist.rehydrate', {
+        game_id: target,
+        height,
+        applied: false,
+        source: 'exception',
+        duration_ms: durationMs,
+        allow_fallback: allowLocalFallback,
+        failure: true,
+      });
+      logSnapshotWarning('sp.snapshot.rehydrate.unhandled_exception', error, height);
+      return false;
+    }
+  }
+
   function isValidSnapshot(rec: unknown): rec is { height: number; state: AppState } {
     if (!isPlainObject(rec)) return false;
     const obj = rec;
@@ -377,6 +712,7 @@ export async function createInstance(opts?: {
       t.onabort = () => rej(asError(t.error, 'Transaction aborted persisting current state'));
       t.onerror = () => rej(asError(t.error, 'Transaction error persisting current state'));
     });
+    await persistSinglePlayerSnapshot(memoryState, height);
   }
 
   if (chan) {
@@ -420,9 +756,26 @@ export async function createInstance(opts?: {
     });
   }
 
-  async function rehydrate() {
+  async function rehydrate(options?: {
+    spGameId?: string | null;
+    allowLocalFallback?: boolean;
+  }) {
+    if (options && Object.prototype.hasOwnProperty.call(options, 'spGameId')) {
+      const nextTarget =
+        typeof options?.spGameId === 'string' && options.spGameId.trim()
+          ? options.spGameId.trim()
+          : null;
+      targetSpGameId = nextTarget;
+    }
+    const allowFallback = options?.allowLocalFallback ?? allowSpLocalFallback;
     await initSnapshotStrategy();
-    await loadCurrent();
+    let applied = false;
+    if (targetSpGameId) {
+      applied = await attemptSinglePlayerRehydrate(targetSpGameId, allowFallback);
+    }
+    if (!applied) {
+      await loadCurrent();
+    }
     await applyTail(height);
     // Ensure any missing roster scaffolding is bootstrapped before persisting
     memoryState = upgradeState(memoryState);
@@ -536,6 +889,7 @@ export async function createInstance(opts?: {
           }, 0);
         } catch {}
       }
+      await persistSinglePlayerSnapshot(memoryState, height);
     });
     if (chan) {
       chan.postMessage({ type: 'append', seq });
@@ -663,6 +1017,7 @@ export async function createInstance(opts?: {
           }, 0);
         } catch {}
       }
+      await persistSinglePlayerSnapshot(memoryState, height);
     });
     if (chan) {
       chan.postMessage({ type: 'append', seq: lastSeq });
