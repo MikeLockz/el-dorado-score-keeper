@@ -18,17 +18,44 @@ import {
   INITIAL_STATE,
   previewAt as previewFromDB,
   events,
+  type RouteHydrationContext,
 } from '@/lib/state';
 
-function extractSinglePlayerGameId(pathname: string | null): string | null {
-  if (!pathname) return null;
+const DEFAULT_ROUTE_CONTEXT: RouteHydrationContext = Object.freeze({
+  mode: null,
+  gameId: null,
+  scorecardId: null,
+});
+
+const SINGLE_PLAYER_RESERVED_SEGMENTS = new Set(['new']);
+const SCORECARD_RESERVED_SEGMENTS = new Set(['new']);
+const ROUTE_ID_PATTERN = /^[a-z0-9-]{6,}$/i;
+
+function normalizeId(candidate: unknown, reserved: Set<string>): string | null {
+  if (typeof candidate !== 'string') return null;
+  const trimmed = candidate.trim();
+  if (!trimmed) return null;
+  if (reserved.has(trimmed)) return null;
+  if (!ROUTE_ID_PATTERN.test(trimmed)) return null;
+  return trimmed;
+}
+
+export function deriveRouteContext(pathname: string | null): RouteHydrationContext {
+  if (!pathname) return DEFAULT_ROUTE_CONTEXT;
   const segments = pathname.split('/').filter(Boolean);
-  if (segments.length < 2) return null;
-  if (segments[0] !== 'single-player') return null;
-  const candidate = segments[1]?.trim();
-  if (!candidate) return null;
-  if (!/^[a-z0-9-]{6,}$/i.test(candidate)) return null;
-  return candidate;
+  if (segments.length < 2) return DEFAULT_ROUTE_CONTEXT;
+  const [root, candidate] = segments;
+  if (root === 'single-player') {
+    const id = normalizeId(candidate, SINGLE_PLAYER_RESERVED_SEGMENTS);
+    if (!id) return DEFAULT_ROUTE_CONTEXT;
+    return { mode: 'single-player', gameId: id, scorecardId: null };
+  }
+  if (root === 'scorecard') {
+    const id = normalizeId(candidate, SCORECARD_RESERVED_SEGMENTS);
+    if (!id) return DEFAULT_ROUTE_CONTEXT;
+    return { mode: 'scorecard', gameId: null, scorecardId: id };
+  }
+  return DEFAULT_ROUTE_CONTEXT;
 }
 
 type Warning = { code: string; info?: unknown; at: number };
@@ -46,6 +73,7 @@ type Ctx = {
   timeTravelHeight: number | null;
   setTimeTravelHeight: (h: number | null) => void;
   timeTraveling: boolean;
+  context: RouteHydrationContext;
 };
 
 const StateCtx = React.createContext<Ctx | null>(null);
@@ -58,9 +86,9 @@ export function StateProvider({
   onWarn?: (code: string, info?: unknown) => void;
 }) {
   const pathname = usePathname();
-  const spGameId = React.useMemo(() => extractSinglePlayerGameId(pathname ?? null), [pathname]);
-  const initialSpGameIdRef = React.useRef<string | null>(spGameId);
-  const prevGameIdRef = React.useRef<string | null>(spGameId);
+  const routeContext = React.useMemo(() => deriveRouteContext(pathname ?? null), [pathname]);
+  const initialRouteContextRef = React.useRef<RouteHydrationContext>(routeContext);
+  const prevRouteContextRef = React.useRef<RouteHydrationContext>(routeContext);
   const [state, setState] = React.useState<AppState>(INITIAL_STATE);
   const [height, setHeight] = React.useState(0);
   const [ready, setReady] = React.useState(false);
@@ -78,13 +106,16 @@ export function StateProvider({
   }, [onWarn]);
 
   React.useEffect(() => {
-    initialSpGameIdRef.current = spGameId;
-  }, [spGameId]);
+    initialRouteContextRef.current = routeContext;
+  }, [routeContext]);
 
   React.useEffect(() => {
     let unsubs: (() => void) | null = null;
     let closed = false;
     void (async () => {
+      const initialContext = initialRouteContextRef.current;
+      const initialSpGameId =
+        initialContext.mode === 'single-player' ? initialContext.gameId : null;
       const inst = await createInstance({
         dbName: dbNameRef.current,
         channelName: 'app-events',
@@ -95,14 +126,15 @@ export function StateProvider({
             onWarnRef.current?.(code, info);
           } catch {}
         },
-        spGameId: initialSpGameIdRef.current,
+        routeContext: initialContext,
+        spGameId: initialSpGameId,
       });
       if (closed) {
         inst.close();
         return;
       }
       instRef.current = inst;
-      prevGameIdRef.current = initialSpGameIdRef.current ?? null;
+      prevRouteContextRef.current = initialRouteContextRef.current;
       // Mark initial state set and subsequent stream updates as transitions to
       // keep input responsive during rapid event bursts (e.g., bid spamming).
       React.startTransition(() => {
@@ -130,13 +162,19 @@ export function StateProvider({
   }, []);
 
   React.useEffect(() => {
-    const next = spGameId ?? null;
-    if (prevGameIdRef.current === next) return;
-    prevGameIdRef.current = next;
+    const prev = prevRouteContextRef.current;
+    if (
+      prev.mode === routeContext.mode &&
+      prev.gameId === routeContext.gameId &&
+      prev.scorecardId === routeContext.scorecardId
+    ) {
+      return;
+    }
+    prevRouteContextRef.current = routeContext;
     const inst = instRef.current;
     if (!inst) return;
-    void inst.rehydrate({ spGameId: next });
-  }, [spGameId]);
+    void inst.rehydrate({ routeContext, allowLocalFallback: true });
+  }, [routeContext]);
 
   const append = React.useCallback(async (e: AppEvent) => {
     if (!instRef.current) throw new Error('State instance not ready');
@@ -228,6 +266,7 @@ export function StateProvider({
     timeTravelHeight: ttHeight,
     setTimeTravelHeight: setTtHeight,
     timeTraveling: ttHeight != null,
+    context: routeContext,
   };
   // Expose simple debug helpers in dev
   React.useEffect(() => {
@@ -240,8 +279,10 @@ export function StateProvider({
       globalThis.__dumpState = () =>
         console.log('[app state]', JSON.parse(JSON.stringify(ttState ?? state)));
       globalThis.__SET_TT = (h: number | null) => setTtHeight(h);
+      (globalThis as { __APP_ROUTE_CONTEXT__?: RouteHydrationContext }).__APP_ROUTE_CONTEXT__ = routeContext;
+      (globalThis as { __APP_WARNINGS__?: Warning[] }).__APP_WARNINGS__ = warnings;
     } catch {}
-  }, [state, ttState, height, append, appendMany, setTtHeight]);
+  }, [state, ttState, height, append, appendMany, setTtHeight, routeContext, warnings]);
 
   return <StateCtx.Provider value={value}>{children}</StateCtx.Provider>;
 }

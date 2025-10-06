@@ -163,6 +163,7 @@
   - Refresh global navigation, breadcrumbs, quick links, and toasts to use the new URLs and prefetch likely follow-ons.
   - Implement accessible focus management for routed modals to preserve keyboard/screen-reader flow.
   - Replace hard-coded path strings in navigation helpers with centralized utilities aware of the new structure.
+  - Standardise deep-link generation through `resolveSinglePlayerRoute`, `resolveScorecardRoute`, and `deriveGameRoute` so quick actions and modal fallbacks always include stable IDs. (Completed 2025-10-05.)
 - **SEO & Sharing**
   - Provide `generateMetadata` (or equivalent) for entity routes so shared URLs show correct titles/previews.
   - Mark modal/intermediate routes as non-indexable where appropriate.
@@ -171,6 +172,7 @@
   - Integrate entity-specific not-found components with global error boundaries to cover server/edge failures gracefully.
   - Surface actionable error messaging (offline, storage blocked) within routed modals and detail pages.
   - Capture error telemetry for missing entities to monitor frequency and diagnose issues.
+  - Ensure not-found CTAs point at `/single-player/new`, `/games`, and other canonical hubs to guide recovery from stale links. (Copy updated 2025-10-05.)
 - **Persistence Lifecycle**
   - Document retention policies (e.g., `sp/game-index` capacity) so not-found copy can explain when data expires.
   - Invalidate caches when archives are purged so stale IDs immediately show the not-found state.

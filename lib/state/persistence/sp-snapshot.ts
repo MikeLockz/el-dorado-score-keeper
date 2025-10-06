@@ -1,5 +1,6 @@
 import { storeNames, tx } from '../db';
 import type { AppState, RoundData, UUID } from '../types';
+import { getCurrentSinglePlayerGameId } from '../utils';
 
 export const SINGLE_PLAYER_SNAPSHOT_VERSION = 1 as const;
 export const SINGLE_PLAYER_SNAPSHOT_STORAGE_KEY = 'el-dorado:sp:snapshot:v1';
@@ -125,12 +126,11 @@ function isPromiseLike<T = unknown>(value: unknown): value is PromiseLike<T> {
 }
 
 function readGameId(state: AppState, explicit?: string | null): string | null {
-  if (explicit && typeof explicit === 'string' && explicit.trim()) return explicit;
-  const candidate = (state.sp as { currentGameId?: unknown } | undefined)?.currentGameId;
-  if (typeof candidate === 'string' && candidate.trim()) return candidate;
-  const legacy = (state.sp as { gameId?: unknown } | undefined)?.gameId;
-  if (typeof legacy === 'string' && legacy.trim()) return legacy;
-  return null;
+  if (typeof explicit === 'string') {
+    const trimmed = explicit.trim();
+    if (trimmed) return trimmed;
+  }
+  return getCurrentSinglePlayerGameId(state);
 }
 
 function deriveRoster(state: AppState): {

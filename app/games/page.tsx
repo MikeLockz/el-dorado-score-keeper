@@ -2,22 +2,24 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import clsx from 'clsx';
 import { Button, Card, Skeleton } from '@/components/ui';
 import { Loader2, MoreHorizontal } from 'lucide-react';
-import { type GameRecord, listGames, deleteGame, restoreGame, deriveGameRoute } from '@/lib/state';
+import { type GameRecord, listGames } from '@/lib/state';
 import { formatDateTime } from '@/lib/format';
 import { useNewGameRequest, hasScorecardProgress, hasSinglePlayerProgress } from '@/lib/game-flow';
 import { useAppState } from '@/components/state-provider';
-import { captureBrowserException, captureBrowserMessage } from '@/lib/observability/browser';
+import { captureBrowserMessage } from '@/lib/observability/browser';
+import {
+  resolveSinglePlayerRoute,
+  resolveScorecardRoute,
+  resolveArchivedGameRoute,
+  resolveGameModalRoute,
+} from '@/lib/state';
+import { subscribeToGamesSignal } from '@/lib/state/game-signals';
+import { trackGamesListView } from '@/lib/observability/events';
 
 import styles from './page.module.scss';
-
-type PendingAction = {
-  type: 'restore' | 'delete';
-  game: GameRecord;
-};
 
 const skeletonRows = Array.from({ length: 4 });
 
@@ -25,11 +27,23 @@ export default function GamesPage() {
   const [games, setGames] = React.useState<GameRecord[] | null>(null);
   const router = useRouter();
   const { state } = useAppState();
-  const resumeRoute = React.useMemo(() => {
-    if (hasSinglePlayerProgress(state)) return '/single-player';
-    if (hasScorecardProgress(state)) return '/scorecard';
+  const resumeContext = React.useMemo(() => {
+    if (hasSinglePlayerProgress(state)) {
+      return {
+        route: resolveSinglePlayerRoute(state, { fallback: 'entry' }),
+        mode: 'single-player' as const,
+      };
+    }
+    if (hasScorecardProgress(state)) {
+      return {
+        route: resolveScorecardRoute(state),
+        mode: 'scorecard' as const,
+      };
+    }
     return null;
   }, [state]);
+  const resumeRoute = resumeContext?.route ?? null;
+  const resumeMode = resumeContext?.mode ?? null;
   const resumeRouteRef = React.useRef<string | null>(resumeRoute);
   resumeRouteRef.current = resumeRoute;
   const handleResumeCurrentGame = React.useCallback(() => {
@@ -71,28 +85,31 @@ export default function GamesPage() {
     void load();
   }, [load]);
 
-  const [menuOpen, setMenuOpen] = React.useState<null | {
-    id: string;
-    x: number;
-    y: number;
-    openUp?: boolean;
-  }>(null);
-  const [pendingAction, setPendingAction] = React.useState<PendingAction | null>(null);
-  const [optimisticState, setOptimisticState] = React.useState<
-    Record<string, 'restoring' | 'deleting'>
-  >({});
-  const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    trackGamesListView({ source: 'games.page' });
+  }, []);
 
   React.useEffect(() => {
-    if (!statusMessage) return;
-    const timer = window.setTimeout(() => setStatusMessage(null), 4500);
-    return () => window.clearTimeout(timer);
-  }, [statusMessage]);
+    return subscribeToGamesSignal((signal) => {
+      if (signal.type === 'added' || signal.type === 'deleted') {
+        void load();
+      }
+    });
+  }, [load]);
+
+  const [menuOpen, setMenuOpen] = React.useState<
+    | null
+    | {
+        id: string;
+        x: number;
+        y: number;
+        openUp?: boolean;
+      }
+  >(null);
 
   const onNewGame = async () => {
     resumeRouteRef.current = resumeRoute;
-    const inferredMode: 'single-player' | 'scorecard' =
-      resumeRoute === '/single-player' ? 'single-player' : 'scorecard';
+    const inferredMode: 'single-player' | 'scorecard' = resumeMode ?? 'scorecard';
     const ok = await startNewGame({
       analytics: {
         mode: inferredMode,
@@ -103,57 +120,6 @@ export default function GamesPage() {
       handleResumeCurrentGame();
     }
   };
-
-  const requestAction = React.useCallback(
-    (game: GameRecord, type: PendingAction['type']) => {
-      if (optimisticState[game.id]) return;
-      setMenuOpen(null);
-      setPendingAction({ game, type });
-    },
-    [optimisticState],
-  );
-
-  const confirmAction = React.useCallback(async () => {
-    if (!pendingAction) return;
-    const action = pendingAction;
-    setPendingAction(null);
-    setOptimisticState((prev) => ({
-      ...prev,
-      [action.game.id]: action.type === 'restore' ? 'restoring' : 'deleting',
-    }));
-    const title = action.game.title || 'Untitled';
-    setStatusMessage(`${action.type === 'restore' ? 'Restoring' : 'Deleting'} "${title}"…`);
-
-    try {
-      if (action.type === 'restore') {
-        const redirectPath = deriveGameRoute(action.game);
-        await restoreGame(undefined, action.game.id);
-        setStatusMessage(`Restored "${title}". Redirecting to current game.`);
-        router.push(redirectPath);
-      } else {
-        await deleteGame(undefined, action.game.id);
-        setStatusMessage(`Deleted "${title}".`);
-        await load();
-      }
-    } catch (error: unknown) {
-      captureBrowserException(error, {
-        scope: 'games.page',
-        action: action.type,
-        gameId: action.game.id,
-        reason: describeError(error),
-      });
-      setStatusMessage(
-        `Unable to ${action.type === 'restore' ? 'restore' : 'delete'} "${title}". Please try again.`,
-      );
-      await load();
-    } finally {
-      setOptimisticState((prev) => {
-        const next = { ...prev };
-        delete next[action.game.id];
-        return next;
-      });
-    }
-  }, [pendingAction, load, router, describeError]);
 
   return (
     <>
@@ -171,10 +137,6 @@ export default function GamesPage() {
             )}
           </Button>
         </div>
-        <div aria-live="polite" aria-atomic="true" className={styles.statusLive}>
-          {statusMessage ?? ''}
-        </div>
-        {statusMessage ? <div className={styles.statusMessage}>{statusMessage}</div> : null}
         <Card className={styles.tableCard}>
           <div className={styles.tableScroll}>
             <table className={styles.table}>
@@ -222,99 +184,80 @@ export default function GamesPage() {
                     </td>
                   </tr>
                 ) : (
-                  games.map((g) => {
-                    const optimistic = optimisticState[g.id];
-                    const disableActions = Boolean(optimistic);
-                    return (
-                      <tr
-                        key={g.id}
-                        className={clsx(styles.row, disableActions && styles.rowDisabled)}
-                        onClick={() => {
-                          if (disableActions) return;
-                          router.push(`/games/view?id=${g.id}`);
-                        }}
-                      >
-                        <td className={styles.cell}>
-                          <div className={styles.titleGroup}>
-                            <div className={styles.titleText}>{g.title || 'Untitled'}</div>
-                            <div className={styles.titleMeta}>{formatDateTime(g.finishedAt)}</div>
-                          </div>
-                        </td>
-                        <td className={clsx(styles.cell, styles.cellCenter)}>
-                          {g.summary.players}
-                        </td>
-                        <td className={clsx(styles.cell, styles.cellCenter, styles.cellEmphasis)}>
-                          {g.summary.winnerName ?? '-'}
-                        </td>
-                        <td className={clsx(styles.cell, styles.cellActions)}>
-                          <div
-                            className={styles.actionCluster}
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <div className={styles.desktopActions}>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => requestAction(g, 'restore')}
-                                disabled={disableActions}
-                              >
-                                Restore
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => requestAction(g, 'delete')}
-                                disabled={disableActions}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                            <div className={styles.mobileActions}>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                aria-label="Actions"
-                                disabled={disableActions}
-                                onClick={(event) => {
-                                  if (disableActions) return;
-                                  event.stopPropagation();
-                                  const rect = (
-                                    event.currentTarget as HTMLElement
-                                  ).getBoundingClientRect();
-                                  const spaceBelow = window.innerHeight - rect.bottom;
-                                  const openUp = spaceBelow < 140;
-                                  setMenuOpen((current) =>
-                                    current && current.id === g.id
-                                      ? null
-                                      : {
-                                          id: g.id,
-                                          x: rect.right,
-                                          y: openUp ? rect.top : rect.bottom,
-                                          openUp,
-                                        },
-                                  );
-                                }}
-                              >
-                                <MoreHorizontal className={styles.moreIcon} />
-                              </Button>
-                            </div>
-                          </div>
-                          {optimistic ? (
-                            <p
-                              className={clsx(
-                                styles.optimisticMessage,
-                                optimistic === 'restoring'
-                                  ? styles.optimisticMessageRestore
-                                  : styles.optimisticMessageDelete,
-                              )}
+                  games.map((g) => (
+                    <tr
+                      key={g.id}
+                      className={styles.row}
+                      onClick={() => {
+                        router.push(resolveArchivedGameRoute(g.id));
+                      }}
+                    >
+                      <td className={styles.cell}>
+                        <div className={styles.titleGroup}>
+                          <div className={styles.titleText}>{g.title || 'Untitled'}</div>
+                          <div className={styles.titleMeta}>{formatDateTime(g.finishedAt)}</div>
+                        </div>
+                      </td>
+                      <td className={clsx(styles.cell, styles.cellCenter)}>{g.summary.players}</td>
+                      <td className={clsx(styles.cell, styles.cellCenter, styles.cellEmphasis)}>
+                        {g.summary.winnerName ?? '-'}
+                      </td>
+                      <td className={clsx(styles.cell, styles.cellActions)}>
+                        <div
+                          className={styles.actionCluster}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <div className={styles.desktopActions}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                router.push(resolveGameModalRoute(g.id, 'restore'));
+                              }}
                             >
-                              {optimistic === 'restoring' ? 'Restoring…' : 'Deleting…'}
-                            </p>
-                          ) : null}
-                        </td>
-                      </tr>
-                    );
-                  })
+                              Restore
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                router.push(resolveGameModalRoute(g.id, 'delete'));
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                          <div className={styles.mobileActions}>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              aria-label="Actions"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                const rect = (
+                                  event.currentTarget as HTMLElement
+                                ).getBoundingClientRect();
+                                const spaceBelow = window.innerHeight - rect.bottom;
+                                const openUp = spaceBelow < 140;
+                                setMenuOpen((current) =>
+                                  current && current.id === g.id
+                                    ? null
+                                    : {
+                                        id: g.id,
+                                        x: rect.right,
+                                        y: openUp ? rect.top : rect.bottom,
+                                        openUp,
+                                      },
+                                );
+                              }}
+                            >
+                              <MoreHorizontal className={styles.moreIcon} />
+                            </Button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -336,7 +279,8 @@ export default function GamesPage() {
                   onClick={() => {
                     const game = games?.find((item) => item.id === menuOpen.id);
                     if (game) {
-                      requestAction(game, 'restore');
+                      router.push(resolveGameModalRoute(game.id, 'restore'));
+                      setMenuOpen(null);
                     }
                   }}
                 >
@@ -347,7 +291,8 @@ export default function GamesPage() {
                   onClick={() => {
                     const game = games?.find((item) => item.id === menuOpen.id);
                     if (game) {
-                      requestAction(game, 'delete');
+                      router.push(resolveGameModalRoute(game.id, 'delete'));
+                      setMenuOpen(null);
                     }
                   }}
                 >
@@ -358,43 +303,6 @@ export default function GamesPage() {
           ) : null}
         </Card>
       </div>
-      <AlertDialog.Root
-        open={pendingAction !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPendingAction(null);
-          }
-        }}
-      >
-        <AlertDialog.Portal>
-          <AlertDialog.Overlay className={styles.dialogOverlay} />
-          <AlertDialog.Content className={styles.dialogContent}>
-            <AlertDialog.Title className={styles.dialogTitle}>
-              {pendingAction?.type === 'restore' ? 'Restore this game?' : 'Delete this game?'}
-            </AlertDialog.Title>
-            <AlertDialog.Description className={styles.dialogDescription}>
-              {pendingAction?.type === 'restore'
-                ? 'Restoring will replace your current progress with the archived session.'
-                : 'Deleting removes the archived game permanently. This action cannot be undone.'}
-            </AlertDialog.Description>
-            <div className={styles.dialogActions}>
-              <AlertDialog.Cancel asChild>
-                <Button variant="outline">Cancel</Button>
-              </AlertDialog.Cancel>
-              <AlertDialog.Action asChild>
-                <Button
-                  variant={pendingAction?.type === 'delete' ? 'destructive' : 'default'}
-                  onClick={() => {
-                    void confirmAction();
-                  }}
-                >
-                  {pendingAction?.type === 'delete' ? 'Delete' : 'Restore'}
-                </Button>
-              </AlertDialog.Action>
-            </div>
-          </AlertDialog.Content>
-        </AlertDialog.Portal>
-      </AlertDialog.Root>
     </>
   );
 }

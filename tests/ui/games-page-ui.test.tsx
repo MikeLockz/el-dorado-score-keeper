@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { waitFor } from '@testing-library/react';
+import { waitFor, screen } from '@testing-library/react';
 import { INITIAL_STATE, type AppState } from '@/lib/state';
 
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
@@ -110,7 +110,9 @@ function createInProgressContext(): MockAppStateHook {
     trumpBroken: false,
     leaderId: 'a',
     handPhase: 'playing',
+    currentGameId: 'sp-current-route',
   } as AppState['sp'];
+  state.activeScorecardRosterId = 'scorecard-current-route';
 
   return {
     state,
@@ -208,7 +210,7 @@ suite('Games page new game flow', () => {
 
     await waitFor(() => {
       expect(startNewGameSpy).toHaveBeenCalledTimes(1);
-      expect(push).toHaveBeenCalledWith('/single-player');
+      expect(push).toHaveBeenCalledWith('/single-player/sp-current-route');
     });
 
     root.unmount();
@@ -268,19 +270,12 @@ suite('Games page new game flow', () => {
     ) as HTMLButtonElement;
     rowRestore.click();
 
-    const dialogRestore = await waitFor(() => {
-      const buttons = Array.from(container.querySelectorAll('button')).filter((btn) =>
-        /Restore/i.test(btn.textContent || ''),
-      );
-      expect(buttons.length).toBeGreaterThan(1);
-      return buttons.at(-1) as HTMLButtonElement;
-    });
-
+    const dialogRestore = await screen.findByRole('button', { name: 'Restore game' });
     dialogRestore.click();
 
     await waitFor(() => {
       expect(stateMocks.restoreGame).toHaveBeenCalledWith(undefined, 'sp-1');
-      expect(push).toHaveBeenCalledWith('/single-player');
+      expect(push).toHaveBeenCalledWith('/single-player/sp-current-route');
     });
 
     root.unmount();

@@ -23,6 +23,15 @@ const {
   getCurrentGameId,
   clearGameSessionId,
   markRoundStart,
+  trackSinglePlayerView,
+  trackScorecardView,
+  trackPlayersView,
+  trackPlayerDetailView,
+  trackRostersView,
+  trackRosterDetailView,
+  trackGamesListView,
+  trackGameDetailView,
+  trackSinglePlayerNewView,
 } = analyticsEvents;
 
 beforeEach(() => {
@@ -195,5 +204,88 @@ describe('applyRoundAnalyticsFromEvents', () => {
         source: 'batch-test',
       }),
     );
+  });
+});
+
+describe('view instrumentation', () => {
+  beforeEach(() => {
+    trackBrowserEventMock.mockClear();
+  });
+
+  it('emits single-player view when id present', () => {
+    trackSinglePlayerView({ gameId: 'game-123', view: 'summary', source: 'unit-test' });
+    expect(trackBrowserEventMock).toHaveBeenCalledWith('single-player.viewed', {
+      game_id: 'game-123',
+      view: 'summary',
+      source: 'unit-test',
+    });
+  });
+
+  it('emits scorecard view events with view name', () => {
+    trackScorecardView({ scorecardId: 'score-1', view: 'summary' });
+    expect(trackBrowserEventMock).toHaveBeenCalledWith('scorecard.viewed', {
+      scorecard_id: 'score-1',
+      view: 'summary',
+      source: 'route',
+    });
+  });
+
+  it('emits players list view', () => {
+    trackPlayersView({ filter: 'archived', source: 'unit' });
+    expect(trackBrowserEventMock).toHaveBeenCalledWith('players.viewed', {
+      filter: 'archived',
+      source: 'unit',
+    });
+  });
+
+  it('emits player detail view with archive flag', () => {
+    trackPlayerDetailView({ playerId: 'p-1', archived: true });
+    expect(trackBrowserEventMock).toHaveBeenCalledWith('player.detail.viewed', {
+      player_id: 'p-1',
+      archived: true,
+      source: 'route',
+    });
+  });
+
+  it('emits roster detail view', () => {
+    trackRosterDetailView({ rosterId: 'r-1', archived: false, source: 'unit' });
+    expect(trackBrowserEventMock).toHaveBeenCalledWith('roster.detail.viewed', {
+      roster_id: 'r-1',
+      archived: false,
+      source: 'unit',
+    });
+  });
+
+  it('emits games list view', () => {
+    trackGamesListView();
+    expect(trackBrowserEventMock).toHaveBeenCalledWith('games.list.viewed', {
+      source: 'route',
+    });
+  });
+
+  it('emits game detail view with id', () => {
+    trackGameDetailView({ gameId: 'g-123', source: 'modal-test' });
+    expect(trackBrowserEventMock).toHaveBeenCalledWith('game.detail.viewed', {
+      game_id: 'g-123',
+      source: 'modal-test',
+    });
+  });
+
+  it('emits new single-player page view with progress flag', () => {
+    trackSinglePlayerNewView({ hasProgress: true, source: 'unit' });
+    expect(trackBrowserEventMock).toHaveBeenCalledWith('single-player.new.viewed', {
+      has_progress: true,
+      source: 'unit',
+    });
+  });
+
+  it('skips events when identifiers missing', () => {
+    trackBrowserEventMock.mockClear();
+    trackSinglePlayerView({ gameId: '', view: 'live' });
+    trackScorecardView({ scorecardId: '', view: 'live' });
+    trackPlayerDetailView({ playerId: null });
+    trackRosterDetailView({ rosterId: undefined });
+    trackGameDetailView({ gameId: '   ' });
+    expect(trackBrowserEventMock).not.toHaveBeenCalled();
   });
 });

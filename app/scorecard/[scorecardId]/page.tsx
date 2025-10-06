@@ -1,0 +1,58 @@
+import type { Metadata } from 'next';
+
+import CurrentGame from '@/components/views/CurrentGame';
+
+import styles from './page.module.scss';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+type Params = {
+  params: {
+    scorecardId?: string;
+  };
+};
+
+function makeTitle(scorecardId: string): string {
+  if (!scorecardId) return 'Scorecard';
+  return `Scorecard • ${scorecardId}`;
+}
+
+function makeDescription(scorecardId: string): string {
+  if (!scorecardId) {
+    return 'Track live scores and bids with a shareable scorecard session.';
+  }
+  return `Live score tracking for scorecard session ${scorecardId} with editable bids and history.`;
+}
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const rawId = params.scorecardId ?? '';
+  const scorecardId = rawId.trim();
+  const title = makeTitle(scorecardId);
+  const description = makeDescription(scorecardId);
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: scorecardId ? `/scorecard/${scorecardId}` : '/scorecard',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+  };
+}
+
+export default function ScorecardSessionPage({ params }: Params) {
+  const scorecardId = (params.scorecardId ?? '').trim() || 'scorecard-session';
+  return (
+    <div className={styles.container}>
+      <CurrentGame key={scorecardId} />
+    </div>
+  );
+}

@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -7,26 +8,79 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import clsx from 'clsx';
 import { Button } from '@/components/ui';
 import { Menu } from 'lucide-react';
+import { useAppState } from '@/components/state-provider';
+import {
+  resolveScorecardRoute,
+  resolveSinglePlayerRoute,
+  resolvePlayerRoute,
+  resolveArchivedGameRoute,
+} from '@/lib/state';
 
 import styles from './header.module.scss';
 
 export default function Header() {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const pathname = usePathname();
-  const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname === href);
-  const navItems: Array<{ href: string; label: string; group: 'primary' | 'secondary' }> = [
-    { href: '/scorecard', label: 'Score Card', group: 'primary' },
-    { href: '/games', label: 'Games', group: 'primary' },
-    { href: '/players', label: 'Players', group: 'primary' },
-    { href: '/single-player', label: 'Single Player', group: 'primary' },
-    { href: '/settings', label: 'Settings', group: 'secondary' },
-    { href: '/rules', label: 'Rules', group: 'secondary' },
-  ];
+  const { state } = useAppState();
+
+  type NavItem = {
+    href: string;
+    label: string;
+    group: 'primary' | 'secondary';
+    match?: (path: string) => boolean;
+  };
+
+  const scorecardRoute = React.useMemo(() => resolveScorecardRoute(state), [state]);
+  const singlePlayerRoute = React.useMemo(
+    () => resolveSinglePlayerRoute(state, { fallback: 'entry' }),
+    [state],
+  );
+
+  const navItems: NavItem[] = React.useMemo(
+    () => [
+      {
+        href: scorecardRoute,
+        label: 'Score Card',
+        group: 'primary',
+        match: (path) => path.startsWith('/scorecard'),
+      },
+      {
+        href: resolveArchivedGameRoute(null),
+        label: 'Games',
+        group: 'primary',
+        match: (path) => path === '/games' || path.startsWith('/games/'),
+      },
+      {
+        href: resolvePlayerRoute(null),
+        label: 'Players',
+        group: 'primary',
+        match: (path) => path === '/players' || path.startsWith('/players/'),
+      },
+      {
+        href: singlePlayerRoute,
+        label: 'Single Player',
+        group: 'primary',
+        match: (path) => path.startsWith('/single-player'),
+      },
+      { href: '/settings', label: 'Settings', group: 'secondary' },
+      { href: '/rules', label: 'Rules', group: 'secondary' },
+    ],
+    [scorecardRoute, singlePlayerRoute],
+  );
   const primaryNav = navItems.filter((item) => item.group === 'primary');
   const secondaryNav = navItems.filter((item) => item.group === 'secondary');
 
+  const isActive = React.useCallback(
+    (item: NavItem) => {
+      if (!pathname) return false;
+      if (item.match) return item.match(pathname);
+      return item.href === '/' ? pathname === '/' : pathname === item.href;
+    },
+    [pathname],
+  );
+
   const renderInlineLink = (item: (typeof navItems)[number]) => {
-    const active = isActive(item.href);
+    const active = isActive(item);
     return (
       <Link
         key={`inline-${item.href}`}
@@ -77,10 +131,10 @@ export default function Header() {
                   asChild
                   className={clsx(
                     styles.dropdownItem,
-                    isActive(item.href) && styles.dropdownItemActive,
+                    isActive(item) && styles.dropdownItemActive,
                   )}
                 >
-                  <Link href={item.href} aria-current={isActive(item.href) ? 'page' : undefined}>
+                  <Link href={item.href} aria-current={isActive(item) ? 'page' : undefined}>
                     {item.label}
                   </Link>
                 </DropdownMenu.Item>
@@ -94,10 +148,10 @@ export default function Header() {
                   asChild
                   className={clsx(
                     styles.dropdownItem,
-                    isActive(item.href) && styles.dropdownItemActive,
+                    isActive(item) && styles.dropdownItemActive,
                   )}
                 >
-                  <Link href={item.href} aria-current={isActive(item.href) ? 'page' : undefined}>
+                  <Link href={item.href} aria-current={isActive(item) ? 'page' : undefined}>
                     {item.label}
                   </Link>
                 </DropdownMenu.Item>

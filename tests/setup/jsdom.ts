@@ -48,6 +48,7 @@ function createDefaultAppState(): MockAppState {
     timeTravelHeight: null,
     setTimeTravelHeight: () => {},
     timeTraveling: false,
+    context: { mode: null, gameId: null, scorecardId: null },
   });
   return context as MockAppState;
 }
@@ -66,6 +67,14 @@ let deleteGameMockImpl: DeleteGameFn;
 
 let newGameConfirmMock: NewGameConfirmMock = {
   show: async () => true,
+};
+
+type ParamsRecord = Record<string, string | string[]>;
+
+const paramsRef: { current: ParamsRecord } = { current: {} };
+
+(globalThis as any).__setMockParams = (params: ParamsRecord) => {
+  paramsRef.current = params;
 };
 
 (globalThis as any).__setNewGameConfirm = (value: NewGameConfirmMock) => {
@@ -131,6 +140,7 @@ beforeEach(() => {
   restoreGameMockImpl = vi.fn(async () => undefined);
   deleteGameMockImpl = vi.fn(async () => undefined);
   fetchMock.mockClear();
+  paramsRef.current = {};
 });
 
 vi.mock('@/components/state-provider', async () => ({
@@ -162,6 +172,8 @@ vi.mock('next/navigation', () => {
     useRouter: () => routerRef.current,
     usePathname: () => '/',
     useSearchParams: () => new URLSearchParams(),
+    useParams: () => paramsRef.current,
+    useSelectedLayoutSegments: () => [] as string[],
   };
 });
 

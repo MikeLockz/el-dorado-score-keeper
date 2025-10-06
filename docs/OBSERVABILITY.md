@@ -89,6 +89,7 @@ NR_PROXY_VERBOSE=true
 - On first render (and whenever the path/search changes) it calls `ensureBrowserTelemetry()` which lazily initialises the active vendor and tracks `page.viewed` events.
 - Errors during initialisation are logged via `captureBrowserException` and retried on the next render.
 - Helper exports (`captureBrowserException`, `captureBrowserMessage`, `trackBrowserEvent`) remain stable regardless of the vendor in use.
+- View-level helpers (`trackSinglePlayerView`, `trackScorecardView`, `trackPlayerDetailView`, etc.) emit entity-aware payloads so dashboards continue to resolve the active `gameId`, `scorecardId`, or roster/player identifier after the URL-driven navigation refactor.
 
 ---
 

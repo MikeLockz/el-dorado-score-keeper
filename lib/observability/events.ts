@@ -70,6 +70,70 @@ export type TrackRoundFinalizedPayload = {
   source?: string;
 };
 
+type ArchivedGameEventPayload = Readonly<{
+  gameId: string;
+  mode?: NullableString;
+  source?: string;
+}>;
+
+export type ScorecardSummaryExportPayload = Readonly<{
+  scorecardId: string;
+  format: string;
+  source?: string;
+}>;
+
+export type SinglePlayerAnalyticsView = 'live' | 'scorecard' | 'summary';
+
+export type TrackSinglePlayerViewPayload = Readonly<{
+  gameId: string | null | undefined;
+  view: SinglePlayerAnalyticsView;
+  source?: string;
+}>;
+
+export type ScorecardAnalyticsView = 'live' | 'summary';
+
+export type TrackScorecardViewPayload = Readonly<{
+  scorecardId: string | null | undefined;
+  view: ScorecardAnalyticsView;
+  source?: string;
+}>;
+
+export type TrackPlayersViewPayload = Readonly<{
+  filter: 'active' | 'archived';
+  source?: string;
+}>;
+
+export type TrackPlayerDetailViewPayload = Readonly<{
+  playerId: string | null | undefined;
+  archived?: boolean;
+  source?: string;
+}>;
+
+export type TrackRostersViewPayload = Readonly<{
+  filter: 'active' | 'archived';
+  source?: string;
+}>;
+
+export type TrackRosterDetailViewPayload = Readonly<{
+  rosterId: string | null | undefined;
+  archived?: boolean;
+  source?: string;
+}>;
+
+export type TrackGamesListViewPayload = Readonly<{
+  source?: string;
+}>;
+
+export type TrackGameDetailViewPayload = Readonly<{
+  gameId: string | null | undefined;
+  source?: string;
+}>;
+
+export type TrackSinglePlayerNewViewPayload = Readonly<{
+  hasProgress: boolean;
+  source?: string;
+}>;
+
 export const getCurrentGameId = (): string | null => {
   if (cachedGameId !== undefined) {
     return cachedGameId ?? null;
@@ -174,6 +238,130 @@ export const trackRoundFinalized = (payload: TrackRoundFinalizedPayload) => {
   if (payload.source) attributes.source = payload.source;
 
   trackBrowserEvent('round.finalized', attributes);
+};
+
+export const trackArchivedGameRestored = (payload: ArchivedGameEventPayload) => {
+  if (!isBrowser()) return;
+  const trimmedId = payload.gameId?.trim();
+  if (!trimmedId) return;
+  trackBrowserEvent('archive.game.restored', {
+    game_id: trimmedId,
+    mode: coerceMode(payload.mode) ?? 'scorecard',
+    source: payload.source ?? 'unknown',
+  });
+};
+
+export const trackArchivedGameDeleted = (payload: ArchivedGameEventPayload) => {
+  if (!isBrowser()) return;
+  const trimmedId = payload.gameId?.trim();
+  if (!trimmedId) return;
+  trackBrowserEvent('archive.game.deleted', {
+    game_id: trimmedId,
+    mode: coerceMode(payload.mode) ?? 'scorecard',
+    source: payload.source ?? 'unknown',
+  });
+};
+
+export const trackScorecardSummaryExport = (payload: ScorecardSummaryExportPayload) => {
+  if (!isBrowser()) return;
+  const id = payload.scorecardId?.trim();
+  if (!id) return;
+  const format = payload.format?.toString().trim();
+  if (!format) return;
+  trackBrowserEvent('scorecard.summary.export', {
+    scorecard_id: id,
+    format,
+    source: payload.source ?? 'scorecard.summary',
+  });
+};
+
+export const trackSinglePlayerView = (payload: TrackSinglePlayerViewPayload) => {
+  if (!isBrowser()) return;
+  const id = payload.gameId?.toString().trim();
+  if (!id) return;
+  const view = payload.view ?? 'live';
+  trackBrowserEvent('single-player.viewed', {
+    game_id: id,
+    view,
+    source: payload.source ?? 'route',
+  });
+};
+
+export const trackScorecardView = (payload: TrackScorecardViewPayload) => {
+  if (!isBrowser()) return;
+  const id = payload.scorecardId?.toString().trim();
+  if (!id) return;
+  const view = payload.view ?? 'live';
+  trackBrowserEvent('scorecard.viewed', {
+    scorecard_id: id,
+    view,
+    source: payload.source ?? 'route',
+  });
+};
+
+export const trackPlayersView = (payload: TrackPlayersViewPayload) => {
+  if (!isBrowser()) return;
+  const filter = payload.filter ?? 'active';
+  trackBrowserEvent('players.viewed', {
+    filter,
+    source: payload.source ?? 'route',
+  });
+};
+
+export const trackPlayerDetailView = (payload: TrackPlayerDetailViewPayload) => {
+  if (!isBrowser()) return;
+  const id = payload.playerId?.toString().trim();
+  if (!id) return;
+  trackBrowserEvent('player.detail.viewed', {
+    player_id: id,
+    archived: Boolean(payload.archived),
+    source: payload.source ?? 'route',
+  });
+};
+
+export const trackRostersView = (payload: TrackRostersViewPayload) => {
+  if (!isBrowser()) return;
+  const filter = payload.filter ?? 'active';
+  trackBrowserEvent('rosters.viewed', {
+    filter,
+    source: payload.source ?? 'route',
+  });
+};
+
+export const trackRosterDetailView = (payload: TrackRosterDetailViewPayload) => {
+  if (!isBrowser()) return;
+  const id = payload.rosterId?.toString().trim();
+  if (!id) return;
+  trackBrowserEvent('roster.detail.viewed', {
+    roster_id: id,
+    archived: Boolean(payload.archived),
+    source: payload.source ?? 'route',
+  });
+};
+
+export const trackGamesListView = (payload: TrackGamesListViewPayload = {}) => {
+  if (!isBrowser()) return;
+  trackBrowserEvent('games.list.viewed', {
+    source: payload.source ?? 'route',
+  });
+};
+
+export const trackGameDetailView = (payload: TrackGameDetailViewPayload) => {
+  if (!isBrowser()) return;
+  const id = payload.gameId?.toString().trim();
+  if (!id) return;
+  trackBrowserEvent('game.detail.viewed', {
+    game_id: id,
+    source: payload.source ?? 'route',
+  });
+};
+
+export const trackSinglePlayerNewView = (payload: TrackSinglePlayerNewViewPayload) => {
+  if (!isBrowser()) return;
+  trackBrowserEvent('single-player.new.viewed', {
+    has_progress: Boolean(payload.hasProgress),
+    source: payload.source ?? 'route',
+  });
 };
 
 type EventLike = Pick<KnownAppEvent, 'type' | 'payload'> | { type?: string; payload?: unknown };

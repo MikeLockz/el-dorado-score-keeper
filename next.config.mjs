@@ -25,10 +25,16 @@ if (envBase && typeof envBase === 'string') {
   }
 }
 
+const isStaticExport = process.env.NEXT_OUTPUT_EXPORT === 'true' || isGithubActions;
+
 const nextConfig = {
-  // Generate a fully static export for GitHub Pages
-  output: 'export',
-  trailingSlash: true,
+  ...(isStaticExport
+    ? {
+        // Generate a fully static export for GitHub Pages and explicit export builds
+        output: 'export',
+        trailingSlash: true,
+      }
+    : {}),
   // Transpile certain ESM packages for wider browser compatibility (e.g., Safari 12/13)
   // Narrowed to minimum set observed in error stack
   transpilePackages: [

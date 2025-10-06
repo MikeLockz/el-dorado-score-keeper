@@ -9,3 +9,4 @@ export * from './io';
 export * from './db';
 export * from './validation';
 export * from './spRules';
+export * from './utils';

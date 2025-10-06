@@ -36,20 +36,22 @@ function DialogOverlay({
   );
 }
 
-function DialogContent({
-  className,
-  children,
-  showCloseButton = true,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+type DialogContentProps = React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
-}) {
+};
+
+const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(function DialogContent(
+  { className, children, showCloseButton = true, tabIndex, ...props },
+  ref,
+) {
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Content
+        ref={ref}
         data-slot="dialog-content"
         className={clsx(styles.dialogContent, className)}
+        tabIndex={tabIndex ?? -1}
         {...props}
       >
         {children}
@@ -62,7 +64,7 @@ function DialogContent({
       </DialogPrimitive.Content>
     </DialogPortal>
   );
-}
+});
 
 function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (

@@ -7,16 +7,58 @@ import {
   persistSpSnapshot,
   type PersistSpSnapshotResult,
 } from './persistence/sp-snapshot';
-import { rehydrateSinglePlayerFromSnapshot } from './persistence/sp-rehydrate';
+import { rehydrateSinglePlayerFromSnapshot, type RehydrateSinglePlayerResult } from './persistence/sp-rehydrate';
+import { ensureSinglePlayerGameIdentifiers } from './utils';
 import { uuid } from '@/lib/utils';
 import { captureBrowserMessage, trackBrowserEvent } from '@/lib/observability/browser';
+
+export type RouteHydrationContext = Readonly<{
+  mode: 'single-player' | 'scorecard' | null;
+  gameId: string | null;
+  scorecardId: string | null;
+}>;
+
+const DEFAULT_ROUTE_CONTEXT: RouteHydrationContext = Object.freeze({
+  mode: null,
+  gameId: null,
+  scorecardId: null,
+});
+
+function normalizeRouteContext(
+  ctx?: RouteHydrationContext | null,
+  fallbackSpGameId?: string | null,
+): RouteHydrationContext {
+  if (ctx) {
+    const mode = ctx.mode ?? null;
+    const gameId = typeof ctx.gameId === 'string' && ctx.gameId.trim() ? ctx.gameId.trim() : null;
+    const scorecardId =
+      typeof ctx.scorecardId === 'string' && ctx.scorecardId.trim() ? ctx.scorecardId.trim() : null;
+    if (mode === 'single-player') {
+      return { mode, gameId, scorecardId: null };
+    }
+    if (mode === 'scorecard') {
+      return { mode, gameId: null, scorecardId };
+    }
+    return DEFAULT_ROUTE_CONTEXT;
+  }
+  const fallback =
+    typeof fallbackSpGameId === 'string' && fallbackSpGameId.trim() ? fallbackSpGameId.trim() : null;
+  if (fallback) {
+    return { mode: 'single-player', gameId: fallback, scorecardId: null };
+  }
+  return DEFAULT_ROUTE_CONTEXT;
+}
 
 export type Instance = {
   append: (event: AppEvent) => Promise<number>;
   appendMany: (events: AppEvent[]) => Promise<number>;
   getState: () => AppState;
   getHeight: () => number;
-  rehydrate: (options?: { spGameId?: string | null; allowLocalFallback?: boolean }) => Promise<void>;
+  rehydrate: (options?: {
+    routeContext?: RouteHydrationContext | null;
+    spGameId?: string | null;
+    allowLocalFallback?: boolean;
+  }) => Promise<void>;
   close: () => void;
   subscribe: (cb: (s: AppState, h: number) => void) => () => void;
 };
@@ -31,6 +73,7 @@ export async function createInstance(opts?: {
   snapshotEvery?: number;
   keepRecentSnapshots?: number;
   anchorFactor?: number;
+  routeContext?: RouteHydrationContext | null;
   spGameId?: string | null;
   allowSpLocalFallback?: boolean;
 }): Promise<Instance> {
@@ -38,8 +81,8 @@ export async function createInstance(opts?: {
   const chanName = opts?.channelName ?? 'app-events';
   const useChannel = opts?.useChannel !== false;
   const onWarn = opts?.onWarn;
-  let targetSpGameId =
-    typeof opts?.spGameId === 'string' && opts.spGameId.trim() ? opts.spGameId.trim() : null;
+  let currentRouteContext = normalizeRouteContext(opts?.routeContext, opts?.spGameId ?? null);
+  let targetSpGameId = currentRouteContext.mode === 'single-player' ? currentRouteContext.gameId : null;
   const allowSpLocalFallback = opts?.allowSpLocalFallback !== false;
   let db = await openDB(dbName);
   async function replaceDB() {
@@ -487,15 +530,15 @@ export async function createInstance(opts?: {
       const newRosters: AppState['rosters'] = { [rid]: roster };
       next = Object.assign({}, next, { rosters: newRosters, activeScorecardRosterId: rid });
     }
-    return next;
+    return ensureSinglePlayerGameIdentifiers(next);
   }
 
   async function attemptSinglePlayerRehydrate(
     gameId: string | null,
     allowLocalFallback: boolean,
-  ): Promise<boolean> {
+  ): Promise<RehydrateSinglePlayerResult | null> {
     const target = typeof gameId === 'string' && gameId.trim() ? gameId.trim() : null;
-    if (!target) return false;
+    if (!target) return null;
     const started = readTimer();
     try {
       const result = await rehydrateSinglePlayerFromSnapshot({
@@ -549,7 +592,7 @@ export async function createInstance(opts?: {
             height,
           );
         }
-        return false;
+        return result;
       }
       memoryState = result.state;
       height = result.height;
@@ -558,7 +601,7 @@ export async function createInstance(opts?: {
         source: result.source,
         height: result.height,
       });
-      return true;
+      return result;
     } catch (error) {
       const durationMs = Number(Math.max(0, readTimer() - started).toFixed(2));
       trackBrowserEvent('single-player.persist.rehydrate', {
@@ -571,7 +614,7 @@ export async function createInstance(opts?: {
         failure: true,
       });
       logSnapshotWarning('sp.snapshot.rehydrate.unhandled_exception', error, height);
-      return false;
+      return null;
     }
   }
 
@@ -757,23 +800,33 @@ export async function createInstance(opts?: {
   }
 
   async function rehydrate(options?: {
+    routeContext?: RouteHydrationContext | null;
     spGameId?: string | null;
     allowLocalFallback?: boolean;
   }) {
-    if (options && Object.prototype.hasOwnProperty.call(options, 'spGameId')) {
-      const nextTarget =
-        typeof options?.spGameId === 'string' && options.spGameId.trim()
-          ? options.spGameId.trim()
-          : null;
-      targetSpGameId = nextTarget;
+    if (options) {
+      if (Object.prototype.hasOwnProperty.call(options, 'routeContext')) {
+        currentRouteContext = normalizeRouteContext(options?.routeContext ?? null, options?.spGameId);
+      } else if (Object.prototype.hasOwnProperty.call(options, 'spGameId')) {
+        currentRouteContext = normalizeRouteContext(currentRouteContext, options?.spGameId ?? null);
+      }
     }
+    targetSpGameId =
+      currentRouteContext.mode === 'single-player' ? currentRouteContext.gameId : null;
     const allowFallback = options?.allowLocalFallback ?? allowSpLocalFallback;
     await initSnapshotStrategy();
-    let applied = false;
+    let spResult: RehydrateSinglePlayerResult | null = null;
     if (targetSpGameId) {
-      applied = await attemptSinglePlayerRehydrate(targetSpGameId, allowFallback);
+      spResult = await attemptSinglePlayerRehydrate(targetSpGameId, allowFallback);
+      if (!spResult?.applied) {
+        warn('single-player.snapshot.unavailable', {
+          gameId: targetSpGameId,
+          reason: spResult?.reason ?? 'unknown',
+          source: spResult?.source ?? null,
+        });
+      }
     }
-    if (!applied) {
+    if (!spResult?.applied) {
       await loadCurrent();
     }
     await applyTail(height);

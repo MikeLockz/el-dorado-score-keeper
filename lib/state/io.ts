@@ -7,6 +7,8 @@ import { uuid } from '@/lib/utils';
 import { formatDateTime } from '@/lib/format';
 import { withSpan } from '@/lib/observability/spans';
 import { captureBrowserMessage } from '@/lib/observability/browser';
+import { scorecardPath, singlePlayerPath } from './utils';
+import { emitGamesSignal } from './game-signals';
 
 export type ExportBundle = {
   latestSeq: number;
@@ -467,6 +469,7 @@ export async function deleteGame(gamesDbName: string = GAMES_DB_NAME, id: string
           req.onsuccess = () => res();
           req.onerror = () => rej(asError(req.error, 'Failed to delete game record'));
         });
+        emitGamesSignal({ type: 'deleted', gameId: id });
       } finally {
         db.close();
       }
@@ -544,6 +547,8 @@ export async function archiveCurrentGameAndReset(
       try {
         gamesDb.close();
       } catch {}
+
+      emitGamesSignal({ type: 'added', gameId: id });
 
       try {
         await importBundleSoft(dbName, { latestSeq: seedEvents.length, events: seedEvents });
@@ -658,6 +663,9 @@ export function deriveGameMode(game: GameRecord): GameMode {
   return 'scorecard';
 }
 
-export function deriveGameRoute(game: GameRecord): '/single-player' | '/scorecard' {
-  return deriveGameMode(game) === 'single-player' ? '/single-player' : '/scorecard';
+export function deriveGameRoute(game: GameRecord): string {
+  const mode = deriveGameMode(game);
+  return mode === 'single-player'
+    ? singlePlayerPath(game.id)
+    : scorecardPath(game.id, 'live');
 }

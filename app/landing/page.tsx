@@ -8,6 +8,7 @@ import QuickLinks from '@/components/landing/QuickLinks';
 import HeroCtas from '@/components/landing/HeroCtas';
 import { useAppState } from '@/components/state-provider';
 import { useNewGameRequest, hasScorecardProgress, hasSinglePlayerProgress } from '@/lib/game-flow';
+import { resolveScorecardRoute, resolveSinglePlayerRoute } from '@/lib/state';
 
 import styles from './page.module.scss';
 
@@ -19,8 +20,12 @@ export default function LandingPage() {
     const mode = requestedModeRef.current;
     if (!mode) return;
     requestedModeRef.current = null;
-    router.push(mode === 'single' ? '/single-player' : '/scorecard');
-  }, [router]);
+    if (mode === 'single') {
+      router.push(resolveSinglePlayerRoute(state, { fallback: 'entry' }));
+    } else {
+      router.push(resolveScorecardRoute(state));
+    }
+  }, [router, state]);
   const { startNewGame, pending: newGamePending } = useNewGameRequest({
     onSuccess: handleNavigateToMode,
     onCancelled: handleNavigateToMode,
@@ -42,11 +47,21 @@ export default function LandingPage() {
       });
       if (!ok && requestedModeRef.current === mode) {
         requestedModeRef.current = null;
-        router.push(mode === 'single' ? '/single-player' : '/scorecard');
+        if (mode === 'single') {
+          router.push(resolveSinglePlayerRoute(state, { fallback: 'entry' }));
+        } else {
+          router.push(resolveScorecardRoute(state));
+        }
       }
     },
-    [newGamePending, router, startNewGame],
+    [newGamePending, router, startNewGame, state],
   );
+
+  const singlePlayerResumeHref = React.useMemo(
+    () => resolveSinglePlayerRoute(state, { fallback: 'entry' }),
+    [state],
+  );
+  const scorecardResumeHref = React.useMemo(() => resolveScorecardRoute(state), [state]);
 
   return (
     <div className={styles.container}>
@@ -69,7 +84,7 @@ export default function LandingPage() {
             singlePlayerActive
               ? {
                   label: 'Resume Game',
-                  href: '/single-player',
+                  href: singlePlayerResumeHref,
                   ariaLabel: 'Resume single player game',
                   disabled: newGamePending,
                 }
@@ -110,7 +125,7 @@ export default function LandingPage() {
             scorecardActive
               ? {
                   label: 'Resume Score Card',
-                  href: '/scorecard',
+                  href: scorecardResumeHref,
                   ariaLabel: 'Resume current score card',
                   disabled: newGamePending,
                 }
