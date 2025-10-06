@@ -220,6 +220,11 @@ function fingerprintSnapshot(snapshot: SinglePlayerSnapshotV1): string {
   );
 }
 
+// FNV-1a 64-bit hash constants:
+// - FNV_OFFSET is the 64-bit offset basis (0xcbf29ce484222325).
+// - FNV_PRIME is the 64-bit FNV prime (0x100000001b3).
+// - FNV_MOD constrains the result to 53 bits, the largest safe integer in JS/TS.
+// See: http://www.isthe.com/chongo/tech/comp/fnv/
 const FNV_OFFSET = 0xcbf29ce484222325n;
 const FNV_PRIME = 0x100000001b3n;
 const FNV_MOD = 1n << 53n;
