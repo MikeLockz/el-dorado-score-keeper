@@ -494,7 +494,16 @@ export function isValidSnapshot(value: unknown): value is SinglePlayerSnapshotV1
   return true;
 }
 
-export function createLocalStorageAdapter(storage: Storage | null = isBrowser() ? window.localStorage : null): SpSnapshotLocalStorageAdapter {
+function getSafeLocalStorage(): Storage | null {
+  if (!isBrowser()) return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function createLocalStorageAdapter(storage: Storage | null = getSafeLocalStorage()): SpSnapshotLocalStorageAdapter {
   return {
     write: ({ serialized }) => {
       if (!storage) return;
