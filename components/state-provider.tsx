@@ -29,6 +29,8 @@ const DEFAULT_ROUTE_CONTEXT: RouteHydrationContext = Object.freeze({
 
 const SINGLE_PLAYER_RESERVED_SEGMENTS = new Set(['new']);
 const SCORECARD_RESERVED_SEGMENTS = new Set(['new']);
+// Route IDs must be at least 6 characters long and consist of letters (a-z, case-insensitive), numbers (0-9), or hyphens (-).
+// Example valid ID: "abc123", "game-01"
 const ROUTE_ID_PATTERN = /^[a-z0-9-]{6,}$/i;
 
 function normalizeId(candidate: unknown, reserved: Set<string>): string | null {
