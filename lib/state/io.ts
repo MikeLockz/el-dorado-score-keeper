@@ -2,9 +2,13 @@ import { openDB, storeNames, tx } from './db';
 import type { AppEvent, AppState } from './types';
 import { INITIAL_STATE, reduce } from './types';
 import { events } from './events';
+import { clearSnapshot, createIndexedDbAdapter, createLocalStorageAdapter } from './persistence/sp-snapshot';
 import { uuid } from '@/lib/utils';
 import { formatDateTime } from '@/lib/format';
 import { withSpan } from '@/lib/observability/spans';
+import { captureBrowserMessage } from '@/lib/observability/browser';
+import { scorecardPath, singlePlayerPath } from './utils';
+import { emitGamesSignal } from './game-signals';
 
 export type ExportBundle = {
   latestSeq: number;
@@ -56,6 +60,39 @@ function asError(e: unknown, fallbackMessage: string): Error {
     (err as { cause?: unknown }).cause = e;
   } catch {}
   return err;
+}
+
+async function clearSinglePlayerSnapshot(dbName: string) {
+  try {
+    const db = await openDB(dbName);
+    try {
+      await clearSnapshot({
+        adapters: {
+          indexedDb: createIndexedDbAdapter(db),
+          localStorage: createLocalStorageAdapter(),
+        },
+      });
+    } finally {
+      db.close();
+    }
+  } catch (error) {
+    let reason: string | undefined;
+    if (error instanceof Error) {
+      reason = error.message;
+    } else if (typeof error === 'string') {
+      reason = error;
+    }
+    try {
+      captureBrowserMessage('single-player.persist.failed', {
+        level: 'warn',
+        attributes: {
+          code: 'sp.snapshot.clear.failed',
+          db: dbName,
+          reason,
+        },
+      });
+    } catch {}
+  }
 }
 
 // Default database names
@@ -432,6 +469,7 @@ export async function deleteGame(gamesDbName: string = GAMES_DB_NAME, id: string
           req.onsuccess = () => res();
           req.onerror = () => rej(asError(req.error, 'Failed to delete game record'));
         });
+        emitGamesSignal({ type: 'deleted', gameId: id });
       } finally {
         db.close();
       }
@@ -453,6 +491,7 @@ export async function archiveCurrentGameAndReset(
 
       if (!bundle.latestSeq || bundle.latestSeq <= 0) {
         await importBundle(dbName, { latestSeq: 0, events: [] });
+        await clearSinglePlayerSnapshot(dbName);
         try {
           localStorage.setItem(`app-events:lastSeq:${dbName}`, '0');
         } catch {}
@@ -509,6 +548,8 @@ export async function archiveCurrentGameAndReset(
         gamesDb.close();
       } catch {}
 
+      emitGamesSignal({ type: 'added', gameId: id });
+
       try {
         await importBundleSoft(dbName, { latestSeq: seedEvents.length, events: seedEvents });
       } catch (e) {
@@ -531,6 +572,8 @@ export async function archiveCurrentGameAndReset(
         }
         fail('archive.reset_failed', { error: String(e) });
       }
+
+      await clearSinglePlayerSnapshot(dbName);
 
       try {
         localStorage.setItem(`app-events:lastSeq:${dbName}`, String(seedEvents.length));
@@ -620,6 +663,9 @@ export function deriveGameMode(game: GameRecord): GameMode {
   return 'scorecard';
 }
 
-export function deriveGameRoute(game: GameRecord): '/single-player' | '/scorecard' {
-  return deriveGameMode(game) === 'single-player' ? '/single-player' : '/scorecard';
+export function deriveGameRoute(game: GameRecord): string {
+  const mode = deriveGameMode(game);
+  return mode === 'single-player'
+    ? singlePlayerPath(game.id)
+    : scorecardPath(game.id, 'live');
 }

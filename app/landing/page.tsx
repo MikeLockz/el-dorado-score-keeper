@@ -8,6 +8,7 @@ import QuickLinks from '@/components/landing/QuickLinks';
 import HeroCtas from '@/components/landing/HeroCtas';
 import { useAppState } from '@/components/state-provider';
 import { useNewGameRequest, hasScorecardProgress, hasSinglePlayerProgress } from '@/lib/game-flow';
+import { resolveScorecardRoute, resolveSinglePlayerRoute } from '@/lib/state';
 
 import styles from './page.module.scss';
 
@@ -19,8 +20,12 @@ export default function LandingPage() {
     const mode = requestedModeRef.current;
     if (!mode) return;
     requestedModeRef.current = null;
-    router.push(mode === 'single' ? '/single-player' : '/scorecard');
-  }, [router]);
+    if (mode === 'single') {
+      router.push(resolveSinglePlayerRoute(state, { fallback: 'entry' }));
+    } else {
+      router.push(resolveScorecardRoute(state));
+    }
+  }, [router, state]);
   const { startNewGame, pending: newGamePending } = useNewGameRequest({
     onSuccess: handleNavigateToMode,
     onCancelled: handleNavigateToMode,
@@ -42,11 +47,21 @@ export default function LandingPage() {
       });
       if (!ok && requestedModeRef.current === mode) {
         requestedModeRef.current = null;
-        router.push(mode === 'single' ? '/single-player' : '/scorecard');
+        if (mode === 'single') {
+          router.push(resolveSinglePlayerRoute(state, { fallback: 'entry' }));
+        } else {
+          router.push(resolveScorecardRoute(state));
+        }
       }
     },
-    [newGamePending, router, startNewGame],
+    [newGamePending, router, startNewGame, state],
   );
+
+  const singlePlayerResumeHref = React.useMemo(
+    () => resolveSinglePlayerRoute(state, { fallback: 'entry' }),
+    [state],
+  );
+  const scorecardResumeHref = React.useMemo(() => resolveScorecardRoute(state), [state]);
 
   return (
     <div className={styles.container}>
@@ -54,7 +69,7 @@ export default function LandingPage() {
       <section className={styles.hero}>
         <h1 className={styles.heroTitle}>Set Out for El Dorado</h1>
         <p className={styles.heroCopy}>
-          Choose your path: practice solo, gather your party, or tally scores on the go.
+          A card game from south western Michigan.
         </p>
         <HeroCtas />
       </section>
@@ -64,12 +79,12 @@ export default function LandingPage() {
         <ModeCard
           icon={<Compass />}
           title="Single Player"
-          description="Play solo against adaptive AI. Practice strategies and unlock achievements."
+          description="Play against the computer. Practice strategies and unlock achievements."
           primary={
             singlePlayerActive
               ? {
                   label: 'Resume Game',
-                  href: '/single-player',
+                  href: singlePlayerResumeHref,
                   ariaLabel: 'Resume single player game',
                   disabled: newGamePending,
                 }
@@ -97,7 +112,7 @@ export default function LandingPage() {
           icon={<Flame />}
           title="Multiplayer"
           description="Host a room or join with a code. Cross‑device, real‑time play."
-          primary={{ label: 'Host', href: '/rules', ariaLabel: 'Host Game (coming soon)' }}
+          primary={{ label: 'Host', href: '#', ariaLabel: 'Host Game (coming soon)' }}
           primaryEvent="mode_multiplayer_host_clicked"
           secondary={{ label: 'Join by code', href: '/rules' }}
           ariaLabel="Open multiplayer — host a room or join by code."
@@ -110,7 +125,7 @@ export default function LandingPage() {
             scorecardActive
               ? {
                   label: 'Resume Score Card',
-                  href: '/scorecard',
+                  href: scorecardResumeHref,
                   ariaLabel: 'Resume current score card',
                   disabled: newGamePending,
                 }

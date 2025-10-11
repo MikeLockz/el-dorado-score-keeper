@@ -85,7 +85,8 @@ suite('Landing Page UI', () => {
       phase: 'playing',
       hands: { a: [{ suit: 'spades', rank: 10 }] },
       trickPlays: [],
-    };
+      currentGameId: 'sp-current-123',
+    } as AppState['sp'];
     state.players = { a: 'Alice', b: 'Bob' } as AppState['players'];
     state.scores = { a: 5, b: 0 } as AppState['scores'];
     state.rounds[1] = {
@@ -94,6 +95,7 @@ suite('Landing Page UI', () => {
       bids: { a: 2 },
       made: { a: null },
     };
+    state.activeScorecardRosterId = 'scorecard-789';
     mockAppState(state, { height: 12 });
     const { default: LandingPage } = await import('@/app/landing/page');
     const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
@@ -113,6 +115,10 @@ suite('Landing Page UI', () => {
     const singleButtons = Array.from(singleSection.querySelectorAll('button, a'));
     expect(singleButtons.some((el) => /Resume Game/i.test(el.textContent || ''))).toBe(true);
     expect(singleButtons.some((el) => /Start a new game/i.test(el.textContent || ''))).toBe(true);
+    const singleResumeAnchor = singleButtons.find((el) => el.tagName === 'A') as
+      | HTMLAnchorElement
+      | undefined;
+    expect(singleResumeAnchor?.getAttribute('href')).toBe('/single-player/sp-current-123');
 
     const scoreSection = div.querySelector(
       'section[aria-label="Open score card for in-person tallying"]',
@@ -122,6 +128,8 @@ suite('Landing Page UI', () => {
     expect(scoreButtons.some((el) => /Start a new score card/i.test(el.textContent || ''))).toBe(
       true,
     );
+    const resumeAnchor = scoreButtons.find((el) => el.tagName === 'A') as HTMLAnchorElement | undefined;
+    expect(resumeAnchor?.getAttribute('href')).toBe('/scorecard/scorecard-789');
 
     root.unmount();
     div.remove();
@@ -134,7 +142,8 @@ suite('Landing Page UI', () => {
       phase: 'playing',
       hands: { a: [{ suit: 'clubs', rank: 7 }] },
       trickPlays: [],
-    };
+      currentGameId: 'sp-active-555',
+    } as AppState['sp'];
     state.players = { a: 'Ava', b: 'Ben' } as AppState['players'];
     state.scores = { a: 3, b: 1 } as AppState['scores'];
     mockAppState(state, { height: 5 });
@@ -176,7 +185,7 @@ suite('Landing Page UI', () => {
 
     await waitFor(() => {
       expect(confirmShow).toHaveBeenCalledTimes(1);
-      expect(push).toHaveBeenCalledWith('/single-player');
+      expect(push).toHaveBeenCalledWith('/single-player/sp-active-555');
     });
 
     root.unmount();

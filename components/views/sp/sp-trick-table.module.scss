@@ -19,6 +19,12 @@
 .headerCard {
   text-align: right;
 }
+.rowWrapper {
+  border-bottom: 1px solid var(--border);
+  &:last-child {
+    border-bottom: none;
+  }
+}
 
 .row {
   display: grid;
@@ -26,7 +32,7 @@
   align-items: center;
   gap: spacing.spacing('space-1');
   border-radius: var(--radius-md);
-  border: 2px solid color-mix(in oklch, var(--border) 80%, transparent);
+  border: 2px solid color-mix(in oklch, transparent 100%, transparent);
   padding-inline: spacing.spacing('space-2');
   padding-block: spacing.spacing('space-1');
   background: color-mix(in oklch, var(--card) 60%, transparent);

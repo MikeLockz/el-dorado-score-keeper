@@ -5,6 +5,7 @@ import { NewGameConfirmProvider } from '@/components/dialogs/NewGameConfirm';
 import { PromptDialogProvider } from '@/components/dialogs/PromptDialog';
 import { ConfirmDialogProvider } from '@/components/dialogs/ConfirmDialog';
 import { ToastProvider } from '@/components/ui/toast';
+import PersistenceWarningBridge from '@/components/persistence-warnings';
 import { captureBrowserMessage } from '@/lib/observability/browser';
 
 export default function StateRoot({ children }: { children: React.ReactNode }) {
@@ -23,7 +24,10 @@ export default function StateRoot({ children }: { children: React.ReactNode }) {
       <NewGameConfirmProvider>
         <ConfirmDialogProvider>
           <PromptDialogProvider>
-            <ToastProvider>{children}</ToastProvider>
+            <ToastProvider>
+              <PersistenceWarningBridge />
+              {children}
+            </ToastProvider>
           </PromptDialogProvider>
         </ConfirmDialogProvider>
       </NewGameConfirmProvider>

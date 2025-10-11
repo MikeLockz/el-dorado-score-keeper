@@ -59,6 +59,7 @@ function createAppContext(overrides: Partial<MockAppStateHook> = {}): MockAppSta
     clearWarnings: () => {},
     timeTravelHeight: null,
     setTimeTravelHeight: () => {},
+    context: { mode: null, gameId: null, scorecardId: null },
     ...overrides,
   } as MockAppStateHook;
   return context;

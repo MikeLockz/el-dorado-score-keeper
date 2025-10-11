@@ -1,0 +1,72 @@
+---
+title: Navigation Helper Reference
+---
+
+# Navigation Helper Reference
+
+Phase 3 introduces a small set of helper utilities so routed views no longer assemble URL strings manually. These helpers live in `lib/state/utils.ts` and can be imported from `@/lib/state` when used inside components.
+
+```ts
+import {
+  singlePlayerPath,
+  resolveSinglePlayerRoute,
+  resolveScorecardRoute,
+  resolvePlayerRoute,
+  resolveRosterRoute,
+  resolveArchivedGameRoute,
+  resolveGameModalRoute,
+} from '@/lib/state';
+```
+
+## Single Player Views
+
+- `singlePlayerPath(gameId, view?)` builds view-specific URLs for a known game identifier.
+- `resolveSinglePlayerRoute(state, options?)` selects the appropriate path for the current single-player session, falling back to `/single-player/new` when no game is active.
+
+```ts
+const livePath = singlePlayerPath(gameId);
+const summaryPath = singlePlayerPath(gameId, 'summary');
+const active = resolveSinglePlayerRoute(state, { view: 'scorecard', fallback: 'entry' });
+```
+
+## Scorecard Sessions
+
+- `scorecardPath(scorecardId, view?)` mirrors `singlePlayerPath` for scorecard routes.
+- `resolveScorecardRoute(state, options?)` resolves the active scorecard from application state.
+
+## Player & Roster Management
+
+- `resolvePlayerRoute(playerId?, options?)` returns `/players/{id}` when supplied, otherwise falls back to `/players` or `/players/archived`.
+- `resolveRosterRoute(rosterId?, options?)` behaves the same for roster detail routes.
+
+Use these helpers when building CTA links, router pushes, or toast actions so deep links stay consistent.
+
+```ts
+router.push(resolvePlayerRoute(targetPlayerId));
+router.push(resolveRosterRoute(null, { fallback: 'archived' }));
+```
+
+## Archived Game Routes & Modals
+
+- `resolveArchivedGameRoute(gameId?)` maps archive IDs to `/games/{id}` with graceful fallback.
+- `resolveGameModalRoute(gameId, kind)` produces `/games/{id}/restore` or `/games/{id}/delete` for routed confirmation dialogs.
+
+```ts
+router.push(resolveArchivedGameRoute(game.id));
+router.push(resolveGameModalRoute(game.id, 'restore'));
+```
+
+## Clipboard & Sharing Utilities
+
+The `shareLink` helper in `lib/ui/share.ts` centralises share/copy behaviour. It prefers the Web Share API when available and falls back to `navigator.clipboard.writeText`, emitting toast feedback in both cases.
+
+```ts
+await shareLink({
+  href: singlePlayerPath(gameId, 'summary'),
+  toast,
+  title: 'Single Player summary',
+  successMessage: 'Summary link copied',
+});
+```
+
+This MDX page doubles as lightweight Storybook documentation: import the helpers into MDX stories or documentation pages to keep examples in sync with the live code.

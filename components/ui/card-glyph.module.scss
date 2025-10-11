@@ -26,7 +26,7 @@
   }
 
   &[data-padded='true'] {
-    padding: calc(var(--space-1) / 2);
+    padding: calc(var(--space-1) / 2) var(--space-1);
   }
 
   &[data-suit='hearts'] .suit,

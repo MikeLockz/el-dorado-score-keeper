@@ -1,4 +1,4 @@
-import type { AppState, RoundData } from './types';
+import type { AppState, PlayerDetail, RoundData } from './types';
 import { roundDelta, tricksForRound, ROUNDS_TOTAL } from './logic';
 
 // Simple memo helpers keyed by object identity and primitive args.
@@ -329,6 +329,91 @@ export const selectRoundInfosAll = memo1((s: AppState): RoundInfoMap => {
   }
   return out;
 });
+
+export type SinglePlayerGameSlice = Readonly<{
+  id: string;
+  sp: AppState['sp'];
+  rosterId: string | null;
+}>;
+
+export function selectSinglePlayerGame(
+  state: AppState,
+  gameId: string | null | undefined,
+): SinglePlayerGameSlice | null {
+  const target = typeof gameId === 'string' ? gameId.trim() : '';
+  if (!target) return null;
+  const currentId =
+    ((state.sp as { currentGameId?: string | null } | undefined)?.currentGameId ?? null) ||
+    ((state.sp as { gameId?: string | null } | undefined)?.gameId ?? null);
+  if (!currentId || currentId !== target) return null;
+  return {
+    id: currentId,
+    sp: state.sp,
+    rosterId: state.activeSingleRosterId ?? null,
+  };
+}
+
+export type ScorecardSessionSlice = Readonly<{
+  id: string;
+  roster: AppState['rosters'][string];
+  archived: boolean;
+}>;
+
+export function selectScorecardById(
+  state: AppState,
+  scorecardId: string | null | undefined,
+): ScorecardSessionSlice | null {
+  const target = typeof scorecardId === 'string' ? scorecardId.trim() : '';
+  if (!target) return null;
+  const roster = state.rosters?.[target];
+  if (!roster || roster.type !== 'scorecard') return null;
+  return { id: target, roster, archived: !!roster.archivedAt };
+}
+
+export type PlayerLookup = Readonly<{
+  id: string;
+  name: string | null;
+  detail: PlayerDetail | null;
+  archived: boolean;
+}>;
+
+export function selectPlayerById(
+  state: AppState,
+  playerId: string | null | undefined,
+): PlayerLookup | null {
+  const target = typeof playerId === 'string' ? playerId.trim() : '';
+  if (!target) return null;
+  const detail = state.playerDetails?.[target] ?? null;
+  const name = state.players?.[target] ?? detail?.name ?? null;
+  if (!detail && !name) return null;
+  return {
+    id: target,
+    name,
+    detail,
+    archived: detail?.archived ?? false,
+  };
+}
+
+export type RosterLookup = Readonly<{
+  id: string;
+  roster: AppState['rosters'][string];
+  archived: boolean;
+}>;
+
+export function selectRosterById(
+  state: AppState,
+  rosterId: string | null | undefined,
+): RosterLookup | null {
+  const target = typeof rosterId === 'string' ? rosterId.trim() : '';
+  if (!target) return null;
+  const roster = state.rosters?.[target];
+  if (!roster) return null;
+  return {
+    id: target,
+    roster,
+    archived: !!roster.archivedAt,
+  };
+}
 
 // Re-export SP selectors and types from dedicated module for compatibility
 export {

@@ -109,7 +109,15 @@ function ensureUniqueName(
   return taken ? null : trimmed;
 }
 
-export default function PlayerManagement() {
+type PlayerManagementProps = {
+  defaultPlayerView?: 'active' | 'archived';
+  defaultShowArchivedRosters?: boolean;
+};
+
+export default function PlayerManagement({
+  defaultPlayerView = 'active',
+  defaultShowArchivedRosters = false,
+}: PlayerManagementProps = {}) {
   const { state, append, appendMany, ready } = useAppState();
   const players = React.useMemo(() => selectPlayersOrdered(state), [state]);
   const archivedPlayers = React.useMemo(() => selectArchivedPlayers(state), [state]);
@@ -124,8 +132,8 @@ export default function PlayerManagement() {
 
   const [draggingId, setDraggingId] = React.useState<string | null>(null);
   const [localOrder, setLocalOrder] = React.useState(players);
-  const [playerView, setPlayerView] = React.useState<'active' | 'archived'>('active');
-  const [showArchivedRosters, setShowArchivedRosters] = React.useState(false);
+  const [playerView, setPlayerView] = React.useState<'active' | 'archived'>(defaultPlayerView);
+  const [showArchivedRosters, setShowArchivedRosters] = React.useState(defaultShowArchivedRosters);
   const [playerPending, setPlayerPending] = React.useState<Pending>(null);
   const [rosterPending, setRosterPending] = React.useState<RosterPending>(null);
   const [autoCreateCount, setAutoCreateCount] = React.useState(4);

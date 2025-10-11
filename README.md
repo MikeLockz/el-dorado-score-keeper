@@ -91,44 +91,76 @@ Notes:
 - `styles/`: Global styles.
 - `tests/`: Unit, integration, and property tests (Vitest).
 
-## Routes
+## Routes & Deep Links
 
-- `/`: Current Game — default view for per-round bidding and scoring.
-- `/players`: Players — add, rename, and remove players; reset all players.
-- `/games`: Games — archive the current game, and view/restore/delete archived games.
-- `/rules`: Quick reference for scoring and phases.
+- `/` — Landing page with hero copy, quick links, and mode selectors for Single Player and Score Card.
+- `/single-player` — Entry point that redirects to the active single-player run or the new-game flow when none exist.
+- `/single-player/new` — Starts a fresh single-player game; routed modals at `/single-player/new/archive` and `/single-player/new/continue` confirm archival or resuming the current run.
+- `/single-player/[gameId]` — Live single-player gameplay experience with tabbed sub-routes:
+  - `/single-player/[gameId]/scorecard` — Read-only per-round recap for the same run.
+  - `/single-player/[gameId]/summary` — Post-game analytics and achievements.
+- `/scorecard` — Score Card hub that redirects to the latest session or setup.
+- `/scorecard/[scorecardId]` — Active Score Card entry view with optional `/summary` export route.
+- `/players` — Player management hub with `/players/[playerId]` detail routes and `/players/archived` for restores.
+- `/rosters` — Roster management hub with `/rosters/[rosterId]` detail views and `/rosters/archived` for archived lineups.
+- `/games` — Archived games list with `/games/[gameId]` detail pages and intercepted modal routes for restore/delete confirmations.
+- `/rules` — Quick reference for bidding, scoring, and round flow.
+
+### Landing (`/`) details
+
+- Hero module introduces the app and routes into Single Player or Score Card using the active deep link.
+- Mode cards detect in-progress sessions and swap between “New” and “Resume” actions.
+- Quick Links surface the three most recent archived games and resume buttons that wait for state rehydration before navigating.
+- “How to play” and settings links stay available even when state is still loading.
+
+### Single Player (`/single-player` & `/single-player/[gameId]`) details
+
+- Root layout resolves the correct destination: active game, archive confirmation, or the new-game flow.
+- Dynamic layout renders shared tabs that mirror browser history across live, scorecard, and summary views.
+- Each view rehydrates the selected `gameId` via the app state provider so deep links load without first visiting the landing page.
+- Routed modals handle “archive & start new” and “continue current game” confirmations with analytics hooks.
+
+### Score Card (`/scorecard` & `/scorecard/[scorecardId]`) details
+
+- Round grid spans 10 rounds (tricks 10 → 1) with initials in the header and dense keyboard shortcuts.
+- Action tiles cycle through bidding → complete → scored states; locked rounds prevent accidental edits.
+- Bidding controls clamp between 0 and the available tricks for the round.
+- Finalizing a round applies ±(5 + bid) and advances the next locked round to bidding.
+- `/summary` renders an export-friendly recap suitable for printing or sharing.
 
 ### Players (`/players`) details
 
-- Score Card players (legacy): add/rename/soft-drop and reset; persists scores/round data.
-- Single Player roster: separate, mode-scoped roster with its own add/rename/reorder/remove/reset; can clone Score Card.
-- Empty state: friendly prompt when no players exist.
-- Persistence: data saved locally (IndexedDB) and synced across tabs.
-- Devtools (development only): floating panel for event height, time‑travel preview, and recent warnings.
+- Score Card and Single Player rosters live side-by-side with separate add/rename/reorder flows.
+- Detail routes (`/players/[playerId]`) deep-link into inline editors for direct share links.
+- Archived players surface under `/players/archived` with one-click restore actions.
+- Persistence uses IndexedDB and mirrors updates across tabs.
+- Devtools (development only) expose event height, preview state, and recent warnings.
+
+### Rosters (`/rosters`) details
+
+- Manage saved lineups with ordering, cloning, and archive/restore flows.
+- `/rosters/[rosterId]` detail routes open the roster inline for editing or loading into a session.
+- Archived rosters are available directly at `/rosters/archived` without toggling in-page filters.
 
 ### Games (`/games`) details
 
-- List: shows archived games with title, finished time, players count, and winner.
-- New Game: archives the current game and starts a fresh one; navigates to `/`.
-- Restore: replaces current progress with a selected archived game.
-- Delete: permanently removes an archived game.
-
-### Current Game (`/`) details
-
-- Round grid: 10 rounds (tricks 10 → 1) across all players; header shows two‑letter initials.
-- State machine: click round tile to cycle bidding → complete → scored → bidding. Locked rounds cannot be advanced directly.
-- Bidding: per‑player bid with +/−; clamped to 0..tricks for that round.
-- Completion: mark each player made/missed with Check/X.
-- Finalize scoring: from complete, when all players are marked; applies ±(5 + bid) to totals and sets round to scored.
-- Auto‑unlock: finalizing a round sets the next locked round to bidding.
-- Scored view: shows made/missed, bid, point delta, and current total score.
+- Table lists archived games with title, completion time, player count, and winner summary.
+- “New Game” launches the shared confirmation flow to archive and start fresh.
+- List rows link to `/games/[gameId]` for analytics and history; intercepted modal routes handle restore/delete confirmations with focus management.
 
 ### Rules (`/rules`) details
 
 - Overview: 10 rounds; tricks decrease 10 → 1; bid, mark made/missed, then finalize to apply points.
-- Round flow: Bidding → Complete → Finalize; next locked round auto‑unlocks to bidding.
+- Round flow: Bidding → Complete → Finalize; next locked round auto-unlocks to bidding.
 - Scoring: Made = + (5 + bid); Missed = − (5 + bid).
 - Notes: Round states cycle locked → bidding → complete → scored; locked rounds can’t advance; data persists locally and syncs across tabs.
+
+### Missing entity surfaces
+
+- `/single-player/[gameId]` renders **SinglePlayerGameMissing** when the requested run is unavailable, linking to `/single-player/new` and `/games`.
+- `/scorecard/[scorecardId]` renders **ScorecardMissing** with CTAs to open the scorecard hub or browse archived games.
+- `/players/[playerId]` and `/rosters/[rosterId]` render detail-specific missing cards that link back to active and archived lists.
+- `/games/[gameId]` falls back to **ArchivedGameMissing**, offering a path back to `/games` or straight into `/single-player/new` for a fresh run.
 
 ## Deployment
 
@@ -182,6 +214,12 @@ More details and the full tracking snippet live in `ANALYTICS.md`.
 - v1: stores `events` (with unique `eventId` index), `state`, and `snapshots`.
 - v2: adds `games` store with non‑unique `createdAt` index for listing archived games.
 - Migrations use `onupgradeneeded` with `oldVersion` guards to avoid redundant index creation. Upgrading from v1→v2 only creates the `games` store/index and preserves existing data.
+
+## Single Player Persistence
+
+- Every reducer-visible change writes an SP snapshot to IndexedDB (`STATE['sp/snapshot']`) and mirrors it to `localStorage` under `el-dorado:sp:snapshot:v1` with a trimmed `sp/game-index` map for deep links.
+- Snapshot writes emit `single-player.persist.snapshot` metrics (duration, failure streak, adapter status) and log fallback usage via `single-player.persist.fallback` when the localStorage mirror rehydrates a session.
+- When browser quota is exhausted the provider captures `sp.snapshot.persist.quota_exceeded`, surfaces an in-app warning toast, and continues retrying so progress resumes once space is available.
 
 ## Observability
 

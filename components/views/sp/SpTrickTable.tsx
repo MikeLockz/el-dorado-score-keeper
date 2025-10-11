@@ -29,16 +29,18 @@ export default function SpTrickTable(props: {
         const played = playedCards?.[pid] ?? null;
         const isWinner = !!winnerId && winnerId === pid;
         return (
-          <div key={pid} className={clsx(styles.row, isWinner && styles.rowWinner)}>
-            <div className={styles.playerName}>{playerName(pid)}</div>
-            <div className={styles.numeric}>{bid}</div>
-            <div className={styles.numeric}>{tricks}</div>
-            <div className={styles.cardCell}>
-              {played ? (
-                <CardGlyph suit={played.suit} rank={played.rank} size="sm" />
-              ) : (
-                <span className={styles.cardEmpty}>—</span>
-              )}
+          <div className={styles.rowWrapper} key={pid}>
+            <div className={clsx(styles.row, isWinner && styles.rowWinner)}>
+              <div className={styles.playerName}>{playerName(pid)}</div>
+              <div className={styles.numeric}>{bid}</div>
+              <div className={styles.numeric}>{tricks}</div>
+              <div className={styles.cardCell}>
+                {played ? (
+                  <CardGlyph suit={played.suit} rank={played.rank} size="sm" />
+                ) : (
+                  <span className={styles.cardEmpty}>—</span>
+                )}
+              </div>
             </div>
           </div>
         );

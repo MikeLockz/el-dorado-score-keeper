@@ -1,0 +1,51 @@
+@use '../../../styles/mixins/typography' as typography;
+@use '../../../styles/mixins/state' as state;
+@use '../../../styles/tokens/spacing' as spacing;
+
+.root {
+  min-block-size: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: spacing.spacing('space-4');
+}
+
+.card {
+  width: min(32rem, 100%);
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+  color: var(--color-muted-foreground);
+  @include typography.body('body-sm');
+}
+
+.spinner {
+  inline-size: 1rem;
+  block-size: 1rem;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing.spacing('space-2');
+}
+
+.error {
+  @include typography.body('body-sm');
+  color: var(--color-destructive);
+}
+
+.hint {
+  @include typography.body('body-xs');
+  color: var(--color-muted-foreground);
+}

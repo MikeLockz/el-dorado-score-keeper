@@ -10,19 +10,24 @@ import {
   type GameRecord,
   restoreGame,
   deriveGameMode,
-  deriveGameRoute,
 } from '@/lib/state/io';
 import { formatDateTime } from '@/lib/format';
 import { Loader2 } from 'lucide-react';
 import { captureBrowserMessage } from '@/lib/observability/browser';
+import { resolveSinglePlayerRoute, resolveScorecardRoute } from '@/lib/state';
 
 import styles from './quick-links.module.scss';
 
 export default function QuickLinks() {
-  const { ready, height } = useAppState();
+  const { ready, height, state } = useAppState();
   const [recents, setRecents] = React.useState<GameRecord[] | null>(null);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
   const router = useRouter();
+  const stateRef = React.useRef(state);
+
+  React.useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   React.useEffect(() => {
     let closed = false;
@@ -39,7 +44,42 @@ export default function QuickLinks() {
     };
   }, []);
 
-  const showResume = ready && height > 0;
+  const resumeLink = React.useMemo(() => {
+    const singleRoute = resolveSinglePlayerRoute(state, { fallback: 'entry' });
+    if (singleRoute.startsWith('/single-player/') && singleRoute.split('/').length >= 3) {
+      return { href: singleRoute, mode: 'single-player' as const };
+    }
+    const scorecardRoute = resolveScorecardRoute(state);
+    if (scorecardRoute.startsWith('/scorecard/') && scorecardRoute !== '/scorecard') {
+      return { href: scorecardRoute, mode: 'scorecard' as const };
+    }
+    return null;
+  }, [state]);
+
+  const showResume = ready && height > 0 && !!resumeLink;
+
+  const waitForRestoredRoute = React.useCallback(
+    async (mode: 'single-player' | 'scorecard'): Promise<string> => {
+      const maxAttempts = 10;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const snapshot = stateRef.current;
+        const candidate =
+          mode === 'single-player'
+            ? resolveSinglePlayerRoute(snapshot, { fallback: 'entry' })
+            : resolveScorecardRoute(snapshot);
+        const resolved =
+          mode === 'single-player'
+            ? candidate.startsWith('/single-player/') && candidate.split('/').length >= 3
+            : candidate.startsWith('/scorecard/') && candidate !== '/scorecard';
+        if (resolved) {
+          return candidate;
+        }
+        await new Promise((res) => setTimeout(res, 16));
+      }
+      return mode === 'single-player' ? '/single-player' : '/scorecard';
+    },
+    [],
+  );
 
   const resumeGame = React.useCallback(
     async (game: GameRecord) => {
@@ -47,7 +87,9 @@ export default function QuickLinks() {
       setPendingId(game.id);
       try {
         await restoreGame(undefined, game.id);
-        router.push(deriveGameRoute(game));
+        const mode = deriveGameMode(game);
+        const route = await waitForRestoredRoute(mode);
+        router.push(route);
       } catch (error: unknown) {
         const reason = error instanceof Error ? error.message : 'Unknown error';
         captureBrowserMessage('quick-links.resume.failed', {
@@ -63,7 +105,7 @@ export default function QuickLinks() {
         setPendingId((prev) => (prev === game.id ? null : prev));
       }
     },
-    [pendingId, router],
+    [pendingId, router, waitForRestoredRoute],
   );
 
   return (
@@ -74,9 +116,9 @@ export default function QuickLinks() {
           <Link href="/rules" className={styles.link}>
             How To Play
           </Link>
-          {showResume ? (
+          {showResume && resumeLink?.href ? (
             <Button asChild size="sm" variant="outline">
-              <Link href="/scorecard" aria-label="Resume current game">
+              <Link href={resumeLink.href} aria-label="Resume current game">
                 Resume current game
               </Link>
             </Button>

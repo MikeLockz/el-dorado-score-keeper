@@ -362,12 +362,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 4ch;
-  block-size: 4ch;
+  inline-size: 2ch;
+  block-size: 2ch;
   border-radius: 999px;
   border: 2px solid var(--destructive);
   color: var(--destructive);
   font-weight: 800;
+  font-size: 1.35rem;
 }
 
 .detailRow {

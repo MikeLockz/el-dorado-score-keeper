@@ -1,0 +1,244 @@
+@use '../../../styles/mixins/breakpoints' as breakpoints;
+@use '../../../styles/mixins/typography' as typography;
+@use '../../../styles/tokens/spacing' as spacing;
+
+.feedback {
+  max-inline-size: 42rem;
+  margin-inline: auto;
+  padding: spacing.spacing('space-3');
+  text-align: center;
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}
+
+.spinner {
+  inline-size: 1rem;
+  block-size: 1rem;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.page {
+  max-inline-size: 42rem;
+  margin-inline: auto;
+  padding: spacing.spacing('space-3');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing.spacing('space-3');
+}
+
+.headerActions {
+  display: inline-flex;
+  gap: spacing.spacing('space-2');
+  flex-wrap: wrap;
+}
+
+.title {
+  @include typography.heading('heading-sm');
+  font-weight: 700;
+  color: var(--color-foreground);
+}
+
+.headerMeta {
+  margin-top: spacing.spacing('space-1');
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}
+
+.sectionCard {
+  padding: spacing.spacing('space-3');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+}
+
+.sectionHeading {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.emptyText {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}
+
+.scoresGrid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: spacing.spacing('space-4');
+  row-gap: spacing.spacing('space-2');
+  @include typography.body('body-sm');
+}
+
+.scoresHeader {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.alignStart {
+  text-align: start;
+}
+
+.alignEnd {
+  text-align: end;
+}
+
+.scoreLabel {
+  color: var(--color-foreground);
+}
+
+.scoreValue {
+  @include typography.monospace('body-sm');
+}
+
+.snapshotGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: spacing.spacing('space-2');
+  @include typography.body('body-sm');
+}
+
+.snapshotLabel {
+  color: var(--color-muted-foreground);
+}
+
+.snapshotValue {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.metaCard {
+  padding: spacing.spacing('space-2');
+}
+
+.metaSummary {
+  @include typography.body('body-sm');
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.statsColumns {
+  display: grid;
+  gap: spacing.spacing('space-3');
+  margin-bottom: spacing.spacing('space-3');
+
+  @include breakpoints.respond('sm') {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.subHeading {
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin-bottom: spacing.spacing('space-1');
+}
+
+.statsList {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.statItem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.statLabel {
+  color: var(--color-foreground);
+  font-weight: 500;
+}
+
+.statValue {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.roundsSection {
+  margin-top: spacing.spacing('space-3');
+}
+
+.roundsGrid {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  column-gap: spacing.spacing('space-4');
+  row-gap: spacing.spacing('space-2');
+  @include typography.body('body-sm');
+
+  @include breakpoints.respond('md') {
+    grid-template-columns: 6rem 6rem 1fr;
+  }
+}
+
+.roundsHeader {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.roundCell {
+  color: var(--color-foreground);
+}
+
+.roundBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-full);
+  padding-block: 0.125rem;
+  padding-inline: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  border: 1px solid transparent;
+}
+
+.roundBadgeOver {
+  border-color: var(--color-destructive);
+  background: color-mix(in oklch, var(--color-destructive) 20%, transparent);
+  color: var(--color-destructive);
+}
+
+.roundBadgeUnder {
+  border-color: color-mix(in oklch, var(--color-border) 80%, transparent);
+  background: var(--color-surface-muted);
+  color: var(--color-surface-muted-foreground);
+}
+
+.roundBadgeExact {
+  border-color: var(--color-status-scored);
+  background: color-mix(in oklch, var(--color-status-scored) 18%, var(--color-card));
+  color: var(--color-status-scored-foreground);
+}
+
+.timingGrid {
+  margin-top: spacing.spacing('space-3');
+  display: grid;
+  gap: spacing.spacing('space-3');
+
+  @include breakpoints.respond('sm') {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.timingGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.timingValue {
+  @include typography.body('body-sm');
+  font-weight: 600;
+  color: var(--color-foreground);
+}
