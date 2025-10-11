@@ -125,7 +125,7 @@
 
 .emptyTitle {
   font-weight: 600;
-  @include typography.body('body-base');
+  @include typography.body('body-md');
 }
 
 .emptyDescription {
