@@ -1,0 +1,46 @@
+@use '../../../../../styles/mixins/typography' as typography;
+@use '../../../../../styles/tokens/spacing' as spacing;
+
+.root {
+  display: grid;
+  gap: spacing.spacing('space-3');
+}
+
+.metrics {
+  display: grid;
+  gap: spacing.spacing('space-3');
+}
+
+@media (min-width: 40rem) {
+  .metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+  padding: spacing.spacing('space-3');
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-muted) 65%, transparent);
+  backdrop-filter: blur(6px);
+  min-block-size: 6.5rem;
+}
+
+.label {
+  @include typography.body('body-sm');
+  font-weight: 500;
+  color: var(--color-muted-foreground);
+}
+
+.value {
+  @include typography.heading('heading-md');
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.empty {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}

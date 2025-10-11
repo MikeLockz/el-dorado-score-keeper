@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -95,6 +95,7 @@ describe('PlayerStatisticsView', () => {
 
   afterEach(() => {
     loadPlayerStatisticsSummaryMock.mockReset();
+    cleanup();
   });
 
   it('renders skeleton placeholders while loading statistics', async () => {
@@ -111,20 +112,27 @@ describe('PlayerStatisticsView', () => {
 
     render(<PlayerStatisticsView playerId="p1" />);
 
-    expect(loadPlayerStatisticsSummaryMock).toHaveBeenCalledWith({ playerId: 'p1' });
+    expect(loadPlayerStatisticsSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playerId: 'p1',
+        cacheKey: 'p1:0',
+        stateSnapshot: expect.objectContaining({
+          players: expect.objectContaining({ p1: 'Alice' }),
+        }),
+      }),
+    );
     expect(screen.getByText(/Primary metrics/i)).toBeTruthy();
-    expect(
-      screen.queryByText(/Primary statistics will appear here once calculations are connected/i),
-    ).toBeNull();
+    expect(screen.queryByText(/Total games/i)).toBeNull();
 
     resolveSummary(
       stateModule.createEmptyPlayerStatisticsSummary('p1'),
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Primary statistics will appear here once calculations are connected/i),
-      ).toBeTruthy();
+    expect(screen.getAllByText(/Total games/i).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(/Complete a game to unlock win insights/i).length,
+    ).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -138,6 +146,61 @@ describe('PlayerStatisticsView', () => {
     await waitFor(() => {
       expect(screen.getByText(/Unable to load statistics/i)).toBeTruthy();
       expect(screen.getByText(/boom/i)).toBeTruthy();
+    });
+  });
+
+  it('displays resolved primary metrics when available', async () => {
+    const state = buildStateWithPlayer();
+    setMockAppState(createMockAppState(state));
+
+    loadPlayerStatisticsSummaryMock.mockResolvedValue({
+      ...stateModule.createEmptyPlayerStatisticsSummary('p1'),
+      primary: {
+        totalGamesPlayed: 4,
+        totalGamesWon: 3,
+        winRatePercent: 75,
+      },
+      secondary: {
+        averageScore: 82.5,
+        highestScore: 120,
+        lowestScore: 45,
+      },
+    });
+
+    render(<PlayerStatisticsView playerId="p1" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Total games/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('4').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/75%/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/Average score/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('82.5').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/Best game/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('120').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/Toughest game/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('45').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('shows secondary fallback messaging when no score history exists', async () => {
+    const state = buildStateWithPlayer();
+    setMockAppState(createMockAppState(state));
+
+    loadPlayerStatisticsSummaryMock.mockResolvedValue({
+      ...stateModule.createEmptyPlayerStatisticsSummary('p1'),
+      primary: {
+        totalGamesPlayed: 0,
+        totalGamesWon: 0,
+        winRatePercent: 0,
+      },
+      secondary: null,
+    });
+
+    render(<PlayerStatisticsView playerId="p1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Complete a game to unlock score trends/i)).toBeTruthy();
     });
   });
 

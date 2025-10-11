@@ -24,6 +24,7 @@
   - Convert timestamps (e.g., `createdAt`) to JS `Date` objects when needed for display.
   - Ensure round data is ordered numerically (1-10) for per-round charts.
   - Derive per-hand data by replaying `sp/trick/played` events per player; fall back to live `state.sp.trickPlays` only when the IndexedDB bundle is unavailable.
+  - Treat generic slot labels (e.g., `player 1`, `p1`) as identity only when the player still uses that placeholder; otherwise ignore them to avoid attributing other seats to the selected player.
 
 ## 4. Metric Definitions
 
@@ -220,20 +221,24 @@ export type PlayerStatisticsSummary = PlayerStatsLoadState & {
 - **Security:** Guard against tampered local data; sanitize strings.
 - **Error Handling:** Detect IndexedDB unavailability (e.g., private mode) and show a degraded experience banner with instructions; fall back to live-state-only stats when archives can’t be read.
 
-## 8. Open Questions
+## 8. Historical Data Backfill
 
-- Where do completed game summaries live today? Need confirmation on storage strategy (client-only vs. backend).
-- Should bots appear in the player selector by default, or only human players?
-- Are tie games counted as wins for all tied players or require a tiebreaker rule?
-- Do we track per-trick play history beyond final state (needed for accurate hand suit distribution)?
-- Is per-round cumulative scoring stored to compute volatility/comeback metrics, or do we need to derive it from logs?
-- What window size should momentum calculations default to, and should users be able to adjust it?
-- Can analytics for the active game read the live event stream directly, or should we re-export from the `events` store for consistency with archived replay logic?
+Many archived games were stored before roster metadata and canonical player identifiers were persisted in `GameRecord.summary`. To guarantee that statistics and future analytics remain accurate we will:
 
-## 9. Next Steps
+1. **Extend `summarizeState`:**
+   - Persist the active roster snapshot (roster id, `playersById`, `playerTypesById`, `displayOrder`) whenever a game is archived.
+   - Store canonical player ids inside the single-player summary (`sp.order`, `dealerId`, `leaderId`, `trickCounts`).
+   - Add a `metadata.version` field so downstream consumers can identify enriched summaries.
 
-1. Confirm data source for historical games and extend persistence if necessary.
-2. Implement selectors/utilities and add test coverage.
-3. Build UI components iteratively, starting with primary stats, then secondary, then charts.
-4. Integrate navigation entry points and gather feedback from stakeholders.
-5. Polish with animations/tooltips and finalize documentation.
+2. **One-time backfill:**
+   - On startup enqueue a low-priority job that iterates all `GameRecord`s lacking the new metadata.
+   - Replay each bundle through the reducer to recover canonical player ids, scores, and roster information.
+   - Write the enriched summary back to IndexedDB (preserving the original bundle) and record a `backfillVersion` marker to avoid duplicate work.
+
+3. **Telemetry & guardrails:**
+   - Emit spans and counters for processed/updated/failed records.
+   - Roll out behind a feature flag so we can verify on beta/staging data sets before enabling broadly.
+
+4. **Post-backfill cleanup:**
+   - Simplify statistics loaders to rely on canonical ids once the migration completes.
+   - Update documentation and tooling so future features always expect the enriched schema.

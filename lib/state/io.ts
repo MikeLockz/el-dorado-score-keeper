@@ -19,6 +19,159 @@ export type ExportBundle = {
   events: AppEvent[];
 };
 
+export type SummaryMetadata = Readonly<{
+  version: number;
+  generatedAt: number;
+}>;
+
+export type RosterSnapshot = Readonly<{
+  rosterId: string | null;
+  playersById: Record<string, string>;
+  playerTypesById: Record<string, 'human' | 'bot'>;
+  displayOrder: Record<string, number>;
+}>;
+
+export type SummarySlotMapping = Readonly<{
+  aliasToId: Record<string, string>;
+}>;
+
+export const SUMMARY_METADATA_VERSION = 2;
+
+function normalizeAlias(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
+function normalizeDisplayIndex(value: unknown): number | null {
+  if (typeof value !== 'number') return null;
+  if (!Number.isFinite(value)) return null;
+  return Math.max(0, Math.floor(value));
+}
+
+function derivePlayerTypesById(
+  state: AppState,
+  rosterPlayerTypes: Record<string, 'human' | 'bot'> | undefined,
+  playerIds: ReadonlyArray<string>,
+): Record<string, 'human' | 'bot'> {
+  const out: Record<string, 'human' | 'bot'> = {};
+  for (const pid of playerIds) {
+    const rosterType = rosterPlayerTypes?.[pid];
+    if (rosterType === 'human' || rosterType === 'bot') {
+      out[pid] = rosterType;
+      continue;
+    }
+    const detailType = state.playerDetails?.[pid]?.type;
+    if (detailType === 'human' || detailType === 'bot') {
+      out[pid] = detailType;
+      continue;
+    }
+    out[pid] = 'human';
+  }
+  return out;
+}
+
+function deriveDisplayOrderFromSources(
+  rosterDisplayOrder: Record<string, number> | undefined,
+  stateDisplayOrder: Record<string, number> | undefined,
+  playerIds: ReadonlyArray<string>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  const used = new Set<number>();
+  const playerIdSet = new Set(playerIds);
+
+  const assignFromSource = (source: Record<string, number> | undefined) => {
+    if (!source) return;
+    for (const [pid, raw] of Object.entries(source)) {
+      if (!playerIdSet.has(pid)) continue;
+      if (Object.prototype.hasOwnProperty.call(out, pid)) continue;
+      const normalized = normalizeDisplayIndex(raw);
+      if (normalized == null) continue;
+      out[pid] = normalized;
+      used.add(normalized);
+    }
+  };
+
+  assignFromSource(rosterDisplayOrder);
+  assignFromSource(stateDisplayOrder);
+
+  let nextIndex = 0;
+  for (const pid of playerIds) {
+    if (Object.prototype.hasOwnProperty.call(out, pid)) continue;
+    while (used.has(nextIndex)) nextIndex++;
+    out[pid] = nextIndex;
+    used.add(nextIndex);
+  }
+  return out;
+}
+
+function deriveRosterSnapshot(state: AppState, mode: 'scorecard' | 'single-player'): RosterSnapshot | null {
+  const rosterId =
+    mode === 'single-player' ? state.activeSingleRosterId : state.activeScorecardRosterId;
+  const roster = rosterId ? state.rosters?.[rosterId] : undefined;
+  const basePlayersById = roster?.playersById ?? state.players ?? {};
+  const playersById: Record<string, string> = {};
+
+  for (const [pid, name] of Object.entries(basePlayersById)) {
+    const normalizedId = typeof pid === 'string' ? pid.trim() : '';
+    if (!normalizedId) continue;
+    const label =
+      typeof name === 'string' && name.trim()
+        ? name.trim()
+        : state.players?.[normalizedId] ?? normalizedId;
+    playersById[normalizedId] = label;
+  }
+
+  const playerIds = Object.keys(playersById);
+  if (playerIds.length === 0) {
+    return null;
+  }
+
+  const playerTypesById = derivePlayerTypesById(state, roster?.playerTypesById, playerIds);
+  const displayOrder = deriveDisplayOrderFromSources(
+    roster?.displayOrder,
+    state.display_order,
+    playerIds,
+  );
+
+  return {
+    rosterId: rosterId ?? null,
+    playersById,
+    playerTypesById,
+    displayOrder,
+  };
+}
+
+function deriveSlotMapping(
+  playersById: Record<string, string>,
+  displayOrder: Record<string, number>,
+): SummarySlotMapping | null {
+  const aliasToId: Record<string, string> = {};
+  const addAlias = (alias: unknown, playerId: string) => {
+    const normalized = normalizeAlias(alias);
+    if (!normalized) return;
+    if (Object.prototype.hasOwnProperty.call(aliasToId, normalized)) return;
+    aliasToId[normalized] = playerId;
+  };
+
+  for (const [pid, name] of Object.entries(playersById)) {
+    addAlias(pid, pid);
+    addAlias(name, pid);
+  }
+
+  for (const [pid, rawIndex] of Object.entries(displayOrder)) {
+    const normalizedIndex = normalizeDisplayIndex(rawIndex);
+    if (normalizedIndex == null) continue;
+    const slot = normalizedIndex + 1;
+    addAlias(`player ${slot}`, pid);
+    addAlias(`player${slot}`, pid);
+    addAlias(`p${slot}`, pid);
+  }
+
+  return Object.keys(aliasToId).length ? { aliasToId } : null;
+}
+
 export type GameRecord = {
   id: string;
   title: string;
@@ -47,6 +200,9 @@ export type GameRecord = {
       trickCounts: Record<string, number>;
       trumpBroken: boolean;
     };
+    metadata?: SummaryMetadata;
+    rosterSnapshot?: RosterSnapshot | null;
+    slotMapping?: SummarySlotMapping | null;
   };
   bundle: ExportBundle;
 };
@@ -317,9 +473,28 @@ function reduceBundle(bundle: ExportBundle): AppState {
   return s;
 }
 
-function summarizeState(s: AppState): GameRecord['summary'] {
-  const scores = s.scores || {};
-  const playersById = s.players || {};
+export function summarizeState(s: AppState): GameRecord['summary'] {
+  const scores: Record<string, number> = {};
+  for (const [pid, rawScore] of Object.entries(s.scores ?? {})) {
+    const normalizedId = typeof pid === 'string' ? pid.trim() : '';
+    if (!normalizedId) continue;
+    const numericScore = typeof rawScore === 'number' ? rawScore : Number(rawScore);
+    scores[normalizedId] = Number.isFinite(numericScore) ? numericScore : 0;
+  }
+
+  const playersById: Record<string, string> = {};
+  for (const [pid, name] of Object.entries(s.players ?? {})) {
+    const normalizedId = typeof pid === 'string' ? pid.trim() : '';
+    if (!normalizedId) continue;
+    const label = typeof name === 'string' && name.trim() ? name.trim() : normalizedId;
+    playersById[normalizedId] = label;
+  }
+  for (const pid of Object.keys(scores)) {
+    if (!Object.prototype.hasOwnProperty.call(playersById, pid)) {
+      playersById[pid] = pid;
+    }
+  }
+
   let winnerId: string | null = null;
   let winnerScore: number | null = null;
   for (const [pid, sc] of Object.entries(scores)) {
@@ -363,12 +538,41 @@ function summarizeState(s: AppState): GameRecord['summary'] {
     spPhase !== 'done' &&
     ((sp.trickPlays?.length ?? 0) > 0 || Object.keys(sp.hands ?? {}).length > 0);
   const mode: 'scorecard' | 'single-player' = spActive ? 'single-player' : 'scorecard';
+
+  const rosterSnapshot = deriveRosterSnapshot(s, mode);
+  if (rosterSnapshot) {
+    for (const [pid, name] of Object.entries(rosterSnapshot.playersById)) {
+      if (!Object.prototype.hasOwnProperty.call(playersById, pid) || !playersById[pid]) {
+        playersById[pid] = name;
+      }
+    }
+  }
+  const playerIds = Object.keys(playersById);
+  const resolvedRosterSnapshot =
+    rosterSnapshot ??
+    (playerIds.length
+      ? {
+          rosterId: null,
+          playersById: { ...playersById },
+          playerTypesById: derivePlayerTypesById(s, undefined, playerIds),
+          displayOrder: deriveDisplayOrderFromSources(undefined, s.display_order, playerIds),
+        }
+      : null);
+  const slotMapping = resolvedRosterSnapshot
+    ? deriveSlotMapping(resolvedRosterSnapshot.playersById, resolvedRosterSnapshot.displayOrder)
+    : deriveSlotMapping(playersById, deriveDisplayOrderFromSources(undefined, s.display_order, playerIds));
+
+  const winnerName =
+    winnerId && Object.prototype.hasOwnProperty.call(playersById, winnerId)
+      ? playersById[winnerId] ?? null
+      : null;
+
   return {
-    players: Object.keys(playersById).length,
+    players: playerIds.length,
     scores,
     playersById,
     winnerId,
-    winnerName: winnerId ? (playersById[winnerId] ?? null) : null,
+    winnerName,
     winnerScore,
     mode,
     scorecard: {
@@ -385,6 +589,12 @@ function summarizeState(s: AppState): GameRecord['summary'] {
       trickCounts: { ...(sp.trickCounts ?? {}) },
       trumpBroken: !!sp.trumpBroken,
     },
+    metadata: {
+      version: SUMMARY_METADATA_VERSION,
+      generatedAt: Date.now(),
+    },
+    rosterSnapshot: resolvedRosterSnapshot,
+    slotMapping,
   };
 }
 

@@ -11,3 +11,4 @@ export * from './validation';
 export * from './spRules';
 export * from './utils';
 export * from './player-statistics';
+export * from './player-statistics/backfill';

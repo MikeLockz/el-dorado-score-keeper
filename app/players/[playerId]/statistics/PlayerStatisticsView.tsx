@@ -14,11 +14,14 @@ import {
   createEmptyPlayerStatisticsSummary,
   createErroredPlayerStatisticsSummary,
   loadPlayerStatisticsSummary,
+  resetPlayerStatisticsCache,
   type PlayerStatisticsSummary,
 } from '@/lib/state';
 import { useGamesSignalSubscription } from '@/components/hooks';
 
 import PlayerMissing from '../../_components/PlayerMissing';
+import { PrimaryStatsCard } from './components/PrimaryStatsCard';
+import { SecondaryStatsCard } from './components/SecondaryStatsCard';
 import styles from './page.module.scss';
 
 export type PlayerStatisticsViewProps = {
@@ -51,14 +54,21 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
 
   const [summary, setSummary] = React.useState<PlayerStatisticsSummary | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
+  const stateRef = React.useRef(state);
+  stateRef.current = state;
 
   const refresh = React.useCallback(
-    (id: string) => {
+    (id: string, cacheKey: string) => {
       setSummary(createPendingPlayerStatisticsSummary(id));
       let cancelled = false;
       void (async () => {
         try {
-          const result = await loadPlayerStatisticsSummary({ playerId: id });
+          const snapshot = stateRef.current;
+          const result = await loadPlayerStatisticsSummary({
+            playerId: id,
+            stateSnapshot: snapshot,
+            cacheKey,
+          });
           if (cancelled) return;
           setSummary(
             result ?? createEmptyPlayerStatisticsSummary(id),
@@ -78,16 +88,22 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
   );
 
   React.useEffect(() => {
+    if (!ready) {
+      setSummary(null);
+      return;
+    }
     if (!targetPlayerId) {
       setSummary(null);
       return;
     }
-    return refresh(targetPlayerId);
-  }, [refresh, targetPlayerId, reloadKey]);
+    const cacheKey = `${targetPlayerId}:${reloadKey}`;
+    return refresh(targetPlayerId, cacheKey);
+  }, [ready, refresh, targetPlayerId, reloadKey]);
 
   useGamesSignalSubscription(
     React.useCallback((signal) => {
       if (signal.type === 'added' || signal.type === 'deleted') {
+        resetPlayerStatisticsCache();
         setReloadKey((key) => key + 1);
       }
     }, []),
@@ -106,6 +122,8 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
   const resolvedSummary = summary;
   const isLoading =
     resolvedSummary?.isLoadingHistorical === true || resolvedSummary?.isLoadingLive === true;
+  const showPrimarySkeleton = !resolvedSummary || isLoading;
+  const showSecondarySkeleton = !resolvedSummary || isLoading;
 
   if (!ready) {
     return (
@@ -178,32 +196,35 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
       <div className={styles.sectionGrid} aria-live="polite">
         <Card className={styles.metricsCard}>
           <div className={styles.cardHeading}>Primary metrics</div>
-          {isLoading ? (
+          {showPrimarySkeleton ? (
             <div className={styles.skeletonList}>
               {skeletonItems.map((_, idx) => (
                 <Skeleton key={`primary-${idx}`} className={styles.skeletonLine} />
               ))}
             </div>
           ) : (
-            <div className={styles.placeholderCopy}>
-              Primary statistics will appear here once calculations are connected.
-            </div>
+            <PrimaryStatsCard
+              loading={isLoading}
+              metrics={resolvedSummary?.primary ?? null}
+              loadError={resolvedSummary?.loadError}
+            />
           )}
         </Card>
 
         <Card className={styles.metricsCard}>
           <div className={styles.cardHeading}>Secondary metrics</div>
-          {isLoading ? (
+          {showSecondarySkeleton ? (
             <div className={styles.skeletonList}>
               {skeletonItems.map((_, idx) => (
                 <Skeleton key={`secondary-${idx}`} className={styles.skeletonLine} />
               ))}
             </div>
           ) : (
-            <div className={styles.placeholderCopy}>
-              Secondary score insights are not available yet. Finished games will populate this
-              section in a future update.
-            </div>
+            <SecondaryStatsCard
+              loading={isLoading}
+              metrics={resolvedSummary?.secondary ?? null}
+              loadError={resolvedSummary?.loadError}
+            />
           )}
         </Card>
 
