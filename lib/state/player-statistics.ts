@@ -5,6 +5,11 @@ import {
   deriveHistoricalSecondaryMetrics,
   resetHistoricalSecondaryMetricsCache,
 } from './player-statistics/secondary';
+import {
+  getHandInsightsForPlayer,
+  resetHistoricalHandInsightsCache,
+  type HistoricalHandInsight,
+} from './player-statistics/hands';
 import { selectIsGameComplete } from './selectors';
 import type { AppState } from './types';
 import { ROUNDS_TOTAL } from './logic';
@@ -45,6 +50,74 @@ export type HandInsight = Readonly<{
   suitCounts: Readonly<Record<'clubs' | 'diamonds' | 'hearts' | 'spades', number>>;
   topSuit: 'clubs' | 'diamonds' | 'hearts' | 'spades' | null;
 }>;
+
+type SuitKey = 'clubs' | 'diamonds' | 'hearts' | 'spades';
+type MutableSuitCounts = Record<SuitKey, number>;
+
+const suitNames: SuitKey[] = ['clubs', 'diamonds', 'hearts', 'spades'];
+
+function createMutableSuitCounts(): MutableSuitCounts {
+  return {
+    clubs: 0,
+    diamonds: 0,
+    hearts: 0,
+    spades: 0,
+  };
+}
+
+function freezeSuitCounts(source: MutableSuitCounts): Readonly<Record<SuitKey, number>> {
+  return Object.freeze({
+    clubs: source.clubs,
+    diamonds: source.diamonds,
+    hearts: source.hearts,
+    spades: source.spades,
+  });
+}
+
+function accumulateSuitCounts(
+  target: MutableSuitCounts,
+  source: Readonly<Record<SuitKey, number>> | null | undefined,
+): void {
+  if (!source) return;
+  for (const suit of suitNames) {
+    const value = source[suit] ?? 0;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      target[suit] += value;
+    }
+  }
+}
+
+function normalizeSuitKey(value: unknown): SuitKey | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLocaleLowerCase();
+  return suitNames.includes(normalized as SuitKey) ? (normalized as SuitKey) : null;
+}
+
+function calculateTopSuit(counts: Readonly<Record<SuitKey, number>>): HandInsight['topSuit'] {
+  let leadingSuit: SuitKey | null = null;
+  let leadingValue = 0;
+  let isTied = false;
+
+  for (const suit of suitNames) {
+    const value = counts[suit] ?? 0;
+    if (value > leadingValue) {
+      leadingSuit = suit;
+      leadingValue = value;
+      isTied = false;
+    } else if (value > 0 && value === leadingValue) {
+      isTied = true;
+    }
+  }
+
+  if (!leadingSuit || leadingValue === 0 || isTied) {
+    return null;
+  }
+  return leadingSuit;
+}
+
+function sumSuitCounts(counts: MutableSuitCounts): number {
+  return suitNames.reduce((total, suit) => total + counts[suit], 0);
+}
 
 type RoundAggregate = Readonly<{
   bidCount: number;
@@ -269,13 +342,6 @@ export type PlayerStatisticsLoadInput = Readonly<{
   cacheKey?: string | null | undefined;
 }>;
 
-const suitNames: Array<'clubs' | 'diamonds' | 'hearts' | 'spades'> = [
-  'clubs',
-  'diamonds',
-  'hearts',
-  'spades',
-];
-
 export const createPendingPlayerStatisticsSummary = (
   playerId: string,
 ): PlayerStatisticsSummary => ({
@@ -343,6 +409,7 @@ export async function loadPlayerStatisticsSummary({
     bidAccuracy: historicalBidAccuracy,
     placements: historicalPlacements,
     rounds: historicalRoundAggregates,
+    hands: historicalHandTotals,
     error: historicalError,
   } = await computeHistoricalAggregates(playerId, playerLabel);
 
@@ -391,6 +458,8 @@ export async function loadPlayerStatisticsSummary({
   accumulateRoundSnapshots(combinedRoundAccumulators, liveMetrics.roundSnapshots);
   const rounds = finalizeRoundMetrics(combinedRoundAccumulators);
 
+  const handInsights = buildHandInsights(historicalHandTotals, liveMetrics.handTotals);
+
   let highestScore = historicalScores.highest;
   if (liveMetrics.score != null) {
     highestScore =
@@ -427,6 +496,7 @@ export async function loadPlayerStatisticsSummary({
     primary,
     secondary,
     rounds,
+    handInsights,
   };
 }
 
@@ -460,6 +530,7 @@ export { getCachedHistoricalGame, setCachedHistoricalGame } from './player-stati
 export function resetPlayerStatisticsCache(): void {
   statsCache.resetPlayerStatisticsCache();
   resetHistoricalSecondaryMetricsCache();
+  resetHistoricalHandInsightsCache();
 }
 
 type HistoricalPrimaryTotals = Readonly<{
@@ -490,6 +561,7 @@ type LiveMetrics = Readonly<{
   bidAccuracy: BidAccuracyAggregate;
   placement: number | null;
   roundSnapshots: RoundSnapshotMap;
+  handTotals: HistoricalHandInsight | null;
 }>;
 
 const emptyLiveMetrics: LiveMetrics = Object.freeze({
@@ -500,6 +572,7 @@ const emptyLiveMetrics: LiveMetrics = Object.freeze({
   bidAccuracy: emptyBidAccuracyAggregate,
   placement: null,
   roundSnapshots: Object.freeze({}),
+  handTotals: null,
 });
 
 function extractPlayerLabel(state: AppState, playerId: string): string | null {
@@ -567,6 +640,7 @@ function deriveLiveMetrics(state: AppState, playerId: string): LiveMetrics {
   }
 
   const { aggregate: bidAccuracy, roundSnapshots } = deriveLiveBidAccuracy(state, playerId);
+  const handTotals = deriveLiveHandInsights(state, playerId);
   const placement = calculatePlacementFromScores(scores, playerId);
   const scoreValue = Number.isFinite(playerScore) ? playerScore : null;
   const finishedAtValue =
@@ -582,6 +656,7 @@ function deriveLiveMetrics(state: AppState, playerId: string): LiveMetrics {
     bidAccuracy,
     placement,
     roundSnapshots,
+    handTotals,
   };
 }
 
@@ -642,6 +717,63 @@ function deriveLiveBidAccuracy(
     aggregate,
     roundSnapshots: Object.freeze(frozenSnapshots),
   };
+}
+
+function deriveLiveHandInsights(state: AppState, playerId: string): HistoricalHandInsight | null {
+  const plays: Array<{ playerId?: unknown; card?: { suit?: unknown } }> = [];
+  const trickPlays = state.sp?.trickPlays ?? [];
+  if (Array.isArray(trickPlays)) {
+    plays.push(...trickPlays);
+  }
+  const lastSnapshot = state.sp?.lastTrickSnapshot;
+  if (lastSnapshot && Array.isArray(lastSnapshot.plays)) {
+    plays.push(...lastSnapshot.plays);
+  }
+
+  if (plays.length === 0) {
+    return null;
+  }
+
+  const counts = createMutableSuitCounts();
+  for (const entry of plays) {
+    if (!entry || typeof entry !== 'object') continue;
+    if ((entry as { playerId?: unknown }).playerId !== playerId) continue;
+    const card = (entry as { card?: unknown }).card;
+    if (!card || typeof card !== 'object') continue;
+    const suit = normalizeSuitKey((card as { suit?: unknown }).suit);
+    if (!suit) continue;
+    counts[suit] += 1;
+  }
+
+  const totalHands = sumSuitCounts(counts);
+  if (totalHands === 0) {
+    return null;
+  }
+
+  return Object.freeze({
+    handsPlayed: totalHands,
+    suitCounts: freezeSuitCounts(counts),
+  });
+}
+
+function buildHandInsights(
+  historical: HistoricalHandInsight | null | undefined,
+  live: HistoricalHandInsight | null | undefined,
+): HandInsight | null {
+  const accumulator = createMutableSuitCounts();
+  accumulateSuitCounts(accumulator, historical?.suitCounts);
+  accumulateSuitCounts(accumulator, live?.suitCounts);
+  const totalHands = sumSuitCounts(accumulator);
+  if (totalHands === 0) {
+    return null;
+  }
+  const suitCounts = freezeSuitCounts(accumulator);
+  const topSuit = calculateTopSuit(suitCounts);
+  return Object.freeze({
+    handsPlayed: totalHands,
+    suitCounts,
+    topSuit,
+  });
 }
 
 function calculatePlacementFromScores(
@@ -921,6 +1053,7 @@ async function computeHistoricalAggregates(
   bidAccuracy: BidAccuracyAggregate;
   placements: ReadonlyArray<number>;
   rounds: RoundAggregateMap;
+  hands: HistoricalHandInsight | null;
   error: string | null;
 }> {
   try {
@@ -933,6 +1066,7 @@ async function computeHistoricalAggregates(
         bidAccuracy: emptyBidAccuracyAggregate,
         placements: Object.freeze([]),
         rounds: Object.freeze({}),
+        hands: null,
         error: null,
       };
     }
@@ -948,6 +1082,7 @@ async function computeHistoricalAggregates(
     let bidAccuracyTotal = 0;
     const placements: number[] = [];
     const roundAccumulators = new Map<number, MutableRoundAccumulator>();
+    const handAccumulator = createMutableSuitCounts();
     for (const record of games) {
       if (!record || typeof record !== 'object') continue;
       const normalized = getOrNormalizeGame(record);
@@ -1014,8 +1149,20 @@ async function computeHistoricalAggregates(
       if (placement !== null) {
         placements.push(placement);
       }
+      const handTotals = getHandInsightsForPlayer(record, normalized, canonicalId);
+      if (handTotals) {
+        accumulateSuitCounts(handAccumulator, handTotals.suitCounts);
+      }
     }
     const historicalRounds = toRoundAggregateMap(roundAccumulators);
+    const totalHistoricalHands = sumSuitCounts(handAccumulator);
+    const historicalHands =
+      totalHistoricalHands > 0
+        ? Object.freeze({
+            handsPlayed: totalHistoricalHands,
+            suitCounts: freezeSuitCounts(handAccumulator),
+          })
+        : null;
     debugLog('historical players scanned', {
       playerId,
       scoreCount,
@@ -1026,6 +1173,7 @@ async function computeHistoricalAggregates(
       bidAccuracyTotal,
       placements: placements.length,
       rounds: Object.keys(historicalRounds).length,
+      totalHands: totalHistoricalHands,
     });
     return {
       totals: Object.freeze({ gamesPlayed, gamesWon }),
@@ -1041,6 +1189,7 @@ async function computeHistoricalAggregates(
       }),
       placements: Object.freeze([...placements]),
       rounds: historicalRounds,
+      hands: historicalHands,
       error:
         legacySkipped > 0
           ? 'Some archived games are still migrating; statistics may be incomplete.'
@@ -1056,6 +1205,7 @@ async function computeHistoricalAggregates(
       bidAccuracy: emptyBidAccuracyAggregate,
       placements: Object.freeze([]),
       rounds: Object.freeze({}),
+      hands: null,
       error: message,
     };
   }

@@ -23,6 +23,7 @@ import PlayerMissing from '../../_components/PlayerMissing';
 import { PrimaryStatsCard } from './components/PrimaryStatsCard';
 import { SecondaryStatsCard } from './components/SecondaryStatsCard';
 import { RoundAccuracyChart } from './components/RoundAccuracyChart';
+import { HandInsightsCard } from './components/HandInsightsCard';
 import styles from './page.module.scss';
 
 export type PlayerStatisticsViewProps = {
@@ -250,9 +251,11 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
               ))}
             </div>
           ) : (
-            <div className={styles.placeholderCopy}>
-              Suit distributions and hand insights will appear once analytics are connected.
-            </div>
+            <HandInsightsCard
+              loading={isLoading}
+              insight={resolvedSummary?.handInsights ?? null}
+              loadError={resolvedSummary?.loadError}
+            />
           )}
         </Card>
 

@@ -51,21 +51,20 @@ export function CardGlyph({
   );
 }
 
-export function SuitGlyph({
-  suit,
-  className,
-  title,
-}: {
+type SuitGlyphProps = {
   suit: Suit;
   className?: string;
   title?: string;
-}) {
+} & React.HTMLAttributes<HTMLSpanElement>;
+
+export function SuitGlyph({ suit, className, title, ...rest }: SuitGlyphProps) {
   return (
     <span
       data-slot="suit-glyph"
       data-suit={suit}
       className={clsx(styles.suitGlyph, className)}
       title={title ?? suit}
+      {...rest}
     >
       <span className={styles.suitGlyphSymbol}>{suitSymbol(suit)}</span>
     </span>

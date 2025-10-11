@@ -17,13 +17,8 @@ const { PlayerStatisticsView } = await import(
   '@/app/players/[playerId]/statistics/PlayerStatisticsView'
 );
 
-const loadPlayerStatisticsSummaryMock = vi.spyOn(
-  stateModule,
-  'loadPlayerStatisticsSummary',
-);
-type PlayerStatisticsSummaryPromise = ReturnType<
-  typeof stateModule.loadPlayerStatisticsSummary
->;
+const loadPlayerStatisticsSummaryMock = vi.spyOn(stateModule, 'loadPlayerStatisticsSummary');
+type PlayerStatisticsSummaryPromise = ReturnType<typeof stateModule.loadPlayerStatisticsSummary>;
 
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 
@@ -124,15 +119,13 @@ describe('PlayerStatisticsView', () => {
     expect(screen.getByText(/Primary metrics/i)).toBeTruthy();
     expect(screen.queryByText(/Total games/i)).toBeNull();
 
-    resolveSummary(
-      stateModule.createEmptyPlayerStatisticsSummary('p1'),
-    );
+    resolveSummary(stateModule.createEmptyPlayerStatisticsSummary('p1'));
 
     await waitFor(() => {
-    expect(screen.getAllByText(/Total games/i).length).toBeGreaterThanOrEqual(1);
-    expect(
-      screen.getAllByText(/Complete a game to unlock win insights/i).length,
-    ).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/Total games/i).length).toBeGreaterThanOrEqual(1);
+      expect(
+        screen.getAllByText(/Complete a game to unlock win insights/i).length,
+      ).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -201,6 +194,36 @@ describe('PlayerStatisticsView', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Complete a game to unlock score trends/i)).toBeTruthy();
+      expect(
+        screen.getByText(/Complete additional games to unlock suit distribution insights/i),
+      ).toBeTruthy();
+    });
+  });
+
+  it('renders hand insights when suit data is available', async () => {
+    const state = buildStateWithPlayer();
+    setMockAppState(createMockAppState(state));
+
+    loadPlayerStatisticsSummaryMock.mockResolvedValue({
+      ...stateModule.createEmptyPlayerStatisticsSummary('p1'),
+      handInsights: {
+        handsPlayed: 6,
+        topSuit: 'spades',
+        suitCounts: {
+          clubs: 1,
+          diamonds: 1,
+          hearts: 1,
+          spades: 3,
+        },
+      },
+    });
+
+    render(<PlayerStatisticsView playerId="p1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Hands played/i)).toBeTruthy();
+      expect(screen.getByText('6')).toBeTruthy();
+      expect(screen.getAllByText(/Spades/i).length).toBeGreaterThan(0);
     });
   });
 

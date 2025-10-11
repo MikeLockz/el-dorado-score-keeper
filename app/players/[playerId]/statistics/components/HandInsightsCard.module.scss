@@ -1,0 +1,149 @@
+@use '../../../../../styles/mixins/typography' as typography;
+@use '../../../../../styles/tokens/spacing' as spacing;
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-4');
+}
+
+.summary {
+  display: grid;
+  gap: spacing.spacing('space-3');
+}
+
+@media (min-width: 40rem) {
+  .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.summaryBlock {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+  padding: spacing.spacing('space-2');
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-muted) 60%, transparent);
+}
+
+.summaryLabel {
+  @include typography.body('body-sm');
+  font-weight: 500;
+  color: var(--color-muted-foreground);
+}
+
+.summaryValue {
+  @include typography.heading('heading-lg');
+  line-height: 1.1;
+}
+
+.topSuit {
+  display: flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+}
+
+.topSuitDetails {
+  display: flex;
+  flex-direction: column;
+  gap: calc(spacing.spacing('space-1') / 2);
+}
+
+.topSuitName {
+  @include typography.heading('heading-sm');
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.topSuitCount {
+  @include typography.body('body-xs');
+  color: var(--color-muted-foreground);
+}
+
+.topSuitFallback {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}
+
+.chart {
+  display: grid;
+  gap: spacing.spacing('space-2');
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+  padding: spacing.spacing('space-2');
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-background) 80%, transparent);
+}
+
+.rowHighlight {
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--color-foreground) 25%, transparent);
+  background: color-mix(in oklch, var(--color-muted) 55%, transparent);
+}
+
+.rowHeader {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: spacing.spacing('space-2');
+  align-items: center;
+}
+
+.rowLabel {
+  @include typography.body('body-sm');
+  font-weight: 600;
+}
+
+.rowCount {
+  @include typography.body('body-sm');
+  justify-self: end;
+  color: var(--color-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.rowPercent {
+  @include typography.body('body-sm');
+  justify-self: end;
+  color: var(--color-muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.barTrack {
+  block-size: 0.5rem;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklch, var(--color-muted) 65%, transparent);
+  overflow: hidden;
+}
+
+.barFill {
+  block-size: 100%;
+  border-radius: inherit;
+  transition: inline-size 200ms ease;
+  background: var(--color-foreground);
+}
+
+.barFill[data-suit='hearts'],
+.barFill[data-suit='diamonds'] {
+  background: var(--destructive);
+}
+
+.barFill[data-suit='clubs'] {
+  background: var(--color-primary);
+}
+
+.barFill[data-suit='spades'] {
+  background: var(--color-foreground);
+}
+
+.empty {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}
+
+.tieHint {
+  @include typography.body('body-xs');
+  color: var(--color-muted-foreground);
+}

@@ -254,105 +254,176 @@ This plan decomposes the work described in `PLAYER_STATISTICS.md` into phased en
 
 **Goals**
 
-- Calculate hands played and most frequent suit using event replay.
-- Render `HandInsightsCard` including suit distribution chart.
+- Derive hand-level insights (hands played, suit distribution, most frequent suit) for a selected player using canonical ids.
+- Render `HandInsightsCard` with totals, top-suit callout, and responsive suit distribution visualization.
 
 **Tasks**
 
-1. **Selector**
-   - Parse `sp/trick/played` events to produce suit counts and total hands.
-   - Handle fallback to live `state.sp.trickPlays` when archives missing.
-2. **UI**
-   - Build card with suit icons, counts, and optional bar chart using `@visx/shape` primitives.
+1. **Selector & Aggregation**
+   - Extend `HandInsight` (in `lib/state/player-statistics.ts`) to include:
+     - `totalHandsPlayed`, `topSuit`, and `suitDistribution` keyed by canonical suit (`clubs|diamonds|hearts|spades`).
+     - Optional `lastUpdated` timestamp for telemetry/debug (mirrors other metrics).
+   - Implement `accumulateHandInsights()` in a new module (`lib/state/player-statistics/hands.ts`) that:
+     - Replays archived `sp/trick/played` events per `GameRecord` using canonical player ids from Phase 2 metadata.
+     - Aggregates counts per suit and returns total hands played for the requested player.
+     - Handles legacy summaries (missing canonical metadata) by short-circuiting with `null` and logging a debug warning.
+   - Merge live state fallback via `state.sp.trickPlays` only when IndexedDB replay fails, and gate it behind the same readiness flag used in Phase 2 backfill.
+   - Export memoized helpers (`getHandInsightsFromGame`, `mergeHandInsightTotals`) and ensure `loadPlayerStatisticsSummary` populates `summary.handInsights`.
+   - Add cache integration (shared `cache.ts`) so replayed suit counts memoize per `gameId` + `playerId`.
+2. **UI Implementation**
+   - Build `HandInsightsCard` in `app/players/[playerId]/statistics/components/HandInsightsCard.tsx` that:
+     - Shows total hands played, most frequent suit with iconography, and tie-breaker messaging when suits equal.
+     - Renders a horizontal suit distribution bar chart using `@visx/shape` (`BarGroup` or `BarStack`) with animation disabled for deterministic tests.
+     - Supports loading skeletons (`Skeleton` blocks for total/top suit/chart) and error/empty states (guidance copy).
+   - Create `HandInsightsCard.module.scss` leveraging existing spacing vars; ensure the chart respects tablet breakpoints (wrap chart below stats at ≤768px).
+   - Wire card into `PlayerStatisticsView` layout beneath round insights.
 3. **Accessibility & Localization**
-   - Ensure suits have descriptive labels and localization keys.
+   - Add localized strings (e.g., `playerStatistics.handInsights.totalHands`, `playerStatistics.handInsights.topSuit`) to `app/i18n/en/player-statistics.json`.
+   - Provide visually hidden labels describing suit bars (percentage + absolute count) and ensure `role="img"`/`aria-label` on icons.
+   - Include keyboard-focusable tooltip triggers or inline descriptions; confirm high-contrast mode readability.
+   - Document pronunciation guidance in `PLAYER_STATISTICS.md` if localization deviates (e.g., ordinal phrasing for suit rank).
 
 **Status**
 
-- [ ] Suit aggregation still using placeholder suit constants; canonical id->player mapping needs QA coverage.
-- [ ] `HandInsightsCard` layout on tablet unresolved; bars overflow container.
-- [ ] Screen reader copy pending localization review.
+- [x] Historical hand replay uses canonical metadata and caches per-game insights.
+- [x] `HandInsightsCard` renders totals, top suit, and responsive bar chart without overflow issues.
+- [ ] Localization keys + screen reader copy approved and merged.
 
 **Validation**
 
-- Cross-check counts against known sample games.
-- Confirm chart renders on mobile/desktop layouts.
+- Run backfill-enabled dev build, seed archives with multi-game history, and compare per-suit totals against manual tallies.
+- Toggle feature flag to simulate missing archives; ensure live-state fallback returns consistent counts or `null` with warning.
+- Verify chart responsiveness across mobile/tablet/desktop and confirm no horizontal scroll.
+- Perform accessibility audit (keyboard focus, axe scan) on the card in both populated and empty states.
 
 **Testing**
 
-- Selector tests for suit aggregation.
-- Component tests verifying top suit selection.
+- Unit tests in `tests/unit/state/player-statistics/hand-insights.test.ts` covering:
+  - Canonical replay of archived events (single suit dominance, mixed suits, zero plays).
+  - Graceful handling of legacy summaries and live fallback.
+  - Cache hits/misses and memoization guards.
+- Component tests in `tests/unit/components/player-statistics/hand-insights-card.test.tsx` verifying:
+  - Loading, empty, and populated renders.
+  - Correct icon/label pairing and formatted totals.
+  - Responsive snapshot (via container width mocks) to assert stacked layout.
 
 **Commit**
 
-- Commit Phase 5 once complete.
+- Commit Phase 5 once aggregation, UI, and test coverage land; include updated localization files and doc notes.
+
+**Next Actions**
+
+- Finalize `hands.ts` helper implementation and wire through the loader.
+- Build the `HandInsightsCard` component + styles, then integrate into the statistics view.
+- Author localization entries and run `pnpm lint`, `pnpm test --filter hand-insights` (or equivalent subset) before Phase 5 sign-off.
 
 ## Phase 6 – Advanced Metrics
 
 **Goals**
 
-- Implement trick efficiency, suit mastery, score volatility, and momentum metrics.
-- Render `AdvancedInsightsPanel` with charts and analytics.
+- Deliver advanced analytics (trick efficiency, suit mastery, score volatility, momentum) derived from canonical events.
+- Render `AdvancedInsightsPanel` with interactive charts and accessibility-compliant annotations.
 
 **Tasks**
 
-1. **Selector Logic**
-   - Add advanced metric calculations, ensuring caching of replayed data.
-   - Populate `AdvancedMetrics` in summary.
+1. **Selector & Calculators**
+   - Expand `AdvancedMetrics` type (`lib/state/player-statistics.ts`) to include:
+     - `trickEfficiency` (win percentage per suit + overall).
+     - `suitMastery` matrix (per-suit success %, attempts, win/loss deltas).
+     - `scoreVolatility` (standard deviation, rolling variance, high/low outliers).
+     - `momentum` (rolling average scores, current/longest streaks, comeback metrics).
+   - Implement calculators in `lib/state/player-statistics/advanced.ts`:
+     - Reuse canonical `NormalizedHistoricalGame` payloads and Phase 5 hand insights to avoid double replay.
+     - Provide helpers (`calculateTrickEfficiency`, `calculateSuitMastery`, `calculateScoreVolatility`, `calculateMomentum`), each accepting live + archived aggregates.
+     - Support partial data (e.g., missing suits, short histories) by returning `null` subfields rather than zeroed noise.
+     - Expose memoized entry point (`accumulateAdvancedMetrics`) and register in `loadPlayerStatisticsSummary`.
+   - Integrate caching with `cache.ts` (per `gameId` + calculator key) to prevent reprocessing large archives.
 2. **UI Implementation**
-   - Build sparklines, matrices, and badges as defined in visualization guidance using `@visx/xychart` (or `@visx/line`) for rolling averages and streak trends.
-   - Integrate skeletons and error fallbacks.
-3. **Performance & Guardrails**
-   - Debounce recomputations triggered by cross-tab updates.
-   - Document thresholds for large history datasets.
+   - Build `AdvancedInsightsPanel` (`app/players/[playerId]/statistics/components/AdvancedInsightsPanel.tsx`) with sections:
+     - Trick efficiency badges (per suit) using percentage chips and directional glyphs.
+     - Suit mastery matrix (grid) highlighting best/worst suits with tooltips.
+     - Score volatility sparkline (rolling averages) using `@visx/xychart` with keyboard-accessible focus markers.
+     - Momentum card summarizing streaks/comebacks and inline trend arrows.
+   - Create accompanying stylesheet `AdvancedInsightsPanel.module.scss` ensuring responsive layout (stack columns ≤1024px, maintain chart aspect ratios).
+   - Wire skeletons/error states mirroring other cards; guard rendering when metrics are `null`.
+   - Add integration to `PlayerStatisticsView` below hand insights with proper spacing tokens.
+3. **Accessibility, Localization, & Telemetry**
+   - Add i18n entries for advanced metric labels, tooltips, and aria descriptions.
+   - Ensure charts expose `aria-describedby` and provide tab-order entries for data points (e.g., focus ring per sparkline marker).
+   - Emit performance marks (`performance.mark`) when advanced calculators run; document thresholds and debugging hooks in `PLAYER_STATISTICS.md`.
+   - Update telemetry wiring to record calculator durations and cache hit rates (if existing instrumentation hooks available).
+4. **Performance & Guardrails**
+   - Batch event replay across calculators to avoid redundant iteration (`buildAdvancedReplayContext` helper).
+   - Debounce cross-tab refresh handlers so repeated signals do not thrash expensive charts.
+   - Document maximum tested archive size and fallback strategy when limits exceeded (e.g., show warning banner, truncate history).
 
 **Status**
 
-- [ ] Trick efficiency calculator passes unit tests but still flagged for perf (needs memoization of event replay).
-- [ ] `AdvancedInsightsPanel` skeleton states implemented; populated render blocked on finalized data contract.
-- [ ] Volatility sparkline missing design QA review for color contrast.
+- [ ] Advanced calculators replay canonical events once and hydrate all required metrics.
+- [ ] `AdvancedInsightsPanel` renders trick efficiency, suit mastery, volatility, and momentum sections with responsive behavior.
+- [ ] Accessibility, localization, and telemetry updates approved.
+- [ ] Performance guardrails (memoization + debounced refresh) land and verified.
 
 **Validation**
 
-- Compare output against manual calculations for sample datasets.
-- Verify momentum charts update correctly after new games archive.
+- Compare calculator output against curated sample datasets (short streaks, long archives, extreme volatility).
+- Simulate addition/removal of games via cross-tab signals and confirm metrics update without perceptible lag.
+- Run manual QA on desktop + mobile for chart interactions, tooltips, and color contrast (include dark mode if supported).
+- Capture telemetry samples to confirm performance marks/logs populate expected dashboards.
 
 **Testing**
 
-- Unit tests for advanced calculators (streaks, standard deviation, rolling averages).
-- Component tests mocking complex data scenarios.
-- Optional visual regression tests for charts.
+- Unit tests in `tests/unit/state/player-statistics/advanced-metrics.test.ts` covering:
+  - Trick efficiency and suit mastery math (including zero-attempt suits, ties).
+  - Volatility calculations (standard deviation, rolling window) with deterministic inputs.
+  - Momentum streak detection across mixed win/loss sequences and comeback edge cases.
+  - Cache hit/miss behavior and guard rails for large datasets.
+- Component tests in `tests/unit/components/player-statistics/advanced-insights-panel.test.tsx` verifying:
+  - Skeleton/error handling, chart rendering, tooltip content, ARIA labels.
+  - Responsive layout snapshots and keyboard navigation across interactive elements.
+- Optional visual regression (Percy/Chromatic) once charts stabilize; document baseline requirement.
 
 **Commit**
 
-- Commit Phase 6 after validations and tests.
+- Commit Phase 6 once calculators, UI, accessibility, and telemetry are complete and tests/lint pass.
+
+**Next Actions**
+
+- Finish `advanced.ts` calculators with shared replay context and hook into loader caching.
+- Build `AdvancedInsightsPanel` + styles, integrate localization strings, and wire to view container.
+- Run targeted test suites (`pnpm test --filter advanced-metrics`, `pnpm lint`) before merging; coordinate with design for volatility sparkline review.
 
 ## Phase 7 – Docs, Cleanup, and Final Validation
 
 **Goals**
 
-- Ensure documentation up to date and codebase adheres to patterns.
-- Run full test suite and lint checks.
-- Close the remaining gaps from Phases 2–6 so the statistics experience is end-to-end complete.
+- Ensure documentation and type exports reflect the final statistics implementation.
+- Eliminate temporary flags/dead code, stabilize telemetry, and complete cross-phase QA debt.
+- Run the full validation matrix (lint, unit, integration, visual, manual) before release.
 
 **Tasks**
 
 1. **Backlog Audit & Catch-up (Pre-flight)**
-   - Validate the Phase 2 canonical-id backfill has finished successfully (telemetry shows 100% upgraded summaries) and remove temporary feature flags once confirmed.
-   - Phase 3: Confirm secondary metric selectors (`averageScore`, `averageBidAccuracy`, `medianPlacement`, `highestScore`) are implemented with canonical ids and the `SecondaryStatsCard` renders without placeholders.
-   - Phase 4: Ensure per-round accuracy replay uses the normalized archives, chart interactions work, and mobile layout issues flagged in QA are resolved.
-   - Phase 5: Finish `HandInsightsCard` suit aggregation plus accessibility labels; remove the temporary live-state fallback once canonical metadata is guaranteed.
-   - Phase 6: Verify advanced calculators (trick efficiency, streaks, volatility) ship with memoization/caching enabled and address any TODOs left in code comments.
-   - Document any residual gaps in `SCRATCH_PAD.md` if they must slip post-launch.
-2. **Documentation Updates**
-   - Update `PLAYER_STATISTICS.md` and any README/usage docs with final implementation notes, including the new canonical id expectations and selector contracts.
-   - Backfill JSDoc/inline comments where the canonical-id pipeline altered function signatures.
+   - Confirm Phase 2 canonical-id backfill telemetry shows 100% upgraded summaries; remove feature flag + delete legacy slot-mapping utilities (`lib/state/player-statistics/slot-utils.ts` or similar).
+   - Verify Phase 3 secondary metrics populate fully in `SecondaryStatsCard` and clear any temporary `TODO` annotations or placeholder copy.
+   - Ensure Phase 4 round accuracy chart resolves mobile spacing QA bugs; close associated tracking issues.
+   - Validate Phase 5 hand insights use canonical archives exclusively—remove live-state fallback once backfill proven.
+   - Finalize Phase 6 advanced calculators (memoization flags, perf marks); resolve design QA on volatility sparkline and delete experimental prototypes.
+   - Log any remaining deferrals in `SCRATCH_PAD.md` with owner + follow-up milestone.
+2. **Documentation & Knowledge Base**
+   - Update `PLAYER_STATISTICS.md` with final data contracts, feature flags removed, and telemetry expectations.
+   - Refresh `README.md`/developer onboarding snippets describing IndexedDB backfill/replay flows and how to run stat-specific tests.
+   - Add doc comments in `lib/state/player-statistics/*.ts` summarizing canonical id assumptions and cache invalidation.
+   - Produce `docs/player-statistics-validation.md` summarizing QA steps, telemetry dashboards, and rollback plan.
 3. **Type & Module Hygiene**
-   - Ensure TypeScript types exported for external reuse (`PlayerStatisticsSummary`, `RoundMetric`, `SuitInsight`, `AdvancedMetricTrend`), and delete duplicate interfaces left behind during refactors.
-   - Remove unused utilities or placeholder code (old slot-based helpers, experimental components, or temporary feature flags).
-4. **Full Validation Pass**
-   - Run lint, unit, integration, and visual tests (`pnpm lint`, `pnpm test`, `pnpm test:integration`, `pnpm test:visual`).
-   - Execute a manual smoke across desktop/mobile, including cross-tab synchronization in a real browser session, and capture screenshots for design sign-off.
+   - Audit exports from `lib/state/player-statistics/index.ts` ensuring `PlayerStatisticsSummary`, `RoundMetric`, `SuitInsight`, `AdvancedMetricTrend`, and helper types are publicly available and deduplicated.
+   - Remove obsolete factories, slot-based helpers, temporary feature-flag hooks, and unused components (e.g., `PlaceholderRoundCard`).
+   - Ensure `cache.ts` exposes only necessary APIs, and add guard rails (e.g., size limits) if left permanent—document rationale.
+4. **Validation & Release Prep**
+   - Run project-wide checks: `pnpm lint`, `pnpm test`, `pnpm test:integration`, `pnpm test:visual` (or targeted equivalents).
+   - Execute smoke tests in real browsers (desktop + mobile) covering: route navigation, cross-tab sync (emit manual signal), offline IndexedDB unavailability, and localization toggle.
+   - Capture final screenshots/videos for design/product sign-off; attach to release notes.
+   - Review telemetry dashboards for anomalies during dry run; tune alert thresholds if necessary.
 
 ### Phase 7 Audit Snapshot – 2025-10-11
 
@@ -364,18 +435,26 @@ This plan decomposes the work described in `PLAYER_STATISTICS.md` into phased en
 
 **Validation**
 
-- Telemetry dashboards show backfill success >= 99% with no unhandled errors.
-- Manual smoke test across routes, verifying every card renders populated data when archives exist and falls back gracefully.
-- Double-check cross-tab synchronization in real browser environment.
+- Telemetry dashboards show backfill success ≥ 99% with no unhandled errors; alerting thresholds configured.
+- Full manual smoke on desktop/tablet/mobile verifying populated + empty states, localization, dark mode (if available), and cross-tab refresh accuracy.
+- Review TypeScript build output (`pnpm build`) to ensure no unused export/namespace warnings.
+- Validate release artifacts (bundle size comparison, source map generation) remain within budget.
 
 **Testing**
 
-- Full CI suite.
+- Full CI suite plus targeted reruns if flaky suites detected; confirm coverage thresholds maintained.
+- Optional load test script (if available) to stress IndexedDB replay and ensure caching behaves under repeated tab refresh.
 
 **Commit & Delivery**
 
-- Final commit with documentation updates.
-- Prepare PR summarizing phases and validations.
+- Final commit encapsulating doc updates, cleanup, and validation artifacts.
+- Prepare release PR summarizing completed phases, test matrix, telemetry readiness, and attaching design sign-off assets.
+
+**Next Actions**
+
+- Complete backlog audit checklist; remove feature flags and legacy helpers.
+- Update docs/README + add validation doc, then regenerate localization bundles if strings changed.
+- Execute full validation suite and capture sign-off materials before tagging the release.
 
 ## Post-Launch Monitoring & Enhancements
 
