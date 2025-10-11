@@ -69,7 +69,7 @@ const nextConfig = {
 - The script derives release metadata (channel + git sha) and skips runtime when `ENABLE_SOURCE_MAPS` was not set for the build.
 - New Relic uploads implemented: set `SOURCE_MAP_UPLOAD_PROVIDER=newrelic` with `NEW_RELIC_USER_API_KEY`, `NEW_RELIC_BROWSER_APP_ID`, and `NEW_RELIC_SOURCE_MAP_BASE_URL` (plus optional `NEW_RELIC_SOURCE_MAP_RELEASE`, `NEW_RELIC_REGION`).
 - HyperDX branch remains TODO once API requirements are finalized.
-- GitHub Pages deploy workflow (`.github/workflows/deploy.yml`) enables source maps during the build and invokes the uploader automatically when the required secrets/vars are present.
+- GitHub Pages deploy workflow (`.github/workflows/deploy.yml`) enables source maps during the build and invokes the uploader automatically when the required secrets are present.
 - Store auth tokens securely (CI secrets) and document required env vars (`NEW_RELIC_USER_API_KEY`, `HYPERDX_API_KEY`).
 
 ### 5. Local & Preview Verification

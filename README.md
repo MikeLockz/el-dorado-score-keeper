@@ -246,4 +246,5 @@ Cloudflare worker environments can copy `cloudflare/analytics-worker/.dev.vars.e
   - `NEW_RELIC_SOURCE_MAP_BASE_URL` (public origin/base path that serves `_next/*` assets)
 - Optional: `NEW_RELIC_SOURCE_MAP_RELEASE`, `NEW_RELIC_REGION` (set to `eu` for EU accounts)
 - The script archives maps to `artifacts/` and uploads browser-visible assets to New Relic Browser for the specified release.
-- The GitHub Pages deploy workflow (`.github/workflows/deploy.yml`) runs this uploader automatically on pushes to `main` when the required secrets/vars are present.
+- Store these values as repository or organization secrets so GitHub Actions can read them.
+- The GitHub Pages deploy workflow (`.github/workflows/deploy.yml`) runs this uploader automatically on pushes to `main` when the required secrets are present.

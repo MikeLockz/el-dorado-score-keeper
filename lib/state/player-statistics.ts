@@ -79,14 +79,6 @@ const suitNames: Array<'clubs' | 'diamonds' | 'hearts' | 'spades'> = [
   'spades',
 ];
 
-const defaultSuitCounts: Readonly<Record<'clubs' | 'diamonds' | 'hearts' | 'spades', number>> =
-  Object.freeze({
-    clubs: 0,
-    diamonds: 0,
-    hearts: 0,
-    spades: 0,
-  });
-
 export const createPendingPlayerStatisticsSummary = (
   playerId: string,
 ): PlayerStatisticsSummary => ({
@@ -97,11 +89,7 @@ export const createPendingPlayerStatisticsSummary = (
   primary: null,
   secondary: null,
   rounds: [],
-  handInsights: {
-    handsPlayed: 0,
-    suitCounts: defaultSuitCounts,
-    topSuit: null,
-  },
+  handInsights: null,
   advanced: null,
 });
 
@@ -115,11 +103,7 @@ export const createEmptyPlayerStatisticsSummary = (
   primary: null,
   secondary: null,
   rounds: [],
-  handInsights: {
-    handsPlayed: 0,
-    suitCounts: defaultSuitCounts,
-    topSuit: null,
-  },
+  handInsights: null,
   advanced: null,
 });
 
@@ -134,11 +118,7 @@ export const createErroredPlayerStatisticsSummary = (
   primary: null,
   secondary: null,
   rounds: [],
-  handInsights: {
-    handsPlayed: 0,
-    suitCounts: defaultSuitCounts,
-    topSuit: null,
-  },
+  handInsights: null,
   advanced: null,
 });
 
