@@ -63,6 +63,74 @@
 | Momentum | Rolling Avg Score | Moving average of final scores over last N games (configurable window) | Compute sliding window mean (default N=5) | Include active game score when phase >= `summary` | Order archived scores by `GameRecord.finishedAt` |
 | Momentum | Win Streak | Longest and current consecutive wins | Iterate chronological results; track max/current streak | Combine active game win (if finished) with historical streak state | Traverse archived `GameRecord.summary.winnerId` values chronologically |
 
+### 4.6 Selector Contracts
+```ts
+export type PlayerStatsLoadState = {
+  isLoadingLive: boolean;
+  isLoadingHistorical: boolean;
+  loadError: string | null;
+};
+
+export type PrimaryMetrics = {
+  totalGamesPlayed: number;
+  totalGamesWon: number;
+  winRatePercent: number;
+};
+
+export type SecondaryMetrics = {
+  averageScore: number | null;
+  highestScore: number | null;
+  lowestScore: number | null;
+};
+
+export type RoundMetric = {
+  roundNo: number;
+  bidCount: number;
+  bids: number[];
+  highestBid: number | null;
+  lowestBid: number | null;
+  accuracyPercent: number | null;
+  accuracyMatches: number;
+  accuracyTotal: number;
+};
+
+export type HandInsight = {
+  handsPlayed: number;
+  suitCounts: Record<'clubs' | 'diamonds' | 'hearts' | 'spades', number>;
+  topSuit: 'clubs' | 'diamonds' | 'hearts' | 'spades' | null;
+};
+
+export type AdvancedMetrics = {
+  trickEfficiency: {
+    averageDelta: number | null;
+    perfectBidStreak: number;
+  };
+  suitMastery: {
+    trumpWinRateBySuit: Record<'clubs' | 'diamonds' | 'hearts' | 'spades', number>;
+    trickSuccessBySuit: Record<'clubs' | 'diamonds' | 'hearts' | 'spades', number>;
+  };
+  scoreVolatility: {
+    standardDeviation: number | null;
+    largestComeback: number | null;
+    largestLeadBlown: number | null;
+  };
+  momentum: {
+    rollingAverageScores: Array<{ gameId: string; score: number; average: number }>;
+    currentWinStreak: number;
+    longestWinStreak: number;
+  };
+};
+
+export type PlayerStatisticsSummary = PlayerStatsLoadState & {
+  playerId: string;
+  primary: PrimaryMetrics | null;
+  secondary: SecondaryMetrics | null;
+  rounds: RoundMetric[];
+  handInsights: HandInsight | null;
+  advanced: AdvancedMetrics | null;
+};
+```
+
 ## 5. Feature Requirements
 - **Player Selector:**
   - Dropdown or search to choose a player from `playerDetails`.
@@ -78,14 +146,25 @@
 - **Advanced Analytics:**
   - Highlight trick efficiency deltas, perfect bid streaks, and momentum badges (current streak).
   - Provide suit mastery comparisons (per-trump win rate, trick success), volatility summaries, and sliding average charts.
+- **Visualization Guidance:**
+  - Use card-based layout for primary/secondary stats with concise labels and trend indicators.
+  - Represent bid accuracy as a 10-column heatmap (rounds) with tooltip breakdowns.
+  - Show trick efficiency and volatility as sparklines/line charts with contextual annotations; suit mastery via matrix or bar chart.
+  - Maintain consistent color palette mapping (e.g., suits) and provide legends accessible to screen readers.
 - **Empty States & Loading:**
   - Handle no completed games (show guidance to start playing).
-  - Skeleton/loading state if data fetched asynchronously.
+  - Display skeleton loaders for each card/chart until both live and archived data are resolved.
 - **Accessibility:**
   - Ensure cards meet color contrast; charts have aria descriptions.
   - Provide keyboard navigation for player selector and tabs.
 - **Responsive Layout:**
   - Stack cards vertically on narrow screens; multi-column layout on desktop.
+- **Component Styling:**
+  - Build all cards using shared primitives in `components/ui` (`Card`, `CardHeader`, `CardContent`, `CardFooter`) to inherit design tokens.
+  - Scope styling through new CSS modules that import existing spacing/typography mixins; avoid global overrides.
+  - Use the app’s `Skeleton` component for loading states, matching shimmer/shapes to the final layout.
+  - Leverage existing iconography (`CardGlyph`, suit icons) for suit visuals in hand insights.
+  - Adopt `@visx/visx` primitives for charts: `@visx/heatmap` for bid accuracy grid, `@visx/xychart` for sparklines/rolling averages, and `@visx/shape` for suit distribution bars. Apply color tokens and add ARIA/tooltip layers manually.
 
 ## 6. Technical Plan
 1. **Data Layer**
@@ -94,6 +173,8 @@
    - Normalize past game records into a canonical shape (e.g., `GameSummary` interface).
    - Hydrate archived game bundles from IndexedDB via `listGames`/`getGame` (`lib/state/io.ts`) and expose a decoded event stream (deal, trick, score events) per game.
    - Merge current game data from the Redux slice with archived aggregates in a unified selector response (e.g., `combineLiveAndHistoricalStats`).
+   - Expose loading/error flags from selectors (e.g., `isLoadingHistorical`, `isLoadingLive`, `loadError`) so the view can toggle skeletons and fallbacks.
+   - Return a strongly typed `PlayerStatisticsSummary` object that wraps metrics and load state (see Selector Contracts).
 2. **Derivation Utilities**
    - Helper functions to compute aggregates (e.g., `calculateBidAccuracy(rounds, playerId)`).
    - Unit tests validating edge cases (no games, only partial rounds, ties).
@@ -104,22 +185,27 @@
    - `PrimaryStatsCard`, `SecondaryStatsCard`, `RoundAccuracyChart`, `HandInsightsCard` for modular UI.
    - Shared chart component configured for 10-round accuracy visualization.
    - `AdvancedInsightsPanel` combining trend charts (rolling average), volatility sparkline, streak indicators, and suit mastery matrix.
+   - Cross-tab sync hook that subscribes to `subscribeToGamesSignal` and triggers stat recomputation when games are added/deleted.
+   - Typed selector responses (e.g., `PlayerStatsSummary`, `RoundMetric`, `SuitInsight`) exported from a `/types` module for UI consumption.
 4. **State Integration**
    - Ensure completed games stored in a persistent slice (localStorage or backend) and rehydrated on load.
    - Trigger persistence when a game transitions to `summaryEnteredAt` or `phase === "complete"`.
+   - Register IndexedDB/BroadcastChannel listeners (via `subscribeToGamesSignal`) so statistics recompute when another tab archives or deletes a game.
 5. **Routing/Navigation**
    - Add dedicated route (e.g., `/players/:playerId/statistics`) or modal accessible from scoreboard.
    - Update navigation UI to expose the statistics view.
 6. **Testing**
    - Selector unit tests with sample state (like provided snapshot).
-   - Component tests ensuring correct rendering given mock selectors.
+   - Component tests ensuring correct rendering given mock selectors (including loading/error flag scenarios).
    - Visual regression tests for charts/cards if tooling available.
 
 ## 7. Non-Functional Considerations
 - **Performance:** Memoize heavy aggregations; precompute summaries when storing completed games.
+- **Performance Guardrails:** Cache parsed `GameRecord` event timelines keyed by `gameId`, batch IndexedDB reads, and debounce recomputations triggered by cross-tab signals.
 - **Localization:** Keep metric labels in i18n files for future translation.
 - **Persistence:** Consider schema migrations if storing history in localStorage/indexedDB.
 - **Security:** Guard against tampered local data; sanitize strings.
+- **Error Handling:** Detect IndexedDB unavailability (e.g., private mode) and show a degraded experience banner with instructions; fall back to live-state-only stats when archives can’t be read.
 
 ## 8. Open Questions
 - Where do completed game summaries live today? Need confirmation on storage strategy (client-only vs. backend).

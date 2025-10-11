@@ -627,19 +627,12 @@ export function createIndexedDbAdapter(db: IDBDatabase): SpSnapshotIndexedDbAdap
     clear: async () => {
       const t = tx(db, 'readwrite', [storeNames.STATE]);
       const store = t.objectStore(storeNames.STATE);
-      const delSnapshot = store.delete(SP_SNAPSHOT_RECORD_KEY);
+      store.delete(SP_SNAPSHOT_RECORD_KEY);
+      store.delete(SP_GAME_INDEX_RECORD_KEY);
       await new Promise<void>((resolve, reject) => {
-        delSnapshot.onsuccess = () => resolve();
-        delSnapshot.onerror = () => reject(delSnapshot.error ?? new Error('Failed to delete SP snapshot'));
+        t.oncomplete = () => resolve();
         t.onabort = () => reject(t.error ?? new Error('Transaction aborted clearing SP snapshot'));
         t.onerror = () => reject(t.error ?? new Error('Transaction error clearing SP snapshot'));
-      });
-      const delIndex = store.delete(SP_GAME_INDEX_RECORD_KEY);
-      await new Promise<void>((resolve, reject) => {
-        delIndex.onsuccess = () => resolve();
-        delIndex.onerror = () => reject(delIndex.error ?? new Error('Failed to delete SP game index'));
-        t.onabort = () => reject(t.error ?? new Error('Transaction aborted clearing SP game index'));
-        t.onerror = () => reject(t.error ?? new Error('Transaction error clearing SP game index'));
       });
     },
     readIndex: async () => {
