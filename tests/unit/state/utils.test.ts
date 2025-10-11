@@ -122,6 +122,9 @@ describe('state utils helpers', () => {
   it('resolvePlayerRoute handles explicit ids and archived fallbacks', () => {
     expect(resolvePlayerRoute('player-1')).toBe('/players/player-1');
     expect(resolvePlayerRoute(' player-2 ')).toBe('/players/player-2');
+    expect(resolvePlayerRoute('player-3', { view: 'statistics' })).toBe(
+      '/players/player-3/statistics',
+    );
     expect(resolvePlayerRoute('', { archived: true })).toBe('/players/archived');
     expect(resolvePlayerRoute(null, { fallback: 'list' })).toBe('/players');
   });

@@ -170,9 +170,12 @@ export function resolveScorecardRoute(
   return '/scorecard';
 }
 
+export type PlayerRouteView = 'detail' | 'statistics';
+
 export type PlayerRouteOptions = Readonly<{
   archived?: boolean;
   fallback?: 'list' | 'archived';
+  view?: PlayerRouteView;
 }>;
 
 export function resolvePlayerRoute(
@@ -180,7 +183,13 @@ export function resolvePlayerRoute(
   options: PlayerRouteOptions = {},
 ): string {
   const normalized = normalizeId(playerId);
-  if (normalized) return `/players/${normalized}`;
+  if (normalized) {
+    const view = options.view ?? 'detail';
+    if (view === 'statistics') {
+      return `/players/${normalized}/statistics`;
+    }
+    return `/players/${normalized}`;
+  }
   const fallback = options.fallback ?? (options.archived ? 'archived' : 'list');
   return fallback === 'archived' ? '/players/archived' : '/players';
 }

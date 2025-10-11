@@ -14,6 +14,9 @@ const suite = typeof document === 'undefined' ? describe.skip : describe;
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 
 const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
+const setMockRouter = (globalThis as any).__setMockRouter as (
+  router: ReturnType<typeof createRouterStub>,
+) => void;
 
 type MockContext = {
   state: AppState;
@@ -31,6 +34,18 @@ type MockContext = {
 };
 
 let mockAppState: MockContext;
+let router: ReturnType<typeof createRouterStub>;
+
+function createRouterStub() {
+  return {
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    forward: vi.fn(),
+    back: vi.fn(),
+    prefetch: vi.fn().mockResolvedValue(undefined),
+  };
+}
 
 function buildState(): AppState {
   return {
@@ -105,6 +120,8 @@ suite('PlayersPage UI', () => {
       timeTraveling: false,
     };
     setMockAppState(mockAppState);
+    router = createRouterStub();
+    setMockRouter(router);
   });
 
   afterEach(() => {
@@ -221,6 +238,28 @@ suite('PlayersPage UI', () => {
 
     await waitFor(() => {
       expect(append).toHaveBeenCalledWith(expect.objectContaining({ type: 'player/renamed' }));
+    });
+
+    root.unmount();
+    div.remove();
+  });
+
+  it('opens player statistics from the action list', async () => {
+    const { default: PlayersPage } = await import('@/app/players/page');
+    const { div, root } = await renderWithProviders(React.createElement(PlayersPage));
+
+    const statsButton = (await waitFor(() => {
+      const button = div.querySelector('[data-testid="view-stats-player-p1"]') as
+        | HTMLButtonElement
+        | null;
+      expect(button).toBeTruthy();
+      return button;
+    })) as HTMLButtonElement;
+
+    statsButton.click();
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith('/players/p1/statistics');
     });
 
     root.unmount();

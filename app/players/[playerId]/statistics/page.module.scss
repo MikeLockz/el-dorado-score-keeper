@@ -1,0 +1,159 @@
+@use '../../../../styles/mixins/typography' as typography;
+@use '../../../../styles/tokens/spacing' as spacing;
+
+.page {
+  margin-inline: auto;
+  padding: spacing.spacing('space-4');
+  max-inline-size: 72rem;
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-4');
+}
+
+.feedback {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+  color: var(--color-muted-foreground);
+  @include typography.body('body-sm');
+}
+
+.spinner {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.title {
+  @include typography.heading('heading-sm');
+  font-weight: 700;
+}
+
+.subtitle {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}
+
+.selector {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+  max-inline-size: 20rem;
+}
+
+.selectControl {
+  inline-size: 100%;
+  padding-inline: spacing.spacing('space-3');
+  padding-block: spacing.spacing('space-2');
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklch, var(--color-border) 80%, transparent);
+  background: var(--color-card);
+  color: var(--color-foreground);
+  @include typography.body('body-sm');
+}
+
+.sectionGrid {
+  display: grid;
+  gap: spacing.spacing('space-4');
+}
+
+@media (min-width: 56rem) {
+  .sectionGrid {
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  }
+}
+
+.metricsCard {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.cardHeading {
+  font-weight: 600;
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}
+
+.skeletonList {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+}
+
+.skeletonGrid {
+  display: grid;
+  gap: spacing.spacing('space-2');
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.skeletonLine {
+  inline-size: 100%;
+  block-size: 0.75rem;
+  border-radius: var(--radius-full);
+}
+
+.skeletonBlock {
+  inline-size: 100%;
+  block-size: 4rem;
+  border-radius: var(--radius-md);
+}
+
+.placeholderCopy {
+  color: var(--color-muted-foreground);
+  @include typography.body('body-sm');
+}
+
+.emptyCard {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+  align-items: flex-start;
+}
+
+.emptyTitle {
+  font-weight: 600;
+  @include typography.body('body-base');
+}
+
+.emptyDescription {
+  color: var(--color-muted-foreground);
+  @include typography.body('body-sm');
+}
+
+.errorCard {
+  border: 1px solid color-mix(in oklch, var(--color-destructive) 30%, transparent);
+  background: color-mix(in oklch, var(--color-destructive) 8%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+}
+
+.errorTitle {
+  font-weight: 600;
+  color: var(--color-destructive);
+  @include typography.body('body-sm');
+}
+
+.errorDescription {
+  color: var(--color-destructive);
+  @include typography.body('body-sm');
+}
+
+.missing {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
