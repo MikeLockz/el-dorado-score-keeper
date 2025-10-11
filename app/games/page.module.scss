@@ -67,6 +67,38 @@
   margin-block-end: spacing.spacing('space-3');
 }
 
+.scorecardSection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: spacing.spacing('space-3');
+  padding: spacing.spacing('space-3');
+  margin-block-end: spacing.spacing('space-3');
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in oklch, var(--color-border) 82%, transparent);
+  background: color-mix(in oklch, var(--color-surface-subtle) 65%, transparent);
+}
+
+.scorecardCopy {
+  flex: 1 1 18rem;
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+}
+
+.scorecardTitle {
+  @include typography.body('body-md');
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.scorecardDescription {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
 .title {
   @include typography.heading('heading-sm');
   font-weight: 700;

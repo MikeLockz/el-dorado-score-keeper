@@ -58,6 +58,7 @@ Notes:
 
 - No environment variables are required for local development.
 - Devtools render automatically when `NODE_ENV !== 'production'`.
+- Optional debug source maps: `ENABLE_SOURCE_MAPS=1 pnpm dev:next` (leave unset for production builds).
 - To change the port: `PORT=3001 pnpm dev` (or `PORT=3001 npm run dev`).
 
 ## Scripts
@@ -71,6 +72,7 @@ Notes:
 - `coverage`: Generate test coverage report.
 - `tokens:sync`: Regenerate Sass and JSON design token artifacts from the canonical design token catalog.
 - `tokens:watch`: Watch design token changes and regenerate artifacts on save.
+- `observability:upload-source-maps`: Package generated source maps for upload (run after a build with `ENABLE_SOURCE_MAPS=1`).
 
 ## Tech Stack
 
@@ -232,3 +234,16 @@ New Relic Browser telemetry is opt-in. By default the app ships without telemetr
 5. The root layout wraps the app in `BrowserTelemetryProvider`, which lazily initialises the pluggable vendor registry and emits `page.viewed` events on navigation. Client components can call `captureBrowserException` / `captureBrowserMessage` from `lib/observability/browser` to record structured telemetry instead of `console.*`.
 
 Cloudflare worker environments can copy `cloudflare/analytics-worker/.dev.vars.example` to `.dev.vars` and supply the equivalent New Relic credentials when worker traces are needed.
+
+### Source map uploads
+
+- Build with `ENABLE_SOURCE_MAPS=1` in CI to ensure Next emits `.map` artifacts.
+- After `next build`, run `pnpm observability:upload-source-maps`.
+- Configure the uploader via env vars:
+  - `SOURCE_MAP_UPLOAD_PROVIDER=newrelic`
+  - `NEW_RELIC_USER_API_KEY` (user API key)
+  - `NEW_RELIC_BROWSER_APP_ID` (or `NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID`)
+  - `NEW_RELIC_SOURCE_MAP_BASE_URL` (public origin/base path that serves `_next/*` assets)
+- Optional: `NEW_RELIC_SOURCE_MAP_RELEASE`, `NEW_RELIC_REGION` (set to `eu` for EU accounts)
+- The script archives maps to `artifacts/` and uploads browser-visible assets to New Relic Browser for the specified release.
+- The GitHub Pages deploy workflow (`.github/workflows/deploy.yml`) runs this uploader automatically on pushes to `main` when the required secrets/vars are present.

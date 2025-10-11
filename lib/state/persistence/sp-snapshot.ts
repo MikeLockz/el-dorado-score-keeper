@@ -592,32 +592,38 @@ export function createIndexedDbAdapter(db: IDBDatabase): SpSnapshotIndexedDbAdap
     write: async (snapshot) => {
       const t = tx(db, 'readwrite', [storeNames.STATE]);
       const store = t.objectStore(storeNames.STATE);
-      const existingIndex = await new Promise<Record<string, SpGameIndexEntry>>((resolve, reject) => {
-        const req = store.get(SP_GAME_INDEX_RECORD_KEY);
-        req.onsuccess = () => {
-          const record = (req.result as SpGameIndexRecord | null) ?? null;
-          resolve(coerceGameIndexEntries(record?.games ?? record ?? {}));
+
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          resolve();
         };
-        req.onerror = () => reject(req.error ?? new Error('Failed to load SP game index'));
-      });
+        const fail = (err: unknown) => {
+          if (settled) return;
+          settled = true;
+          reject(err instanceof Error ? err : new Error(String(err ?? 'Unknown error')));
+        };
 
-      const nextEntries = { ...existingIndex, [snapshot.gameId]: { height: snapshot.height, savedAt: snapshot.savedAt } };
-      const trimmed = trimGameIndexEntries(nextEntries);
+        t.oncomplete = finish;
+        t.onabort = () => fail(t.error ?? new Error('Transaction aborted persisting SP snapshot'));
+        t.onerror = () => fail(t.error ?? new Error('Transaction error persisting SP snapshot'));
 
-      const putSnapshot = store.put({ id: SP_SNAPSHOT_RECORD_KEY, snapshot });
-      await new Promise<void>((resolve, reject) => {
-        putSnapshot.onsuccess = () => resolve();
-        putSnapshot.onerror = () => reject(putSnapshot.error ?? new Error('Failed to persist SP snapshot'));
-        t.onabort = () => reject(t.error ?? new Error('Transaction aborted persisting SP snapshot'));
-        t.onerror = () => reject(t.error ?? new Error('Transaction error persisting SP snapshot'));
-      });
+        const indexReq = store.get(SP_GAME_INDEX_RECORD_KEY);
+        indexReq.onerror = () => fail(indexReq.error ?? new Error('Failed to load SP game index'));
+        indexReq.onsuccess = () => {
+          const record = (indexReq.result as SpGameIndexRecord | null) ?? null;
+          const existingIndex = coerceGameIndexEntries(record?.games ?? record ?? {});
+          const nextEntries = { ...existingIndex, [snapshot.gameId]: { height: snapshot.height, savedAt: snapshot.savedAt } };
+          const trimmed = trimGameIndexEntries(nextEntries);
 
-      const putIndex = store.put({ id: SP_GAME_INDEX_RECORD_KEY, games: trimmed } as SpGameIndexRecord);
-      await new Promise<void>((resolve, reject) => {
-        putIndex.onsuccess = () => resolve();
-        putIndex.onerror = () => reject(putIndex.error ?? new Error('Failed to persist SP game index'));
-        t.onabort = () => reject(t.error ?? new Error('Transaction aborted persisting SP game index'));
-        t.onerror = () => reject(t.error ?? new Error('Transaction error persisting SP game index'));
+          const putSnapshot = store.put({ id: SP_SNAPSHOT_RECORD_KEY, snapshot });
+          putSnapshot.onerror = () => fail(putSnapshot.error ?? new Error('Failed to persist SP snapshot'));
+
+          const putIndex = store.put({ id: SP_GAME_INDEX_RECORD_KEY, games: trimmed } as SpGameIndexRecord);
+          putIndex.onerror = () => fail(putIndex.error ?? new Error('Failed to persist SP game index'));
+        };
       });
     },
     read: async () => {
@@ -635,19 +641,12 @@ export function createIndexedDbAdapter(db: IDBDatabase): SpSnapshotIndexedDbAdap
     clear: async () => {
       const t = tx(db, 'readwrite', [storeNames.STATE]);
       const store = t.objectStore(storeNames.STATE);
-      const delSnapshot = store.delete(SP_SNAPSHOT_RECORD_KEY);
+      store.delete(SP_SNAPSHOT_RECORD_KEY);
+      store.delete(SP_GAME_INDEX_RECORD_KEY);
       await new Promise<void>((resolve, reject) => {
-        delSnapshot.onsuccess = () => resolve();
-        delSnapshot.onerror = () => reject(delSnapshot.error ?? new Error('Failed to delete SP snapshot'));
+        t.oncomplete = () => resolve();
         t.onabort = () => reject(t.error ?? new Error('Transaction aborted clearing SP snapshot'));
         t.onerror = () => reject(t.error ?? new Error('Transaction error clearing SP snapshot'));
-      });
-      const delIndex = store.delete(SP_GAME_INDEX_RECORD_KEY);
-      await new Promise<void>((resolve, reject) => {
-        delIndex.onsuccess = () => resolve();
-        delIndex.onerror = () => reject(delIndex.error ?? new Error('Failed to delete SP game index'));
-        t.onabort = () => reject(t.error ?? new Error('Transaction aborted clearing SP game index'));
-        t.onerror = () => reject(t.error ?? new Error('Transaction error clearing SP game index'));
       });
     },
     readIndex: async () => {

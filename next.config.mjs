@@ -1,5 +1,7 @@
 import path from 'node:path';
 
+import { resolveSourceMapSettings } from './config/source-maps.mjs';
+
 /** @type {import('next').NextConfig} */
 const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
 
@@ -27,6 +29,41 @@ if (envBase && typeof envBase === 'string') {
 
 const isStaticExport = process.env.NEXT_OUTPUT_EXPORT === 'true' || isGithubActions;
 
+const { shouldEmitSourceMaps: enableSourceMaps } = resolveSourceMapSettings();
+
+const enableStyleSourceMaps = (rules) => {
+  if (!Array.isArray(rules)) {
+    return;
+  }
+
+  for (const rule of rules) {
+    if (!rule) continue;
+
+    if (Array.isArray(rule.oneOf)) {
+      enableStyleSourceMaps(rule.oneOf);
+    }
+
+    const uses = Array.isArray(rule.use) ? rule.use : [];
+    for (const use of uses) {
+      if (!use || typeof use !== 'object') {
+        continue;
+      }
+
+      const loader = typeof use.loader === 'string' ? use.loader : '';
+      if (
+        loader.includes('css-loader') ||
+        loader.includes('postcss-loader') ||
+        loader.includes('sass-loader')
+      ) {
+        use.options = {
+          ...(use.options || {}),
+          sourceMap: true,
+        };
+      }
+    }
+  }
+};
+
 const nextConfig = {
   ...(isStaticExport
     ? {
@@ -42,6 +79,7 @@ const nextConfig = {
     '@radix-ui/react-id',
     '@radix-ui/react-use-layout-effect',
   ],
+  productionBrowserSourceMaps: enableSourceMaps,
   ...(basePath ? { basePath } : {}),
   ...(assetPrefix ? { assetPrefix } : {}),
   // Allow dev assets to be requested from 127.0.0.1 (used by Playwright tests)
@@ -58,7 +96,19 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
   },
-  webpack: (config) => {
+  webpack: (config, { dev, isServer }) => {
+    if (!dev && enableSourceMaps) {
+      config.devtool = isServer ? 'source-map' : 'hidden-source-map';
+      config.experiments = {
+        ...(config.experiments || {}),
+        buildSourceMaps: true,
+      };
+
+      if (config.module?.rules) {
+        enableStyleSourceMaps(config.module.rules);
+      }
+    }
+
     config.resolve = config.resolve || {};
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
