@@ -2,7 +2,7 @@
 
 import React from 'react';
 import clsx from 'clsx';
-import { Activity, TrendingDown, TrendingUp } from 'lucide-react';
+import { Activity, Medal, Target, TrendingDown, TrendingUp } from 'lucide-react';
 
 import type { SecondaryMetrics } from '@/lib/state/player-statistics';
 
@@ -23,12 +23,28 @@ const averageFormatter = new Intl.NumberFormat(undefined, {
   minimumFractionDigits: 0,
 });
 
+const percentFormatter = new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 1,
+  minimumFractionDigits: 0,
+});
+
+const ordinalRules = new Intl.PluralRules(undefined, { type: 'ordinal' });
+const ordinalSuffixes: Record<Intl.LDMLPluralRule, string> = {
+  zero: 'th',
+  one: 'st',
+  two: 'nd',
+  few: 'rd',
+  many: 'th',
+  other: 'th',
+};
+
 type MetricConfig = Readonly<{
   key: keyof SecondaryMetrics;
   label: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   trend?: 'up' | 'down';
   formatter: (value: number | null) => string;
+  description: string;
 }>;
 
 const metricConfigs: ReadonlyArray<MetricConfig> = [
@@ -37,6 +53,7 @@ const metricConfigs: ReadonlyArray<MetricConfig> = [
     label: 'Average score',
     icon: Activity,
     formatter: (value) => (value == null ? '—' : averageFormatter.format(value)),
+    description: 'Average final score across completed games.',
   },
   {
     key: 'highestScore',
@@ -44,6 +61,7 @@ const metricConfigs: ReadonlyArray<MetricConfig> = [
     icon: TrendingUp,
     trend: 'up',
     formatter: (value) => (value == null ? '—' : integerFormatter.format(value)),
+    description: 'Highest final score recorded for this player.',
   },
   {
     key: 'lowestScore',
@@ -51,6 +69,24 @@ const metricConfigs: ReadonlyArray<MetricConfig> = [
     icon: TrendingDown,
     trend: 'down',
     formatter: (value) => (value == null ? '—' : integerFormatter.format(value)),
+    description: 'Lowest final score recorded for this player.',
+  },
+  {
+    key: 'averageBidAccuracy',
+    label: 'Bid accuracy',
+    icon: Target,
+    trend: 'up',
+    formatter: (value) =>
+      value == null ? '—' : `${percentFormatter.format(value)}%`,
+    description: 'Share of rounds where bid matched tricks taken.',
+  },
+  {
+    key: 'medianPlacement',
+    label: 'Median placement',
+    icon: Medal,
+    trend: 'down',
+    formatter: (value) => formatOrdinalPlace(value),
+    description: 'Typical finishing position across completed games.',
   },
 ];
 
@@ -76,7 +112,12 @@ export function SecondaryStatsCard({
             config.trend === 'down' && styles.metricDown,
           );
           return (
-            <div key={config.key} className={metricClass} role="listitem">
+            <div
+              key={config.key}
+              className={metricClass}
+              role="listitem"
+              title={config.description}
+            >
               <span className={styles.icon} aria-hidden="true">
                 <Icon size={18} strokeWidth={2} />
               </span>
@@ -97,4 +138,14 @@ export function SecondaryStatsCard({
       ) : null}
     </div>
   );
+}
+
+function formatOrdinalPlace(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) {
+    return '—';
+  }
+  const normalized = Math.max(1, Math.trunc(value));
+  const rule = ordinalRules.select(normalized);
+  const suffix = ordinalSuffixes[rule] ?? ordinalSuffixes.other;
+  return `${normalized}${suffix}`;
 }

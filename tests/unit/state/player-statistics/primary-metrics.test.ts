@@ -6,6 +6,7 @@ import { INITIAL_STATE } from '@/lib/state';
 import type { GameRecord } from '@/lib/state/io';
 
 const ioModule = await import('@/lib/state/io');
+const { SUMMARY_METADATA_VERSION } = ioModule;
 const listGamesMock = vi.spyOn(ioModule, 'listGames');
 
 function cloneState<T>(value: T): T {
@@ -21,26 +22,43 @@ function buildBaseState(): AppState {
 }
 
 function buildGameRecord(overrides: Partial<GameRecord>): GameRecord {
+  const { summary: summaryOverride, bundle: bundleOverride, ...restOverrides } = overrides;
+  const baseSummary: GameRecord['summary'] = {
+    players: 2,
+    scores: { p1: 80, p2: 90 },
+    playersById: { p1: 'Alice', p2: 'Bob' },
+    winnerId: 'p2',
+    winnerName: 'Bob',
+    winnerScore: 90,
+    mode: 'scorecard',
+    metadata: {
+      version: SUMMARY_METADATA_VERSION,
+      generatedAt: Date.now(),
+    },
+  };
+  const summary: GameRecord['summary'] = {
+    ...baseSummary,
+    ...(summaryOverride ?? {}),
+  };
+
+  const baseBundle: GameRecord['bundle'] = {
+    latestSeq: 10,
+    events: [],
+  };
+  const bundle: GameRecord['bundle'] = {
+    ...baseBundle,
+    ...(bundleOverride ?? {}),
+  };
+
   return {
     id: 'game-1',
     title: 'Game 1',
     createdAt: Date.now() - 1_000,
     finishedAt: Date.now(),
     lastSeq: 10,
-    summary: {
-      players: 2,
-      scores: { p1: 80, p2: 90 },
-      playersById: { p1: 'Alice', p2: 'Bob' },
-      winnerId: 'p2',
-      winnerName: 'Bob',
-      winnerScore: 90,
-      mode: 'scorecard',
-    },
-    bundle: {
-      latestSeq: 10,
-      events: [],
-    },
-    ...overrides,
+    summary,
+    bundle,
+    ...restOverrides,
   };
 }
 
@@ -72,6 +90,8 @@ describe('loadPlayerStatisticsSummary – primary metrics', () => {
       averageScore: 120,
       highestScore: 120,
       lowestScore: 120,
+      averageBidAccuracy: null,
+      medianPlacement: 1,
     });
   });
 
@@ -127,6 +147,8 @@ describe('loadPlayerStatisticsSummary – primary metrics', () => {
       averageScore: 75,
       highestScore: 75,
       lowestScore: 75,
+      averageBidAccuracy: null,
+      medianPlacement: 2,
     });
   });
 
@@ -177,6 +199,8 @@ describe('loadPlayerStatisticsSummary – primary metrics', () => {
       averageScore: 100,
       highestScore: 150,
       lowestScore: 60,
+      averageBidAccuracy: null,
+      medianPlacement: 2,
     });
   });
 
@@ -225,6 +249,8 @@ describe('loadPlayerStatisticsSummary – primary metrics', () => {
       averageScore: 110,
       highestScore: 110,
       lowestScore: 110,
+      averageBidAccuracy: null,
+      medianPlacement: 1,
     });
   });
 
@@ -251,6 +277,8 @@ describe('loadPlayerStatisticsSummary – primary metrics', () => {
       averageScore: 40,
       highestScore: 40,
       lowestScore: 40,
+      averageBidAccuracy: null,
+      medianPlacement: 2,
     });
   });
 
@@ -280,6 +308,8 @@ describe('loadPlayerStatisticsSummary – primary metrics', () => {
       averageScore: 95,
       highestScore: 95,
       lowestScore: 95,
+      averageBidAccuracy: null,
+      medianPlacement: 1,
     });
   });
 
@@ -315,6 +345,8 @@ describe('loadPlayerStatisticsSummary – primary metrics', () => {
       averageScore: 120,
       highestScore: 120,
       lowestScore: 120,
+      averageBidAccuracy: null,
+      medianPlacement: 1,
     });
   });
 
@@ -362,6 +394,8 @@ describe('loadPlayerStatisticsSummary – primary metrics', () => {
       averageScore: 88,
       highestScore: 88,
       lowestScore: 88,
+      averageBidAccuracy: null,
+      medianPlacement: 1,
     });
   });
 

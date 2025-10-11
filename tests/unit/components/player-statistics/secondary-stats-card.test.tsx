@@ -17,6 +17,8 @@ describe('SecondaryStatsCard', () => {
           averageScore: 86.4,
           highestScore: 142,
           lowestScore: 37,
+          averageBidAccuracy: 66.7,
+          medianPlacement: 2,
         }}
       />,
     );
@@ -27,6 +29,10 @@ describe('SecondaryStatsCard', () => {
     expect(screen.getByText('142')).toBeTruthy();
     expect(screen.getAllByText(/Toughest game/i)).toHaveLength(1);
     expect(screen.getByText('37')).toBeTruthy();
+    expect(screen.getAllByText(/Bid accuracy/i)).toHaveLength(1);
+    expect(screen.getByText('66.7%')).toBeTruthy();
+    expect(screen.getAllByText(/Median placement/i)).toHaveLength(1);
+    expect(screen.getByText('2nd')).toBeTruthy();
     expect(screen.queryByText(/Complete a game to unlock score trends/i)).toBeNull();
   });
 
@@ -54,10 +60,12 @@ describe('SecondaryStatsCard', () => {
           averageScore: 101.2,
           highestScore: 140,
           lowestScore: 60,
+          averageBidAccuracy: 50,
+          medianPlacement: 3,
         }}
       />,
     );
 
-    expect(screen.getAllByText('...').length).toBeGreaterThanOrEqual(3);
+    expect(screen.getAllByText('...').length).toBeGreaterThanOrEqual(5);
   });
 });

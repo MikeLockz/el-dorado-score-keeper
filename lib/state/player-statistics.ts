@@ -1,6 +1,10 @@
 import { SUMMARY_METADATA_VERSION, listGames, type GameRecord } from './io';
 import * as statsCache from './player-statistics/cache';
 import type { NormalizedHistoricalGame } from './player-statistics/cache';
+import {
+  deriveHistoricalSecondaryMetrics,
+  resetHistoricalSecondaryMetricsCache,
+} from './player-statistics/secondary';
 import { selectIsGameComplete } from './selectors';
 import type { AppState } from './types';
 
@@ -20,6 +24,8 @@ export type SecondaryMetrics = Readonly<{
   averageScore: number | null;
   highestScore: number | null;
   lowestScore: number | null;
+  averageBidAccuracy: number | null;
+  medianPlacement: number | null;
 }>;
 
 export type RoundMetric = Readonly<{
@@ -51,6 +57,16 @@ const emptyScoreAccumulator: ScoreAccumulator = Object.freeze({
   count: 0,
   highest: null,
   lowest: null,
+});
+
+type BidAccuracyAggregate = Readonly<{
+  matches: number;
+  total: number;
+}>;
+
+const emptyBidAccuracyAggregate: BidAccuracyAggregate = Object.freeze({
+  matches: 0,
+  total: 0,
 });
 
 export type AdvancedMetrics = Readonly<{
@@ -156,6 +172,7 @@ export async function loadPlayerStatisticsSummary({
     throw new Error('State snapshot is required to load statistics');
   }
   const base = createEmptyPlayerStatisticsSummary(playerId);
+  const playerLabel = extractPlayerLabel(stateSnapshot, playerId);
   const liveMetrics = deriveLiveMetrics(stateSnapshot, playerId);
   debugLog('state snapshot players', {
     playerId,
@@ -166,8 +183,10 @@ export async function loadPlayerStatisticsSummary({
   const {
     totals: historicalTotals,
     scores: historicalScores,
+    bidAccuracy: historicalBidAccuracy,
+    placements: historicalPlacements,
     error: historicalError,
-  } = await computeHistoricalAggregates(playerId);
+  } = await computeHistoricalAggregates(playerId, playerLabel);
 
   debugLog('combined totals', {
     playerId,
@@ -196,6 +215,22 @@ export async function loadPlayerStatisticsSummary({
   const totalScoreCount =
     historicalScores.count + (liveMetrics.score != null ? 1 : 0);
 
+  const totalBidAccuracyMatches =
+    historicalBidAccuracy.matches + liveMetrics.bidAccuracy.matches;
+  const totalBidAccuracyRounds = historicalBidAccuracy.total + liveMetrics.bidAccuracy.total;
+  const averageBidAccuracy =
+    totalBidAccuracyRounds === 0
+      ? null
+      : Math.round((totalBidAccuracyMatches / totalBidAccuracyRounds) * 1000) / 10;
+
+  const placementSamples: number[] = historicalPlacements.length
+    ? [...historicalPlacements]
+    : [];
+  if (liveMetrics.placement !== null) {
+    placementSamples.push(liveMetrics.placement);
+  }
+  const medianPlacement = calculateMedianPlacement(placementSamples);
+
   let highestScore = historicalScores.highest;
   if (liveMetrics.score != null) {
     highestScore =
@@ -216,6 +251,8 @@ export async function loadPlayerStatisticsSummary({
           averageScore,
           highestScore,
           lowestScore,
+          averageBidAccuracy,
+          medianPlacement,
         };
 
   const primary: PrimaryMetrics = {
@@ -258,11 +295,11 @@ export function clonePlayerStatisticsSummary(
 export const PLAYER_STATISTICS_SUITS = Object.freeze([...suitNames]);
 
 export type { NormalizedHistoricalGame } from './player-statistics/cache';
-export {
-  getCachedHistoricalGame,
-  setCachedHistoricalGame,
-  resetPlayerStatisticsCache,
-} from './player-statistics/cache';
+export { getCachedHistoricalGame, setCachedHistoricalGame } from './player-statistics/cache';
+export function resetPlayerStatisticsCache(): void {
+  statsCache.resetPlayerStatisticsCache();
+  resetHistoricalSecondaryMetricsCache();
+}
 
 type HistoricalPrimaryTotals = Readonly<{
   gamesPlayed: number;
@@ -289,6 +326,8 @@ type LiveMetrics = Readonly<{
   gamesWon: number;
   score: number | null;
   finishedAt: number | null;
+  bidAccuracy: BidAccuracyAggregate;
+  placement: number | null;
 }>;
 
 const emptyLiveMetrics: LiveMetrics = Object.freeze({
@@ -296,7 +335,24 @@ const emptyLiveMetrics: LiveMetrics = Object.freeze({
   gamesWon: 0,
   score: null,
   finishedAt: null,
+  bidAccuracy: emptyBidAccuracyAggregate,
+  placement: null,
 });
+
+function extractPlayerLabel(state: AppState, playerId: string): string | null {
+  if (!state || typeof state !== 'object') return null;
+  const directLabel = state.players?.[playerId];
+  if (typeof directLabel === 'string') {
+    const trimmed = directLabel.trim();
+    if (trimmed) return trimmed;
+  }
+  const detailName = state.playerDetails?.[playerId]?.name;
+  if (typeof detailName === 'string') {
+    const trimmed = detailName.trim();
+    if (trimmed) return trimmed;
+  }
+  return null;
+}
 
 function deriveLiveMetrics(state: AppState, playerId: string): LiveMetrics {
   if (!state || typeof state !== 'object') return emptyLiveMetrics;
@@ -347,6 +403,9 @@ function deriveLiveMetrics(state: AppState, playerId: string): LiveMetrics {
     }
   }
 
+  const bidAccuracy = deriveLiveBidAccuracy(state, playerId);
+  const placement = calculatePlacementFromScores(scores, playerId);
+
   return {
     gamesPlayed: 1,
     gamesWon,
@@ -355,7 +414,131 @@ function deriveLiveMetrics(state: AppState, playerId: string): LiveMetrics {
       typeof summaryEnteredAt === 'number' && Number.isFinite(summaryEnteredAt)
         ? (summaryEnteredAt as number)
         : Date.now(),
+    bidAccuracy,
+    placement,
   };
+}
+
+function deriveLiveBidAccuracy(state: AppState, playerId: string): BidAccuracyAggregate {
+  const roundTallies = state.sp?.roundTallies ?? {};
+  const roundsState = state.rounds ?? {};
+  let matches = 0;
+  let total = 0;
+
+  if (!roundTallies || typeof roundTallies !== 'object') {
+    return emptyBidAccuracyAggregate;
+  }
+
+  for (const [roundKey, tallies] of Object.entries(roundTallies as Record<string, unknown>)) {
+    if (!tallies || typeof tallies !== 'object') continue;
+    const roundNo = Number(roundKey);
+    if (!Number.isFinite(roundNo)) continue;
+    const actual = toFiniteNumber((tallies as Record<string, unknown>)[playerId]);
+    if (actual == null) continue;
+    const roundState =
+      (roundsState as unknown as Record<string, AppState['rounds'][number]>)[String(roundNo)];
+    const bids = roundState?.bids ?? {};
+    const bid = toFiniteNumber((bids as Record<string, unknown>)[playerId]);
+    if (bid == null) continue;
+    total += 1;
+    if (bid === actual) {
+      matches += 1;
+    }
+  }
+
+  return total === 0
+    ? emptyBidAccuracyAggregate
+    : (Object.freeze({ matches, total }) as BidAccuracyAggregate);
+}
+
+function calculatePlacementFromScores(
+  scores: Readonly<Record<string, unknown>>,
+  playerId: string,
+): number | null {
+  if (!scores || typeof scores !== 'object') return null;
+  const entries: Array<[string, number]> = [];
+
+  for (const [pid, rawScore] of Object.entries(scores)) {
+    const normalizedId = typeof pid === 'string' ? pid.trim() : '';
+    if (!normalizedId) continue;
+    const numericScore = toFiniteNumber(rawScore);
+    if (numericScore == null) continue;
+    entries.push([normalizedId, numericScore]);
+  }
+
+  if (entries.length === 0) return null;
+
+  const playerEntry = entries.find(([pid]) => pid === playerId);
+  if (!playerEntry) return null;
+  const playerScore = playerEntry[1];
+
+  const uniqueScores = Array.from(new Set(entries.map(([, value]) => value))).sort(
+    (a, b) => b - a,
+  );
+  const index = uniqueScores.findIndex((value) => value === playerScore);
+  return index === -1 ? null : index + 1;
+}
+
+function calculateMedianPlacement(placements: ReadonlyArray<number>): number | null {
+  if (!Array.isArray(placements) || placements.length === 0) return null;
+  const valid = placements.filter((value) => Number.isFinite(value)).map((value) => Math.trunc(value));
+  if (valid.length === 0) return null;
+  const sorted = [...valid].sort((a, b) => a - b);
+  const midIndex = Math.floor((sorted.length - 1) / 2);
+  return sorted[midIndex] ?? null;
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function resolveHistoricalPlayerId(
+  game: NormalizedHistoricalGame,
+  playerId: string,
+  playerLabel: string | null,
+): string | null {
+  if (game.playerIds.has(playerId)) {
+    return playerId;
+  }
+  const aliasMap = game.slotMapping?.aliasToId ?? {};
+  const searchValues: Array<string> = [];
+  if (playerId) searchValues.push(playerId);
+  if (playerLabel) searchValues.push(playerLabel);
+  for (const candidate of searchValues) {
+    const normalizedAlias = normalizeAliasCandidate(candidate);
+    if (!normalizedAlias) continue;
+    const mapped = aliasMap[normalizedAlias];
+    if (typeof mapped === 'string' && mapped && game.playerIds.has(mapped)) {
+      return mapped;
+    }
+  }
+  if (playerLabel) {
+    const normalizedLabel = playerLabel.trim().toLocaleLowerCase();
+    if (normalizedLabel) {
+      for (const [id, name] of Object.entries(game.namesById)) {
+        if (
+          typeof name === 'string' &&
+          name.trim().toLocaleLowerCase() === normalizedLabel &&
+          game.playerIds.has(id)
+        ) {
+          return id;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function normalizeAliasCandidate(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.toLocaleLowerCase().replace(/\s+/g, ' ');
 }
 
 function normalizeHistoricalGame(record: GameRecord): NormalizedHistoricalGame {
@@ -467,16 +650,27 @@ function getOrNormalizeGame(record: GameRecord): NormalizedHistoricalGame {
   );
 }
 
-async function computeHistoricalAggregates(playerId: string): Promise<{
+async function computeHistoricalAggregates(
+  playerId: string,
+  playerLabel: string | null,
+): Promise<{
   totals: HistoricalPrimaryTotals;
   scores: ScoreAccumulator;
+  bidAccuracy: BidAccuracyAggregate;
+  placements: ReadonlyArray<number>;
   error: string | null;
 }> {
   try {
     const games = await listGames();
     if (!Array.isArray(games) || games.length === 0) {
       debugLog('historical lookup returned no games', { playerId });
-      return { totals: emptyHistoricalTotals, scores: emptyScoreAccumulator, error: null };
+      return {
+        totals: emptyHistoricalTotals,
+        scores: emptyScoreAccumulator,
+        bidAccuracy: emptyBidAccuracyAggregate,
+        placements: Object.freeze([]),
+        error: null,
+      };
     }
     debugLog('historical lookup count', { playerId, count: games.length });
     let gamesPlayed = 0;
@@ -486,6 +680,9 @@ async function computeHistoricalAggregates(playerId: string): Promise<{
     let highestScore: number | null = null;
     let lowestScore: number | null = null;
     let legacySkipped = 0;
+    let bidAccuracyMatches = 0;
+    let bidAccuracyTotal = 0;
+    const placements: number[] = [];
     for (const record of games) {
       if (!record || typeof record !== 'object') continue;
       const normalized = getOrNormalizeGame(record);
@@ -498,16 +695,19 @@ async function computeHistoricalAggregates(playerId: string): Promise<{
         });
         continue;
       }
-      if (!normalized.playerIds.has(playerId)) {
+      const canonicalId = resolveHistoricalPlayerId(normalized, playerId, playerLabel);
+      if (!canonicalId) {
         debugLog('historical skipping unmatched game', {
           playerId,
+          playerLabel,
           gameId: record.id,
           playerIds: Array.from(normalized.playerIds),
+          aliases: normalized.slotMapping?.aliasToId ?? null,
         });
         continue;
       }
       gamesPlayed += 1;
-      const scoreForPlayer = normalized.scores[playerId];
+      const scoreForPlayer = normalized.scores[canonicalId];
       if (scoreForPlayer != null) {
         scoreSum += scoreForPlayer;
         scoreCount += 1;
@@ -521,11 +721,21 @@ async function computeHistoricalAggregates(playerId: string): Promise<{
           availableScores: normalized.scores,
         });
       }
-      if (normalized.winnerIds.has(playerId)) {
+      if (normalized.winnerIds.has(canonicalId)) {
         gamesWon += 1;
-        debugLog('historical counted win', { playerId, gameId: record.id });
+        debugLog('historical counted win', { playerId, canonicalId, gameId: record.id });
       } else {
-        debugLog('historical counted loss', { playerId, gameId: record.id });
+        debugLog('historical counted loss', { playerId, canonicalId, gameId: record.id });
+      }
+      const derivedSecondary = deriveHistoricalSecondaryMetrics(record, normalized);
+      const accuracy = derivedSecondary.bidAccuracyByPlayer[canonicalId];
+      if (accuracy) {
+        bidAccuracyMatches += accuracy.matches;
+        bidAccuracyTotal += accuracy.total;
+      }
+      const placement = calculatePlacementFromScores(normalized.scores, canonicalId);
+      if (placement !== null) {
+        placements.push(placement);
       }
     }
     debugLog('historical players scanned', {
@@ -534,6 +744,9 @@ async function computeHistoricalAggregates(playerId: string): Promise<{
       highestScore,
       lowestScore,
       legacySkipped,
+      bidAccuracyMatches,
+      bidAccuracyTotal,
+      placements: placements.length,
     });
     return {
       totals: Object.freeze({ gamesPlayed, gamesWon }),
@@ -543,6 +756,11 @@ async function computeHistoricalAggregates(playerId: string): Promise<{
         highest: highestScore,
         lowest: lowestScore,
       }),
+      bidAccuracy: Object.freeze({
+        matches: bidAccuracyMatches,
+        total: bidAccuracyTotal,
+      }),
+      placements: Object.freeze([...placements]),
       error:
         legacySkipped > 0
           ? 'Some archived games are still migrating; statistics may be incomplete.'
@@ -552,6 +770,12 @@ async function computeHistoricalAggregates(playerId: string): Promise<{
     const message =
       error instanceof Error ? error.message : 'Unable to load historical statistics.';
     debugLog('historical aggregation failure', { playerId, error: message });
-    return { totals: emptyHistoricalTotals, scores: emptyScoreAccumulator, error: message };
+    return {
+      totals: emptyHistoricalTotals,
+      scores: emptyScoreAccumulator,
+      bidAccuracy: emptyBidAccuracyAggregate,
+      placements: Object.freeze([]),
+      error: message,
+    };
   }
 }
