@@ -2,10 +2,17 @@
 
 import React from 'react';
 import clsx from 'clsx';
+import { useRouter } from 'next/navigation';
 
 import { useAppState } from '@/components/state-provider';
 import { Button, Card } from '@/components/ui';
-import { events, selectPlayersOrdered, selectArchivedPlayers, selectAllRosters } from '@/lib/state';
+import {
+  events,
+  selectPlayersOrdered,
+  selectArchivedPlayers,
+  selectAllRosters,
+  resolvePlayerRoute,
+} from '@/lib/state';
 import type { AppState, KnownAppEvent } from '@/lib/state';
 import { useNewGameRequest } from '@/lib/game-flow';
 import { uuid } from '@/lib/utils';
@@ -21,6 +28,7 @@ import {
   Play,
   Users,
   Bot,
+  BarChart3,
 } from 'lucide-react';
 import { usePromptDialog } from '@/components/dialogs/PromptDialog';
 import { useConfirmDialog } from '@/components/dialogs/ConfirmDialog';
@@ -118,6 +126,7 @@ export default function PlayerManagement({
   defaultPlayerView = 'active',
   defaultShowArchivedRosters = false,
 }: PlayerManagementProps = {}) {
+  const router = useRouter();
   const { state, append, appendMany, ready } = useAppState();
   const players = React.useMemo(() => selectPlayersOrdered(state), [state]);
   const archivedPlayers = React.useMemo(() => selectArchivedPlayers(state), [state]);
@@ -733,6 +742,15 @@ export default function PlayerManagement({
                       >
                         <Bot aria-hidden="true" />{' '}
                         {player.type === 'human' ? 'Mark Bot' : 'Mark Human'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => router.push(resolvePlayerRoute(player.id, { view: 'statistics' }))}
+                        disabled={!ready}
+                        data-testid={`view-stats-player-${player.id}`}
+                      >
+                        <BarChart3 aria-hidden="true" /> View stats
                       </Button>
                       <Button
                         size="sm"

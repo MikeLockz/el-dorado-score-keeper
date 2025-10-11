@@ -33,8 +33,7 @@
 
 - In `next.config.mjs`, compute `const { shouldEmitSourceMaps: enableSourceMaps } = resolveSourceMapSettings()` and:
   - Set `productionBrowserSourceMaps: enableSourceMaps`.
-  - Override `webpack` `config.devtool` to `'hidden-source-map'` when enabled so source map files are generated without embedding `//# sourceMappingURL=` in the delivered bundles.
-  - Ensure server/edge bundles also emit maps by setting `config.experiments.buildSourceMaps = enableSourceMaps` (Next 15+ option) if available.
+  - Override `webpack` `config.devtool` to `'hidden-source-map'` for the client bundles (and `'source-map'` for server) when enabled so source map files are generated without embedding `//# sourceMappingURL=` in delivered assets.
 - Gate the logic behind the toggle so production builds stay untouched unless the flag is passed.
 
 ```ts

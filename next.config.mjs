@@ -99,10 +99,6 @@ const nextConfig = {
   webpack: (config, { dev, isServer }) => {
     if (!dev && enableSourceMaps) {
       config.devtool = isServer ? 'source-map' : 'hidden-source-map';
-      config.experiments = {
-        ...(config.experiments || {}),
-        buildSourceMaps: true,
-      };
 
       if (config.module?.rules) {
         enableStyleSourceMaps(config.module.rules);
