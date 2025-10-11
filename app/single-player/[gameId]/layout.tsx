@@ -30,7 +30,10 @@ function formatGameLabel(slice: SinglePlayerGameSlice | null): string {
   return `Game ${slice.id.slice(0, 8).toUpperCase()}`;
 }
 
-function resolveView(pathname: string | null | undefined, gameId: string): 'live' | 'scorecard' | 'summary' {
+function resolveView(
+  pathname: string | null | undefined,
+  gameId: string,
+): 'live' | 'scorecard' | 'summary' {
   if (!pathname) return 'live';
   const base = `/single-player/${gameId}`;
   if (pathname.startsWith(`${base}/summary`)) return 'summary';
@@ -39,11 +42,7 @@ function resolveView(pathname: string | null | undefined, gameId: string): 'live
   return 'live';
 }
 
-export default function SinglePlayerGameLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function SinglePlayerGameLayout({ children }: { children: React.ReactNode }) {
   const gameId = useGameId();
   const pathname = usePathname();
   const { state, ready } = useAppState();

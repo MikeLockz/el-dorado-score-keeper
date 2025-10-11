@@ -4,11 +4,11 @@ This implementation runbook operationalizes the @PERSIST_ALL_SINGLE_PLAYER_TO_IN
 
 ## Phase Prioritization Assessment
 
-| Phase                                                   | Impact | Effort | Risk | Rationale                                                                                                                          |
-| ------------------------------------------------------- | ------ | ------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Snapshot Schema & Infrastructure                      | 5      | 3      | 3    | Establishes typed snapshot helpers and storage shims; unlocks downstream work while touching a limited surface area.                |
-| 2. Write Path Integration & Mirror Synchronization       | 5      | 4      | 4    | Hooks persistence into `createInstance` append flows; highest leverage but risks regressions without careful batching safeguards.    |
-| 3. Rehydrate Pipeline & Route Lookup                     | 4      | 3      | 3    | Enables `/single-player/{gameId}` deep links and fallback reads; moderate effort with manageable risk once persistence is stable.   |
+| Phase                                                     | Impact | Effort | Risk | Rationale                                                                                                                            |
+| --------------------------------------------------------- | ------ | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 1. Snapshot Schema & Infrastructure                       | 5      | 3      | 3    | Establishes typed snapshot helpers and storage shims; unlocks downstream work while touching a limited surface area.                 |
+| 2. Write Path Integration & Mirror Synchronization        | 5      | 4      | 4    | Hooks persistence into `createInstance` append flows; highest leverage but risks regressions without careful batching safeguards.    |
+| 3. Rehydrate Pipeline & Route Lookup                      | 4      | 3      | 3    | Enables `/single-player/{gameId}` deep links and fallback reads; moderate effort with manageable risk once persistence is stable.    |
 | 4. Resilience, Instrumentation, & Documentation Hardening | 3      | 2      | 2    | Tightens observability, failure handling, and user-facing docs; lowest risk but important for long-term maintainability and support. |
 
 Score key: 1 (lowest) to 5 (highest). Ordering optimizes impact/effort while ensuring that higher-risk integration work lands after core primitives exist.

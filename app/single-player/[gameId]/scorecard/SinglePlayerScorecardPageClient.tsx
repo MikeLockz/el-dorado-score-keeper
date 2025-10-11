@@ -77,8 +77,8 @@ export default function SinglePlayerScorecardPageClient({
         <header>
           <h2 className={styles.heading}>Scorecard</h2>
           <p className={styles.description}>
-            Review bids and round outcomes for this single-player session. The table updates as rounds
-            complete.
+            Review bids and round outcomes for this single-player session. The table updates as
+            rounds complete.
           </p>
         </header>
         <div className={styles.separator} aria-hidden="true" />

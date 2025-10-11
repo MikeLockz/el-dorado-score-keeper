@@ -30,18 +30,14 @@ const WARNING_CONFIG: Record<string, WarningToastConfig> = {
     duration: 9000,
     buildDescription: (warning) => {
       if (!warning.info || typeof warning.info !== 'object') {
-        return (
-          'Single-player progress may stop saving. Free space or clear browser storage, then resume.'
-        );
+        return 'Single-player progress may stop saving. Free space or clear browser storage, then resume.';
       }
       const info = warning.info as Record<string, unknown>;
       const ratioValue = info.usageRatio ?? info.usage_ratio;
       const ratio =
         typeof ratioValue === 'number' && Number.isFinite(ratioValue) ? ratioValue : undefined;
       if (ratio === undefined) {
-        return (
-          'Single-player progress may stop saving. Free space or clear browser storage, then resume.'
-        );
+        return 'Single-player progress may stop saving. Free space or clear browser storage, then resume.';
       }
       const percent = Math.min(100, Math.max(0, Number((ratio * 100).toFixed(1))));
       return `Storage is ${percent}% full. Free space or clear browser storage so we can keep saving your game.`;
@@ -50,7 +46,7 @@ const WARNING_CONFIG: Record<string, WarningToastConfig> = {
   'sp.snapshot.persist.repeated_failures': {
     title: 'Single-player saves are failing',
     defaultDescription:
-      'We\'ll keep retrying automatically. Keep this tab open and review the persistence troubleshooting guide.',
+      "We'll keep retrying automatically. Keep this tab open and review the persistence troubleshooting guide.",
     variant: 'warning',
     duration: 9000,
   },

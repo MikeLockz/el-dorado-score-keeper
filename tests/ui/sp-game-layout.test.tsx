@@ -7,7 +7,9 @@ import { INITIAL_STATE, type AppState } from '@/lib/state';
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 
 const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
-const setMockParams = (globalThis as any).__setMockParams as (params: Record<string, string>) => void;
+const setMockParams = (globalThis as any).__setMockParams as (
+  params: Record<string, string>,
+) => void;
 
 const suite = typeof document === 'undefined' ? describe.skip : describe;
 

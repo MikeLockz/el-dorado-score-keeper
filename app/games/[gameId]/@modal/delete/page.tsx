@@ -3,9 +3,22 @@
 import React from 'react';
 import { useRouter, useParams } from 'next/navigation';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { deleteGame, deriveGameMode, getGame, type GameRecord, resolveArchivedGameRoute } from '@/lib/state';
+import {
+  deleteGame,
+  deriveGameMode,
+  getGame,
+  type GameRecord,
+  resolveArchivedGameRoute,
+} from '@/lib/state';
 import { trackArchivedGameDeleted } from '@/lib/observability/events';
 import { RoutedModalFocusManager } from '@/components/dialogs/RoutedModalFocusManager';
 
@@ -13,7 +26,7 @@ export default function DeleteGameModal() {
   const router = useRouter();
   const params = useParams();
   const raw = params?.gameId;
-  const gameId = Array.isArray(raw) ? raw[0] ?? '' : typeof raw === 'string' ? raw : '';
+  const gameId = Array.isArray(raw) ? (raw[0] ?? '') : typeof raw === 'string' ? raw : '';
   const [pending, setPending] = React.useState(false);
   const [game, setGame] = React.useState<GameRecord | null>(null);
   const dialogContentRef = React.useRef<HTMLDivElement>(null);
@@ -73,7 +86,11 @@ export default function DeleteGameModal() {
           <Button ref={cancelButtonRef} variant="outline" onClick={close} disabled={pending}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={() => void handleDelete()} disabled={pending || !gameId}>
+          <Button
+            variant="destructive"
+            onClick={() => void handleDelete()}
+            disabled={pending || !gameId}
+          >
             {pending ? 'Deleting…' : 'Delete game'}
           </Button>
         </DialogFooter>

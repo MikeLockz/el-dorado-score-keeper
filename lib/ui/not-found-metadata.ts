@@ -10,12 +10,7 @@ export type MissingEntityMetadata = Readonly<{
   secondary?: MissingEntityAction | null;
 }>;
 
-type MissingEntityKey =
-  | 'singlePlayerGame'
-  | 'scorecard'
-  | 'player'
-  | 'roster'
-  | 'archivedGame';
+type MissingEntityKey = 'singlePlayerGame' | 'scorecard' | 'player' | 'roster' | 'archivedGame';
 
 const metadataByEntity: Record<MissingEntityKey, MissingEntityMetadata> = {
   singlePlayerGame: {
@@ -42,7 +37,7 @@ const metadataByEntity: Record<MissingEntityKey, MissingEntityMetadata> = {
   roster: {
     title: 'Roster record unavailable',
     description:
-      "We were unable to load that roster. It could be archived or missing. Head back to your saved lineups.",
+      'We were unable to load that roster. It could be archived or missing. Head back to your saved lineups.',
     primary: { label: 'Manage Rosters', href: '/rosters' },
     secondary: { label: 'View Archived Rosters', href: '/rosters/archived' },
   },

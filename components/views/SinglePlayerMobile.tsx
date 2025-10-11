@@ -4,12 +4,7 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-import {
-  events,
-  roundDelta,
-  getCurrentSinglePlayerGameId,
-  singlePlayerPath,
-} from '@/lib/state';
+import { events, roundDelta, getCurrentSinglePlayerGameId, singlePlayerPath } from '@/lib/state';
 import { computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
 import { applyRoundAnalyticsFromEvents } from '@/lib/observability/events';
 import SpRoundSummary from './sp/SpRoundSummary';

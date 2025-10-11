@@ -80,7 +80,7 @@ export function ModeCard({
         type="button"
         onClick={onClick}
         disabled={disabled || pending}
-        variant='secondary'
+        variant="secondary"
         aria-label={labelOverride ?? label}
       >
         {content}

@@ -102,15 +102,12 @@ export default function GamesPage() {
     });
   }, [load]);
 
-  const [menuOpen, setMenuOpen] = React.useState<
-    | null
-    | {
-        id: string;
-        x: number;
-        y: number;
-        openUp?: boolean;
-      }
-  >(null);
+  const [menuOpen, setMenuOpen] = React.useState<null | {
+    id: string;
+    x: number;
+    y: number;
+    openUp?: boolean;
+  }>(null);
 
   const onNewGame = async () => {
     resumeRouteRef.current = resumeRoute;

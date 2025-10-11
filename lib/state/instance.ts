@@ -7,7 +7,10 @@ import {
   persistSpSnapshot,
   type PersistSpSnapshotResult,
 } from './persistence/sp-snapshot';
-import { rehydrateSinglePlayerFromSnapshot, type RehydrateSinglePlayerResult } from './persistence/sp-rehydrate';
+import {
+  rehydrateSinglePlayerFromSnapshot,
+  type RehydrateSinglePlayerResult,
+} from './persistence/sp-rehydrate';
 import { ensureSinglePlayerGameIdentifiers } from './utils';
 import { uuid } from '@/lib/utils';
 import { captureBrowserMessage, trackBrowserEvent } from '@/lib/observability/browser';
@@ -42,7 +45,9 @@ function normalizeRouteContext(
     return DEFAULT_ROUTE_CONTEXT;
   }
   const fallback =
-    typeof fallbackSpGameId === 'string' && fallbackSpGameId.trim() ? fallbackSpGameId.trim() : null;
+    typeof fallbackSpGameId === 'string' && fallbackSpGameId.trim()
+      ? fallbackSpGameId.trim()
+      : null;
   if (fallback) {
     return { mode: 'single-player', gameId: fallback, scorecardId: null };
   }
@@ -82,7 +87,8 @@ export async function createInstance(opts?: {
   const useChannel = opts?.useChannel !== false;
   const onWarn = opts?.onWarn;
   let currentRouteContext = normalizeRouteContext(opts?.routeContext, opts?.spGameId ?? null);
-  let targetSpGameId = currentRouteContext.mode === 'single-player' ? currentRouteContext.gameId : null;
+  let targetSpGameId =
+    currentRouteContext.mode === 'single-player' ? currentRouteContext.gameId : null;
   const allowSpLocalFallback = opts?.allowSpLocalFallback !== false;
   let db = await openDB(dbName);
   async function replaceDB() {
@@ -263,8 +269,7 @@ export async function createInstance(opts?: {
   ) {
     const { result, durationMs, error } = outcome;
     const snapshot = result?.snapshot ?? null;
-    const indexedDbFailed =
-      result?.errors?.some((entry) => entry.target === 'indexed-db') ?? false;
+    const indexedDbFailed = result?.errors?.some((entry) => entry.target === 'indexed-db') ?? false;
     const localStorageFailed =
       result?.errors?.some((entry) => entry.target === 'local-storage') ?? false;
     const errorCount = (result?.errors?.length ?? 0) + (error ? 1 : 0);
@@ -806,7 +811,10 @@ export async function createInstance(opts?: {
   }) {
     if (options) {
       if (Object.prototype.hasOwnProperty.call(options, 'routeContext')) {
-        currentRouteContext = normalizeRouteContext(options?.routeContext ?? null, options?.spGameId);
+        currentRouteContext = normalizeRouteContext(
+          options?.routeContext ?? null,
+          options?.spGameId,
+        );
       } else if (Object.prototype.hasOwnProperty.call(options, 'spGameId')) {
         currentRouteContext = normalizeRouteContext(currentRouteContext, options?.spGameId ?? null);
       }

@@ -6,7 +6,12 @@ import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
 
 import { Button, Card } from '@/components/ui';
-import { type GameRecord, getGame, resolveArchivedGameRoute, resolveGameModalRoute } from '@/lib/state';
+import {
+  type GameRecord,
+  getGame,
+  resolveArchivedGameRoute,
+  resolveGameModalRoute,
+} from '@/lib/state';
 import { analyzeGame } from '@/lib/analytics';
 import { formatDateTime } from '@/lib/format';
 import { formatDuration } from '@/lib/utils';
@@ -130,10 +135,15 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
           <Button variant="outline" onClick={() => void handleCopyLink()}>
             Copy link
           </Button>
-          <Button variant="outline" onClick={() => router.push(resolveGameModalRoute(gameId, 'delete'))}>
+          <Button
+            variant="outline"
+            onClick={() => router.push(resolveGameModalRoute(gameId, 'delete'))}
+          >
             Delete
           </Button>
-          <Button onClick={() => router.push(resolveGameModalRoute(gameId, 'restore'))}>Restore</Button>
+          <Button onClick={() => router.push(resolveGameModalRoute(gameId, 'restore'))}>
+            Restore
+          </Button>
         </div>
       </div>
 
@@ -240,9 +250,7 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
               </div>
               <div className={styles.statItem}>
                 <span className={styles.statLabel}>Hands won:</span>
-                <span className={styles.statValue}>
-                  {stats ? stats.totals.totalHandsWon : '—'}
-                </span>
+                <span className={styles.statValue}>{stats ? stats.totals.totalHandsWon : '—'}</span>
               </div>
               <div className={styles.statItem}>
                 <span className={styles.statLabel}>Hands lost:</span>
@@ -299,15 +307,21 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
       <div className={styles.timingGrid}>
         <div className={styles.timingGroup}>
           <span className={styles.statLabel}>Started</span>
-          <span className={styles.timingValue}>{stats ? formatDateTime(stats.timing.startedAt) : '—'}</span>
+          <span className={styles.timingValue}>
+            {stats ? formatDateTime(stats.timing.startedAt) : '—'}
+          </span>
         </div>
         <div className={styles.timingGroup}>
           <span className={styles.statLabel}>Finished</span>
-          <span className={styles.timingValue}>{stats ? formatDateTime(stats.timing.finishedAt) : '—'}</span>
+          <span className={styles.timingValue}>
+            {stats ? formatDateTime(stats.timing.finishedAt) : '—'}
+          </span>
         </div>
         <div className={styles.timingGroup}>
           <span className={styles.statLabel}>Duration</span>
-          <span className={styles.timingValue}>{stats ? formatDuration(stats.timing.durationMs) : '—'}</span>
+          <span className={styles.timingValue}>
+            {stats ? formatDuration(stats.timing.durationMs) : '—'}
+          </span>
         </div>
       </div>
     </div>

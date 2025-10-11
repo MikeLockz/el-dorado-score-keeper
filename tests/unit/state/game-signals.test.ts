@@ -47,13 +47,13 @@ const setupWindow = () => {
     },
     addEventListener: (type: string, listener: (ev: StorageEvent) => void) => {
       if (type !== 'storage') return;
-      const target = (window as unknown as { __listeners?: Set<(ev: StorageEvent) => void> });
+      const target = window as unknown as { __listeners?: Set<(ev: StorageEvent) => void> };
       target.__listeners ??= new Set();
       target.__listeners.add(listener);
     },
     removeEventListener: (type: string, listener: (ev: StorageEvent) => void) => {
       if (type !== 'storage') return;
-      const target = (window as unknown as { __listeners?: Set<(ev: StorageEvent) => void> });
+      const target = window as unknown as { __listeners?: Set<(ev: StorageEvent) => void> };
       target.__listeners?.delete(listener);
     },
   } as unknown as Window;
@@ -103,9 +103,10 @@ describe('game signals', () => {
     const handler = vi.fn();
     const unsubscribe = subscribeToGamesSignal(handler);
     const payload = JSON.stringify({ type: 'deleted', gameId: 'game-5', timestamp: 9 });
-    (window as unknown as { dispatchEvent: (ev: StorageEvent) => void }).dispatchEvent(
-      { key: GAMES_SIGNAL_STORAGE_KEY, newValue: payload } as StorageEvent,
-    );
+    (window as unknown as { dispatchEvent: (ev: StorageEvent) => void }).dispatchEvent({
+      key: GAMES_SIGNAL_STORAGE_KEY,
+      newValue: payload,
+    } as StorageEvent);
     expect(handler).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'deleted', gameId: 'game-5' }),
     );

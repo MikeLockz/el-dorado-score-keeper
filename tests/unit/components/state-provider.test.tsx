@@ -37,7 +37,11 @@ describe('deriveRouteContext', () => {
   });
 
   it('falls back to default for unrelated paths', () => {
-    expect(deriveRouteContext('/players/123')).toEqual({ mode: null, gameId: null, scorecardId: null });
+    expect(deriveRouteContext('/players/123')).toEqual({
+      mode: null,
+      gameId: null,
+      scorecardId: null,
+    });
     expect(deriveRouteContext('/')).toEqual({ mode: null, gameId: null, scorecardId: null });
   });
 });

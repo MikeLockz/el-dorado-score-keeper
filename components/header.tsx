@@ -123,10 +123,7 @@ export default function Header() {
                 <DropdownMenu.Item
                   key={`dropdown-${item.href}`}
                   asChild
-                  className={clsx(
-                    styles.dropdownItem,
-                    isActive(item) && styles.dropdownItemActive,
-                  )}
+                  className={clsx(styles.dropdownItem, isActive(item) && styles.dropdownItemActive)}
                 >
                   <Link href={item.href} aria-current={isActive(item) ? 'page' : undefined}>
                     {item.label}
@@ -140,10 +137,7 @@ export default function Header() {
                 <DropdownMenu.Item
                   key={`dropdown-${item.href}`}
                   asChild
-                  className={clsx(
-                    styles.dropdownItem,
-                    isActive(item) && styles.dropdownItemActive,
-                  )}
+                  className={clsx(styles.dropdownItem, isActive(item) && styles.dropdownItemActive)}
                 >
                   <Link href={item.href} aria-current={isActive(item) ? 'page' : undefined}>
                     {item.label}

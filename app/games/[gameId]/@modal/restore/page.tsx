@@ -3,7 +3,14 @@
 import React from 'react';
 import { useRouter, useParams } from 'next/navigation';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAppState } from '@/components/state-provider';
 import {
@@ -21,7 +28,7 @@ export default function RestoreGameModal() {
   const router = useRouter();
   const params = useParams();
   const raw = params?.gameId;
-  const gameId = Array.isArray(raw) ? raw[0] ?? '' : typeof raw === 'string' ? raw : '';
+  const gameId = Array.isArray(raw) ? (raw[0] ?? '') : typeof raw === 'string' ? raw : '';
   const [pending, setPending] = React.useState(false);
   const [game, setGame] = React.useState<GameRecord | null>(null);
   const { state } = useAppState();
@@ -111,8 +118,8 @@ export default function RestoreGameModal() {
         <DialogHeader>
           <DialogTitle>Restore archived game?</DialogTitle>
           <DialogDescription>
-            Restoring {title} will replace the current in-progress session. All unsaved progress will be
-            archived automatically.
+            Restoring {title} will replace the current in-progress session. All unsaved progress
+            will be archived automatically.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

@@ -132,6 +132,7 @@
 4. **View Extraction**
    - Move live play UI into `page.tsx` under `[gameId]` (minimal refactor).
    - Extract scorecard and summary views into dedicated client components consumed by their respective pages.
+
 - Add shared navigation UI in the layout (tabs/buttons) to switch between views, wired to the router.
 - Factor Score Card UI into modular components that can render inside both the list landing (`/scorecard`) and dynamic detail routes without duplication.
 - Promote existing player/roster modals to standalone detail components that can render inline when navigated directly.
@@ -144,6 +145,7 @@
   - `PlayerMissing` → headline “Player not found”, notes the profile might be archived/deleted, primary CTA to `/players` to add a player, secondary CTA to `/players/archived` to browse archived profiles.
   - `RosterMissing` → headline “Roster not found”, explains the lineup couldn’t be located, primary CTA to `/rosters` to create one, secondary CTA to `/rosters/archived` to view archived rosters.
   - `ArchivedGameMissing` → headline “Game archive not found”, notes the archive entry may have been deleted, primary CTA back to `/games`, secondary CTA to `/single-player/new` for a fresh run.
+
 5. **Polish & Cleanup**
    - Update deep link entry points (e.g., Quick Links, game lists) to point at the new URLs.
    - Remove unused legacy logic and ensure url-based navigation updates analytics, toasts, and breadcrumbs correctly.

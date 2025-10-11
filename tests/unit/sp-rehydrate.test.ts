@@ -74,9 +74,7 @@ function makeState(): AppState {
       ],
       p2: [{ suit: 'clubs', rank: 5 }],
     },
-    trickPlays: [
-      { playerId: 'p2', card: { suit: 'clubs', rank: 5 } },
-    ],
+    trickPlays: [{ playerId: 'p2', card: { suit: 'clubs', rank: 5 } }],
     trickCounts: { p1: 1, p2: 0 },
     trumpBroken: true,
     leaderId: 'p1',

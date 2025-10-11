@@ -7,7 +7,9 @@ import { INITIAL_STATE } from '@/lib/state';
 import * as analytics from '@/lib/observability/events';
 
 const setMockAppState = (globalThis as any).__setMockAppState as (value: any) => void;
-const setMockParams = (globalThis as any).__setMockParams as (params: Record<string, string>) => void;
+const setMockParams = (globalThis as any).__setMockParams as (
+  params: Record<string, string>,
+) => void;
 
 const originalWindow = globalThis.window;
 let originalPrint: typeof window.print | undefined;

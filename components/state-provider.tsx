@@ -281,7 +281,8 @@ export function StateProvider({
       globalThis.__dumpState = () =>
         console.log('[app state]', JSON.parse(JSON.stringify(ttState ?? state)));
       globalThis.__SET_TT = (h: number | null) => setTtHeight(h);
-      (globalThis as { __APP_ROUTE_CONTEXT__?: RouteHydrationContext }).__APP_ROUTE_CONTEXT__ = routeContext;
+      (globalThis as { __APP_ROUTE_CONTEXT__?: RouteHydrationContext }).__APP_ROUTE_CONTEXT__ =
+        routeContext;
       (globalThis as { __APP_WARNINGS__?: Warning[] }).__APP_WARNINGS__ = warnings;
     } catch {}
   }, [state, ttState, height, append, appendMany, setTtHeight, routeContext, warnings]);

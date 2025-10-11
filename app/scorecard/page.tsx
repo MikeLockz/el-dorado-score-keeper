@@ -10,9 +10,7 @@ export const metadata: Metadata = {
 export default function ScorecardPage() {
   return (
     <div className={styles.container}>
-      <div className={styles.status}>
-        Select a scorecard to view its details.
-      </div>
+      <div className={styles.status}>Select a scorecard to view its details.</div>
     </div>
   );
 }

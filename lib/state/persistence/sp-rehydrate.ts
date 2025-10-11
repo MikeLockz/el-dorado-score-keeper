@@ -159,7 +159,10 @@ export async function rehydrateSinglePlayerFromSnapshot(
   return resolveLoadResult(baseState, loadResult);
 }
 
-export function deriveStateFromSnapshot(base: AppState, snapshot: SinglePlayerSnapshotV1): AppState {
+export function deriveStateFromSnapshot(
+  base: AppState,
+  snapshot: SinglePlayerSnapshotV1,
+): AppState {
   return applySnapshotToState(base, snapshot);
 }
 

@@ -39,7 +39,7 @@ export function assertEntityAvailable<T>(
     inferArchived?: (entity: T) => boolean;
   } = {},
 ): EntityAvailability<T> {
-  const id = typeof options.id === 'string' ? options.id.trim() : options.id ?? null;
+  const id = typeof options.id === 'string' ? options.id.trim() : (options.id ?? null);
   if (entity == null) {
     return { entity: null, status: 'missing', kind, id };
   }
@@ -56,11 +56,13 @@ export function assertEntityAvailable<T>(
 }
 
 export function getCurrentSinglePlayerGameId(state: AppState): string | null {
-  const sp = state.sp as {
-    currentGameId?: unknown;
-    gameId?: unknown;
-    sessionSeed?: unknown;
-  } | undefined;
+  const sp = state.sp as
+    | {
+        currentGameId?: unknown;
+        gameId?: unknown;
+        sessionSeed?: unknown;
+      }
+    | undefined;
   const direct = normalizeLooseId(sp?.currentGameId);
   if (direct) return direct;
   const legacy = normalizeLooseId(sp?.gameId);

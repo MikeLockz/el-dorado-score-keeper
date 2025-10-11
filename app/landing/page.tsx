@@ -68,13 +68,9 @@ export default function LandingPage() {
       {/* Hero */}
       <section className={styles.hero}>
         <h1 className={styles.heroTitle}>Set Out for El Dorado</h1>
-        <p className={styles.heroCopy}>
-          A card game from south western Michigan.
-        </p>
+        <p className={styles.heroCopy}>A card game from south western Michigan.</p>
         <HeroCtas />
       </section>
-
-      
 
       {/* Quick Links */}
       <QuickLinks />

@@ -26,7 +26,10 @@ export default function SinglePlayerNewPageClient() {
   const [autoCreating, setAutoCreating] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const currentGameId = React.useMemo(() => getCurrentSinglePlayerGameId(state), [state]);
-  const hasProgress = React.useMemo(() => (ready ? hasSinglePlayerProgress(state) : false), [ready, state]);
+  const hasProgress = React.useMemo(
+    () => (ready ? hasSinglePlayerProgress(state) : false),
+    [ready, state],
+  );
 
   const lastTrackedRef = React.useRef<string | null>(null);
   React.useEffect(() => {
@@ -90,8 +93,8 @@ export default function SinglePlayerNewPageClient() {
             </div>
           ) : (
             <p className={styles.hint}>
-              You have in-progress single-player activity. Choose an option below to archive and start
-              over or resume your current run.
+              You have in-progress single-player activity. Choose an option below to archive and
+              start over or resume your current run.
             </p>
           )}
           {error ? <p className={styles.error}>{error}</p> : null}

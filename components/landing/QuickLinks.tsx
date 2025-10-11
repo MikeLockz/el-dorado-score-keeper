@@ -5,12 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, Button } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
-import {
-  listGames,
-  type GameRecord,
-  restoreGame,
-  deriveGameMode,
-} from '@/lib/state/io';
+import { listGames, type GameRecord, restoreGame, deriveGameMode } from '@/lib/state/io';
 import { formatDateTime } from '@/lib/format';
 import { Loader2 } from 'lucide-react';
 import { captureBrowserMessage } from '@/lib/observability/browser';
