@@ -1,0 +1,155 @@
+@use '../../../../../styles/mixins/typography' as typography;
+@use '../../../../../styles/tokens/spacing' as spacing;
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.chartArea {
+  position: relative;
+  width: 100%;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.cellGroup {
+  isolation: isolate;
+}
+
+.cellRect {
+  transition:
+    transform 160ms ease,
+    stroke 160ms ease,
+    stroke-width 160ms ease;
+  stroke: transparent;
+  stroke-width: 1px;
+  cursor: pointer;
+}
+
+.cellRect:hover {
+  transform: translateY(-1px);
+}
+
+.cellRect:focus-visible {
+  outline: none;
+  stroke: color-mix(in oklch, var(--color-primary) 72%, white);
+  stroke-width: 2px;
+}
+
+.cellRectActive {
+  stroke: color-mix(in oklch, var(--color-primary) 80%, white);
+  stroke-width: 2px;
+}
+
+.cellRectEmpty {
+  cursor: default;
+}
+
+.cellLabel {
+  pointer-events: none;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--color-foreground);
+  font-weight: 600;
+  font-size: 0.65rem;
+}
+
+.axisLabel {
+  text-anchor: middle;
+  fill: var(--color-muted-foreground);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.axisTitle {
+  text-anchor: middle;
+  fill: var(--color-muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.emptyOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: spacing.spacing('space-4');
+  text-align: center;
+  color: var(--color-muted-foreground);
+  @include typography.body('body-sm');
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--color-card) 96%, transparent),
+    color-mix(in oklch, var(--color-card) 92%, transparent)
+  );
+  border-radius: var(--radius-lg);
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+  padding: spacing.spacing('space-2');
+  border-radius: var(--radius-md);
+  background: var(--color-popover);
+  color: var(--color-popover-foreground);
+  border: 1px solid color-mix(in oklch, var(--color-border) 70%, transparent);
+  box-shadow: var(--shadow-lg);
+  @include typography.body('body-xs');
+}
+
+.tooltipTitle {
+  font-weight: 600;
+  @include typography.body('body-xs');
+}
+
+.tooltipValue {
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.tooltipMeta {
+  color: var(--color-muted-foreground);
+}
+
+.summary {
+  display: grid;
+  gap: spacing.spacing('space-3');
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+  padding: spacing.spacing('space-2');
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-muted) 12%, transparent);
+}
+
+.summaryLabel {
+  color: var(--color-muted-foreground);
+  @include typography.body('body-xs');
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summaryValue {
+  font-weight: 700;
+  @include typography.body('body-md');
+}
+
+.summaryDetail {
+  color: var(--color-muted-foreground);
+  @include typography.body('body-xs');
+}

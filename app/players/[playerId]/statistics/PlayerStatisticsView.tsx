@@ -22,6 +22,7 @@ import { useGamesSignalSubscription } from '@/components/hooks';
 import PlayerMissing from '../../_components/PlayerMissing';
 import { PrimaryStatsCard } from './components/PrimaryStatsCard';
 import { SecondaryStatsCard } from './components/SecondaryStatsCard';
+import { RoundAccuracyChart } from './components/RoundAccuracyChart';
 import styles from './page.module.scss';
 
 export type PlayerStatisticsViewProps = {
@@ -57,35 +58,30 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
   const stateRef = React.useRef(state);
   stateRef.current = state;
 
-  const refresh = React.useCallback(
-    (id: string, cacheKey: string) => {
-      setSummary(createPendingPlayerStatisticsSummary(id));
-      let cancelled = false;
-      void (async () => {
-        try {
-          const snapshot = stateRef.current;
-          const result = await loadPlayerStatisticsSummary({
-            playerId: id,
-            stateSnapshot: snapshot,
-            cacheKey,
-          });
-          if (cancelled) return;
-          setSummary(
-            result ?? createEmptyPlayerStatisticsSummary(id),
-          );
-        } catch (error: unknown) {
-          if (cancelled) return;
-          const message =
-            error instanceof Error ? error.message : 'Unable to load player statistics.';
-          setSummary(createErroredPlayerStatisticsSummary(id, message));
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
-    },
-    [],
-  );
+  const refresh = React.useCallback((id: string, cacheKey: string) => {
+    setSummary(createPendingPlayerStatisticsSummary(id));
+    let cancelled = false;
+    void (async () => {
+      try {
+        const snapshot = stateRef.current;
+        const result = await loadPlayerStatisticsSummary({
+          playerId: id,
+          stateSnapshot: snapshot,
+          cacheKey,
+        });
+        if (cancelled) return;
+        setSummary(result ?? createEmptyPlayerStatisticsSummary(id));
+      } catch (error: unknown) {
+        if (cancelled) return;
+        const message =
+          error instanceof Error ? error.message : 'Unable to load player statistics.';
+        setSummary(createErroredPlayerStatisticsSummary(id, message));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!ready) {
@@ -237,9 +233,11 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
               ))}
             </div>
           ) : (
-            <div className={styles.placeholderCopy}>
-              Round-by-round bid accuracy visualizations will display here.
-            </div>
+            <RoundAccuracyChart
+              loading={isLoading}
+              metrics={resolvedSummary?.rounds ?? []}
+              loadError={resolvedSummary?.loadError}
+            />
           )}
         </Card>
 

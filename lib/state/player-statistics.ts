@@ -7,6 +7,7 @@ import {
 } from './player-statistics/secondary';
 import { selectIsGameComplete } from './selectors';
 import type { AppState } from './types';
+import { ROUNDS_TOTAL } from './logic';
 
 export type PlayerStatsLoadState = Readonly<{
   isLoadingLive: boolean;
@@ -45,6 +46,24 @@ export type HandInsight = Readonly<{
   topSuit: 'clubs' | 'diamonds' | 'hearts' | 'spades' | null;
 }>;
 
+type RoundAggregate = Readonly<{
+  bidCount: number;
+  bids: ReadonlyArray<number>;
+  highestBid: number | null;
+  lowestBid: number | null;
+  accuracyMatches: number;
+  accuracyTotal: number;
+}>;
+
+type RoundAggregateMap = Readonly<Record<number, RoundAggregate>>;
+
+type RoundSnapshot = Readonly<{
+  bid: number | null;
+  actual: number | null;
+}>;
+
+type RoundSnapshotMap = Readonly<Record<number, RoundSnapshot>>;
+
 type ScoreAccumulator = Readonly<{
   sum: number;
   count: number;
@@ -68,6 +87,146 @@ const emptyBidAccuracyAggregate: BidAccuracyAggregate = Object.freeze({
   matches: 0,
   total: 0,
 });
+
+type MutableRoundAccumulator = {
+  bidCount: number;
+  bids: number[];
+  highestBid: number | null;
+  lowestBid: number | null;
+  accuracyMatches: number;
+  accuracyTotal: number;
+};
+
+function createMutableRoundAccumulator(): MutableRoundAccumulator {
+  return {
+    bidCount: 0,
+    bids: [],
+    highestBid: null,
+    lowestBid: null,
+    accuracyMatches: 0,
+    accuracyTotal: 0,
+  };
+}
+
+function getMutableRoundAccumulator(
+  collection: Map<number, MutableRoundAccumulator>,
+  round: number,
+): MutableRoundAccumulator {
+  let bucket = collection.get(round);
+  if (!bucket) {
+    bucket = createMutableRoundAccumulator();
+    collection.set(round, bucket);
+  }
+  return bucket;
+}
+
+function maxNonNull(current: number | null, candidate: number | null): number | null {
+  if (candidate == null) return current;
+  return current == null ? candidate : Math.max(current, candidate);
+}
+
+function minNonNull(current: number | null, candidate: number | null): number | null {
+  if (candidate == null) return current;
+  return current == null ? candidate : Math.min(current, candidate);
+}
+
+function accumulateRoundSnapshots(
+  collection: Map<number, MutableRoundAccumulator>,
+  snapshots: RoundSnapshotMap | null | undefined,
+): void {
+  if (!snapshots) return;
+  for (const [roundKey, snapshot] of Object.entries(snapshots)) {
+    const round = Number(roundKey);
+    if (!Number.isFinite(round)) continue;
+    const bucket = getMutableRoundAccumulator(collection, round);
+    if (snapshot.bid != null) {
+      bucket.bidCount += 1;
+      bucket.bids.push(snapshot.bid);
+      bucket.highestBid = maxNonNull(bucket.highestBid, snapshot.bid);
+      bucket.lowestBid = minNonNull(bucket.lowestBid, snapshot.bid);
+    }
+    if (snapshot.bid != null && snapshot.actual != null) {
+      bucket.accuracyTotal += 1;
+      if (snapshot.bid === snapshot.actual) {
+        bucket.accuracyMatches += 1;
+      }
+    }
+  }
+}
+
+function accumulateRoundAggregate(
+  collection: Map<number, MutableRoundAccumulator>,
+  round: number,
+  aggregate: RoundAggregate,
+): void {
+  const bucket = getMutableRoundAccumulator(collection, round);
+  bucket.bidCount += aggregate.bidCount;
+  if (aggregate.bids.length) {
+    bucket.bids.push(...aggregate.bids);
+  }
+  bucket.highestBid = maxNonNull(bucket.highestBid, aggregate.highestBid);
+  bucket.lowestBid = minNonNull(bucket.lowestBid, aggregate.lowestBid);
+  bucket.accuracyMatches += aggregate.accuracyMatches;
+  bucket.accuracyTotal += aggregate.accuracyTotal;
+}
+
+function toRoundAggregateMap(collection: Map<number, MutableRoundAccumulator>): RoundAggregateMap {
+  const record: Record<number, RoundAggregate> = {};
+  for (const [round, bucket] of collection.entries()) {
+    record[round] = Object.freeze({
+      bidCount: bucket.bidCount,
+      bids: Object.freeze([...bucket.bids]),
+      highestBid: bucket.highestBid,
+      lowestBid: bucket.lowestBid,
+      accuracyMatches: bucket.accuracyMatches,
+      accuracyTotal: bucket.accuracyTotal,
+    });
+  }
+  return Object.freeze(record);
+}
+
+function finalizeRoundMetrics(
+  collection: Map<number, MutableRoundAccumulator>,
+  totalRounds: number = ROUNDS_TOTAL,
+): ReadonlyArray<RoundMetric> {
+  const metrics: Array<RoundMetric> = [];
+  for (let round = 1; round <= totalRounds; round++) {
+    const bucket = collection.get(round);
+    if (!bucket) {
+      metrics.push(
+        Object.freeze({
+          roundNo: round,
+          bidCount: 0,
+          bids: Object.freeze([]),
+          highestBid: null,
+          lowestBid: null,
+          accuracyMatches: 0,
+          accuracyTotal: 0,
+          accuracyPercent: null,
+        }),
+      );
+      continue;
+    }
+    const bids = bucket.bids.length ? [...bucket.bids].sort((a, b) => a - b) : [];
+    const accuracyPercent =
+      bucket.accuracyTotal === 0
+        ? null
+        : Math.round((bucket.accuracyMatches / bucket.accuracyTotal) * 1000) / 10;
+    metrics.push(
+      Object.freeze({
+        roundNo: round,
+        bidCount: bucket.bidCount,
+        bids: Object.freeze(bids),
+        highestBid: bucket.highestBid,
+        lowestBid: bucket.lowestBid,
+        accuracyMatches: bucket.accuracyMatches,
+        accuracyTotal: bucket.accuracyTotal,
+        accuracyPercent,
+      }),
+    );
+  }
+  return Object.freeze(metrics);
+}
 
 export type AdvancedMetrics = Readonly<{
   trickEfficiency: Readonly<{
@@ -131,9 +290,7 @@ export const createPendingPlayerStatisticsSummary = (
   advanced: null,
 });
 
-export const createEmptyPlayerStatisticsSummary = (
-  playerId: string,
-): PlayerStatisticsSummary => ({
+export const createEmptyPlayerStatisticsSummary = (playerId: string): PlayerStatisticsSummary => ({
   playerId,
   isLoadingLive: false,
   isLoadingHistorical: false,
@@ -185,6 +342,7 @@ export async function loadPlayerStatisticsSummary({
     scores: historicalScores,
     bidAccuracy: historicalBidAccuracy,
     placements: historicalPlacements,
+    rounds: historicalRoundAggregates,
     error: historicalError,
   } = await computeHistoricalAggregates(playerId, playerLabel);
 
@@ -206,30 +364,32 @@ export async function loadPlayerStatisticsSummary({
   const totalGamesPlayed = historicalTotals.gamesPlayed + liveMetrics.gamesPlayed;
   const totalGamesWon = historicalTotals.gamesWon + liveMetrics.gamesWon;
   const winRatePercent =
-    totalGamesPlayed === 0
-      ? 0
-      : Math.round((totalGamesWon / totalGamesPlayed) * 1000) / 10;
+    totalGamesPlayed === 0 ? 0 : Math.round((totalGamesWon / totalGamesPlayed) * 1000) / 10;
 
-  const totalScoreSum =
-    historicalScores.sum + (liveMetrics.score != null ? liveMetrics.score : 0);
-  const totalScoreCount =
-    historicalScores.count + (liveMetrics.score != null ? 1 : 0);
+  const totalScoreSum = historicalScores.sum + (liveMetrics.score != null ? liveMetrics.score : 0);
+  const totalScoreCount = historicalScores.count + (liveMetrics.score != null ? 1 : 0);
 
-  const totalBidAccuracyMatches =
-    historicalBidAccuracy.matches + liveMetrics.bidAccuracy.matches;
+  const totalBidAccuracyMatches = historicalBidAccuracy.matches + liveMetrics.bidAccuracy.matches;
   const totalBidAccuracyRounds = historicalBidAccuracy.total + liveMetrics.bidAccuracy.total;
   const averageBidAccuracy =
     totalBidAccuracyRounds === 0
       ? null
       : Math.round((totalBidAccuracyMatches / totalBidAccuracyRounds) * 1000) / 10;
 
-  const placementSamples: number[] = historicalPlacements.length
-    ? [...historicalPlacements]
-    : [];
+  const placementSamples: number[] = historicalPlacements.length ? [...historicalPlacements] : [];
   if (liveMetrics.placement !== null) {
     placementSamples.push(liveMetrics.placement);
   }
   const medianPlacement = calculateMedianPlacement(placementSamples);
+
+  const combinedRoundAccumulators = new Map<number, MutableRoundAccumulator>();
+  for (const [roundKey, aggregate] of Object.entries(historicalRoundAggregates ?? {})) {
+    const roundNo = Number(roundKey);
+    if (!Number.isFinite(roundNo)) continue;
+    accumulateRoundAggregate(combinedRoundAccumulators, roundNo, aggregate);
+  }
+  accumulateRoundSnapshots(combinedRoundAccumulators, liveMetrics.roundSnapshots);
+  const rounds = finalizeRoundMetrics(combinedRoundAccumulators);
 
   let highestScore = historicalScores.highest;
   if (liveMetrics.score != null) {
@@ -266,6 +426,7 @@ export async function loadPlayerStatisticsSummary({
     loadError: historicalError,
     primary,
     secondary,
+    rounds,
   };
 }
 
@@ -328,6 +489,7 @@ type LiveMetrics = Readonly<{
   finishedAt: number | null;
   bidAccuracy: BidAccuracyAggregate;
   placement: number | null;
+  roundSnapshots: RoundSnapshotMap;
 }>;
 
 const emptyLiveMetrics: LiveMetrics = Object.freeze({
@@ -337,6 +499,7 @@ const emptyLiveMetrics: LiveMetrics = Object.freeze({
   finishedAt: null,
   bidAccuracy: emptyBidAccuracyAggregate,
   placement: null,
+  roundSnapshots: Object.freeze({}),
 });
 
 function extractPlayerLabel(state: AppState, playerId: string): string | null {
@@ -403,30 +566,37 @@ function deriveLiveMetrics(state: AppState, playerId: string): LiveMetrics {
     }
   }
 
-  const bidAccuracy = deriveLiveBidAccuracy(state, playerId);
+  const { aggregate: bidAccuracy, roundSnapshots } = deriveLiveBidAccuracy(state, playerId);
   const placement = calculatePlacementFromScores(scores, playerId);
+  const scoreValue = Number.isFinite(playerScore) ? playerScore : null;
+  const finishedAtValue =
+    typeof summaryEnteredAt === 'number' && Number.isFinite(summaryEnteredAt)
+      ? summaryEnteredAt
+      : Date.now();
 
   return {
     gamesPlayed: 1,
     gamesWon,
-    score: Number.isFinite(playerScore) ? (playerScore as number) : null,
-    finishedAt:
-      typeof summaryEnteredAt === 'number' && Number.isFinite(summaryEnteredAt)
-        ? (summaryEnteredAt as number)
-        : Date.now(),
+    score: scoreValue,
+    finishedAt: finishedAtValue,
     bidAccuracy,
     placement,
+    roundSnapshots,
   };
 }
 
-function deriveLiveBidAccuracy(state: AppState, playerId: string): BidAccuracyAggregate {
+function deriveLiveBidAccuracy(
+  state: AppState,
+  playerId: string,
+): { aggregate: BidAccuracyAggregate; roundSnapshots: RoundSnapshotMap } {
   const roundTallies = state.sp?.roundTallies ?? {};
   const roundsState = state.rounds ?? {};
   let matches = 0;
   let total = 0;
+  const roundSnapshots: Record<number, { bid: number | null; actual: number | null }> = {};
 
   if (!roundTallies || typeof roundTallies !== 'object') {
-    return emptyBidAccuracyAggregate;
+    return { aggregate: emptyBidAccuracyAggregate, roundSnapshots: Object.freeze({}) };
   }
 
   for (const [roundKey, tallies] of Object.entries(roundTallies as Record<string, unknown>)) {
@@ -435,10 +605,17 @@ function deriveLiveBidAccuracy(state: AppState, playerId: string): BidAccuracyAg
     if (!Number.isFinite(roundNo)) continue;
     const actual = toFiniteNumber((tallies as Record<string, unknown>)[playerId]);
     if (actual == null) continue;
-    const roundState =
-      (roundsState as unknown as Record<string, AppState['rounds'][number]>)[String(roundNo)];
+    const roundState = (roundsState as unknown as Record<string, AppState['rounds'][number]>)[
+      String(roundNo)
+    ];
     const bids = roundState?.bids ?? {};
     const bid = toFiniteNumber((bids as Record<string, unknown>)[playerId]);
+    if (bid != null || actual != null) {
+      roundSnapshots[roundNo] = {
+        bid,
+        actual,
+      };
+    }
     if (bid == null) continue;
     total += 1;
     if (bid === actual) {
@@ -446,9 +623,25 @@ function deriveLiveBidAccuracy(state: AppState, playerId: string): BidAccuracyAg
     }
   }
 
-  return total === 0
-    ? emptyBidAccuracyAggregate
-    : (Object.freeze({ matches, total }) as BidAccuracyAggregate);
+  const aggregate =
+    total === 0
+      ? emptyBidAccuracyAggregate
+      : (Object.freeze({ matches, total }) as BidAccuracyAggregate);
+
+  const frozenSnapshots: Record<number, RoundSnapshot> = {};
+  for (const [round, snapshot] of Object.entries(roundSnapshots)) {
+    const roundIndex = Number(round);
+    if (!Number.isFinite(roundIndex)) continue;
+    frozenSnapshots[roundIndex] = Object.freeze({
+      bid: snapshot.bid,
+      actual: snapshot.actual,
+    });
+  }
+
+  return {
+    aggregate,
+    roundSnapshots: Object.freeze(frozenSnapshots),
+  };
 }
 
 function calculatePlacementFromScores(
@@ -472,16 +665,16 @@ function calculatePlacementFromScores(
   if (!playerEntry) return null;
   const playerScore = playerEntry[1];
 
-  const uniqueScores = Array.from(new Set(entries.map(([, value]) => value))).sort(
-    (a, b) => b - a,
-  );
+  const uniqueScores = Array.from(new Set(entries.map(([, value]) => value))).sort((a, b) => b - a);
   const index = uniqueScores.findIndex((value) => value === playerScore);
   return index === -1 ? null : index + 1;
 }
 
 function calculateMedianPlacement(placements: ReadonlyArray<number>): number | null {
   if (!Array.isArray(placements) || placements.length === 0) return null;
-  const valid = placements.filter((value) => Number.isFinite(value)).map((value) => Math.trunc(value));
+  const valid = placements
+    .filter((value) => Number.isFinite(value))
+    .map((value) => Math.trunc(value));
   if (valid.length === 0) return null;
   const sorted = [...valid].sort((a, b) => a - b);
   const midIndex = Math.floor((sorted.length - 1) / 2);
@@ -513,7 +706,7 @@ function resolveHistoricalPlayerId(
     const normalizedAlias = normalizeAliasCandidate(candidate);
     if (!normalizedAlias) continue;
     const mapped = aliasMap[normalizedAlias];
-    if (typeof mapped === 'string' && mapped && game.playerIds.has(mapped)) {
+    if (typeof mapped === 'string' && mapped) {
       return mapped;
     }
   }
@@ -521,17 +714,88 @@ function resolveHistoricalPlayerId(
     const normalizedLabel = playerLabel.trim().toLocaleLowerCase();
     if (normalizedLabel) {
       for (const [id, name] of Object.entries(game.namesById)) {
-        if (
-          typeof name === 'string' &&
-          name.trim().toLocaleLowerCase() === normalizedLabel &&
-          game.playerIds.has(id)
-        ) {
+        if (typeof name === 'string' && name.trim().toLocaleLowerCase() === normalizedLabel) {
           return id;
         }
       }
     }
   }
   return null;
+}
+
+function matchHistoricalPlayerFromDerived(
+  record: GameRecord,
+  game: NormalizedHistoricalGame,
+  derived: ReturnType<typeof deriveHistoricalSecondaryMetrics>,
+  playerId: string,
+  playerLabel: string | null,
+): string | null {
+  const trimmedId = typeof playerId === 'string' ? playerId.trim() : '';
+  const aliasKey = trimmedId ? normalizeAliasCandidate(trimmedId) : null;
+  if (aliasKey) {
+    const mapped = game.slotMapping?.aliasToId?.[aliasKey];
+    if (typeof mapped === 'string' && mapped) {
+      return mapped;
+    }
+  }
+
+  const normalizedLabel =
+    typeof playerLabel === 'string' && playerLabel.trim()
+      ? playerLabel.trim().toLocaleLowerCase()
+      : '';
+
+  const candidateEntries = Object.keys(derived.bidAccuracyByPlayer);
+  for (const candidateId of candidateEntries) {
+    if (trimmedId && candidateId === trimmedId) {
+      return candidateId;
+    }
+    if (normalizedLabel) {
+      const candidateName =
+        game.namesById?.[candidateId] ??
+        record.summary?.playersById?.[candidateId] ??
+        record.summary?.rosterSnapshot?.playersById?.[candidateId] ??
+        '';
+      if (
+        typeof candidateName === 'string' &&
+        candidateName.trim().toLocaleLowerCase() === normalizedLabel
+      ) {
+        return candidateId;
+      }
+    }
+  }
+
+  return null;
+}
+
+function resolveFallbackPlayerId(
+  record: GameRecord,
+  playerId: string,
+  playerLabel: string | null,
+): string | null {
+  const trimmedId = typeof playerId === 'string' ? playerId.trim() : '';
+  const normalizedLabel =
+    typeof playerLabel === 'string' && playerLabel.trim()
+      ? playerLabel.trim().toLocaleLowerCase()
+      : '';
+  const summaryPlayers = Object.entries(record.summary?.playersById ?? {});
+  const rosterPlayers = Object.entries(record.summary?.rosterSnapshot?.playersById ?? {});
+  for (const [candidateIdRaw, candidateNameRaw] of [...summaryPlayers, ...rosterPlayers]) {
+    const candidateId = typeof candidateIdRaw === 'string' ? candidateIdRaw.trim() : '';
+    if (!candidateId) continue;
+    if (trimmedId && candidateId === trimmedId) {
+      return candidateId;
+    }
+    if (normalizedLabel) {
+      const candidateName =
+        typeof candidateNameRaw === 'string' && candidateNameRaw.trim()
+          ? candidateNameRaw.trim().toLocaleLowerCase()
+          : '';
+      if (candidateName === normalizedLabel) {
+        return candidateId;
+      }
+    }
+  }
+  return trimmedId || null;
 }
 
 function normalizeAliasCandidate(value: string | null | undefined): string | null {
@@ -600,9 +864,7 @@ function normalizeHistoricalGame(record: GameRecord): NormalizedHistoricalGame {
 
   const playerIds = new Set<string>(Object.keys(namesById));
   const declaredWinnerId =
-    typeof summary.winnerId === 'string' && summary.winnerId.trim()
-      ? summary.winnerId.trim()
-      : '';
+    typeof summary.winnerId === 'string' && summary.winnerId.trim() ? summary.winnerId.trim() : '';
   if (declaredWinnerId) {
     registerId(declaredWinnerId);
     playerIds.add(declaredWinnerId);
@@ -658,6 +920,7 @@ async function computeHistoricalAggregates(
   scores: ScoreAccumulator;
   bidAccuracy: BidAccuracyAggregate;
   placements: ReadonlyArray<number>;
+  rounds: RoundAggregateMap;
   error: string | null;
 }> {
   try {
@@ -669,6 +932,7 @@ async function computeHistoricalAggregates(
         scores: emptyScoreAccumulator,
         bidAccuracy: emptyBidAccuracyAggregate,
         placements: Object.freeze([]),
+        rounds: Object.freeze({}),
         error: null,
       };
     }
@@ -683,6 +947,7 @@ async function computeHistoricalAggregates(
     let bidAccuracyMatches = 0;
     let bidAccuracyTotal = 0;
     const placements: number[] = [];
+    const roundAccumulators = new Map<number, MutableRoundAccumulator>();
     for (const record of games) {
       if (!record || typeof record !== 'object') continue;
       const normalized = getOrNormalizeGame(record);
@@ -695,7 +960,17 @@ async function computeHistoricalAggregates(
         });
         continue;
       }
-      const canonicalId = resolveHistoricalPlayerId(normalized, playerId, playerLabel);
+      const derivedSecondary = deriveHistoricalSecondaryMetrics(record, normalized);
+      const canonicalId =
+        resolveHistoricalPlayerId(normalized, playerId, playerLabel) ??
+        matchHistoricalPlayerFromDerived(
+          record,
+          normalized,
+          derivedSecondary,
+          playerId,
+          playerLabel,
+        ) ??
+        resolveFallbackPlayerId(record, playerId, playerLabel);
       if (!canonicalId) {
         debugLog('historical skipping unmatched game', {
           playerId,
@@ -711,7 +986,8 @@ async function computeHistoricalAggregates(
       if (scoreForPlayer != null) {
         scoreSum += scoreForPlayer;
         scoreCount += 1;
-        highestScore = highestScore == null ? scoreForPlayer : Math.max(highestScore, scoreForPlayer);
+        highestScore =
+          highestScore == null ? scoreForPlayer : Math.max(highestScore, scoreForPlayer);
         lowestScore = lowestScore == null ? scoreForPlayer : Math.min(lowestScore, scoreForPlayer);
       } else {
         debugLog('historical game missing score for player', {
@@ -727,17 +1003,19 @@ async function computeHistoricalAggregates(
       } else {
         debugLog('historical counted loss', { playerId, canonicalId, gameId: record.id });
       }
-      const derivedSecondary = deriveHistoricalSecondaryMetrics(record, normalized);
       const accuracy = derivedSecondary.bidAccuracyByPlayer[canonicalId];
       if (accuracy) {
         bidAccuracyMatches += accuracy.matches;
         bidAccuracyTotal += accuracy.total;
       }
+      const roundSnapshots = derivedSecondary.roundSnapshotsByPlayer[canonicalId];
+      accumulateRoundSnapshots(roundAccumulators, roundSnapshots);
       const placement = calculatePlacementFromScores(normalized.scores, canonicalId);
       if (placement !== null) {
         placements.push(placement);
       }
     }
+    const historicalRounds = toRoundAggregateMap(roundAccumulators);
     debugLog('historical players scanned', {
       playerId,
       scoreCount,
@@ -747,6 +1025,7 @@ async function computeHistoricalAggregates(
       bidAccuracyMatches,
       bidAccuracyTotal,
       placements: placements.length,
+      rounds: Object.keys(historicalRounds).length,
     });
     return {
       totals: Object.freeze({ gamesPlayed, gamesWon }),
@@ -761,6 +1040,7 @@ async function computeHistoricalAggregates(
         total: bidAccuracyTotal,
       }),
       placements: Object.freeze([...placements]),
+      rounds: historicalRounds,
       error:
         legacySkipped > 0
           ? 'Some archived games are still migrating; statistics may be incomplete.'
@@ -775,6 +1055,7 @@ async function computeHistoricalAggregates(
       scores: emptyScoreAccumulator,
       bidAccuracy: emptyBidAccuracyAggregate,
       placements: Object.freeze([]),
+      rounds: Object.freeze({}),
       error: message,
     };
   }

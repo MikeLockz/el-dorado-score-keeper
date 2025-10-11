@@ -231,8 +231,8 @@ This plan decomposes the work described in `PLAYER_STATISTICS.md` into phased en
 
 **Status**
 
-- [ ] Selector refactor waiting on finalized canonical roster snapshot shape from Phase 2.
-- [ ] `RoundAccuracyChart` wiring incomplete; component still renders placeholder copy.
+- [x] Selector refactor replays historical round data and merges live round snapshots into `RoundMetric[]`.
+- [x] `RoundAccuracyChart` renders interactive heatmap with summary metrics and keyboard/tooltips wired.
 - [ ] Mobile tooltip affordances pending design sign-off.
 
 **Validation**
@@ -244,6 +244,7 @@ This plan decomposes the work described in `PLAYER_STATISTICS.md` into phased en
 
 - Selector unit tests with synthetic bundles.
 - Component interaction tests ensuring correct aria labels and focus order.
+- Unit coverage added in `tests/unit/state/player-statistics/round-metrics.test.ts` and `tests/unit/components/player-statistics/round-accuracy-chart.test.tsx`.
 
 **Commit**
 
