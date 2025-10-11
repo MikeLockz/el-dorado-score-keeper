@@ -15,7 +15,11 @@ function cloneState(): AppState {
 describe('entity selectors', () => {
   it('returns single-player slice when id matches current game', () => {
     const state = cloneState();
-    const spState = { ...state.sp, currentGameId: 'game-123', gameId: 'game-123' } as AppState['sp'];
+    const spState = {
+      ...state.sp,
+      currentGameId: 'game-123',
+      gameId: 'game-123',
+    } as AppState['sp'];
     const next: AppState = { ...state, sp: spState, activeSingleRosterId: 'roster-1' };
     const result = selectSinglePlayerGame(next, 'game-123');
     expect(result).toEqual({ id: 'game-123', sp: spState, rosterId: 'roster-1' });

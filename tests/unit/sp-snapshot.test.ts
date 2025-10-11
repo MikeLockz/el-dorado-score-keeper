@@ -26,9 +26,7 @@ function makeState() {
     ],
     p2: [],
   };
-  clone.sp.trickPlays = [
-    { playerId: 'p2', card: { suit: 'clubs', rank: 5 } },
-  ];
+  clone.sp.trickPlays = [{ playerId: 'p2', card: { suit: 'clubs', rank: 5 } }];
   clone.sp.sessionSeed = 42;
   clone.sp.roundTallies = { 1: { p1: 1, p2: 0 } };
   clone.activeSingleRosterId = 'r-single';

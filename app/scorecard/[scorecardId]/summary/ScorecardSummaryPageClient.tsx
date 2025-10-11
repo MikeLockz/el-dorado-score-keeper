@@ -30,7 +30,10 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
   const { state, ready } = useAppState();
   const { toast } = useToast();
 
-  const session = React.useMemo(() => selectScorecardById(state, scorecardId), [state, scorecardId]);
+  const session = React.useMemo(
+    () => selectScorecardById(state, scorecardId),
+    [state, scorecardId],
+  );
 
   const players: ScorecardPlayer[] = React.useMemo(() => {
     if (!session?.roster) return [];
@@ -99,7 +102,9 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
         ) : (
           players.map((player) => (
             <div key={player.id} className={styles.summaryItem}>
-              <span className={player.score === maxScore ? styles.winner : undefined}>{player.name}</span>
+              <span className={player.score === maxScore ? styles.winner : undefined}>
+                {player.name}
+              </span>
               <span>{player.score}</span>
             </div>
           ))

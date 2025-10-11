@@ -108,8 +108,8 @@ export function SinglePlayerSummaryPageClient({ gameId }: SinglePlayerSummaryPag
       <div className={styles.inner}>
         <header className={styles.header}>
           <div className={styles.description}>
-            View the final totals, round-by-round breakdown, and seed information for this single-player
-            run.
+            View the final totals, round-by-round breakdown, and seed information for this
+            single-player run.
           </div>
           <div className={styles.actions}>
             <Button variant="outline" onClick={() => void handleCopyLink()}>

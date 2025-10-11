@@ -277,7 +277,8 @@ export const trackScorecardSummaryExport = (payload: ScorecardSummaryExportPaylo
 
 export const trackSinglePlayerView = (payload: TrackSinglePlayerViewPayload) => {
   if (!isBrowser()) return;
-  const id = typeof payload.gameId === 'string' ? payload.gameId.trim() : String(payload.gameId).trim();
+  const id =
+    typeof payload.gameId === 'string' ? payload.gameId.trim() : String(payload.gameId).trim();
   if (!id) return;
   const view = payload.view ?? 'live';
   trackBrowserEvent('single-player.viewed', {

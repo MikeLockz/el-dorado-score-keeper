@@ -2,7 +2,11 @@ import { openDB, storeNames, tx } from './db';
 import type { AppEvent, AppState } from './types';
 import { INITIAL_STATE, reduce } from './types';
 import { events } from './events';
-import { clearSnapshot, createIndexedDbAdapter, createLocalStorageAdapter } from './persistence/sp-snapshot';
+import {
+  clearSnapshot,
+  createIndexedDbAdapter,
+  createLocalStorageAdapter,
+} from './persistence/sp-snapshot';
 import { uuid } from '@/lib/utils';
 import { formatDateTime } from '@/lib/format';
 import { withSpan } from '@/lib/observability/spans';
@@ -665,7 +669,5 @@ export function deriveGameMode(game: GameRecord): GameMode {
 
 export function deriveGameRoute(game: GameRecord): string {
   const mode = deriveGameMode(game);
-  return mode === 'single-player'
-    ? singlePlayerPath(game.id)
-    : scorecardPath(game.id, 'live');
+  return mode === 'single-player' ? singlePlayerPath(game.id) : scorecardPath(game.id, 'live');
 }

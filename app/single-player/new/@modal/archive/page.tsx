@@ -4,7 +4,14 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAppState } from '@/components/state-provider';
 import { useNewGameRequest, hasSinglePlayerProgress } from '@/lib/game-flow';
@@ -17,7 +24,10 @@ export default function ArchiveSinglePlayerModal() {
   const currentGameId = React.useMemo(() => getCurrentSinglePlayerGameId(state), [state]);
   const [error, setError] = React.useState<string | null>(null);
   const [trackingId, setTrackingId] = React.useState<string | null>(null);
-  const hasProgress = React.useMemo(() => (ready ? hasSinglePlayerProgress(state) : false), [ready, state]);
+  const hasProgress = React.useMemo(
+    () => (ready ? hasSinglePlayerProgress(state) : false),
+    [ready, state],
+  );
   const dialogContentRef = React.useRef<HTMLDivElement>(null);
   const cancelButtonRef = React.useRef<HTMLButtonElement>(null);
 
@@ -45,7 +55,10 @@ export default function ArchiveSinglePlayerModal() {
   const handleConfirm = React.useCallback(async () => {
     setError(null);
     setTrackingId(currentGameId ?? '__none__');
-    const ok = await startNewGame({ skipConfirm: true, analytics: { source: 'single-player.new.archive-modal.confirm' } });
+    const ok = await startNewGame({
+      skipConfirm: true,
+      analytics: { source: 'single-player.new.archive-modal.confirm' },
+    });
     if (!ok) {
       setTrackingId(null);
       setError('Unable to archive the current game. Please try again.');

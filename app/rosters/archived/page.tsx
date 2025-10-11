@@ -37,7 +37,12 @@ export default function ArchivedRostersPage() {
             <Card key={roster.rosterId} className={styles.card}>
               <div className={styles.cardTitle}>{roster.name}</div>
               <div className={styles.meta}>Players: {roster.players}</div>
-              <div className={styles.meta}>Mode: <span className={styles.badge}>{roster.type === 'single' ? 'Single Player' : 'Scorecard'}</span></div>
+              <div className={styles.meta}>
+                Mode:{' '}
+                <span className={styles.badge}>
+                  {roster.type === 'single' ? 'Single Player' : 'Scorecard'}
+                </span>
+              </div>
               <Button variant="outline" asChild>
                 <Link href={`/rosters/${roster.rosterId}`}>View details</Link>
               </Button>

@@ -82,7 +82,10 @@ const walkFiles = async (root: string, relative = ''): Promise<string[]> => {
 };
 
 const pickBuildDirectory = async () => {
-  const [nextState, outState] = await Promise.all([stat(nextBuildDir).catch(() => null), stat(exportBuildDir).catch(() => null)]);
+  const [nextState, outState] = await Promise.all([
+    stat(nextBuildDir).catch(() => null),
+    stat(exportBuildDir).catch(() => null),
+  ]);
 
   if (nextState && nextState.isDirectory()) {
     return { baseDir: nextBuildDir, label: '.next' };
@@ -92,7 +95,9 @@ const pickBuildDirectory = async () => {
     return { baseDir: exportBuildDir, label: 'out' };
   }
 
-  throw new UploadError('Could not find `.next/` or `out/` build directories. Run `pnpm build` first.');
+  throw new UploadError(
+    'Could not find `.next/` or `out/` build directories. Run `pnpm build` first.',
+  );
 };
 
 const ensureArtifactsDir = async (dir: string) => {
@@ -105,7 +110,11 @@ const createTarball = (files: string[], baseDir: string, outputPath: string) =>
     const args = ['-czf', outputPath, '-C', baseDir, ...files];
     const child = spawn('tar', args, { stdio: ['ignore', 'inherit', 'inherit'] });
     child.on('error', (error) => {
-      reject(new UploadError(`Failed to spawn tar: ${error instanceof Error ? error.message : String(error)}`));
+      reject(
+        new UploadError(
+          `Failed to spawn tar: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
     });
     child.on('exit', (code) => {
       if (code === 0) {
@@ -159,12 +168,15 @@ const toPublicAssetPath = (relative: string) => {
   return undefined;
 };
 
-const createMultipartBody = (fields: Array<{ name: string; value: string }>, fileField: {
-  name: string;
-  filename: string;
-  contentType: string;
-  data: Buffer;
-}) => {
+const createMultipartBody = (
+  fields: Array<{ name: string; value: string }>,
+  fileField: {
+    name: string;
+    filename: string;
+    contentType: string;
+    data: Buffer;
+  },
+) => {
   const boundary = `----nrBoundary${randomUUID()}`;
   const chunks: Buffer[] = [];
 
@@ -190,7 +202,13 @@ const createMultipartBody = (fields: Array<{ name: string; value: string }>, fil
   return { boundary, body: Buffer.concat(chunks) };
 };
 
-const postMultipart = (host: string, pathName: string, apiKey: string, boundary: string, body: Buffer) =>
+const postMultipart = (
+  host: string,
+  pathName: string,
+  apiKey: string,
+  boundary: string,
+  body: Buffer,
+) =>
   new Promise<void>((resolve, reject) => {
     const request = https.request(
       {
@@ -226,7 +244,11 @@ const postMultipart = (host: string, pathName: string, apiKey: string, boundary:
     );
 
     request.on('error', (error) => {
-      reject(new UploadError(`New Relic upload request failed: ${error instanceof Error ? error.message : String(error)}`));
+      reject(
+        new UploadError(
+          `New Relic upload request failed: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
     });
 
     request.write(body);
@@ -262,11 +284,11 @@ const uploadToNewRelic = async (
     assetBaseUrl.pathname = `${assetBaseUrl.pathname}/`;
   }
   const releaseOverride =
-    readOptionalEnv('NEW_RELIC_SOURCE_MAP_RELEASE') ??
-    readOptionalEnv('NEW_RELIC_RELEASE_NAME');
+    readOptionalEnv('NEW_RELIC_SOURCE_MAP_RELEASE') ?? readOptionalEnv('NEW_RELIC_RELEASE_NAME');
   const releaseName = releaseOverride ?? `${releaseChannel}-${gitSha.slice(0, 12)}`;
   const region = readOptionalEnv('NEW_RELIC_REGION');
-  const apiHost = region && region.toLowerCase() === 'eu' ? 'api.eu.newrelic.com' : 'api.newrelic.com';
+  const apiHost =
+    region && region.toLowerCase() === 'eu' ? 'api.eu.newrelic.com' : 'api.newrelic.com';
   const endpointPath = `/v2/browser_applications/${encodeURIComponent(applicationId)}/sourcemaps.json`;
 
   const candidates = files
@@ -286,7 +308,9 @@ const uploadToNewRelic = async (
     try {
       fileBuffer = await readFile(absolutePath);
     } catch (error) {
-      throw new UploadError(`Failed to read ${relative} for upload: ${error instanceof Error ? error.message : String(error)}`);
+      throw new UploadError(
+        `Failed to read ${relative} for upload: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     const minifiedUrl = new URL(assetPath.replace(/^\//, ''), assetBaseUrl).toString();
@@ -311,7 +335,9 @@ const uploadToNewRelic = async (
       if (error instanceof UploadError) {
         throw error;
       }
-      throw new UploadError(`New Relic upload failed for ${assetPath}: ${error instanceof Error ? error.message : String(error)}`);
+      throw new UploadError(
+        `New Relic upload failed for ${assetPath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -327,7 +353,10 @@ const uploadToProviders = async (
 ) => {
   const provider = readOptionalEnv('SOURCE_MAP_UPLOAD_PROVIDER');
   if (!provider) {
-    log('No SOURCE_MAP_UPLOAD_PROVIDER configured; skipping upload. Artifact ready at', archivePath);
+    log(
+      'No SOURCE_MAP_UPLOAD_PROVIDER configured; skipping upload. Artifact ready at',
+      archivePath,
+    );
     return;
   }
 
@@ -335,7 +364,9 @@ const uploadToProviders = async (
     case 'hyperdx': {
       const apiKey = readOptionalEnv('HYPERDX_API_KEY');
       if (!apiKey) {
-        throw new UploadError('HYPERDX_API_KEY is required when SOURCE_MAP_UPLOAD_PROVIDER=hyperdx');
+        throw new UploadError(
+          'HYPERDX_API_KEY is required when SOURCE_MAP_UPLOAD_PROVIDER=hyperdx',
+        );
       }
       log('HyperDX upload not yet implemented. Artifact path:', archivePath);
       break;
@@ -359,7 +390,9 @@ const main = async () => {
     log(`Scanning ${label} for source maps…`);
     const files = (await walkFiles(baseDir)).sort();
     if (files.length === 0) {
-      throw new UploadError('No source map files were found. Ensure the build ran with ENABLE_SOURCE_MAPS=1.');
+      throw new UploadError(
+        'No source map files were found. Ensure the build ran with ENABLE_SOURCE_MAPS=1.',
+      );
     }
 
     const artifactsDir = await ensureArtifactsDir(defaultOutputDir);

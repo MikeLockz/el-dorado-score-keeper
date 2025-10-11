@@ -14,6 +14,7 @@
 - **Backward compatibility**: Provide a migration path that keeps the current signal consumers working until they adopt the hardened contract.
 
 ### Shared Crypto Primitives
+
 - Depend on the SHA-256 digest helper introduced in `HARDEN_SNAPSHOT_CHECKSUM.md` so all message signing/verifying logic shares the same implementation.
 - Keep crypto utilities in a neutral location (e.g., `lib/crypto/digest.ts`, `lib/crypto/signature.ts`) to avoid circular dependencies with persistence code.
 - Coordinate future algorithm changes or key-derivation updates with the snapshot plan to maintain end-to-end consistency.

@@ -1,11 +1,13 @@
 # Player Statistics Feature Plan
 
 ## 1. Context
+
 - Build a player-specific history view that summarizes past performance using data already tracked in the state tree (players, playerDetails, rounds, scores, roundTallies, etc.).
 - The view should be derivable from persisted/game session state without requiring server calls.
 - Initial scope focuses on single player history; extendable to roster-based or multi-player histories later.
 
 ## 2. User & Business Goals
+
 - **Primary user goal:** Let a player quickly understand their long-term performance (how often they play, how often they win, and whether they are improving).
 - **Supporting goals:**
   - Surface detailed per-round bidding accuracy to improve strategy.
@@ -13,57 +15,65 @@
   - Maintain parity between human and bot statistics when data exists.
 
 ## 3. Data Inputs & Normalization
+
 - **Games collection (IndexedDB):** Archived games live in the IndexedDB `app-games-db` database under the `games` store (see `lib/state/io.ts`). Each `GameRecord` contains a `bundle.events` array that includes granular single-player events such as `sp/deal`, `sp/trick/played`, `sp/trick/cleared`, and `sp/round-tally-set`.
 - **State snapshot:** Active game state (in-memory Redux slice) still drives immediate UI, but historical calculations must hydrate from `GameRecord` bundles.
 - **Event log (current game):** The live IndexedDB `app-db` database (see `lib/state/io.ts`) retains the canonical `events` object store. The active session reducer already consumes these events; analytics replay can pull directly from the in-memory reducer context or refetch via `exportBundle` when necessary.
-- **Current state gaps:** If the current store only holds the *active* game, add persistence (e.g., append completed game snapshots to a `completedGames` slice) or reuse the archived `GameRecord` retrieval helpers (`listGames`, `getGame`).
+- **Current state gaps:** If the current store only holds the _active_ game, add persistence (e.g., append completed game snapshots to a `completedGames` slice) or reuse the archived `GameRecord` retrieval helpers (`listGames`, `getGame`).
 - **Normalization:**
   - Convert timestamps (e.g., `createdAt`) to JS `Date` objects when needed for display.
   - Ensure round data is ordered numerically (1-10) for per-round charts.
   - Derive per-hand data by replaying `sp/trick/played` events per player; fall back to live `state.sp.trickPlays` only when the IndexedDB bundle is unavailable.
 
 ## 4. Metric Definitions
+
 ### 4.1 Primary Metrics
-| Metric | Definition | Calculation | Current Game Source | Archived Games Source |
-| --- | --- | --- | --- | --- |
-| Total Games Played | Number of completed games a player participated in | Count of games where player id exists in roster and game state `phase === "complete"` | Live state does not track completed-count; treat active game as +1 once phase reaches `summary` | Count `GameRecord` entries from IndexedDB `games` store filtered by player roster participation |
-| Total Games Won | Completed games where player achieved top score (with tiebreak rules) | Count of games where player's final score equals highest score and no tie-breaking rules exclude them | Determine winner of active game when `state.sp.phase === 'summary'` or `scores` finalized | Use `GameRecord.summary` winner fields; replay score events if tie-breaking needed |
-| Game Win Rate | Win rate as a percentage | `(Total Games Won / Total Games Played) * 100` (handle divide-by-zero) | Combine active game outcome (if finished) with archived totals before dividing | Derived from archived totals + active game outcome |
+
+| Metric             | Definition                                                            | Calculation                                                                                           | Current Game Source                                                                             | Archived Games Source                                                                           |
+| ------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Total Games Played | Number of completed games a player participated in                    | Count of games where player id exists in roster and game state `phase === "complete"`                 | Live state does not track completed-count; treat active game as +1 once phase reaches `summary` | Count `GameRecord` entries from IndexedDB `games` store filtered by player roster participation |
+| Total Games Won    | Completed games where player achieved top score (with tiebreak rules) | Count of games where player's final score equals highest score and no tie-breaking rules exclude them | Determine winner of active game when `state.sp.phase === 'summary'` or `scores` finalized       | Use `GameRecord.summary` winner fields; replay score events if tie-breaking needed              |
+| Game Win Rate      | Win rate as a percentage                                              | `(Total Games Won / Total Games Played) * 100` (handle divide-by-zero)                                | Combine active game outcome (if finished) with archived totals before dividing                  | Derived from archived totals + active game outcome                                              |
 
 ### 4.2 Secondary Metrics
-| Metric | Definition | Calculation | Current Game Source | Archived Games Source |
-| --- | --- | --- | --- | --- |
-| Avg Score/Game | Average final score across completed games | `sum(finalScore) / totalGamesPlayed` | Use `state.scores[playerId]` when phase >= `summary` | Use `GameRecord.summary.scores[playerId]` aggregated across records |
-| Highest Score | Peak final score in any completed game | `max(finalScore)` | Compare active game `state.scores[playerId]` once finished | Max of `GameRecord.summary.scores[playerId]` |
-| Lowest Score | Minimum final score in any completed game | `min(finalScore)` | Compare active game `state.scores[playerId]` once finished | Min of `GameRecord.summary.scores[playerId]` |
+
+| Metric         | Definition                                 | Calculation                          | Current Game Source                                        | Archived Games Source                                               |
+| -------------- | ------------------------------------------ | ------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------- |
+| Avg Score/Game | Average final score across completed games | `sum(finalScore) / totalGamesPlayed` | Use `state.scores[playerId]` when phase >= `summary`       | Use `GameRecord.summary.scores[playerId]` aggregated across records |
+| Highest Score  | Peak final score in any completed game     | `max(finalScore)`                    | Compare active game `state.scores[playerId]` once finished | Max of `GameRecord.summary.scores[playerId]`                        |
+| Lowest Score   | Minimum final score in any completed game  | `min(finalScore)`                    | Compare active game `state.scores[playerId]` once finished | Min of `GameRecord.summary.scores[playerId]`                        |
 
 ### 4.3 Tertiary Metrics: Round-Level
-| Metric | Definition | Calculation | Current Game Source | Archived Games Source |
-| --- | --- | --- | --- | --- |
-| Avg Bids per Game | Average number of bids placed (round entries) per game | Sum of bids per game / total games | Pull bids from `state.rounds[roundNo].bids[playerId]` for active rounds | Replay `GameRecord.bundle.events` (`bid/set`) grouped per game |
-| Highest Bid | Maximum bid the player placed in any round | `max(bid)` | Max over active game `state.rounds[roundNo].bids[playerId]` | Max from archived `bid/set` events |
-| Lowest Bid | Minimum bid the player placed in any round | `min(bid)` | Min over active game `state.rounds[roundNo].bids[playerId]` | Min from archived `bid/set` events |
-| Bid Accuracy by Round | % of rounds (1-10) where bid == tricks taken | For each round number `r`: `matchingRounds[r] / totalRoundsPlayed[r]` | Compare live bids vs. `state.sp.roundTallies[r][playerId]` | Compare archived `bid/set` vs `sp/round-tally-set` events per round |
+
+| Metric                | Definition                                             | Calculation                                                           | Current Game Source                                                     | Archived Games Source                                               |
+| --------------------- | ------------------------------------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Avg Bids per Game     | Average number of bids placed (round entries) per game | Sum of bids per game / total games                                    | Pull bids from `state.rounds[roundNo].bids[playerId]` for active rounds | Replay `GameRecord.bundle.events` (`bid/set`) grouped per game      |
+| Highest Bid           | Maximum bid the player placed in any round             | `max(bid)`                                                            | Max over active game `state.rounds[roundNo].bids[playerId]`             | Max from archived `bid/set` events                                  |
+| Lowest Bid            | Minimum bid the player placed in any round             | `min(bid)`                                                            | Min over active game `state.rounds[roundNo].bids[playerId]`             | Min from archived `bid/set` events                                  |
+| Bid Accuracy by Round | % of rounds (1-10) where bid == tricks taken           | For each round number `r`: `matchingRounds[r] / totalRoundsPlayed[r]` | Compare live bids vs. `state.sp.roundTallies[r][playerId]`              | Compare archived `bid/set` vs `sp/round-tally-set` events per round |
 
 ### 4.4 Tertiary Metrics: Hand-Level
-| Metric | Definition | Calculation | Current Game Source | Archived Games Source |
-| --- | --- | --- | --- | --- |
-| Hands Played | Total tricks the player participated in across all games | Counts of trick participation (using `trickCounts` snapshots or derived from `sp/trick/played` events) | Use `state.sp.trickCounts[playerId]` and live `trickPlays` | Replay `sp/trick/played` events per game from `GameRecord.bundle.events` |
-| Most Frequent Suit | Suit the player played most often across recorded hands | Aggregate suits from trick plays grouped by player; determine mode | Count suits from active `state.sp.trickPlays` | Aggregate suit counts from archived `sp/trick/played` events |
+
+| Metric             | Definition                                               | Calculation                                                                                            | Current Game Source                                        | Archived Games Source                                                    |
+| ------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Hands Played       | Total tricks the player participated in across all games | Counts of trick participation (using `trickCounts` snapshots or derived from `sp/trick/played` events) | Use `state.sp.trickCounts[playerId]` and live `trickPlays` | Replay `sp/trick/played` events per game from `GameRecord.bundle.events` |
+| Most Frequent Suit | Suit the player played most often across recorded hands  | Aggregate suits from trick plays grouped by player; determine mode                                     | Count suits from active `state.sp.trickPlays`              | Aggregate suit counts from archived `sp/trick/played` events             |
 
 ### 4.5 Advanced Performance Metrics
-| Metric Group | Metric | Definition | Calculation | Current Game Source | Archived Games Source |
-| --- | --- | --- | --- | --- | --- |
-| Trick Efficiency | Avg Trick Delta | Average difference between tricks won and bid amount (positive = overtricks, negative = undertricks) | `sum(trickCount - bid) / totalRoundsPlayed` | Live bids from `state.rounds` plus `state.sp.roundTallies` | Replay `sp/round-tally-set` and `bid/set` events per game |
-| Trick Efficiency | Perfect Bid Streak | Longest consecutive streak of rounds where bid exactly matched tricks taken | Scan ordered rounds per game; track maximum run of exact matches | Evaluate streak using live rounds and tallies | Evaluate streak across archived rounds via replayed events |
-| Suit Mastery | Trump Win Rate | Win percentage of games when a given suit was trump | For each suit: wins where `trump === suit` / games played with that suit as trump | Use current game `state.sp.trump` and outcome when finished | Replay `sp/deal` to get trump per game; combine with archived outcomes |
-| Suit Mastery | Suit Trick Success | Average tricks won when a suit was trump vs. off-trump suits | Aggregate tricks by suit context; compute averages | Use live `state.sp.trickPlays` with `state.sp.trump` context | Replay `sp/trick/played` with trump info from `sp/deal` |
-| Score Volatility | Score Standard Deviation | Variation of final scores across games | `stddev(finalScores)` per player | Active game's final score from `state.scores[playerId]` | Historical final scores from `GameRecord.summary.scores[playerId]` |
-| Score Volatility | Largest Comeback/Lead Blown | Max difference between midpoint deficit and final win (comeback) or lead surrendered | Use per-round cumulative scores to track swings | Replay live `score/added` events (pulled from in-memory event journal or `exportBundle`) | Replay archived `score/added` events to build cumulative score timeline |
-| Momentum | Rolling Avg Score | Moving average of final scores over last N games (configurable window) | Compute sliding window mean (default N=5) | Include active game score when phase >= `summary` | Order archived scores by `GameRecord.finishedAt` |
-| Momentum | Win Streak | Longest and current consecutive wins | Iterate chronological results; track max/current streak | Combine active game win (if finished) with historical streak state | Traverse archived `GameRecord.summary.winnerId` values chronologically |
+
+| Metric Group     | Metric                      | Definition                                                                                           | Calculation                                                                       | Current Game Source                                                                      | Archived Games Source                                                   |
+| ---------------- | --------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Trick Efficiency | Avg Trick Delta             | Average difference between tricks won and bid amount (positive = overtricks, negative = undertricks) | `sum(trickCount - bid) / totalRoundsPlayed`                                       | Live bids from `state.rounds` plus `state.sp.roundTallies`                               | Replay `sp/round-tally-set` and `bid/set` events per game               |
+| Trick Efficiency | Perfect Bid Streak          | Longest consecutive streak of rounds where bid exactly matched tricks taken                          | Scan ordered rounds per game; track maximum run of exact matches                  | Evaluate streak using live rounds and tallies                                            | Evaluate streak across archived rounds via replayed events              |
+| Suit Mastery     | Trump Win Rate              | Win percentage of games when a given suit was trump                                                  | For each suit: wins where `trump === suit` / games played with that suit as trump | Use current game `state.sp.trump` and outcome when finished                              | Replay `sp/deal` to get trump per game; combine with archived outcomes  |
+| Suit Mastery     | Suit Trick Success          | Average tricks won when a suit was trump vs. off-trump suits                                         | Aggregate tricks by suit context; compute averages                                | Use live `state.sp.trickPlays` with `state.sp.trump` context                             | Replay `sp/trick/played` with trump info from `sp/deal`                 |
+| Score Volatility | Score Standard Deviation    | Variation of final scores across games                                                               | `stddev(finalScores)` per player                                                  | Active game's final score from `state.scores[playerId]`                                  | Historical final scores from `GameRecord.summary.scores[playerId]`      |
+| Score Volatility | Largest Comeback/Lead Blown | Max difference between midpoint deficit and final win (comeback) or lead surrendered                 | Use per-round cumulative scores to track swings                                   | Replay live `score/added` events (pulled from in-memory event journal or `exportBundle`) | Replay archived `score/added` events to build cumulative score timeline |
+| Momentum         | Rolling Avg Score           | Moving average of final scores over last N games (configurable window)                               | Compute sliding window mean (default N=5)                                         | Include active game score when phase >= `summary`                                        | Order archived scores by `GameRecord.finishedAt`                        |
+| Momentum         | Win Streak                  | Longest and current consecutive wins                                                                 | Iterate chronological results; track max/current streak                           | Combine active game win (if finished) with historical streak state                       | Traverse archived `GameRecord.summary.winnerId` values chronologically  |
 
 ### 4.6 Selector Contracts
+
 ```ts
 export type PlayerStatsLoadState = {
   isLoadingLive: boolean;
@@ -132,6 +142,7 @@ export type PlayerStatisticsSummary = PlayerStatsLoadState & {
 ```
 
 ## 5. Feature Requirements
+
 - **Player Selector:**
   - Dropdown or search to choose a player from `playerDetails`.
   - Default to active human player if available.
@@ -167,6 +178,7 @@ export type PlayerStatisticsSummary = PlayerStatsLoadState & {
   - Adopt `@visx/visx` primitives for charts: `@visx/heatmap` for bid accuracy grid, `@visx/xychart` for sparklines/rolling averages, and `@visx/shape` for suit distribution bars. Apply color tokens and add ARIA/tooltip layers manually.
 
 ## 6. Technical Plan
+
 1. **Data Layer**
    - Add selector `selectCompletedGamesByPlayer(playerId)` that consolidates necessary metrics from state/persistence.
    - Create memoized selectors for each stat to avoid recomputation.
@@ -200,6 +212,7 @@ export type PlayerStatisticsSummary = PlayerStatsLoadState & {
    - Visual regression tests for charts/cards if tooling available.
 
 ## 7. Non-Functional Considerations
+
 - **Performance:** Memoize heavy aggregations; precompute summaries when storing completed games.
 - **Performance Guardrails:** Cache parsed `GameRecord` event timelines keyed by `gameId`, batch IndexedDB reads, and debounce recomputations triggered by cross-tab signals.
 - **Localization:** Keep metric labels in i18n files for future translation.
@@ -208,6 +221,7 @@ export type PlayerStatisticsSummary = PlayerStatsLoadState & {
 - **Error Handling:** Detect IndexedDB unavailability (e.g., private mode) and show a degraded experience banner with instructions; fall back to live-state-only stats when archives can’t be read.
 
 ## 8. Open Questions
+
 - Where do completed game summaries live today? Need confirmation on storage strategy (client-only vs. backend).
 - Should bots appear in the player selector by default, or only human players?
 - Are tie games counted as wins for all tied players or require a tiebreaker rule?
@@ -217,6 +231,7 @@ export type PlayerStatisticsSummary = PlayerStatsLoadState & {
 - Can analytics for the active game read the live event stream directly, or should we re-export from the `events` store for consistency with archived replay logic?
 
 ## 9. Next Steps
+
 1. Confirm data source for historical games and extend persistence if necessary.
 2. Implement selectors/utilities and add test coverage.
 3. Build UI components iteratively, starting with primary stats, then secondary, then charts.

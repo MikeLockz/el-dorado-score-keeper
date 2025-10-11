@@ -8,8 +8,12 @@ import { INITIAL_STATE, type AppState, type GameRecord } from '@/lib/state';
 import * as stateIo from '@/lib/state/io';
 import * as analytics from '@/lib/observability/events';
 
-const setMockParams = (globalThis as any).__setMockParams as (params: Record<string, string>) => void;
-const setMockRouter = (globalThis as any).__setMockRouter as (router: ReturnType<typeof createRouterStub>) => void;
+const setMockParams = (globalThis as any).__setMockParams as (
+  params: Record<string, string>,
+) => void;
+const setMockRouter = (globalThis as any).__setMockRouter as (
+  router: ReturnType<typeof createRouterStub>,
+) => void;
 const setRestoreGameMock = (globalThis as any).__setRestoreGameMock as (fn: any) => void;
 const setDeleteGameMock = (globalThis as any).__setDeleteGameMock as (fn: any) => void;
 const setMockAppState = (globalThis as any).__setMockAppState as (
@@ -103,7 +107,11 @@ describe('archived game modals', () => {
     await waitFor(() => expect(restoreMock).toHaveBeenCalledWith(undefined, 'game-123'));
 
     expect(trackRestoreSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ gameId: 'game-123', mode: 'single-player', source: 'games.modal.restore' }),
+      expect.objectContaining({
+        gameId: 'game-123',
+        mode: 'single-player',
+        source: 'games.modal.restore',
+      }),
     );
     expect(router.replace).toHaveBeenCalledWith('/single-player/game-123');
 
@@ -127,7 +135,11 @@ describe('archived game modals', () => {
     await waitFor(() => expect(deleteMock).toHaveBeenCalledWith(undefined, 'game-123'));
 
     expect(trackDeleteSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ gameId: 'game-123', mode: 'single-player', source: 'games.modal.delete' }),
+      expect.objectContaining({
+        gameId: 'game-123',
+        mode: 'single-player',
+        source: 'games.modal.delete',
+      }),
     );
     expect(router.replace).toHaveBeenCalledWith('/games');
 

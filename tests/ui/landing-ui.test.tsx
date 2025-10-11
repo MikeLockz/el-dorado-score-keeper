@@ -128,7 +128,9 @@ suite('Landing Page UI', () => {
     expect(scoreButtons.some((el) => /Start a new score card/i.test(el.textContent || ''))).toBe(
       true,
     );
-    const resumeAnchor = scoreButtons.find((el) => el.tagName === 'A') as HTMLAnchorElement | undefined;
+    const resumeAnchor = scoreButtons.find((el) => el.tagName === 'A') as
+      | HTMLAnchorElement
+      | undefined;
     expect(resumeAnchor?.getAttribute('href')).toBe('/scorecard/scorecard-789');
 
     root.unmount();

@@ -24,21 +24,30 @@ export default function RostersPage() {
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Rosters</h1>
-          <p className={styles.description}>Manage saved lineups for scorecard and single-player modes.</p>
+          <p className={styles.description}>
+            Manage saved lineups for scorecard and single-player modes.
+          </p>
         </div>
         <Button variant="outline" asChild>
           <Link href="/players">Manage via Players hub</Link>
         </Button>
       </header>
       {active.length === 0 ? (
-        <p className={styles.emptyState}>No active rosters yet. Use the Players hub to create one.</p>
+        <p className={styles.emptyState}>
+          No active rosters yet. Use the Players hub to create one.
+        </p>
       ) : (
         <div className={styles.list}>
           {active.map((roster) => (
             <Card key={roster.rosterId} className={styles.card}>
               <div className={styles.cardTitle}>{roster.name}</div>
               <div className={styles.meta}>Players: {roster.players}</div>
-              <div className={styles.meta}>Mode: <span className={styles.badge}>{roster.type === 'single' ? 'Single Player' : 'Scorecard'}</span></div>
+              <div className={styles.meta}>
+                Mode:{' '}
+                <span className={styles.badge}>
+                  {roster.type === 'single' ? 'Single Player' : 'Scorecard'}
+                </span>
+              </div>
               <Button variant="outline" asChild>
                 <Link href={`/rosters/${roster.rosterId}`}>View details</Link>
               </Button>

@@ -63,8 +63,12 @@ describe('state utils helpers', () => {
       currentGameId: 'game-abc',
     };
     expect(resolveSinglePlayerRoute(state)).toBe('/single-player/game-abc');
-    expect(resolveSinglePlayerRoute(state, { view: 'scorecard' })).toBe('/single-player/game-abc/scorecard');
-    expect(resolveSinglePlayerRoute(state, { view: 'summary' })).toBe('/single-player/game-abc/summary');
+    expect(resolveSinglePlayerRoute(state, { view: 'scorecard' })).toBe(
+      '/single-player/game-abc/scorecard',
+    );
+    expect(resolveSinglePlayerRoute(state, { view: 'summary' })).toBe(
+      '/single-player/game-abc/summary',
+    );
   });
 
   it('resolveSinglePlayerRoute falls back to entry when missing id', () => {

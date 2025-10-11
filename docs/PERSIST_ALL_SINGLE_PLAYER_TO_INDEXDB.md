@@ -25,9 +25,9 @@ Define a versioned SP snapshot that can live side-by-side with the existing `sta
 // lib/state/persistence/sp-snapshot.ts
 export type SinglePlayerSnapshotV1 = {
   version: 1;
-  height: number;             // matched IndexedDB seq
-  savedAt: number;             // Date.now()
-  gameId: UUID;               // stable id used in routes (/single-player/{gameId}/...)
+  height: number; // matched IndexedDB seq
+  savedAt: number; // Date.now()
+  gameId: UUID; // stable id used in routes (/single-player/{gameId}/...)
   rosterId: UUID | null;
   roster: {
     playersById: Record<UUID, string>;
@@ -60,7 +60,7 @@ Storage format:
      - Serialize asynchronously: schedule the `localStorage` write via `queueMicrotask` or `requestIdleCallback` (with a fallback) to avoid blocking the transaction completion path.
      - Deduplicate writes using a monotonic cache: compute a cheap checksum (e.g., 53-bit FNV of `JSON.stringify` result) and skip when unchanged.
      - Wrap access in `try/catch`; on failures (e.g., quota exceeded, private mode), log via `captureBrowserMessage('single-player.persist.failed', { level: 'warn', ... })` but do not reject the primary append promise.
-      - Persist the `gameId → height` lookup atomically alongside `state['current']` (e.g., store under `STATE` key `sp/game-index` or a new `MAP` store) so route-based lookups always return a valid height.
+     - Persist the `gameId → height` lookup atomically alongside `state['current']` (e.g., store under `STATE` key `sp/game-index` or a new `MAP` store) so route-based lookups always return a valid height.
 
    - Generate or reuse a `gameId` when the session transitions from `setup` to an active phase. Prefer an event (`sp/session-started { id, startedAt }`) so reducers remain deterministic and time-travel-safe; persist the id in both state and snapshot helper.
 
@@ -115,7 +115,7 @@ Storage format:
    - Simulate reset event and ensure the key is removed.
    - Verify the `gameId → height` index returns the expected height and survives multiple sessions.
 
-4. **Performance Regression Guard**
+3. **Performance Regression Guard**
    - Add CI check measuring average append latency before/after enabling snapshots
 
 ## Rollout Plan

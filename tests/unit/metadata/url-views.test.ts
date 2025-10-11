@@ -9,7 +9,7 @@ import { generateMetadata as playerDetailMetadata } from '@/app/players/[playerI
 import { generateMetadata as rosterDetailMetadata } from '@/app/rosters/[rosterId]/page';
 import { generateMetadata as gameDetailMetadata } from '@/app/games/[gameId]/page';
 
-const ctx = <T extends Record<string, unknown>>(params: T) => ({ params } as { params: T });
+const ctx = <T extends Record<string, unknown>>(params: T) => ({ params }) as { params: T };
 
 describe('URL view metadata', () => {
   it('includes game id in single-player live metadata', async () => {

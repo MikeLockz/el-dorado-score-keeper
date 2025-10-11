@@ -89,11 +89,17 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
             Manage via Players hub
           </Button>
           {archived ? (
-            <Button variant="outline" onClick={() => router.push(resolveRosterRoute(null, { fallback: 'archived' }))}>
+            <Button
+              variant="outline"
+              onClick={() => router.push(resolveRosterRoute(null, { fallback: 'archived' }))}
+            >
               View archived list
             </Button>
           ) : (
-            <Button variant="outline" onClick={() => router.push(resolveRosterRoute(null, { fallback: 'archived' }))}>
+            <Button
+              variant="outline"
+              onClick={() => router.push(resolveRosterRoute(null, { fallback: 'archived' }))}
+            >
               Browse archived rosters
             </Button>
           )}
@@ -104,7 +110,9 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
       </header>
       <div className={styles.meta}>
         Mode:{' '}
-        <span className={styles.badge}>{roster?.type === 'single' ? 'Single Player' : 'Scorecard'}</span>
+        <span className={styles.badge}>
+          {roster?.type === 'single' ? 'Single Player' : 'Scorecard'}
+        </span>
       </div>
       <section>
         <h2 className={styles.meta}>Players</h2>

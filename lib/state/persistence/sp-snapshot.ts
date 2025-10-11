@@ -81,7 +81,10 @@ export type SpSnapshotIndexedDbAdapter = {
 };
 
 export type SpSnapshotLocalStorageAdapter = {
-  write: (payload: { serialized: string; snapshot: SinglePlayerSnapshotV1 }) => void | Promise<void>;
+  write: (payload: {
+    serialized: string;
+    snapshot: SinglePlayerSnapshotV1;
+  }) => void | Promise<void>;
   read?: () => string | null;
   clear?: () => void | Promise<void>;
 };
@@ -154,7 +157,10 @@ function deriveRoster(state: AppState): {
   };
 }
 
-function collectRelevantScoreIds(snapshotSp: AppState['sp'], roster: SinglePlayerSnapshotV1['roster']): Set<string> {
+function collectRelevantScoreIds(
+  snapshotSp: AppState['sp'],
+  roster: SinglePlayerSnapshotV1['roster'],
+): Set<string> {
   const ids = new Set<string>();
   if (Array.isArray(snapshotSp.order)) {
     for (const id of snapshotSp.order) if (typeof id === 'string') ids.add(id);
@@ -357,7 +363,13 @@ export async function persistSpSnapshot(
     }
   }
   if (adapters.localStorage?.write) {
-    const enqueue = typeof queueMicrotask === 'function' ? queueMicrotask : (cb: () => void) => Promise.resolve().then(cb).catch(() => {});
+    const enqueue =
+      typeof queueMicrotask === 'function'
+        ? queueMicrotask
+        : (cb: () => void) =>
+            Promise.resolve()
+              .then(cb)
+              .catch(() => {});
     await new Promise<void>((resolve) => {
       enqueue(() => {
         try {
@@ -435,7 +447,11 @@ export async function loadSnapshotByGameId(
   if (entry && adapters.indexedDb?.read) {
     try {
       const snapshot = await adapters.indexedDb.read();
-      if (snapshot && snapshot.version === SINGLE_PLAYER_SNAPSHOT_VERSION && snapshot.gameId === gameId) {
+      if (
+        snapshot &&
+        snapshot.version === SINGLE_PLAYER_SNAPSHOT_VERSION &&
+        snapshot.gameId === gameId
+      ) {
         return { snapshot, source: 'indexed-db', entry };
       }
     } catch (error) {
@@ -503,7 +519,9 @@ function getSafeLocalStorage(): Storage | null {
   }
 }
 
-export function createLocalStorageAdapter(storage: Storage | null = getSafeLocalStorage()): SpSnapshotLocalStorageAdapter {
+export function createLocalStorageAdapter(
+  storage: Storage | null = getSafeLocalStorage(),
+): SpSnapshotLocalStorageAdapter {
   return {
     write: ({ serialized }) => {
       if (!storage) return;
@@ -560,7 +578,9 @@ function coerceGameIndexEntries(value: unknown): Record<string, SpGameIndexEntry
   return result;
 }
 
-function trimGameIndexEntries(entries: Record<string, SpGameIndexEntry>): Record<string, SpGameIndexEntry> {
+function trimGameIndexEntries(
+  entries: Record<string, SpGameIndexEntry>,
+): Record<string, SpGameIndexEntry> {
   const now = safeNow();
   const cutoff =
     SP_GAME_INDEX_RETENTION_MS > 0 ? now - SP_GAME_INDEX_RETENTION_MS : Number.NEGATIVE_INFINITY;
@@ -615,14 +635,22 @@ export function createIndexedDbAdapter(db: IDBDatabase): SpSnapshotIndexedDbAdap
         indexReq.onsuccess = () => {
           const record = (indexReq.result as SpGameIndexRecord | null) ?? null;
           const existingIndex = coerceGameIndexEntries(record?.games ?? record ?? {});
-          const nextEntries = { ...existingIndex, [snapshot.gameId]: { height: snapshot.height, savedAt: snapshot.savedAt } };
+          const nextEntries = {
+            ...existingIndex,
+            [snapshot.gameId]: { height: snapshot.height, savedAt: snapshot.savedAt },
+          };
           const trimmed = trimGameIndexEntries(nextEntries);
 
           const putSnapshot = store.put({ id: SP_SNAPSHOT_RECORD_KEY, snapshot });
-          putSnapshot.onerror = () => fail(putSnapshot.error ?? new Error('Failed to persist SP snapshot'));
+          putSnapshot.onerror = () =>
+            fail(putSnapshot.error ?? new Error('Failed to persist SP snapshot'));
 
-          const putIndex = store.put({ id: SP_GAME_INDEX_RECORD_KEY, games: trimmed } as SpGameIndexRecord);
-          putIndex.onerror = () => fail(putIndex.error ?? new Error('Failed to persist SP game index'));
+          const putIndex = store.put({
+            id: SP_GAME_INDEX_RECORD_KEY,
+            games: trimmed,
+          } as SpGameIndexRecord);
+          putIndex.onerror = () =>
+            fail(putIndex.error ?? new Error('Failed to persist SP game index'));
         };
       });
     },

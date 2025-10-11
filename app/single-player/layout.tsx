@@ -10,11 +10,7 @@ import { getCurrentSinglePlayerGameId, singlePlayerPath } from '@/lib/state';
 
 import styles from './page.module.scss';
 
-export default function SinglePlayerLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function SinglePlayerLayout({ children }: { children: React.ReactNode }) {
   const segments = useSelectedLayoutSegments();
   const isRootRoute = segments.length === 0;
   const router = useRouter();
