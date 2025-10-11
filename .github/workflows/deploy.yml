@@ -46,6 +46,7 @@ jobs:
           NEXT_PUBLIC_HDX_HOST: ${{ vars.NEXT_PUBLIC_HDX_HOST }}
           NEXT_PUBLIC_HDX_SERVICE_NAME: ${{ vars.NEXT_PUBLIC_HDX_SERVICE_NAME }}
           NEXT_PUBLIC_APP_ENV: ${{ vars.NEXT_PUBLIC_APP_ENV }}
+          ENABLE_SOURCE_MAPS: '1'
           # Force basePath for GitHub Project Pages (e.g., /<repo>)
           # next.config.mjs reads BASE_PATH (or NEXT_PUBLIC_BASE_PATH) with priority
           BASE_PATH: /${{ github.event.repository.name }}
@@ -57,6 +58,19 @@ jobs:
           pnpm build
           # For older Next versions, export step is required. Harmless if not needed.
           npx next export || true
+
+      - name: Upload source maps to New Relic
+        if: ${{ secrets.NEW_RELIC_USER_API_KEY != '' && (vars.NEW_RELIC_BROWSER_APP_ID != '' || vars.NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID != '') && vars.NEW_RELIC_SOURCE_MAP_BASE_URL != '' }}
+        env:
+          SOURCE_MAP_UPLOAD_PROVIDER: newrelic
+          ENABLE_SOURCE_MAPS: '1'
+          NEW_RELIC_USER_API_KEY: ${{ secrets.NEW_RELIC_USER_API_KEY }}
+          NEW_RELIC_BROWSER_APP_ID: ${{ vars.NEW_RELIC_BROWSER_APP_ID }}
+          NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID: ${{ vars.NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID }}
+          NEW_RELIC_SOURCE_MAP_BASE_URL: ${{ vars.NEW_RELIC_SOURCE_MAP_BASE_URL }}
+          NEW_RELIC_SOURCE_MAP_RELEASE: ${{ vars.NEW_RELIC_SOURCE_MAP_RELEASE }}
+          NEW_RELIC_REGION: ${{ vars.NEW_RELIC_REGION }}
+        run: pnpm observability:upload-source-maps
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

@@ -58,3 +58,10 @@ Fix the single player summary Auto-advance so that the countdown timer works and
 Bug when I have an existing single player game, I navigate to home screen, i click on start a new game then when the confirmation modal appears I click on Continue current game and nothing happens. I expect that when I click on Continue current game that I am taken to the existing game in progress. Add any tests needed to cover this flow.
 
 Fix bug when I close out of modal: Start a new game? You have an in-progress game. Starting a new one will archive current progress and reset scores and I hit ESC character and I am redirected to the current in progress single player game. I should return to whatever view i was just on.
+
+when you click on details in single player during a game it should navigate to the summary route
+
+
+how to enable source maps for css?
+
+is there a way to simplify the the presentation layer of jsx and separate out the more functional logic into a separate file so that it's easier to read the markup and understand the structure of the component at a glance without having to read through all the logic?

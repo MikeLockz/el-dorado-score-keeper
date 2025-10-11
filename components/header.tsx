@@ -39,12 +39,6 @@ export default function Header() {
   const navItems: NavItem[] = React.useMemo(
     () => [
       {
-        href: scorecardRoute,
-        label: 'Score Card',
-        group: 'primary',
-        match: (path) => path.startsWith('/scorecard'),
-      },
-      {
         href: resolveArchivedGameRoute(null),
         label: 'Games',
         group: 'primary',

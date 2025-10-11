@@ -2,8 +2,14 @@
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-import { events, roundDelta } from '@/lib/state';
+import {
+  events,
+  roundDelta,
+  getCurrentSinglePlayerGameId,
+  singlePlayerPath,
+} from '@/lib/state';
 import { computeAdvanceBatch, type Card as SpCard } from '@/lib/single-player';
 import { applyRoundAnalyticsFromEvents } from '@/lib/observability/events';
 import SpRoundSummary from './sp/SpRoundSummary';
@@ -63,6 +69,17 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     scoreCardTotals,
     scoreCardGrid,
   } = useSinglePlayerViewModel({ humanId, rng });
+
+  const router = useRouter();
+  const gameId = React.useMemo(() => getCurrentSinglePlayerGameId(state), [state]);
+  const summaryHref = React.useMemo(
+    () => (gameId ? singlePlayerPath(gameId, 'summary') : null),
+    [gameId],
+  );
+  const handleOpenSummary = React.useCallback(() => {
+    if (!summaryHref) return;
+    router.push(summaryHref);
+  }, [router, summaryHref]);
 
   const ctaMeta = React.useMemo(
     () =>
@@ -144,11 +161,6 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
       seed: sessionSeed,
     };
   }, [players, playerName, state.scores, sessionSeed]);
-
-  const [showSummary, setShowSummary] = React.useState(false);
-  React.useEffect(() => {
-    if (spPhase !== 'bidding' && spPhase !== 'playing') setShowSummary(false);
-  }, [spPhase]);
 
   // Summary auto-advance hooks (always declared; guarded inside effect)
   const [autoCanceled, setAutoCanceled] = React.useState(false);
@@ -251,21 +263,6 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
         title={summaryData.title}
         players={summaryData.players}
         seed={summaryData.seed}
-        scoreCardRounds={scoreCardRounds}
-        scoreCardTotals={scoreCardTotals}
-        scoreCardGrid={scoreCardGrid}
-      />
-    );
-  }
-
-  if (showSummary) {
-    return (
-      <SpGameSummary
-        title={summaryData.title}
-        players={summaryData.players}
-        seed={summaryData.seed}
-        onDetailsToggle={() => setShowSummary(false)}
-        detailsActive
         scoreCardRounds={scoreCardRounds}
         scoreCardTotals={scoreCardTotals}
         scoreCardGrid={scoreCardGrid}
@@ -383,7 +380,8 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
           <button
             type="button"
             className={styles.detailsButton}
-            onClick={() => setShowSummary(true)}
+            onClick={handleOpenSummary}
+            disabled={!summaryHref}
             aria-label="Round details"
           >
             Details

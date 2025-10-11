@@ -103,6 +103,7 @@
   text-decoration: none;
   text-underline-offset: 0.25rem;
   transition: color 160ms ease;
+  text-align: center;
 
   &:hover {
     color: var(--foreground);

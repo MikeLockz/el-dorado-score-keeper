@@ -5,7 +5,6 @@ import ScorecardGrid, {
   type ScorecardPlayerColumn,
   type ScorecardRoundView,
 } from '../scorecard/ScorecardGrid';
-import SpScoreCard from './SpScoreCard';
 import type { ScoreCardRound } from './useSinglePlayerViewModel';
 
 import styles from './sp-game-summary.module.scss';
@@ -37,8 +36,6 @@ export default function SpGameSummary(props: {
     onClose,
     closeLabel,
     variant = 'full',
-    scoreCardRounds,
-    scoreCardTotals,
     scoreCardGrid,
   } = props;
   const isPanel = variant === 'panel';
@@ -56,6 +53,9 @@ export default function SpGameSummary(props: {
     isPanel && styles.panelDetailsButton,
     detailsActive && styles.detailsButtonActive,
   );
+  const activeScoreCardGrid =
+    scoreCardGrid && scoreCardGrid.rounds.length > 0 ? scoreCardGrid : null;
+
   return (
     <div className={rootClass}>
       <header className={headerClass}>
@@ -79,18 +79,12 @@ export default function SpGameSummary(props: {
         </div>
       </header>
       <main className={mainClass}>
-        {scoreCardGrid && scoreCardGrid.rounds.length > 0 ? (
+        {activeScoreCardGrid ? (
           <ScorecardGrid
-            columns={scoreCardGrid.columns}
-            rounds={scoreCardGrid.rounds}
+            columns={activeScoreCardGrid.columns}
+            rounds={activeScoreCardGrid.rounds}
             disableInputs
             disableRoundStateCycling
-          />
-        ) : !!scoreCardRounds?.length && scoreCardTotals ? (
-          <SpScoreCard
-            rounds={scoreCardRounds}
-            totals={scoreCardTotals}
-            players={players.map((p) => ({ id: p.id, name: p.name }))}
           />
         ) : null}
       </main>
@@ -104,7 +98,7 @@ export default function SpGameSummary(props: {
                 aria-pressed={detailsActive ?? false}
                 onClick={onDetailsToggle}
               >
-                Details
+                Back
               </button>
             </footer>
           )
@@ -117,7 +111,7 @@ export default function SpGameSummary(props: {
                 aria-pressed={detailsActive ?? false}
                 onClick={onDetailsToggle}
               >
-                Details
+                Back
               </button>
             </nav>
           )}

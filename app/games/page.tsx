@@ -52,6 +52,11 @@ export default function GamesPage() {
     resumeRouteRef.current = null;
     router.push(target);
   }, [router]);
+  const scorecardHref = React.useMemo(() => resolveScorecardRoute(state), [state]);
+  const handleOpenScorecard = React.useCallback(() => {
+    if (!scorecardHref) return;
+    router.push(scorecardHref);
+  }, [router, scorecardHref]);
   const { startNewGame, pending: startPending } = useNewGameRequest({
     onSuccess: () => {
       router.push('/');
@@ -137,6 +142,18 @@ export default function GamesPage() {
             )}
           </Button>
         </div>
+        <section className={styles.scorecardSection} aria-label="Scorecard overview">
+          <div className={styles.scorecardCopy}>
+            <h2 className={styles.scorecardTitle}>Keep score with the digital scorecard</h2>
+            <p className={styles.scorecardDescription}>
+              Track bids, tricks, and totals for an in-person table. Jump into the live scorecard to
+              manage the current game or start recording a new one.
+            </p>
+          </div>
+          <Button variant="outline" onClick={handleOpenScorecard}>
+            Open scorecard view
+          </Button>
+        </section>
         <Card className={styles.tableCard}>
           <div className={styles.tableScroll}>
             <table className={styles.table}>
