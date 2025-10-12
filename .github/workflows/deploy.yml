@@ -26,7 +26,7 @@ jobs:
       NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID: ${{ secrets.NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID }}
       NEW_RELIC_SOURCE_MAP_BASE_URL: ${{ secrets.NEW_RELIC_SOURCE_MAP_BASE_URL }}
       NEW_RELIC_SOURCE_MAP_RELEASE: ${{ secrets.NEW_RELIC_SOURCE_MAP_RELEASE }}
-      NEW_RELIC_REGION: ${{ secrets.NEW_RELIC_REGION }}
+      NEW_RELIC_REGION: ${{ vars.NEW_RELIC_REGION || secrets.NEW_RELIC_REGION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
