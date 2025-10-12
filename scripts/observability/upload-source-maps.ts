@@ -202,22 +202,23 @@ const createMultipartBody = (
   return { boundary, body: Buffer.concat(chunks) };
 };
 
-const postMultipart = (
+const httpRequest = <T extends boolean | Buffer | string | object = Buffer>(
   host: string,
   pathName: string,
+  method: 'GET' | 'POST',
   apiKey: string,
-  boundary: string,
-  body: Buffer,
-) =>
-  new Promise<void>((resolve, reject) => {
+  body?: Buffer,
+  contentType?: string,
+): Promise<{ statusCode: number; payload: Buffer }> =>
+  new Promise((resolve, reject) => {
     const request = https.request(
       {
         hostname: host,
         path: pathName,
-        method: 'POST',
+        method,
         headers: {
-          'Content-Type': `multipart/form-data; boundary=${boundary}`,
-          'Content-Length': body.byteLength,
+          ...(contentType ? { 'Content-Type': contentType } : {}),
+          ...(body ? { 'Content-Length': body.byteLength } : {}),
           'X-Api-Key': apiKey,
           Accept: 'application/json',
           'User-Agent': 'el-dorado-source-map-uploader/1.0',
@@ -228,18 +229,9 @@ const postMultipart = (
         response.on('data', (chunk) => {
           resultChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
         });
-        response.on('end', () => {
-          const payload = Buffer.concat(resultChunks).toString('utf8');
-          if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
-            resolve();
-            return;
-          }
-          reject(
-            new UploadError(
-              `New Relic upload failed (${response.statusCode ?? 'unknown'}): ${payload || response.statusMessage || 'no response body'}`,
-            ),
-          );
-        });
+        response.on('end', () =>
+          resolve({ statusCode: response.statusCode ?? 0, payload: Buffer.concat(resultChunks) }),
+        );
       },
     );
 
@@ -251,9 +243,113 @@ const postMultipart = (
       );
     });
 
-    request.write(body);
+    if (body) {
+      request.write(body);
+    }
     request.end();
   });
+
+const postMultipart = async (
+  host: string,
+  pathName: string,
+  apiKey: string,
+  boundary: string,
+  body: Buffer,
+) => {
+  const { statusCode, payload } = await httpRequest(
+    host,
+    pathName,
+    'POST',
+    apiKey,
+    body,
+    `multipart/form-data; boundary=${boundary}`,
+  );
+
+  if (statusCode >= 200 && statusCode < 300) {
+    return;
+  }
+
+  const message = payload.length > 0 ? payload.toString('utf8') : 'no response body';
+  throw new UploadError(`New Relic upload failed (${statusCode || 'unknown'}): ${message}`);
+};
+
+type BrowserApplication = {
+  id: number;
+  name?: string;
+  guid?: string;
+  browser_monitoring_key?: string;
+};
+
+const fetchBrowserApplications = async (
+  host: string,
+  apiKey: string,
+  filters: Record<string, string | undefined>,
+): Promise<BrowserApplication[]> => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) {
+      params.append(`filter[${key}]`, value);
+    }
+  }
+  const pathName = `/v2/browser_applications.json${params.size ? `?${params.toString()}` : ''}`;
+
+  const { statusCode, payload } = await httpRequest(host, pathName, 'GET', apiKey);
+  if (statusCode >= 200 && statusCode < 300) {
+    try {
+      const parsed = JSON.parse(payload.toString('utf8')) as {
+        browser_applications?: BrowserApplication[];
+      };
+      return Array.isArray(parsed.browser_applications) ? parsed.browser_applications : [];
+    } catch (error) {
+      throw new UploadError(
+        `Failed to parse New Relic browser application list: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  if (statusCode === 404) {
+    return [];
+  }
+
+  const message = payload.length > 0 ? payload.toString('utf8') : 'no response body';
+  throw new UploadError(
+    `Failed to query New Relic browser applications (${statusCode || 'unknown'}): ${message}`,
+  );
+};
+
+const resolveBrowserApplicationId = async (
+  apiHost: string,
+  apiKey: string,
+  candidate: string,
+): Promise<{ id: string; debug: string }> => {
+  if (/^\d+$/.test(candidate.trim())) {
+    return { id: candidate.trim(), debug: 'numeric id provided' };
+  }
+
+  const attempts: Array<{ label: string; filters: Record<string, string> }> = [
+    { label: 'guid', filters: { guid: candidate } },
+    { label: 'name', filters: { name: candidate } },
+    { label: 'browser_monitoring_key', filters: { browser_monitoring_key: candidate } },
+  ];
+
+  for (const attempt of attempts) {
+    const matches = await fetchBrowserApplications(apiHost, apiKey, attempt.filters);
+    if (matches.length === 1) {
+      return { id: String(matches[0]?.id), debug: `${attempt.label} lookup` };
+    }
+    if (matches.length > 1) {
+      throw new UploadError(
+        `Multiple browser applications matched ${attempt.label}=${candidate}. Please set NEW_RELIC_BROWSER_APP_ID to a specific numeric id.`,
+      );
+    }
+  }
+
+  throw new UploadError(
+    `Unable to resolve browser application id for "${candidate}". Confirm NEW_RELIC_BROWSER_APP_ID is a numeric id or set NEW_RELIC_REGION if your account is in the EU region.`,
+  );
+};
 
 const uploadToNewRelic = async (
   files: string[],
@@ -289,7 +385,12 @@ const uploadToNewRelic = async (
   const region = readOptionalEnv('NEW_RELIC_REGION');
   const apiHost =
     region && region.toLowerCase() === 'eu' ? 'api.eu.newrelic.com' : 'api.newrelic.com';
-  const endpointPath = `/v2/browser_applications/${encodeURIComponent(applicationId)}/sourcemaps.json`;
+  const { id: resolvedAppId, debug: idSource } = await resolveBrowserApplicationId(
+    apiHost,
+    userApiKey,
+    applicationId,
+  );
+  const endpointPath = `/v2/browser_applications/${encodeURIComponent(resolvedAppId)}/sourcemaps.json`;
 
   const candidates = files
     .map((relative) => ({ relative, assetPath: toPublicAssetPath(relative) }))
@@ -300,7 +401,9 @@ const uploadToNewRelic = async (
     return;
   }
 
-  log(`Uploading ${candidates.length} source maps to New Relic browser app ${applicationId}…`);
+  log(
+    `Uploading ${candidates.length} source maps to New Relic browser app ${resolvedAppId} (${idSource})…`,
+  );
 
   for (const { relative, assetPath } of candidates) {
     const absolutePath = path.join(baseDir, relative);
