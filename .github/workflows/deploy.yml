@@ -67,6 +67,9 @@ jobs:
           # For older Next versions, export step is required. Harmless if not needed.
           npx next export || true
 
+      - name: Add GitHub Pages .nojekyll marker
+        run: touch out/.nojekyll
+
       - name: Upload source maps to New Relic
         continue-on-error: true
         if: ${{ env.NEW_RELIC_USER_API_KEY != '' && env.NEW_RELIC_SOURCE_MAP_BASE_URL != '' && (env.NEW_RELIC_BROWSER_APP_ID != '' || env.NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID != '') }}
