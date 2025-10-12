@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 
+import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
+
 import SinglePlayerApp from '../_components/SinglePlayerApp';
 
 export async function generateStaticParams() {
-  return [];
+  return staticExportParams('gameId');
 }
 
 type RouteParams = {
@@ -28,7 +30,7 @@ export async function generateMetadata({
   params: Promise<RouteParams>;
 }): Promise<Metadata> {
   const { gameId: rawId = '' } = await params;
-  const gameId = rawId.trim();
+  const gameId = scrubDynamicParam(rawId);
   const title = makeTitle(gameId);
   const description = makeDescription(gameId);
 
@@ -51,6 +53,6 @@ export async function generateMetadata({
 
 export default async function SinglePlayerGamePage({ params }: { params: Promise<RouteParams> }) {
   const { gameId: rawId = '' } = await params;
-  const gameId = rawId.trim() || 'single-player-game';
+  const gameId = scrubDynamicParam(rawId) || 'single-player-game';
   return <SinglePlayerApp key={gameId} />;
 }

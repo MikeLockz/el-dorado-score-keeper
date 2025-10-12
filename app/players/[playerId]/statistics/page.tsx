@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 
+import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
+
 import PlayerStatisticsPageClient from './PlayerStatisticsPageClient';
 
 export async function generateStaticParams() {
-  return [];
+  return staticExportParams('playerId');
 }
 
 type RouteParams = {
@@ -34,8 +36,7 @@ function makeDescription(playerId: string): string {
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const resolved = await resolveParams(params);
-  const rawId = resolved.playerId ?? '';
-  const playerId = rawId.trim();
+  const playerId = scrubDynamicParam(resolved.playerId);
   const title = makeTitle(playerId);
   const description = makeDescription(playerId);
   const path = playerId ? `/players/${playerId}/statistics` : '/players';
@@ -59,6 +60,6 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 
 export default async function PlayerStatisticsPage({ params }: PageParams) {
   const resolved = await resolveParams(params);
-  const playerId = (resolved.playerId ?? '').trim();
+  const playerId = scrubDynamicParam(resolved.playerId);
   return <PlayerStatisticsPageClient playerId={playerId} />;
 }

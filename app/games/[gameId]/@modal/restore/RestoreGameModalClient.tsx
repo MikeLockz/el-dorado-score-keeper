@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useAppState } from '@/components/state-provider';
+import { scrubDynamicParam } from '@/lib/static-export';
 import {
   restoreGame,
   deriveGameMode,
@@ -28,7 +29,7 @@ export default function RestoreGameModalClient() {
   const router = useRouter();
   const params = useParams();
   const raw = params?.gameId;
-  const gameId = Array.isArray(raw) ? (raw[0] ?? '') : typeof raw === 'string' ? raw : '';
+  const gameId = scrubDynamicParam(raw);
   const [pending, setPending] = React.useState(false);
   const [game, setGame] = React.useState<GameRecord | null>(null);
   const { state } = useAppState();

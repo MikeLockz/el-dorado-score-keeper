@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 
+import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
+
 import ScorecardSummaryPageClient from './ScorecardSummaryPageClient';
 
 export async function generateStaticParams() {
-  return [];
+  return staticExportParams('scorecardId');
 }
 
 type PageParams = {
@@ -25,8 +27,7 @@ function makeDescription(scorecardId: string): string {
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const rawId = params.scorecardId ?? '';
-  const scorecardId = rawId.trim();
+  const scorecardId = scrubDynamicParam(params.scorecardId);
   const title = makeTitle(scorecardId);
   const description = makeDescription(scorecardId);
 
@@ -48,6 +49,6 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 }
 
 export default function ScorecardSummaryPage({ params }: PageParams) {
-  const scorecardId = (params.scorecardId ?? '').trim();
+  const scorecardId = scrubDynamicParam(params.scorecardId);
   return <ScorecardSummaryPageClient scorecardId={scorecardId} />;
 }

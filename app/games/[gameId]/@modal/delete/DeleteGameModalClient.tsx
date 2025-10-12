@@ -12,6 +12,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { scrubDynamicParam } from '@/lib/static-export';
 import {
   deleteGame,
   deriveGameMode,
@@ -26,7 +27,7 @@ export default function DeleteGameModalClient() {
   const router = useRouter();
   const params = useParams();
   const raw = params?.gameId;
-  const gameId = Array.isArray(raw) ? (raw[0] ?? '') : typeof raw === 'string' ? raw : '';
+  const gameId = scrubDynamicParam(raw);
   const [pending, setPending] = React.useState(false);
   const [game, setGame] = React.useState<GameRecord | null>(null);
   const dialogContentRef = React.useRef<HTMLDivElement>(null);

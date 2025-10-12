@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 
+import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
+
 import SinglePlayerScorecardPageClient from './SinglePlayerScorecardPageClient';
 
 export async function generateStaticParams() {
-  return [];
+  return staticExportParams('gameId');
 }
 
 type PageParams = {
@@ -25,8 +27,7 @@ function makeDescription(gameId: string): string {
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const rawId = params.gameId ?? '';
-  const gameId = rawId.trim();
+  const gameId = scrubDynamicParam(params.gameId);
   const title = makeTitle(gameId);
   const description = makeDescription(gameId);
 
@@ -48,6 +49,6 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 }
 
 export default function SinglePlayerScorecardPage({ params }: PageParams) {
-  const gameId = (params.gameId ?? '').trim();
+  const gameId = scrubDynamicParam(params.gameId);
   return <SinglePlayerScorecardPageClient gameId={gameId} />;
 }

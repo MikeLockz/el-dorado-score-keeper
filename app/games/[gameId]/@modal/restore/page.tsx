@@ -1,7 +1,9 @@
+import { staticExportParams } from '@/lib/static-export';
+
 import RestoreGameModalClient from './RestoreGameModalClient';
 
 export async function generateStaticParams() {
-  return [];
+  return staticExportParams('gameId');
 }
 
 export default function RestoreGameModalPage() {

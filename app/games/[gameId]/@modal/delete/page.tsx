@@ -1,7 +1,9 @@
+import { staticExportParams } from '@/lib/static-export';
+
 import DeleteGameModalClient from './DeleteGameModalClient';
 
 export async function generateStaticParams() {
-  return [];
+  return staticExportParams('gameId');
 }
 
 export default function DeleteGameModalPage() {

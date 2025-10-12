@@ -8,6 +8,7 @@ import StateRoot from '@/components/state-root';
 import { AppErrorBoundary } from '@/components/error-boundary';
 import Devtools from '@/components/devtools';
 import Header from '@/components/header';
+import StaticExportRedirect from '@/components/navigation/StaticExportRedirect';
 import { BrowserTelemetryProvider } from './browser-telemetry-provider';
 
 import styles from './layout.module.scss';
@@ -93,6 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <BrowserTelemetryProvider>
               <AppErrorBoundary>
                 <StateRoot>
+                  <StaticExportRedirect />
                   <Header />
                   <main id="main" className={styles.main}>
                     {children}

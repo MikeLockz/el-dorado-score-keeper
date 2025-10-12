@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 
+import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
+
 import PlayerDetailPageClient from './PlayerDetailPageClient';
 
 export async function generateStaticParams() {
-  return [];
+  return staticExportParams('playerId');
 }
 
 type PageParams = {
@@ -25,8 +27,7 @@ function formatPlayerDescription(playerId: string): string {
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const rawId = params.playerId ?? '';
-  const playerId = rawId.trim();
+  const playerId = scrubDynamicParam(params.playerId);
   const title = formatPlayerTitle(playerId);
   const description = formatPlayerDescription(playerId);
 
@@ -48,6 +49,6 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 }
 
 export default function PlayerDetailPage({ params }: PageParams) {
-  const playerId = (params.playerId ?? '').trim();
+  const playerId = scrubDynamicParam(params.playerId);
   return <PlayerDetailPageClient playerId={playerId} />;
 }

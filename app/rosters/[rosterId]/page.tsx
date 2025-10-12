@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 
+import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
+
 import RosterDetailPageClient from './RosterDetailPageClient';
 
 export async function generateStaticParams() {
-  return [];
+  return staticExportParams('rosterId');
 }
 
 type PageParams = {
@@ -25,8 +27,7 @@ function formatRosterDescription(rosterId: string): string {
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const rawId = params.rosterId ?? '';
-  const rosterId = rawId.trim();
+  const rosterId = scrubDynamicParam(params.rosterId);
   const title = formatRosterTitle(rosterId);
   const description = formatRosterDescription(rosterId);
 
@@ -48,6 +49,6 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 }
 
 export default function RosterDetailPage({ params }: PageParams) {
-  const rosterId = (params.rosterId ?? '').trim();
+  const rosterId = scrubDynamicParam(params.rosterId);
   return <RosterDetailPageClient rosterId={rosterId} />;
 }

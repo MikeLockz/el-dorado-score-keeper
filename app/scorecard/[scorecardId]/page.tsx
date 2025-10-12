@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 
+import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
 import CurrentGame from '@/components/views/CurrentGame';
 
 import styles from './page.module.scss';
 
 export async function generateStaticParams() {
-  return [];
+  return staticExportParams('scorecardId');
 }
 
 type Params = {
@@ -27,8 +28,7 @@ function makeDescription(scorecardId: string): string {
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const rawId = params.scorecardId ?? '';
-  const scorecardId = rawId.trim();
+  const scorecardId = scrubDynamicParam(params.scorecardId);
   const title = makeTitle(scorecardId);
   const description = makeDescription(scorecardId);
 
@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default function ScorecardSessionPage({ params }: Params) {
-  const scorecardId = (params.scorecardId ?? '').trim() || 'scorecard-session';
+  const scorecardId = scrubDynamicParam(params.scorecardId) || 'scorecard-session';
   return (
     <div className={styles.container}>
       <CurrentGame key={scorecardId} />
