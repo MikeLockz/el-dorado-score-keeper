@@ -5,10 +5,8 @@ import SinglePlayerApp from '../_components/SinglePlayerApp';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-type Params = {
-  params: {
-    gameId?: string;
-  };
+type RouteParams = {
+  gameId?: string;
 };
 
 function makeTitle(gameId: string): string {
@@ -23,8 +21,12 @@ function makeDescription(gameId: string): string {
   return `Continue single-player game ${gameId} with live scoring, scorecard, and summary views.`;
 }
 
-export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const rawId = params.gameId ?? '';
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<RouteParams>;
+}): Promise<Metadata> {
+  const { gameId: rawId = '' } = await params;
   const gameId = rawId.trim();
   const title = makeTitle(gameId);
   const description = makeDescription(gameId);
@@ -46,7 +48,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   };
 }
 
-export default function SinglePlayerGamePage({ params }: Params) {
-  const gameId = (params.gameId ?? '').trim() || 'single-player-game';
+export default async function SinglePlayerGamePage({ params }: { params: Promise<RouteParams> }) {
+  const { gameId: rawId = '' } = await params;
+  const gameId = rawId.trim() || 'single-player-game';
   return <SinglePlayerApp key={gameId} />;
 }
