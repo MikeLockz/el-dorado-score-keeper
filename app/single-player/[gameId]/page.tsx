@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 
 import SinglePlayerApp from '../_components/SinglePlayerApp';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export async function generateStaticParams() {
+  return [];
+}
 
 type RouteParams = {
   gameId?: string;

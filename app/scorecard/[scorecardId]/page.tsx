@@ -4,8 +4,9 @@ import CurrentGame from '@/components/views/CurrentGame';
 
 import styles from './page.module.scss';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export async function generateStaticParams() {
+  return [];
+}
 
 type Params = {
   params: {
