@@ -24,6 +24,7 @@ import { PrimaryStatsCard } from './components/PrimaryStatsCard';
 import { SecondaryStatsCard } from './components/SecondaryStatsCard';
 import { RoundAccuracyChart } from './components/RoundAccuracyChart';
 import { HandInsightsCard } from './components/HandInsightsCard';
+import { AdvancedInsightsPanel } from './components/AdvancedInsightsPanel';
 import styles from './page.module.scss';
 
 export type PlayerStatisticsViewProps = {
@@ -268,9 +269,11 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
               ))}
             </div>
           ) : (
-            <div className={styles.placeholderCopy}>
-              Streaks, score volatility, and suit mastery visuals will land in this panel.
-            </div>
+            <AdvancedInsightsPanel
+              loading={isLoading}
+              metrics={resolvedSummary?.advanced ?? null}
+              loadError={resolvedSummary?.loadError}
+            />
           )}
         </Card>
       </div>

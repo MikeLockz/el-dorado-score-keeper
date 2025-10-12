@@ -324,38 +324,57 @@ This plan decomposes the work described in `PLAYER_STATISTICS.md` into phased en
 - Deliver advanced analytics (trick efficiency, suit mastery, score volatility, momentum) derived from canonical events.
 - Render `AdvancedInsightsPanel` with interactive charts and accessibility-compliant annotations.
 
+**Current State (2025-10-11)**
+
+- `AdvancedMetrics` is typed in `lib/state/player-statistics.ts`, but `loadPlayerStatisticsSummary` never hydrates it; the advanced card in the view always receives `null`.
+- `NormalizedHistoricalGame` (see `lib/state/player-statistics/cache.ts`) only caches summary metadata. We do not persist per-trick timelines, trump history, or cumulative score differentials required for advanced analytics.
+- `computeHistoricalAggregates` returns round, score, and hand data, yet does not expose the raw game list needed for streak/volatility calculations.
+- `PlayerStatisticsView.tsx` still renders placeholder copy for the advanced panel; there is no `AdvancedInsightsPanel` component, stylesheet, or export wiring.
+- No localization keys, telemetry hooks, or unit/component tests exist for these metrics.
+
 **Tasks**
 
 1. **Selector & Calculators**
-   - Expand `AdvancedMetrics` type (`lib/state/player-statistics.ts`) to include:
-     - `trickEfficiency` (win percentage per suit + overall).
-     - `suitMastery` matrix (per-suit success %, attempts, win/loss deltas).
-     - `scoreVolatility` (standard deviation, rolling variance, high/low outliers).
-     - `momentum` (rolling average scores, current/longest streaks, comeback metrics).
-   - Implement calculators in `lib/state/player-statistics/advanced.ts`:
-     - Reuse canonical `NormalizedHistoricalGame` payloads and Phase 5 hand insights to avoid double replay.
-     - Provide helpers (`calculateTrickEfficiency`, `calculateSuitMastery`, `calculateScoreVolatility`, `calculateMomentum`), each accepting live + archived aggregates.
-     - Support partial data (e.g., missing suits, short histories) by returning `null` subfields rather than zeroed noise.
-     - Expose memoized entry point (`accumulateAdvancedMetrics`) and register in `loadPlayerStatisticsSummary`.
-   - Integrate caching with `cache.ts` (per `gameId` + calculator key) to prevent reprocessing large archives.
+   - Extend `AdvancedMetrics` in `lib/state/player-statistics.ts` (and exported helper types) so each sub-section can carry suit-level percentages, attempt counts, and nullable fields for incomplete data. Add strongly typed points for the momentum sparkline (e.g., `AdvancedMomentumPoint`).
+   - Enrich `NormalizedHistoricalGame` and caching:
+     - Persist per-round trump suit, dealer, and ordered trick winners extracted from `sp/deal` and `sp/trick/cleared` events.
+     - Capture per-trick play logs with canonical player ids + card suits (reuse alias normalization from `hands.ts`).
+     - Store cumulative score snapshots per round (difference vs. table leader) so comeback/lead metrics do not require replaying tallies repeatedly.
+     - Add a dedicated `advancedReplayCache` (either alongside `cache.ts` or in the new module) and expose `resetAdvancedMetricsCache()`.
+     - Define an `AdvancedReplayContext` interface (gameId, finishedAt, trumpByRound, trickLog, perRoundScores, bids, placements) so calculators have a consistent contract.
+   - Introduce `lib/state/player-statistics/advanced.ts`:
+     - `buildAdvancedReplayContext(record, normalized)` → memoized per game, returning trump history, trick summaries, per-suit tallies, cumulative score deltas, and win/loss outcome.
+     - Calculator helpers:
+       - `calculateTrickEfficiency(context, playerId)` – compute `averageDelta` (mean of `actual - bid` across all completed rounds), longest `perfectBidStreak`, and per-suit trick win percentages derived from the trick summaries.
+       - `calculateSuitMastery(context, playerId)` – combine trump history with trick logs to populate `trumpWinRateBySuit` (rounds won when trump was the suit / rounds played with that trump) and `trickSuccessBySuit` (tricks won for each leading suit / tricks contested in that suit). Return `null` fields for suits with <3 attempts.
+     - `calculateScoreVolatility(context, playerId)` – aggregate final scores across games to produce standard deviation, then walk the cumulative score timeline to determine `largestComeback` (biggest negative differential that ended in a win) and `largestLeadBlown` (biggest positive differential in a game the player ultimately lost).
+     - `calculateMomentum(context, playerId, { windowSize = 5 })` – sort games by `finishedAt`, compute rolling averages over the chosen window (fall back to smaller window when history is short), and derive `currentWinStreak`/`longestWinStreak` by scanning the chronological win/loss sequence. Include the current live game when the reducer says it is complete.
+   - `accumulateAdvancedMetrics({ historicalGames, liveContext, playerId })` – orchestrate the calculators, merge historical + live samples, and normalize `null` fallbacks so UI logic stays simple.
+   - Update `computeHistoricalAggregates` to return the list of normalized games (in finish order) and any data the advanced calculators require but currently discard (e.g., derived secondary metrics). Thread that through `loadPlayerStatisticsSummary`, invoke `accumulateAdvancedMetrics`, and assign the result to `summary.advanced`.
+   - Ensure live-state parity:
+     - Extend `deriveLiveMetrics` to emit the live trick log, trump suit, and per-round score differentials when the current game is complete.
+     - Share normalization helpers with the historical path to avoid drift.
+   - Wire `resetPlayerStatisticsCache()` to clear secondary, hand, and new advanced caches together so cross-tab refreshes rebuild the analytics coherently.
 2. **UI Implementation**
    - Build `AdvancedInsightsPanel` (`app/players/[playerId]/statistics/components/AdvancedInsightsPanel.tsx`) with sections:
-     - Trick efficiency badges (per suit) using percentage chips and directional glyphs.
-     - Suit mastery matrix (grid) highlighting best/worst suits with tooltips.
-     - Score volatility sparkline (rolling averages) using `@visx/xychart` with keyboard-accessible focus markers.
-     - Momentum card summarizing streaks/comebacks and inline trend arrows.
-   - Create accompanying stylesheet `AdvancedInsightsPanel.module.scss` ensuring responsive layout (stack columns ≤1024px, maintain chart aspect ratios).
-   - Wire skeletons/error states mirroring other cards; guard rendering when metrics are `null`.
-   - Add integration to `PlayerStatisticsView` below hand insights with proper spacing tokens.
+     - Trick efficiency badges (overall delta + perfect streak) including per-suit chips with directional glyphs.
+     - Suit mastery matrix (grid) that highlights best/worst trump performance and exposes per-suit trick success bars.
+     - Score volatility + rolling average sparkline using `@visx/xychart`; expose focusable markers for key games.
+     - Momentum summary card with current/longest streaks, comeback badges, and contextual copy.
+   - Create `AdvancedInsightsPanel.module.scss`, following the metrics card spacing tokens, stacking columns at ≤1024px, and clamping chart heights for small screens.
+   - Add presentational helpers if needed (`MomentumSparkline`, `SuitMasteryMatrix`, etc.) but keep them colocated under the same directory for testability.
+   - Replace the placeholder block in `PlayerStatisticsView.tsx` with the new panel, ensuring the skeleton path matches other cards and `loadError` propagation continues to work.
+   - Update `page.module.scss` as needed to accommodate the additional grid rows/ARIA hooks.
 3. **Accessibility, Localization, & Telemetry**
-   - Add i18n entries for advanced metric labels, tooltips, and aria descriptions.
-   - Ensure charts expose `aria-describedby` and provide tab-order entries for data points (e.g., focus ring per sparkline marker).
-   - Emit performance marks (`performance.mark`) when advanced calculators run; document thresholds and debugging hooks in `PLAYER_STATISTICS.md`.
-   - Update telemetry wiring to record calculator durations and cache hit rates (if existing instrumentation hooks available).
+   - Add `playerStatistics.advanced.*` keys to `app/i18n/en/player-statistics.json` (labels, tooltips, aria strings, empty-state copy).
+   - Provide ARIA descriptions for charts (`aria-describedby` with hidden text), ensure keyboard focus lands on interactive elements, and include screen-reader-only summaries for streak/comeback metrics.
+   - Emit `performance.mark` / `measure` entries around `accumulateAdvancedMetrics` and each calculator, then document the new diagnostics in `PLAYER_STATISTICS.md`.
+   - Extend existing telemetry/logging hooks (or add lightweight console debug behind a feature flag) to capture cache hit ratios and processing duration.
 4. **Performance & Guardrails**
-   - Batch event replay across calculators to avoid redundant iteration (`buildAdvancedReplayContext` helper).
-   - Debounce cross-tab refresh handlers so repeated signals do not thrash expensive charts.
-   - Document maximum tested archive size and fallback strategy when limits exceeded (e.g., show warning banner, truncate history).
+   - Ensure `buildAdvancedReplayContext` walks each event sequence once and memoizes the derived data per game.
+   - Debounce cross-tab refresh triggers (e.g., 250 ms) before clearing caches and reloading stats to avoid repeated expensive recomputation.
+   - Guard against oversized histories: cap rolling-average window size, short-circuit suit mastery when the dataset exceeds cache limits, and surface a warning banner if metrics are truncated.
+   - Document the tested archive size thresholds and fallback behaviour in the implementation notes (append to `PLAYER_STATISTICS.md` or a new `docs` entry).
 
 **Status**
 
@@ -374,13 +393,14 @@ This plan decomposes the work described in `PLAYER_STATISTICS.md` into phased en
 **Testing**
 
 - Unit tests in `tests/unit/state/player-statistics/advanced-metrics.test.ts` covering:
-  - Trick efficiency and suit mastery math (including zero-attempt suits, ties).
-  - Volatility calculations (standard deviation, rolling window) with deterministic inputs.
-  - Momentum streak detection across mixed win/loss sequences and comeback edge cases.
-  - Cache hit/miss behavior and guard rails for large datasets.
+  - Trick efficiency and suit mastery math (zero-attempt suits, ties, trump rotation edge cases).
+  - Volatility calculations (standard deviation, rolling window) with deterministic per-round score timelines.
+  - Momentum streak detection across mixed win/loss sequences, short histories (<5 games), and live-game inclusion.
+  - Cache hit/miss behaviour and guard rails for oversized histories.
+  - Introduce shared fixtures (e.g., `tests/fixtures/player-statistics/advanced-scenarios.ts`) that build `AdvancedReplayContext` objects from synthetic event streams; reuse across specs for clarity.
 - Component tests in `tests/unit/components/player-statistics/advanced-insights-panel.test.tsx` verifying:
   - Skeleton/error handling, chart rendering, tooltip content, ARIA labels.
-  - Responsive layout snapshots and keyboard navigation across interactive elements.
+  - Responsive layout snapshots and keyboard navigation across interactive elements (stub `@visx` primitives as needed).
 - Optional visual regression (Percy/Chromatic) once charts stabilize; document baseline requirement.
 
 **Commit**
@@ -389,9 +409,9 @@ This plan decomposes the work described in `PLAYER_STATISTICS.md` into phased en
 
 **Next Actions**
 
-- Finish `advanced.ts` calculators with shared replay context and hook into loader caching.
-- Build `AdvancedInsightsPanel` + styles, integrate localization strings, and wire to view container.
-- Run targeted test suites (`pnpm test --filter advanced-metrics`, `pnpm lint`) before merging; coordinate with design for volatility sparkline review.
+- Finish `advanced.ts` calculators with shared replay context, add the new caches, and thread them through `loadPlayerStatisticsSummary`.
+- Build `AdvancedInsightsPanel` + styles, integrate localization strings, and wire it into the statistics view (replacing the placeholder node).
+- Author unit/component tests, regenerate localization bundles, and run targeted suites (`pnpm test --filter advanced-metrics`, `pnpm lint`). Coordinate with design for volatility sparkline review before merging.
 
 ## Phase 7 – Docs, Cleanup, and Final Validation
 

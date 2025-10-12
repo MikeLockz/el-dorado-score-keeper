@@ -10,6 +10,13 @@ import {
   resetHistoricalHandInsightsCache,
   type HistoricalHandInsight,
 } from './player-statistics/hands';
+import {
+  deriveAdvancedGameSample,
+  deriveAdvancedMetrics,
+  resetAdvancedMetricsCache,
+  type AdvancedGameSample,
+  type AdvancedRoundResult,
+} from './player-statistics/advanced';
 import { selectIsGameComplete } from './selectors';
 import type { AppState } from './types';
 import { ROUNDS_TOTAL } from './logic';
@@ -410,6 +417,7 @@ export async function loadPlayerStatisticsSummary({
     placements: historicalPlacements,
     rounds: historicalRoundAggregates,
     hands: historicalHandTotals,
+    advancedSamples: historicalAdvancedSamples,
     error: historicalError,
   } = await computeHistoricalAggregates(playerId, playerLabel);
 
@@ -490,6 +498,15 @@ export async function loadPlayerStatisticsSummary({
     winRatePercent,
   };
 
+  const advancedHistorical = Array.isArray(historicalAdvancedSamples)
+    ? historicalAdvancedSamples
+    : [];
+  const liveAdvancedSample = buildLiveAdvancedSample(playerId, liveMetrics);
+  const advancedMetrics = deriveAdvancedMetrics({
+    historicalGames: advancedHistorical,
+    liveGame: liveAdvancedSample,
+  });
+
   return {
     ...base,
     loadError: historicalError,
@@ -497,6 +514,7 @@ export async function loadPlayerStatisticsSummary({
     secondary,
     rounds,
     handInsights,
+    advanced: advancedMetrics,
   };
 }
 
@@ -531,6 +549,7 @@ export function resetPlayerStatisticsCache(): void {
   statsCache.resetPlayerStatisticsCache();
   resetHistoricalSecondaryMetricsCache();
   resetHistoricalHandInsightsCache();
+  resetAdvancedMetricsCache();
 }
 
 type HistoricalPrimaryTotals = Readonly<{
@@ -773,6 +792,59 @@ function buildHandInsights(
     handsPlayed: totalHands,
     suitCounts,
     topSuit,
+  });
+}
+
+function buildLiveAdvancedSample(playerId: string, live: LiveMetrics): AdvancedGameSample | null {
+  if (!live || live.gamesPlayed === 0) {
+    return null;
+  }
+  const finishedAt = live.finishedAt ?? Date.now();
+  const roundResults = buildAdvancedRoundResultsFromSnapshots(live.roundSnapshots);
+  const zeroCounts = createZeroSuitRecord();
+  return Object.freeze({
+    gameId: `live:${playerId}`,
+    finishedAt,
+    score: live.score,
+    won: live.gamesWon > 0,
+    trumpSuit: null,
+    tricksWonBySuit: zeroCounts,
+    tricksPlayedBySuit: zeroCounts,
+    minScoreDiff: null,
+    maxScoreDiff: null,
+    roundResults,
+  });
+}
+
+function buildAdvancedRoundResultsFromSnapshots(
+  snapshots: RoundSnapshotMap | null | undefined,
+): ReadonlyArray<AdvancedRoundResult> {
+  if (!snapshots || typeof snapshots !== 'object') {
+    return Object.freeze([]);
+  }
+  const results: Array<AdvancedRoundResult> = [];
+  for (const [roundKey, snapshot] of Object.entries(snapshots)) {
+    if (!snapshot || typeof snapshot !== 'object') continue;
+    const roundNo = Number(roundKey);
+    if (!Number.isFinite(roundNo)) continue;
+    results.push(
+      Object.freeze({
+        round: roundNo,
+        bid: snapshot.bid ?? null,
+        actual: snapshot.actual ?? null,
+      }),
+    );
+  }
+  results.sort((a, b) => a.round - b.round);
+  return Object.freeze(results);
+}
+
+function createZeroSuitRecord(): Readonly<Record<SuitKey, number>> {
+  return Object.freeze({
+    clubs: 0,
+    diamonds: 0,
+    hearts: 0,
+    spades: 0,
   });
 }
 
@@ -1054,6 +1126,7 @@ async function computeHistoricalAggregates(
   placements: ReadonlyArray<number>;
   rounds: RoundAggregateMap;
   hands: HistoricalHandInsight | null;
+  advancedSamples: ReadonlyArray<AdvancedGameSample>;
   error: string | null;
 }> {
   try {
@@ -1067,6 +1140,7 @@ async function computeHistoricalAggregates(
         placements: Object.freeze([]),
         rounds: Object.freeze({}),
         hands: null,
+        advancedSamples: Object.freeze([]),
         error: null,
       };
     }
@@ -1083,6 +1157,7 @@ async function computeHistoricalAggregates(
     const placements: number[] = [];
     const roundAccumulators = new Map<number, MutableRoundAccumulator>();
     const handAccumulator = createMutableSuitCounts();
+    const advancedSamples: AdvancedGameSample[] = [];
     for (const record of games) {
       if (!record || typeof record !== 'object') continue;
       const normalized = getOrNormalizeGame(record);
@@ -1143,7 +1218,8 @@ async function computeHistoricalAggregates(
         bidAccuracyMatches += accuracy.matches;
         bidAccuracyTotal += accuracy.total;
       }
-      const roundSnapshots = derivedSecondary.roundSnapshotsByPlayer[canonicalId];
+      const roundSnapshots =
+        derivedSecondary.roundSnapshotsByPlayer[canonicalId] ?? Object.freeze({});
       accumulateRoundSnapshots(roundAccumulators, roundSnapshots);
       const placement = calculatePlacementFromScores(normalized.scores, canonicalId);
       if (placement !== null) {
@@ -1152,6 +1228,21 @@ async function computeHistoricalAggregates(
       const handTotals = getHandInsightsForPlayer(record, normalized, canonicalId);
       if (handTotals) {
         accumulateSuitCounts(handAccumulator, handTotals.suitCounts);
+      }
+      try {
+        const advancedSample = deriveAdvancedGameSample({
+          record,
+          normalized,
+          canonicalPlayerId: canonicalId,
+          roundSnapshots,
+        });
+        advancedSamples.push(advancedSample);
+      } catch (error: unknown) {
+        debugLog('advanced sample derivation failed', {
+          playerId,
+          gameId: record.id,
+          error: error instanceof Error ? error.message : 'unknown',
+        });
       }
     }
     const historicalRounds = toRoundAggregateMap(roundAccumulators);
@@ -1190,6 +1281,7 @@ async function computeHistoricalAggregates(
       placements: Object.freeze([...placements]),
       rounds: historicalRounds,
       hands: historicalHands,
+      advancedSamples: Object.freeze([...advancedSamples]),
       error:
         legacySkipped > 0
           ? 'Some archived games are still migrating; statistics may be incomplete.'
@@ -1206,6 +1298,7 @@ async function computeHistoricalAggregates(
       placements: Object.freeze([]),
       rounds: Object.freeze({}),
       hands: null,
+      advancedSamples: Object.freeze([]),
       error: message,
     };
   }
