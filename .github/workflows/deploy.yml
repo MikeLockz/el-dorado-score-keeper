@@ -68,6 +68,7 @@ jobs:
           npx next export || true
 
       - name: Upload source maps to New Relic
+        continue-on-error: true
         if: ${{ env.NEW_RELIC_USER_API_KEY != '' && env.NEW_RELIC_SOURCE_MAP_BASE_URL != '' && (env.NEW_RELIC_BROWSER_APP_ID != '' || env.NEXT_PUBLIC_NEW_RELIC_BROWSER_APP_ID != '') }}
         run: pnpm observability:upload-source-maps
 

@@ -20,6 +20,17 @@ const SOURCE_MAP_EXTENSION = '.map';
 
 class UploadError extends Error {}
 
+class HttpError extends UploadError {
+  public readonly statusCode: number;
+  public readonly body: Buffer;
+
+  constructor(message: string, statusCode: number, body: Buffer) {
+    super(message);
+    this.statusCode = statusCode;
+    this.body = body;
+  }
+}
+
 const log = (...args: unknown[]) => {
   console.log('[sourcemaps]', ...args);
 };
@@ -270,7 +281,11 @@ const postMultipart = async (
   }
 
   const message = payload.length > 0 ? payload.toString('utf8') : 'no response body';
-  throw new UploadError(`New Relic upload failed (${statusCode || 'unknown'}): ${message}`);
+  throw new HttpError(
+    `New Relic upload failed via ${host} (${statusCode || 'unknown'}): ${message}`,
+    statusCode || 0,
+    payload,
+  );
 };
 
 type BrowserApplication = {
@@ -319,35 +334,110 @@ const fetchBrowserApplications = async (
   );
 };
 
-const resolveBrowserApplicationId = async (
-  apiHost: string,
+const fetchBrowserApplicationById = async (
+  host: string,
   apiKey: string,
-  candidate: string,
-): Promise<{ id: string; debug: string }> => {
-  if (/^\d+$/.test(candidate.trim())) {
-    return { id: candidate.trim(), debug: 'numeric id provided' };
-  }
-
-  const attempts: Array<{ label: string; filters: Record<string, string> }> = [
-    { label: 'guid', filters: { guid: candidate } },
-    { label: 'name', filters: { name: candidate } },
-    { label: 'browser_monitoring_key', filters: { browser_monitoring_key: candidate } },
-  ];
-
-  for (const attempt of attempts) {
-    const matches = await fetchBrowserApplications(apiHost, apiKey, attempt.filters);
-    if (matches.length === 1) {
-      return { id: String(matches[0]?.id), debug: `${attempt.label} lookup` };
-    }
-    if (matches.length > 1) {
+  id: string,
+): Promise<BrowserApplication | null> => {
+  const pathName = `/v2/browser_applications/${encodeURIComponent(id)}.json`;
+  const { statusCode, payload } = await httpRequest(host, pathName, 'GET', apiKey);
+  if (statusCode >= 200 && statusCode < 300) {
+    try {
+      const parsed = JSON.parse(payload.toString('utf8')) as {
+        browser_application?: BrowserApplication;
+      };
+      return parsed.browser_application ?? null;
+    } catch (error) {
       throw new UploadError(
-        `Multiple browser applications matched ${attempt.label}=${candidate}. Please set NEW_RELIC_BROWSER_APP_ID to a specific numeric id.`,
+        `Failed to parse browser application response: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
   }
 
+  if (statusCode === 404) {
+    return null;
+  }
+
+  const message = payload.length > 0 ? payload.toString('utf8') : 'no response body';
   throw new UploadError(
-    `Unable to resolve browser application id for "${candidate}". Confirm NEW_RELIC_BROWSER_APP_ID is a numeric id or set NEW_RELIC_REGION if your account is in the EU region.`,
+    `Failed to fetch browser application ${id} (${statusCode || 'unknown'}): ${message}`,
+  );
+};
+
+type ResolvedBrowserApplication = {
+  id: string;
+  host: string;
+  debug: string;
+};
+
+const resolveBrowserApplication = async (
+  hostCandidates: string[],
+  apiKey: string,
+  candidate: string,
+  region?: string,
+): Promise<ResolvedBrowserApplication> => {
+  const trimmed = candidate.trim();
+  const isNumeric = /^\d+$/.test(trimmed);
+  let lastError: Error | null = null;
+
+  for (const host of hostCandidates) {
+    try {
+      if (isNumeric) {
+        const result = await fetchBrowserApplicationById(host, apiKey, trimmed);
+        if (result) {
+          return { id: trimmed, host, debug: `numeric id verified via ${host}` };
+        }
+        const err = new UploadError(`Browser application ${trimmed} not found via ${host}.`);
+        lastError = err;
+        if (region) {
+          throw err;
+        }
+        continue;
+      }
+
+      const attempts: Array<{ label: string; filters: Record<string, string> }> = [
+        { label: 'guid', filters: { guid: trimmed } },
+        { label: 'name', filters: { name: trimmed } },
+        { label: 'browser_monitoring_key', filters: { browser_monitoring_key: trimmed } },
+      ];
+
+      for (const attempt of attempts) {
+        const matches = await fetchBrowserApplications(host, apiKey, attempt.filters);
+        if (matches.length === 1) {
+          return {
+            id: String(matches[0]?.id),
+            host,
+            debug: `${attempt.label} lookup via ${host}`,
+          };
+        }
+        if (matches.length > 1) {
+          throw new UploadError(
+            `Multiple browser applications matched ${attempt.label}=${trimmed}. Set NEW_RELIC_BROWSER_APP_ID to a specific numeric id.`,
+          );
+        }
+      }
+
+      const err = new UploadError(`No browser application matched "${trimmed}" via ${host}.`);
+      lastError = err;
+      if (region) {
+        throw err;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (region) {
+        throw lastError;
+      }
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  throw new UploadError(
+    `Unable to resolve browser application for "${trimmed}". Provide NEW_RELIC_REGION if your account is in the EU region or double-check the app identifier.`,
   );
 };
 
@@ -383,14 +473,28 @@ const uploadToNewRelic = async (
     readOptionalEnv('NEW_RELIC_SOURCE_MAP_RELEASE') ?? readOptionalEnv('NEW_RELIC_RELEASE_NAME');
   const releaseName = releaseOverride ?? `${releaseChannel}-${gitSha.slice(0, 12)}`;
   const region = readOptionalEnv('NEW_RELIC_REGION');
-  const apiHost =
-    region && region.toLowerCase() === 'eu' ? 'api.eu.newrelic.com' : 'api.newrelic.com';
-  const { id: resolvedAppId, debug: idSource } = await resolveBrowserApplicationId(
-    apiHost,
+  const normalizedRegion = region?.toLowerCase();
+  const hostCandidates =
+    normalizedRegion === 'eu'
+      ? ['api.eu.newrelic.com']
+      : normalizedRegion === 'us'
+        ? ['api.newrelic.com']
+        : ['api.newrelic.com', 'api.eu.newrelic.com'];
+
+  const resolvedApp = await resolveBrowserApplication(
+    hostCandidates,
     userApiKey,
     applicationId,
+    normalizedRegion,
   );
-  const endpointPath = `/v2/browser_applications/${encodeURIComponent(resolvedAppId)}/sourcemaps.json`;
+
+  const resolvedAppId = resolvedApp.id;
+  const primaryHost = resolvedApp.host;
+  const idSource = resolvedApp.debug;
+
+  const endpointPath = `/v2/browser_applications/${encodeURIComponent(
+    resolvedAppId,
+  )}/sourcemaps.json`;
 
   const candidates = files
     .map((relative) => ({ relative, assetPath: toPublicAssetPath(relative) }))
@@ -401,8 +505,10 @@ const uploadToNewRelic = async (
     return;
   }
 
+  const alternateHost = hostCandidates.find((host) => host !== primaryHost);
+
   log(
-    `Uploading ${candidates.length} source maps to New Relic browser app ${resolvedAppId} (${idSource})…`,
+    `Uploading ${candidates.length} source maps to New Relic browser app ${resolvedAppId} (${idSource}) via ${primaryHost}…`,
   );
 
   for (const { relative, assetPath } of candidates) {
@@ -416,6 +522,11 @@ const uploadToNewRelic = async (
       );
     }
 
+    if (assetBaseUrl.pathname.includes('__static-export__')) {
+      throw new UploadError(
+        'NEW_RELIC_SOURCE_MAP_BASE_URL must not include the placeholder "__static-export__". Provide the deployment origin/base path only (e.g. https://<user>.github.io/el-dorado-score-keeper).',
+      );
+    }
     const minifiedUrl = new URL(assetPath.replace(/^\//, ''), assetBaseUrl).toString();
     const { boundary, body } = createMultipartBody(
       [
@@ -431,15 +542,50 @@ const uploadToNewRelic = async (
       },
     );
 
-    try {
-      await postMultipart(apiHost, endpointPath, userApiKey, boundary, body);
-      log(`Uploaded ${assetPath}`);
-    } catch (error) {
-      if (error instanceof UploadError) {
-        throw error;
+    const hostsToTry = alternateHost ? [primaryHost, alternateHost] : [primaryHost];
+    let uploaded = false;
+    let lastError: unknown;
+
+    for (const host of hostsToTry) {
+      try {
+        await postMultipart(host, endpointPath, userApiKey, boundary, body);
+        log(`Uploaded ${assetPath} via ${host}`);
+        uploaded = true;
+        break;
+      } catch (error) {
+        lastError = error;
+        const shouldRetryWithAlternate =
+          alternateHost !== undefined &&
+          host === primaryHost &&
+          error instanceof HttpError &&
+          error.statusCode === 404 &&
+          !region;
+
+        if (shouldRetryWithAlternate) {
+          log(
+            `Received 404 from ${host}; retrying upload against alternate region host ${alternateHost}. Set NEW_RELIC_REGION to skip autodetect.`,
+          );
+          continue;
+        }
+
+        if (error instanceof UploadError) {
+          throw error;
+        }
+
+        throw new UploadError(
+          `New Relic upload failed for ${assetPath}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    if (!uploaded) {
+      if (lastError instanceof UploadError) {
+        throw lastError;
       }
       throw new UploadError(
-        `New Relic upload failed for ${assetPath}: ${error instanceof Error ? error.message : String(error)}`,
+        `New Relic upload failed for ${assetPath}: ${
+          lastError instanceof Error ? lastError.message : String(lastError)
+        }`,
       );
     }
   }
