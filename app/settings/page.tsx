@@ -11,6 +11,7 @@ import styles from './page.module.scss';
 export default function SettingsPage() {
   const { theme, setTheme, systemTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const buildVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? '0';
 
   useEffect(() => setMounted(true), []);
 
@@ -71,6 +72,12 @@ export default function SettingsPage() {
             devHelper: styles.preferenceHelperDev,
           }}
         />
+        <section className={styles.section}>
+          <div>
+            <h2 className={styles.sectionTitle}>Version</h2>
+            <p className={styles.metaValue}>Build {buildVersion}</p>
+          </div>
+        </section>
       </div>
     </div>
   );

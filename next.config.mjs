@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import path from 'node:path';
 
 import { resolveSourceMapSettings } from './config/source-maps.mjs';
@@ -30,6 +31,22 @@ if (envBase && typeof envBase === 'string') {
 const isStaticExport = process.env.NEXT_OUTPUT_EXPORT === 'true' || isGithubActions;
 
 const { shouldEmitSourceMaps: enableSourceMaps } = resolveSourceMapSettings();
+
+const resolveAppVersion = () => {
+  try {
+    const output = execSync('git rev-list --count HEAD', {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim();
+
+    return output || '0';
+  } catch {
+    return '0';
+  }
+};
+
+const appVersion = resolveAppVersion();
 
 const enableStyleSourceMaps = (rules, options) => {
   if (!Array.isArray(rules)) {
@@ -112,6 +129,7 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
     NEXT_PUBLIC_STATIC_EXPORT: isStaticExport ? 'true' : 'false',
+    NEXT_PUBLIC_APP_VERSION: appVersion,
   },
   webpack: (config, { dev, isServer, webpack }) => {
     const mapSetting = enableSourceMaps ? { inline: false, annotation: false } : false;

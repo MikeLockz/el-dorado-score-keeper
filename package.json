@@ -10,7 +10,6 @@
     "build:pages": "BASE_PATH=/$npm_package_name next build",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "prestart": "node --import tsx instrumentation.ts",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
