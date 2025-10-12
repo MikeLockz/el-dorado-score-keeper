@@ -38,11 +38,12 @@ describe('RoundAccuracyChart', () => {
 
     render(<RoundAccuracyChart loading={false} metrics={metrics} />);
 
+    expect(screen.getByRole('table', { name: /round accuracy details/i })).toBeTruthy();
     expect(screen.getByText(/Overall accuracy/i)).toBeTruthy();
     expect(screen.getAllByText('50%').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Exact matches/i)).toBeTruthy();
-    expect(screen.getByText(/of 2 rounds/i)).toBeTruthy();
-    expect(screen.getByText(/Bids logged/i)).toBeTruthy();
+    expect(screen.getAllByText(/Exact matches/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/of 2 rounds/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Bids logged/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Top bid/i)).toBeTruthy();
   });
 
