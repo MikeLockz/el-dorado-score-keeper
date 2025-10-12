@@ -44,7 +44,6 @@
 .rowWinner {
   border-width: 2px;
   border-color: var(--color-status-scored);
-  background: color-mix(in oklch, var(--color-status-scored) 10%, var(--card));
   color: var(--color-status-scored-foreground);
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
