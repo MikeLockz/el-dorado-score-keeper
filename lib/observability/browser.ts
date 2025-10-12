@@ -169,6 +169,7 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
       activeAdapter.setGlobalAttributes({
         environment: config.environment,
         service: config.serviceName,
+        'service.name': config.serviceName,
       });
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
@@ -192,6 +193,7 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
     }
     base.environment = config.environment;
     base.service = config.serviceName;
+    base['service.name'] = config.serviceName;
     const sessionUrl = adapter.getSessionUrl?.();
     if (sessionUrl) {
       base.sessionUrl = sessionUrl;

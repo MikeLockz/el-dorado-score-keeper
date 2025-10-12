@@ -189,6 +189,7 @@ describe('browser telemetry guards', () => {
     expect(browserVendor.setGlobalAttributes).toHaveBeenCalledWith({
       environment: 'test',
       service: 'front-end',
+      'service.name': 'front-end',
     });
     expect(logAdapter.init).not.toHaveBeenCalled();
 
@@ -203,6 +204,7 @@ describe('browser telemetry guards', () => {
         feature: 'players',
         environment: 'test',
         service: 'front-end',
+        'service.name': 'front-end',
         sessionUrl: 'https://example.test/session',
       }),
     );
@@ -216,13 +218,20 @@ describe('browser telemetry guards', () => {
         message: 'page.viewed',
         location: '/games',
         environment: 'test',
+        service: 'front-end',
+        'service.name': 'front-end',
       }),
     );
 
     telemetry.track('custom.event', { scope: 'test' });
     expect(browserVendor.addAction).toHaveBeenCalledWith(
       'custom.event',
-      expect.objectContaining({ scope: 'test', environment: 'test' }),
+      expect.objectContaining({
+        scope: 'test',
+        environment: 'test',
+        service: 'front-end',
+        'service.name': 'front-end',
+      }),
     );
 
     expect(errorSpy).toHaveBeenCalled();
@@ -253,6 +262,7 @@ describe('browser telemetry guards', () => {
       expect.objectContaining({
         environment: 'qa',
         service: 'front-end',
+        'service.name': 'front-end',
       }),
     );
     expect(browserVendor.addAction).not.toHaveBeenCalled();
@@ -312,12 +322,18 @@ describe('browser telemetry guards', () => {
     expect(posthogVendor.setGlobalAttributes).toHaveBeenCalledWith({
       environment: 'staging',
       service: expect.any(String),
+      'service.name': expect.any(String),
     });
 
     telemetry.track('page.viewed', { path: '/rules' });
     expect(posthogVendor.addAction).toHaveBeenCalledWith(
       'page.viewed',
-      expect.objectContaining({ path: '/rules', environment: 'staging' }),
+      expect.objectContaining({
+        path: '/rules',
+        environment: 'staging',
+        service: expect.any(String),
+        'service.name': expect.any(String),
+      }),
     );
 
     expect(browserVendor.init).not.toHaveBeenCalled();
