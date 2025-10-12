@@ -111,6 +111,7 @@ const nextConfig = {
   },
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
+    NEXT_PUBLIC_STATIC_EXPORT: isStaticExport ? 'true' : 'false',
   },
   webpack: (config, { dev, isServer, webpack }) => {
     const mapSetting = enableSourceMaps ? { inline: false, annotation: false } : false;
