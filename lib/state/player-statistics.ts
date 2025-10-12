@@ -18,6 +18,12 @@ import {
   type AdvancedRoundResult,
 } from './player-statistics/advanced';
 import { ensureHistoricalSummariesBackfilled } from './player-statistics/backfill';
+import {
+  createPerformanceMarkers,
+  markPerformanceStart,
+  completePerformanceMeasurement,
+  measureAsync,
+} from './player-statistics/perf';
 import { selectIsGameComplete } from './selectors';
 import type { AppState } from './types';
 import { ROUNDS_TOTAL } from './logic';
@@ -402,152 +408,164 @@ export async function loadPlayerStatisticsSummary({
   if (!stateSnapshot || typeof stateSnapshot !== 'object') {
     throw new Error('State snapshot is required to load statistics');
   }
-  const base = createEmptyPlayerStatisticsSummary(playerId);
-  const playerLabel = extractPlayerLabel(stateSnapshot, playerId);
-  const liveMetrics = deriveLiveMetrics(stateSnapshot, playerId);
-  debugLog('state snapshot players', {
-    playerId,
-    directPlayers: Object.keys(stateSnapshot.players ?? {}),
-    spOrder: stateSnapshot.sp?.order ?? [],
-    spTrickCounts: Object.keys(stateSnapshot.sp?.trickCounts ?? {}),
-  });
-  let backfillWarning: string | null = null;
+  const performanceMarkers = createPerformanceMarkers(`player-stats.load.${playerId}`);
+  markPerformanceStart(performanceMarkers);
+
   try {
-    const backfillResult = await ensureHistoricalSummariesBackfilled();
-    if (backfillResult) {
-      debugLog('historical backfill result', {
-        playerId,
-        processed: backfillResult.processed,
-        updated: backfillResult.updated,
-        skipped: backfillResult.skipped,
-        failed: backfillResult.failed,
-        durationMs: backfillResult.durationMs,
-      });
-      if (backfillResult.updated > 0) {
-        resetPlayerStatisticsCache();
+    const base = createEmptyPlayerStatisticsSummary(playerId);
+    const playerLabel = extractPlayerLabel(stateSnapshot, playerId);
+    const liveMetrics = deriveLiveMetrics(stateSnapshot, playerId);
+    debugLog('state snapshot players', {
+      playerId,
+      directPlayers: Object.keys(stateSnapshot.players ?? {}),
+      spOrder: stateSnapshot.sp?.order ?? [],
+      spTrickCounts: Object.keys(stateSnapshot.sp?.trickCounts ?? {}),
+    });
+    let backfillWarning: string | null = null;
+    try {
+      const backfillResult = await ensureHistoricalSummariesBackfilled();
+      if (backfillResult) {
+        debugLog('historical backfill result', {
+          playerId,
+          processed: backfillResult.processed,
+          updated: backfillResult.updated,
+          skipped: backfillResult.skipped,
+          failed: backfillResult.failed,
+          durationMs: backfillResult.durationMs,
+        });
+        if (backfillResult.updated > 0) {
+          resetPlayerStatisticsCache();
+        }
+        if (backfillResult.failed > 0) {
+          backfillWarning =
+            'Some archived games are still migrating; statistics may be incomplete.';
+        }
       }
-      if (backfillResult.failed > 0) {
-        backfillWarning = 'Some archived games are still migrating; statistics may be incomplete.';
-      }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Historical archive migration failed.';
+      debugLog('historical backfill invocation failure', { playerId, error: message });
+      backfillWarning = 'Some archived games are still migrating; statistics may be incomplete.';
     }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Historical archive migration failed.';
-    debugLog('historical backfill invocation failure', { playerId, error: message });
-    backfillWarning = 'Some archived games are still migrating; statistics may be incomplete.';
+    const {
+      totals: historicalTotals,
+      scores: historicalScores,
+      bidAccuracy: historicalBidAccuracy,
+      placements: historicalPlacements,
+      rounds: historicalRoundAggregates,
+      hands: historicalHandTotals,
+      advancedSamples: historicalAdvancedSamples,
+      error: historicalError,
+    } = await measureAsync(`player-stats.historical.aggregate.${playerId}`, () =>
+      computeHistoricalAggregates(playerId, playerLabel),
+    );
+
+    debugLog('combined totals', {
+      playerId,
+      liveMetrics,
+      historicalTotals,
+      winRatePercent:
+        historicalTotals.gamesPlayed + liveMetrics.gamesPlayed === 0
+          ? 0
+          : Math.round(
+              ((historicalTotals.gamesWon + liveMetrics.gamesWon) /
+                (historicalTotals.gamesPlayed + liveMetrics.gamesPlayed)) *
+                1000,
+            ) / 10,
+      loadError: historicalError,
+    });
+
+    const totalGamesPlayed = historicalTotals.gamesPlayed + liveMetrics.gamesPlayed;
+    const totalGamesWon = historicalTotals.gamesWon + liveMetrics.gamesWon;
+    const winRatePercent =
+      totalGamesPlayed === 0 ? 0 : Math.round((totalGamesWon / totalGamesPlayed) * 1000) / 10;
+
+    const totalScoreSum =
+      historicalScores.sum + (liveMetrics.score != null ? liveMetrics.score : 0);
+    const totalScoreCount = historicalScores.count + (liveMetrics.score != null ? 1 : 0);
+
+    const totalBidAccuracyMatches = historicalBidAccuracy.matches + liveMetrics.bidAccuracy.matches;
+    const totalBidAccuracyRounds = historicalBidAccuracy.total + liveMetrics.bidAccuracy.total;
+    const averageBidAccuracy =
+      totalBidAccuracyRounds === 0
+        ? null
+        : Math.round((totalBidAccuracyMatches / totalBidAccuracyRounds) * 1000) / 10;
+
+    const placementSamples: number[] = historicalPlacements.length ? [...historicalPlacements] : [];
+    if (liveMetrics.placement !== null) {
+      placementSamples.push(liveMetrics.placement);
+    }
+    const medianPlacement = calculateMedianPlacement(placementSamples);
+
+    const combinedRoundAccumulators = new Map<number, MutableRoundAccumulator>();
+    for (const [roundKey, aggregate] of Object.entries(historicalRoundAggregates ?? {})) {
+      const roundNo = Number(roundKey);
+      if (!Number.isFinite(roundNo)) continue;
+      accumulateRoundAggregate(combinedRoundAccumulators, roundNo, aggregate);
+    }
+    accumulateRoundSnapshots(combinedRoundAccumulators, liveMetrics.roundSnapshots);
+    const rounds = finalizeRoundMetrics(combinedRoundAccumulators);
+
+    const handInsights = buildHandInsights(historicalHandTotals, liveMetrics.handTotals);
+
+    let highestScore = historicalScores.highest;
+    if (liveMetrics.score != null) {
+      highestScore =
+        highestScore == null ? liveMetrics.score : Math.max(highestScore, liveMetrics.score);
+    }
+    let lowestScore = historicalScores.lowest;
+    if (liveMetrics.score != null) {
+      lowestScore =
+        lowestScore == null ? liveMetrics.score : Math.min(lowestScore, liveMetrics.score);
+    }
+
+    const averageScore =
+      totalScoreCount === 0 ? null : Math.round((totalScoreSum / totalScoreCount) * 10) / 10;
+    const secondary: SecondaryMetrics | null =
+      totalScoreCount === 0
+        ? null
+        : {
+            averageScore,
+            highestScore,
+            lowestScore,
+            averageBidAccuracy,
+            medianPlacement,
+          };
+
+    const primary: PrimaryMetrics = {
+      totalGamesPlayed,
+      totalGamesWon,
+      winRatePercent,
+    };
+
+    const advancedHistorical = Array.isArray(historicalAdvancedSamples)
+      ? historicalAdvancedSamples
+      : [];
+    const liveAdvancedSample = buildLiveAdvancedSample(playerId, liveMetrics);
+    const advancedMetrics = deriveAdvancedMetrics({
+      historicalGames: advancedHistorical,
+      liveGame: liveAdvancedSample,
+    });
+
+    const loadError =
+      historicalError && backfillWarning
+        ? historicalError === backfillWarning
+          ? historicalError
+          : `${historicalError} ${backfillWarning}`
+        : (historicalError ?? backfillWarning);
+
+    return {
+      ...base,
+      loadError,
+      primary,
+      secondary,
+      rounds,
+      handInsights,
+      advanced: advancedMetrics,
+    };
+  } finally {
+    completePerformanceMeasurement(performanceMarkers);
   }
-  const {
-    totals: historicalTotals,
-    scores: historicalScores,
-    bidAccuracy: historicalBidAccuracy,
-    placements: historicalPlacements,
-    rounds: historicalRoundAggregates,
-    hands: historicalHandTotals,
-    advancedSamples: historicalAdvancedSamples,
-    error: historicalError,
-  } = await computeHistoricalAggregates(playerId, playerLabel);
-
-  debugLog('combined totals', {
-    playerId,
-    liveMetrics,
-    historicalTotals,
-    winRatePercent:
-      historicalTotals.gamesPlayed + liveMetrics.gamesPlayed === 0
-        ? 0
-        : Math.round(
-            ((historicalTotals.gamesWon + liveMetrics.gamesWon) /
-              (historicalTotals.gamesPlayed + liveMetrics.gamesPlayed)) *
-              1000,
-          ) / 10,
-    loadError: historicalError,
-  });
-
-  const totalGamesPlayed = historicalTotals.gamesPlayed + liveMetrics.gamesPlayed;
-  const totalGamesWon = historicalTotals.gamesWon + liveMetrics.gamesWon;
-  const winRatePercent =
-    totalGamesPlayed === 0 ? 0 : Math.round((totalGamesWon / totalGamesPlayed) * 1000) / 10;
-
-  const totalScoreSum = historicalScores.sum + (liveMetrics.score != null ? liveMetrics.score : 0);
-  const totalScoreCount = historicalScores.count + (liveMetrics.score != null ? 1 : 0);
-
-  const totalBidAccuracyMatches = historicalBidAccuracy.matches + liveMetrics.bidAccuracy.matches;
-  const totalBidAccuracyRounds = historicalBidAccuracy.total + liveMetrics.bidAccuracy.total;
-  const averageBidAccuracy =
-    totalBidAccuracyRounds === 0
-      ? null
-      : Math.round((totalBidAccuracyMatches / totalBidAccuracyRounds) * 1000) / 10;
-
-  const placementSamples: number[] = historicalPlacements.length ? [...historicalPlacements] : [];
-  if (liveMetrics.placement !== null) {
-    placementSamples.push(liveMetrics.placement);
-  }
-  const medianPlacement = calculateMedianPlacement(placementSamples);
-
-  const combinedRoundAccumulators = new Map<number, MutableRoundAccumulator>();
-  for (const [roundKey, aggregate] of Object.entries(historicalRoundAggregates ?? {})) {
-    const roundNo = Number(roundKey);
-    if (!Number.isFinite(roundNo)) continue;
-    accumulateRoundAggregate(combinedRoundAccumulators, roundNo, aggregate);
-  }
-  accumulateRoundSnapshots(combinedRoundAccumulators, liveMetrics.roundSnapshots);
-  const rounds = finalizeRoundMetrics(combinedRoundAccumulators);
-
-  const handInsights = buildHandInsights(historicalHandTotals, liveMetrics.handTotals);
-
-  let highestScore = historicalScores.highest;
-  if (liveMetrics.score != null) {
-    highestScore =
-      highestScore == null ? liveMetrics.score : Math.max(highestScore, liveMetrics.score);
-  }
-  let lowestScore = historicalScores.lowest;
-  if (liveMetrics.score != null) {
-    lowestScore =
-      lowestScore == null ? liveMetrics.score : Math.min(lowestScore, liveMetrics.score);
-  }
-
-  const averageScore =
-    totalScoreCount === 0 ? null : Math.round((totalScoreSum / totalScoreCount) * 10) / 10;
-  const secondary: SecondaryMetrics | null =
-    totalScoreCount === 0
-      ? null
-      : {
-          averageScore,
-          highestScore,
-          lowestScore,
-          averageBidAccuracy,
-          medianPlacement,
-        };
-
-  const primary: PrimaryMetrics = {
-    totalGamesPlayed,
-    totalGamesWon,
-    winRatePercent,
-  };
-
-  const advancedHistorical = Array.isArray(historicalAdvancedSamples)
-    ? historicalAdvancedSamples
-    : [];
-  const liveAdvancedSample = buildLiveAdvancedSample(playerId, liveMetrics);
-  const advancedMetrics = deriveAdvancedMetrics({
-    historicalGames: advancedHistorical,
-    liveGame: liveAdvancedSample,
-  });
-
-  const loadError =
-    historicalError && backfillWarning
-      ? historicalError === backfillWarning
-        ? historicalError
-        : `${historicalError} ${backfillWarning}`
-      : (historicalError ?? backfillWarning);
-
-  return {
-    ...base,
-    loadError,
-    primary,
-    secondary,
-    rounds,
-    handInsights,
-    advanced: advancedMetrics,
-  };
 }
 
 export function clonePlayerStatisticsSummary(

@@ -1,5 +1,11 @@
 import type { GameRecord } from '../io';
 import type { NormalizedHistoricalGame } from './cache';
+import {
+  createPerformanceMarkers,
+  markPerformanceStart,
+  completePerformanceMeasurement,
+  measureSync,
+} from './perf';
 
 export type SuitKey = 'clubs' | 'diamonds' | 'hearts' | 'spades';
 
@@ -108,29 +114,43 @@ export function deriveAdvancedMetrics({
   liveGame,
   windowSize = 5,
 }: AdvancedMetricsInput): AdvancedMetricsResult | null {
-  const samples: AdvancedGameSample[] = [];
-  if (Array.isArray(historicalGames)) {
-    samples.push(...historicalGames.filter(Boolean));
-  }
-  if (liveGame) {
-    samples.push(liveGame);
-  }
+  const totalMarkers = createPerformanceMarkers('player-stats.advanced.total');
+  markPerformanceStart(totalMarkers);
+  try {
+    const samples: AdvancedGameSample[] = [];
+    if (Array.isArray(historicalGames)) {
+      samples.push(...historicalGames.filter(Boolean));
+    }
+    if (liveGame) {
+      samples.push(liveGame);
+    }
 
-  if (samples.length === 0) {
-    return null;
+    if (samples.length === 0) {
+      return null;
+    }
+
+    const trickEfficiency = measureSync('player-stats.advanced.trickEfficiency', () =>
+      calculateTrickEfficiency(samples),
+    );
+    const suitMastery = measureSync('player-stats.advanced.suitMastery', () =>
+      calculateSuitMastery(samples),
+    );
+    const scoreVolatility = measureSync('player-stats.advanced.scoreVolatility', () =>
+      calculateScoreVolatility(samples),
+    );
+    const momentum = measureSync('player-stats.advanced.momentum', () =>
+      calculateMomentum(samples, windowSize),
+    );
+
+    return Object.freeze({
+      trickEfficiency,
+      suitMastery,
+      scoreVolatility,
+      momentum,
+    });
+  } finally {
+    completePerformanceMeasurement(totalMarkers);
   }
-
-  const trickEfficiency = calculateTrickEfficiency(samples);
-  const suitMastery = calculateSuitMastery(samples);
-  const scoreVolatility = calculateScoreVolatility(samples);
-  const momentum = calculateMomentum(samples, windowSize);
-
-  return Object.freeze({
-    trickEfficiency,
-    suitMastery,
-    scoreVolatility,
-    momentum,
-  });
 }
 
 function calculateTrickEfficiency(

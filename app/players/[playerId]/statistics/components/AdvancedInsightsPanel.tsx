@@ -197,29 +197,6 @@ export function AdvancedInsightsPanel({
             value={loading ? '...' : formatInteger(momentum.longestWinStreak)}
           />
         </div>
-        <div className={styles.sparklineWrapper}>
-          {sparkline ? (
-            <svg
-              className={styles.sparkline}
-              role="img"
-              aria-label="Rolling average score trend"
-              width={240}
-              height={80}
-            >
-              <path d={sparkline} className={styles.sparklinePath} />
-            </svg>
-          ) : (
-            <div className={styles.sparklineEmpty} role="note">
-              Rolling averages will appear after a few completed games.
-            </div>
-          )}
-        </div>
-        {momentum.rollingAverageScores.length > 0 ? (
-          <div className={styles.momentumHint}>
-            Rolling average covers the last {rollingWindow} game
-            {rollingWindow === 1 ? '' : 's'}.
-          </div>
-        ) : null}
       </section>
     </div>
   );

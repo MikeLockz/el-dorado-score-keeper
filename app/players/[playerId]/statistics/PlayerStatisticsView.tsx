@@ -18,6 +18,7 @@ import {
   type PlayerStatisticsSummary,
 } from '@/lib/state';
 import { useGamesSignalSubscription } from '@/components/hooks';
+import { captureBrowserMessage } from '@/lib/observability/browser';
 
 import PlayerMissing from '../../_components/PlayerMissing';
 import { PrimaryStatsCard } from './components/PrimaryStatsCard';
@@ -59,6 +60,15 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
   const [reloadKey, setReloadKey] = React.useState(0);
   const stateRef = React.useRef(state);
   stateRef.current = state;
+  const crossTabDebounceRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (crossTabDebounceRef.current !== null && typeof window !== 'undefined') {
+        window.clearTimeout(crossTabDebounceRef.current);
+      }
+    };
+  }, []);
 
   const refresh = React.useCallback((id: string, cacheKey: string) => {
     setSummary(createPendingPlayerStatisticsSummary(id));
@@ -98,13 +108,39 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
     return refresh(targetPlayerId, cacheKey);
   }, [ready, refresh, targetPlayerId, reloadKey]);
 
+  const enqueueCrossTabRefresh = React.useCallback((reason: string) => {
+    if (typeof window === 'undefined') {
+      resetPlayerStatisticsCache();
+      setReloadKey((key) => key + 1);
+      return;
+    }
+    if (crossTabDebounceRef.current !== null) {
+      window.clearTimeout(crossTabDebounceRef.current);
+    }
+    crossTabDebounceRef.current = window.setTimeout(() => {
+      crossTabDebounceRef.current = null;
+      resetPlayerStatisticsCache();
+      setReloadKey((key) => key + 1);
+      captureBrowserMessage('player-stats.refresh.applied', {
+        level: 'info',
+        attributes: { reason },
+      });
+    }, 200);
+    captureBrowserMessage('player-stats.refresh.queued', {
+      level: 'info',
+      attributes: { reason },
+    });
+  }, []);
+
   useGamesSignalSubscription(
-    React.useCallback((signal) => {
-      if (signal.type === 'added' || signal.type === 'deleted') {
-        resetPlayerStatisticsCache();
-        setReloadKey((key) => key + 1);
-      }
-    }, []),
+    React.useCallback(
+      (signal) => {
+        if (signal.type === 'added' || signal.type === 'deleted') {
+          enqueueCrossTabRefresh(signal.type);
+        }
+      },
+      [enqueueCrossTabRefresh],
+    ),
     { enabled: ready },
   );
 
