@@ -40,6 +40,13 @@ export type BackfillGameResult = Readonly<{
   record: GameRecord;
 }>;
 
+type BackfillEnsureOptions = Readonly<{
+  gamesDbName?: string;
+  force?: boolean;
+  limit?: number;
+  onProgress?: (progress: HistoricalSummaryBackfillProgress) => void;
+}>;
+
 type CanonicalRosterSnapshot = Readonly<{
   rosterId: string | null;
   playersById: Record<string, string>;
@@ -48,6 +55,77 @@ type CanonicalRosterSnapshot = Readonly<{
 }>;
 
 const aliasDelimiterRegex = /\s+/g;
+const truthyFlagValues = new Set(['1', 'true', 'yes', 'on']);
+const falsyFlagValues = new Set(['0', 'false', 'no', 'off']);
+const BACKFILL_COMPLETION_STORAGE_KEY = 'player-stats.backfill.version';
+
+let inMemoryBackfillVersion: number | null = null;
+let pendingBackfillPromise: Promise<HistoricalSummaryBackfillResult> | null = null;
+
+function parseBooleanFlag(value: string | undefined): boolean | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (truthyFlagValues.has(normalized)) return true;
+  if (falsyFlagValues.has(normalized)) return false;
+  return null;
+}
+
+const backfillFeatureFlagEnabled = (() => {
+  if (typeof process === 'undefined') return true;
+  const raw =
+    process.env?.NEXT_PUBLIC_PLAYER_STATS_BACKFILL_ENABLED ??
+    process.env?.PLAYER_STATS_BACKFILL_ENABLED ??
+    process.env?.NEXT_PUBLIC_ENABLE_PLAYER_STATS_BACKFILL ??
+    process.env?.ENABLE_PLAYER_STATS_BACKFILL;
+  const parsed = parseBooleanFlag(raw);
+  return parsed ?? true;
+})();
+
+function readPersistedBackfillVersion(): number | null {
+  if (typeof window !== 'undefined' && window?.localStorage) {
+    try {
+      const raw = window.localStorage.getItem(BACKFILL_COMPLETION_STORAGE_KEY);
+      if (raw != null) {
+        const parsed = Number.parseInt(raw, 10);
+        if (Number.isFinite(parsed)) {
+          inMemoryBackfillVersion = parsed;
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignore storage access failures (e.g., private browsing restrictions)
+    }
+  }
+  return inMemoryBackfillVersion;
+}
+
+function persistBackfillVersion(version: number): void {
+  inMemoryBackfillVersion = version;
+  if (typeof window === 'undefined' || !window?.localStorage) return;
+  try {
+    window.localStorage.setItem(BACKFILL_COMPLETION_STORAGE_KEY, String(version));
+  } catch {
+    // Ignore storage access failures
+  }
+}
+
+function shouldRunBackfill({ force }: BackfillEnsureOptions): boolean {
+  if (!force && !backfillFeatureFlagEnabled) {
+    return false;
+  }
+  if (typeof indexedDB === 'undefined') {
+    return false;
+  }
+  if (force) {
+    return true;
+  }
+  const storedVersion = readPersistedBackfillVersion();
+  if (storedVersion != null && storedVersion >= SUMMARY_METADATA_VERSION) {
+    return false;
+  }
+  return true;
+}
 
 function normalizeAlias(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -271,8 +349,9 @@ function sortCanonicalIdsByDisplayOrder(
   const entries = ids.map((id) => ({
     id,
     order:
-      typeof snapshot.displayOrder?.[id] === 'number' && Number.isFinite(snapshot.displayOrder?.[id])
-        ? snapshot.displayOrder?.[id] ?? Number.MAX_SAFE_INTEGER
+      typeof snapshot.displayOrder?.[id] === 'number' &&
+      Number.isFinite(snapshot.displayOrder?.[id])
+        ? (snapshot.displayOrder?.[id] ?? Number.MAX_SAFE_INTEGER)
         : Number.MAX_SAFE_INTEGER,
   }));
   entries.sort((a, b) => {
@@ -282,7 +361,10 @@ function sortCanonicalIdsByDisplayOrder(
   return entries.map((entry) => entry.id);
 }
 
-function canonicalizeSummary(summary: GameRecord['summary'], state: AppState): GameRecord['summary'] {
+function canonicalizeSummary(
+  summary: GameRecord['summary'],
+  state: AppState,
+): GameRecord['summary'] {
   const snapshot = deriveCanonicalRosterSnapshot(summary, state);
   const canonicalIds = Object.keys(snapshot.playersById);
   if (canonicalIds.length === 0) {
@@ -351,11 +433,11 @@ function canonicalizeSummary(summary: GameRecord['summary'], state: AppState): G
     const resolvedDealer = resolver.resolve(sp.dealerId, summary.playersById?.[sp.dealerId ?? '']);
     sp.dealerId =
       resolvedDealer ??
-      (sp.dealerId && canonicalSet.has(sp.dealerId) ? sp.dealerId : mappedOrder[0] ?? null);
+      (sp.dealerId && canonicalSet.has(sp.dealerId) ? sp.dealerId : (mappedOrder[0] ?? null));
     const resolvedLeader = resolver.resolve(sp.leaderId, summary.playersById?.[sp.leaderId ?? '']);
     sp.leaderId =
       resolvedLeader ??
-      (sp.leaderId && canonicalSet.has(sp.leaderId) ? sp.leaderId : mappedOrder[0] ?? null);
+      (sp.leaderId && canonicalSet.has(sp.leaderId) ? sp.leaderId : (mappedOrder[0] ?? null));
   }
 
   const slotMapping = resolver.buildSlotMapping();
@@ -377,7 +459,7 @@ function canonicalizeSummary(summary: GameRecord['summary'], state: AppState): G
     scores: canonicalScores,
     playersById: { ...snapshot.playersById },
     winnerId,
-    winnerName: winnerId ? snapshot.playersById[winnerId] ?? null : null,
+    winnerName: winnerId ? (snapshot.playersById[winnerId] ?? null) : null,
     winnerScore,
     metadata: {
       version: SUMMARY_METADATA_VERSION,
@@ -418,10 +500,7 @@ export async function listBackfillCandidates({
 
 export async function backfillGameById(
   gameId: string,
-  {
-    gamesDbName = GAMES_DB_NAME,
-    dryRun = false,
-  }: { gamesDbName?: string; dryRun?: boolean } = {},
+  { gamesDbName = GAMES_DB_NAME, dryRun = false }: { gamesDbName?: string; dryRun?: boolean } = {},
 ): Promise<BackfillGameResult | null> {
   if (!gameId) return null;
   const record = await getGame(gamesDbName, gameId);
@@ -538,4 +617,43 @@ export async function runHistoricalSummaryBackfill({
     ...progress,
     durationMs: Math.max(0, end - start),
   };
+}
+
+export async function ensureHistoricalSummariesBackfilled(
+  options: BackfillEnsureOptions = {},
+): Promise<HistoricalSummaryBackfillResult | null> {
+  if (!shouldRunBackfill(options)) {
+    return null;
+  }
+
+  if (pendingBackfillPromise) {
+    return pendingBackfillPromise;
+  }
+
+  pendingBackfillPromise = (async () => {
+    try {
+      const result = await runHistoricalSummaryBackfill({
+        gamesDbName: options.gamesDbName ?? GAMES_DB_NAME,
+        onProgress: options.onProgress,
+        limit: options.limit,
+      });
+      if (result.failed === 0) {
+        persistBackfillVersion(SUMMARY_METADATA_VERSION);
+      }
+      return result;
+    } catch (error: unknown) {
+      captureBrowserMessage('player-stats.backfill.ensure.error', {
+        level: 'warn',
+        attributes: {
+          reason:
+            error instanceof Error ? error.message : typeof error === 'string' ? error : 'unknown',
+        },
+      });
+      throw error;
+    } finally {
+      pendingBackfillPromise = null;
+    }
+  })();
+
+  return pendingBackfillPromise;
 }

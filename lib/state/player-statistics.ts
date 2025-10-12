@@ -17,6 +17,7 @@ import {
   type AdvancedGameSample,
   type AdvancedRoundResult,
 } from './player-statistics/advanced';
+import { ensureHistoricalSummariesBackfilled } from './player-statistics/backfill';
 import { selectIsGameComplete } from './selectors';
 import type { AppState } from './types';
 import { ROUNDS_TOTAL } from './logic';
@@ -410,6 +411,30 @@ export async function loadPlayerStatisticsSummary({
     spOrder: stateSnapshot.sp?.order ?? [],
     spTrickCounts: Object.keys(stateSnapshot.sp?.trickCounts ?? {}),
   });
+  let backfillWarning: string | null = null;
+  try {
+    const backfillResult = await ensureHistoricalSummariesBackfilled();
+    if (backfillResult) {
+      debugLog('historical backfill result', {
+        playerId,
+        processed: backfillResult.processed,
+        updated: backfillResult.updated,
+        skipped: backfillResult.skipped,
+        failed: backfillResult.failed,
+        durationMs: backfillResult.durationMs,
+      });
+      if (backfillResult.updated > 0) {
+        resetPlayerStatisticsCache();
+      }
+      if (backfillResult.failed > 0) {
+        backfillWarning = 'Some archived games are still migrating; statistics may be incomplete.';
+      }
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Historical archive migration failed.';
+    debugLog('historical backfill invocation failure', { playerId, error: message });
+    backfillWarning = 'Some archived games are still migrating; statistics may be incomplete.';
+  }
   const {
     totals: historicalTotals,
     scores: historicalScores,
@@ -507,9 +532,16 @@ export async function loadPlayerStatisticsSummary({
     liveGame: liveAdvancedSample,
   });
 
+  const loadError =
+    historicalError && backfillWarning
+      ? historicalError === backfillWarning
+        ? historicalError
+        : `${historicalError} ${backfillWarning}`
+      : (historicalError ?? backfillWarning);
+
   return {
     ...base,
-    loadError: historicalError,
+    loadError,
     primary,
     secondary,
     rounds,
@@ -999,7 +1031,7 @@ function resolveFallbackPlayerId(
       }
     }
   }
-  return trimmedId || null;
+  return null;
 }
 
 function normalizeAliasCandidate(value: string | null | undefined): string | null {

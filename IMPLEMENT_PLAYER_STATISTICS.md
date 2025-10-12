@@ -123,9 +123,9 @@ This plan decomposes the work described in `PLAYER_STATISTICS.md` into phased en
 **Status**
 
 - ✅ Canonical roster snapshot + `metadata.version` now persisted in `summarizeState`; archived bundles emit alias maps for selectors.
-- ✅ `runHistoricalSummaryBackfill` implemented with feature flag gating and localStorage marker to avoid duplicate work.
+- ✅ Historical backfill orchestration added via `ensureHistoricalSummariesBackfilled`; it honors the `NEXT_PUBLIC_PLAYER_STATS_BACKFILL_ENABLED` flag, runs `runHistoricalSummaryBackfill` once, and persists completion to localStorage to avoid duplicate work.
 - ✅ Devtools expose a manual per-game backfill workflow with copy-to-clipboard support and a remaining-game counter for QA.
-- ✅ Loader now relies solely on canonical ids; legacy summaries are skipped with a descriptive warning until backfilled.
+- ✅ Loader now waits for `ensureHistoricalSummariesBackfilled`, resets caches when upgrades land, and relies solely on canonical ids; legacy summaries are skipped with a descriptive warning until backfilled.
 - ✅ Primary + secondary metrics aggregate live and archived scores via `loadPlayerStatisticsSummary`.
 
 **Validation**
