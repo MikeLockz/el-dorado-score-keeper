@@ -2,7 +2,13 @@
 import React from 'react';
 import { useAppState } from '@/components/state-provider';
 import type { AppState, RoundState } from '@/lib/state';
-import { exportBundle } from '@/lib/state';
+import {
+  exportBundle,
+  listBackfillCandidates,
+  backfillGameById,
+  type BackfillCandidate,
+  type BackfillGameResult,
+} from '@/lib/state';
 import { formatTime } from '@/lib/format';
 import { captureBrowserMessage } from '@/lib/observability/browser';
 
@@ -45,6 +51,131 @@ export default function Devtools() {
   const scores = Object.keys(state.scores).length;
 
   const [open, setOpen] = React.useState(false);
+  const mountedRef = React.useRef(true);
+  React.useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
+  const [backfillState, setBackfillState] = React.useState<{
+    candidates: BackfillCandidate[];
+    refreshing: boolean;
+    loading: boolean;
+    lastResult: BackfillGameResult | null;
+    error: string | null;
+    copying: boolean;
+  }>({
+    candidates: [],
+    refreshing: false,
+    loading: false,
+    lastResult: null,
+    error: null,
+    copying: false,
+  });
+  const [selectedGameId, setSelectedGameId] = React.useState<string | null>(null);
+
+  const refreshBackfill = React.useCallback(async () => {
+    setBackfillState((prev) => ({
+      ...prev,
+      refreshing: true,
+      error: prev.loading ? prev.error : null,
+    }));
+    try {
+      const candidates = await listBackfillCandidates();
+      if (!mountedRef.current) return;
+      setBackfillState((prev) => ({
+        ...prev,
+        candidates,
+        refreshing: false,
+      }));
+    } catch (error) {
+      if (!mountedRef.current) return;
+      const message =
+        error instanceof Error ? error.message : 'Unable to read archived games from IndexedDB.';
+      setBackfillState((prev) => ({
+        ...prev,
+        refreshing: false,
+        error: message,
+      }));
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    void refreshBackfill();
+  }, [open, refreshBackfill]);
+
+  React.useEffect(() => {
+    if (!backfillState.candidates.length) {
+      setSelectedGameId(null);
+      return;
+    }
+    setSelectedGameId((current) => {
+      if (current && backfillState.candidates.some((candidate) => candidate.id === current)) {
+        return current;
+      }
+      return backfillState.candidates[0]?.id ?? null;
+    });
+  }, [backfillState.candidates]);
+
+  const handleBackfillClick = React.useCallback(async () => {
+    const candidate =
+      backfillState.candidates.find((entry) => entry.id === selectedGameId) ??
+      backfillState.candidates[0];
+    if (!candidate) return;
+    setBackfillState((prev) => ({
+      ...prev,
+      loading: true,
+      error: null,
+    }));
+    let result: BackfillGameResult | null = null;
+    let errorMessage: string | null = null;
+    try {
+      result = await backfillGameById(candidate.id);
+      if (!result) {
+        errorMessage = 'Unable to backfill the selected game.';
+      }
+    } catch (error) {
+      errorMessage =
+        error instanceof Error ? error.message : 'Unable to backfill the selected game.';
+    }
+    if (mountedRef.current) {
+      setBackfillState((prev) => ({
+        ...prev,
+        loading: false,
+        lastResult: result ?? prev.lastResult,
+        error: errorMessage,
+      }));
+    }
+    await refreshBackfill();
+  }, [backfillState.candidates, refreshBackfill, selectedGameId]);
+
+  const handleCopySummary = React.useCallback(() => {
+    const result = backfillState.lastResult;
+    if (!result) return;
+    setBackfillState((prev) => ({
+      ...prev,
+      copying: true,
+    }));
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(result.summary, null, 2));
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : 'Unknown error';
+        captureBrowserMessage('devtools.backfill.copy.failed', {
+          level: 'warn',
+          attributes: { reason },
+        });
+      } finally {
+        if (!mountedRef.current) return;
+        setBackfillState((prev) => ({
+          ...prev,
+          copying: false,
+        }));
+      }
+    })();
+  }, [backfillState.lastResult]);
 
   // Helper: readable label for a round state
   function labelForRoundState(s: RoundState): string {
@@ -255,6 +386,140 @@ export default function Devtools() {
             >
               Copy bundle JSON
             </button>
+          </div>
+          <div
+            style={{
+              marginTop: 12,
+              paddingTop: 10,
+              borderTop: '1px solid rgba(148,163,184,0.25)',
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 13 }}>Archived backfill</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span>Remaining: {backfillState.candidates.length}</span>
+              {backfillState.refreshing ? <span style={{ opacity: 0.8 }}>Refreshing…</span> : null}
+            </div>
+            {backfillState.candidates.length > 0 ? (
+              <div style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 11, opacity: 0.85 }}>
+                  Select game (latest {Math.min(10, backfillState.candidates.length)} shown):
+                </label>
+                <select
+                  value={selectedGameId ?? ''}
+                  onChange={(event) => setSelectedGameId(event.target.value || null)}
+                  style={{
+                    background: '#1f2937',
+                    color: '#f8fafc',
+                    borderRadius: 4,
+                    border: '1px solid rgba(148,163,184,0.35)',
+                    padding: '4px 6px',
+                    fontSize: 12,
+                  }}
+                >
+                  {backfillState.candidates.slice(0, 10).map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>
+                      {formatTime(candidate.finishedAt)} • {candidate.title} (v
+                      {candidate.metadataVersion})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div style={{ opacity: 0.75, marginBottom: 8, fontSize: 11 }}>
+                All archived games have canonical player metadata.
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+              <button
+                onClick={handleBackfillClick}
+                disabled={
+                  backfillState.loading ||
+                  backfillState.candidates.length === 0 ||
+                  backfillState.refreshing
+                }
+                style={{
+                  fontSize: 11,
+                  padding: '4px 8px',
+                  background: '#22c55e',
+                  color: '#0f172a',
+                  borderRadius: 4,
+                  opacity:
+                    backfillState.loading || backfillState.candidates.length === 0 ? 0.7 : 1,
+                }}
+              >
+                {backfillState.loading ? 'Backfilling…' : 'Backfill selected game'}
+              </button>
+              <button
+                onClick={() => {
+                  void refreshBackfill();
+                }}
+                disabled={backfillState.refreshing}
+                style={{
+                  fontSize: 11,
+                  padding: '4px 8px',
+                  background: '#334155',
+                  color: '#fff',
+                  borderRadius: 4,
+                  opacity: backfillState.refreshing ? 0.7 : 1,
+                }}
+              >
+                Refresh list
+              </button>
+            </div>
+            {backfillState.error ? (
+              <div
+                style={{
+                  background: 'rgba(220,38,38,0.25)',
+                  border: '1px solid rgba(248,113,113,0.6)',
+                  borderRadius: 4,
+                  padding: '6px 8px',
+                  fontSize: 11,
+                  marginBottom: 8,
+                }}
+              >
+                {backfillState.error}
+              </div>
+            ) : null}
+            {backfillState.lastResult ? (
+              <div>
+                <div style={{ fontSize: 11, opacity: 0.85, marginBottom: 4 }}>
+                  Last result: {backfillState.lastResult.record.title} ({backfillState.lastResult.id}) •{' '}
+                  {backfillState.lastResult.updated ? 'updated' : 'already current'}
+                </div>
+                <textarea
+                  readOnly
+                  value={JSON.stringify(backfillState.lastResult.summary, null, 2)}
+                  style={{
+                    width: '100%',
+                    height: 140,
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    background: '#0f172a',
+                    color: '#e2e8f0',
+                    borderRadius: 4,
+                    border: '1px solid rgba(148,163,184,0.35)',
+                    padding: 8,
+                    resize: 'vertical',
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  <button
+                    onClick={handleCopySummary}
+                    disabled={backfillState.copying}
+                    style={{
+                      fontSize: 11,
+                      padding: '4px 8px',
+                      background: '#334155',
+                      color: '#fff',
+                      borderRadius: 4,
+                      opacity: backfillState.copying ? 0.7 : 1,
+                    }}
+                  >
+                    {backfillState.copying ? 'Copying…' : 'Copy summary JSON'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
           <div style={{ marginTop: 6 }}>
             <span>warnings: {warnings.length}</span>

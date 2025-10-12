@@ -5,11 +5,19 @@ import PlayerStatisticsPageClient from './PlayerStatisticsPageClient';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-type PageParams = {
-  params: {
-    playerId?: string;
-  };
+type RouteParams = {
+  playerId?: string;
 };
+
+type PageParams = {
+  params: Promise<RouteParams> | RouteParams;
+};
+
+async function resolveParams(input: PageParams['params']): Promise<RouteParams> {
+  return typeof (input as Promise<RouteParams>)?.then === 'function'
+    ? ((await input) as RouteParams)
+    : ((input as RouteParams) ?? {});
+}
 
 function makeTitle(playerId: string): string {
   if (!playerId) return 'Player statistics';
@@ -24,7 +32,8 @@ function makeDescription(playerId: string): string {
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const rawId = params.playerId ?? '';
+  const resolved = await resolveParams(params);
+  const rawId = resolved.playerId ?? '';
   const playerId = rawId.trim();
   const title = makeTitle(playerId);
   const description = makeDescription(playerId);
@@ -47,7 +56,8 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
 }
 
-export default function PlayerStatisticsPage({ params }: PageParams) {
-  const playerId = (params.playerId ?? '').trim();
+export default async function PlayerStatisticsPage({ params }: PageParams) {
+  const resolved = await resolveParams(params);
+  const playerId = (resolved.playerId ?? '').trim();
   return <PlayerStatisticsPageClient playerId={playerId} />;
 }

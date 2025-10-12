@@ -1,0 +1,108 @@
+@use '../../../../../styles/mixins/typography' as typography;
+@use '../../../../../styles/tokens/spacing' as spacing;
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.tableContainer {
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in oklch, var(--color-border) 70%, transparent);
+  background: color-mix(in oklch, var(--color-card) 96%, transparent);
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 28rem;
+
+  tbody {
+    tr:nth-child(even) {
+      background: color-mix(in oklch, var(--color-muted) 8%, transparent);
+    }
+
+    tr:first-child {
+      th,
+      td {
+        border-top: none;
+      }
+    }
+  }
+}
+
+.headerRow {
+  background: color-mix(in oklch, var(--color-muted) 18%, transparent);
+}
+
+.row {
+}
+
+.headerCell {
+  text-align: left;
+  padding: spacing.spacing('space-2') spacing.spacing('space-3');
+  color: var(--color-muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  @include typography.body('body-xs');
+  border-bottom: 1px solid color-mix(in oklch, var(--color-border) 70%, transparent);
+}
+
+.roundCell {
+  padding: spacing.spacing('space-2') spacing.spacing('space-3');
+  font-weight: 600;
+  @include typography.body('body-sm');
+  border-top: 1px solid color-mix(in oklch, var(--color-border) 65%, transparent);
+}
+
+.cell {
+  padding: spacing.spacing('space-2') spacing.spacing('space-3');
+  @include typography.body('body-sm');
+  border-top: 1px solid color-mix(in oklch, var(--color-border) 65%, transparent);
+}
+
+.statusCell {
+  padding: spacing.spacing('space-4');
+  text-align: center;
+  color: var(--color-muted-foreground);
+  @include typography.body('body-sm');
+}
+
+.emptyCell {
+  @extend .statusCell;
+}
+
+.summary {
+  display: grid;
+  gap: spacing.spacing('space-3');
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+  padding: spacing.spacing('space-2');
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-muted) 12%, transparent);
+}
+
+.summaryLabel {
+  color: var(--color-muted-foreground);
+  @include typography.body('body-xs');
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summaryValue {
+  font-weight: 700;
+  @include typography.body('body-md');
+}
+
+.summaryDetail {
+  color: var(--color-muted-foreground);
+  @include typography.body('body-xs');
+}

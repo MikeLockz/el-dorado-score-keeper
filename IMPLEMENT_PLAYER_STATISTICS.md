@@ -1,238 +1,75 @@
-# Implementation Plan: Player Statistics Feature
+# Player Statistics Implementation Report
 
-This plan decomposes the work described in `PLAYER_STATISTICS.md` into phased engineering tasks. Each phase ends with validation steps, required tests, and documentation / commit expectations.
+This document captures how the Player Statistics feature set was delivered against the requirements in `PLAYER_STATISTICS.md`, and it enumerates the outstanding guardrails that must land before we can close out the program.
+
+## Overview
+
+- Registered a dedicated statistics route and client view at `app/players/[playerId]/statistics/page.tsx` and `PlayerStatisticsView.tsx`, including roster selection, skeleton states, empty/error fallbacks, and cross-tab refresh handling.
+- Hydrated statistics with `loadPlayerStatisticsSummary` in `lib/state/player-statistics.ts`, combining live Redux state with archived `GameRecord` bundles while normalizing canonical player ids, primary/secondary totals, round accuracy, hand insights, and advanced analytics.
+- Historical data is cached and de-duplicated through `lib/state/player-statistics/cache.ts`; IndexedDB backfill tooling in `lib/state/player-statistics/backfill.ts` upgrades legacy bundles to `SUMMARY_METADATA_VERSION` before aggregation runs.
+- Advanced analytics (trick efficiency, suit mastery, volatility, momentum) ship via `lib/state/player-statistics/advanced.ts` and render in `AdvancedInsightsPanel.tsx` alongside supporting UI cards (`PrimaryStatsCard`, `SecondaryStatsCard`, `RoundAccuracyChart`, `HandInsightsCard`).
+- Test coverage spans selector helpers (`tests/unit/state/player-statistics/*.test.ts`), UI components (`tests/unit/components/player-statistics/*.test.tsx`), and the cross-tab subscription hook.
+- Telemetry guardrails now emit `performance.mark` / `performance.measure` spans during historical aggregation and advanced calculators, cache hits/misses are logged through `captureBrowserMessage`, and cross-tab refreshes are debounced with queued/applied telemetry. UI strings remain inline English and must move into the i18n catalog.
 
 ## Phase 1 – Routing & Base View
 
-**Goals**
-
-- Add a dedicated route (e.g., `/players/:playerId/statistics`) consistent with existing router conventions.
-- Implement a `PlayerStatisticsView` container that fetches selector output, handles loading/error states, and renders placeholder layout with skeleton components.
-- Wire up player selection UX (dropdown/search) using existing roster/player selectors.
-
-**Tasks**
-
-1. **Routing**
-   - Extend router configuration (React Router or app-specific) to register the statistics path.
-   - Ensure deep-linking support and page title updates follow existing patterns.
-2. **Container Component**
-   - Scaffold `PlayerStatisticsView` that:
-     - Uses the typed `PlayerStatisticsSummary` selector.
-     - Shows skeletons while `isLoadingLive`/`isLoadingHistorical` are true.
-     - Displays error fallback when `loadError` is populated.
-   - Implement cross-tab sync hook subscribing to `subscribeToGamesSignal`.
-3. **Player Selector UI**
-   - Reuse existing components for roster/player selection.
-   - Persist selection in URL/query state to support shareable links.
-4. **Docs & Types**
-   - Export selector types (if not already) from a central `types` module.
-   - Update documentation (`PLAYER_STATISTICS.md`) if implementation deviates.
-
-**Validation**
-
-- Navigate to the new route and confirm skeleton view renders.
-- Toggle player selection; URL updates correctly.
-- Cross-tab signal mock triggers re-fetch logic in dev tools.
-
-**Testing**
-
-- Unit tests for the hook that listens to `subscribeToGamesSignal`.
-- Component tests verifying loading, error, and empty states.
-- Snapshot/visual test (optional) for skeleton layout.
-
-**Commit**
-
-- Commit Phase 1 changes once tests pass.
+- **Status**: Complete.
+- **Implementation Highlights**: Added the `/players/[playerId]/statistics` route with dynamic metadata (`page.tsx`) and introduced `PlayerStatisticsView.tsx` to orchestrate loading, error, empty, and populated states. The view auto-selects the first roster entry, exposes a select control for player switching, and uses `useGamesSignalSubscription` to clear caches when IndexedDB archives change.
+- **Validation**: `tests/unit/components/player-statistics/player-statistics-view.test.tsx` exercises loading, error, and empty scenarios. Manual smoke verifies navigation parity and skeleton renderings.
+- **Gaps**: None. Cross-tab refreshes now debounce for 200 ms, clear caches once per burst, and emit queued/applied telemetry for observability.
 
 ## Phase 2 – Primary Metrics
 
-**Goals**
-
-- Populate total games played/won and win rate.
-- Ensure selector merges live game state with archived data.
-
-**Tasks**
-
-1. **Selector Implementation**
-   - Implement data fetch from IndexedDB via helpers in `lib/state/io.ts`.
-   - Derive `primary` metrics within `PlayerStatisticsSummary`.
-   - Populate loading/error flags while asynchronous work resolves.
-2. **UI Rendering**
-   - Build `PrimaryStatsCard` with cards showing totals and win rate.
-   - Add skeleton placeholders tied to selector flags.
-3. **Performance Considerations**
-   - Cache parsed `GameRecord` data keyed by `gameId`.
-   - Memoize selectors via `reselect`-style utilities to avoid recomputation.
-
-**Validation**
-
-- With seeded data, verify totals and win rate match expectations.
-- Confirm UI updates after completing a game in another tab (cross-tab sync).
-
-**Testing**
-
-- Selector unit tests using mock state and stubbed IndexedDB adapter.
-- Component tests for `PrimaryStatsCard` covering loading/error states.
-- Integration test verifying cross-tab signal triggers recompute (using fake timers/BroadcastChannel polyfill).
-
-**Commit**
-
-- Commit Phase 2 once tests succeed.
+- **Status**: Complete.
+- **Implementation Highlights**: `loadPlayerStatisticsSummary` consolidates live and historical totals, while `computeHistoricalAggregates` tallies games played/won from normalized archives. Canonical-id enrichment is enforced via `normalizeHistoricalGame` and the `ensureHistoricalSummariesBackfilled` routine in `backfill.ts`, which can be gated through environment flags.
+- **Validation**: `tests/unit/state/player-statistics/primary-metrics.test.ts` covers empty datasets, single-game histories, and tie scenarios. Backfill progress/warnings surface through `captureBrowserMessage`.
+- **Gaps**: None functionally; telemetry follow-ups apply globally (cache logging still missing).
 
 ## Phase 3 – Secondary Metrics
 
-**Goals**
+- **Status**: Complete.
+- **Implementation Highlights**: Secondary aggregates (average/highest/lowest scores, bid accuracy, median placement) compute inside `loadPlayerStatisticsSummary` and feed `SecondaryStatsCard.tsx`. Historical placements blend with live placements derived from the current Redux snapshot.
+- **Validation**: `tests/unit/state/player-statistics/secondary-metrics.test.ts` and `tests/unit/components/player-statistics/secondary-stats-card.test.tsx` cover edge cases, loading, error, and populated states.
+- **Gaps**: None beyond the telemetry and localization follow-ups shared across phases.
 
-- Implement average score, highest score, lowest score.
-- Render `SecondaryStatsCard` with trend indicators as defined in visualization guidance.
+## Phase 4 – Round Accuracy
 
-**Tasks**
-
-1. **Selector Enhancement**
-   - Extend `PlayerStatisticsSummary` to populate `secondary` metrics from both live and archived games.
-   - Ensure `null` handling for players without completed games.
-2. **UI**
-   - Implement `SecondaryStatsCard` with responsive design and tooltips.
-   - Hook up skeletons and error fallbacks.
-3. **Documentation**
-   - Update docs/readme if new UI patterns introduced.
-
-**Validation**
-
-- Manual QA with sample data for edge cases (negative scores, zero games).
-- Check tooltips and accessibility labels meet requirements.
-
-**Testing**
-
-- Selector unit tests for aggregation accuracy (including divide-by-zero cases).
-- Component tests verifying formatting (e.g., rounding, percent display).
-
-**Commit**
-
-- Commit Phase 3 after validations and tests.
-
-## Phase 4 – Tertiary Metrics (Round-Level)
-
-**Goals**
-
-- Compute average bids, highest/lowest bids, round-by-round accuracy.
-- Visualize accuracy via heatmap/table per guidance.
-
-**Tasks**
-
-1. **Selector Work**
-   - Replay `bid/set` and `sp/round-tally-set` events for archived games.
-   - Merge data with live `state.rounds` / `state.sp.roundTallies`.
-   - Populate `RoundMetric[]` in the summary.
-2. **UI Components**
-   - Implement `RoundAccuracyChart` using `@visx/heatmap` (or composed SVG primitives) for the ten-column grid with interactive tooltips and keyboard focus rings.
-   - Include summary row with aggregated metrics.
-3. **Performance**
-   - Batch event replay and cache results per game.
-
-**Validation**
-
-- Verify heatmap accuracy using test data.
-- Confirm keyboard navigation and tooltips accessible.
-
-**Testing**
-
-- Selector unit tests with synthetic bundles.
-- Component interaction tests ensuring correct aria labels and focus order.
-
-**Commit**
-
-- Commit Phase 4 once validations pass.
+- **Status**: Complete.
+- **Implementation Highlights**: Round-level aggregates replay bid/actual tallies, with visualization handled by `RoundAccuracyChart.tsx` using `@visx/heatmap`. Responsive layout listens to `ResizeObserver`, tooltips are keyboard-focusable, and overall accuracy summaries satisfy `PLAYER_STATISTICS.md` §4.2.
+- **Validation**: `tests/unit/state/player-statistics/round-metrics.test.ts` checks per-round accumulation; `tests/unit/components/player-statistics/round-accuracy-chart.test.tsx` validates rendering, tooltip messaging, and empty states.
+- **Gaps**: Labels and helper copy remain hard-coded English; migrate to the localization catalog.
 
 ## Phase 5 – Tertiary Metrics (Hand-Level)
 
-**Goals**
-
-- Calculate hands played and most frequent suit using event replay.
-- Render `HandInsightsCard` including suit distribution chart.
-
-**Tasks**
-
-1. **Selector**
-   - Parse `sp/trick/played` events to produce suit counts and total hands.
-   - Handle fallback to live `state.sp.trickPlays` when archives missing.
-2. **UI**
-   - Build card with suit icons, counts, and optional bar chart using `@visx/shape` primitives.
-3. **Accessibility & Localization**
-   - Ensure suits have descriptive labels and localization keys.
-
-**Validation**
-
-- Cross-check counts against known sample games.
-- Confirm chart renders on mobile/desktop layouts.
-
-**Testing**
-
-- Selector tests for suit aggregation.
-- Component tests verifying top suit selection.
-
-**Commit**
-
-- Commit Phase 5 once complete.
+- **Status**: Complete aside from localization copy.
+- **Implementation Highlights**: `lib/state/player-statistics/hands.ts` replays `sp/trick/played` events, memoizes suit counts per game, and exposes canonical hand totals. `HandInsightsCard.tsx` renders total hands, top-suit callouts, and distribution bars with accessibility notes.
+- **Validation**: `tests/unit/state/player-statistics/hand-insights.test.ts` exercises aggregation and caching; `tests/unit/components/player-statistics/hand-insights-card.test.tsx` covers loading, empty, and populated renderings.
+- **Gaps**: All card text is inline English; add i18n keys before launch.
 
 ## Phase 6 – Advanced Metrics
 
-**Goals**
+- **Status**: Complete.
+- **Implementation Highlights**: `lib/state/player-statistics/advanced.ts` derives trick efficiency, suit mastery, score volatility, and momentum samples across historical + live games. Results render in `AdvancedInsightsPanel.tsx`, including sparkline generation, accessible metric tiles, and `performance.mark` span coverage for the total routine plus each calculator.
+- **Validation**: `tests/unit/state/player-statistics/advanced-metrics.test.ts` validates calculators; `tests/unit/components/player-statistics/advanced-insights-panel.test.tsx` ensures UI accuracy across empty/populated states.
+- **Gaps**: None. Advanced metric calculators execute inside `performance` measurements, emitting spans for total execution and each calculator.
 
-- Implement trick efficiency, suit mastery, score volatility, and momentum metrics.
-- Render `AdvancedInsightsPanel` with charts and analytics.
+## Phase 7 – Launch & Hardening
 
-**Tasks**
+- **Status**: In progress.
+- **Shipped Artifacts**: Backfill tooling executes automatically (feature-flagged), warnings propagate via `captureBrowserMessage`, `resetPlayerStatisticsCache()` clears memoized selectors across secondary, hand, and advanced calculators, and telemetry now captures cache hits/misses, perf spans, and debounced cross-tab refresh events. Documentation/comments explain canonical-id expectations.
+- **Outstanding Guardrails**:
+  - Localize residual UI copy across statistics components and update translation docs.
+- **Validation Needs**: After guardrails land, rerun `pnpm lint`, `pnpm test`, targeted integration smoke, and manual multi-tab scenarios; capture screenshots and telemetry dashboards for release sign-off.
 
-1. **Selector Logic**
-   - Add advanced metric calculations, ensuring caching of replayed data.
-   - Populate `AdvancedMetrics` in summary.
-2. **UI Implementation**
-   - Build sparklines, matrices, and badges as defined in visualization guidance using `@visx/xychart` (or `@visx/line`) for rolling averages and streak trends.
-   - Integrate skeletons and error fallbacks.
-3. **Performance & Guardrails**
-   - Debounce recomputations triggered by cross-tab updates.
-   - Document thresholds for large history datasets.
+## Testing & Tooling Summary
 
-**Validation**
+- Selector coverage: `tests/unit/state/player-statistics/advanced-metrics.test.ts`, `hand-insights.test.ts`, `primary-metrics.test.ts`, `round-metrics.test.ts`, `secondary-metrics.test.ts`.
+- Component coverage: `tests/unit/components/player-statistics/*.test.tsx`, including cards, charts, the advanced panel, and the statistics view container.
+- Hook coverage: `tests/unit/components/player-statistics/use-games-signal-subscription.test.tsx`.
+- Manual QA has validated navigation, empty states, backfill enable/disable flows, and IndexedDB migrations; integration/UI automation is still a follow-up.
 
-- Compare output against manual calculations for sample datasets.
-- Verify momentum charts update correctly after new games archive.
+## Follow-Ups Before Launch
 
-**Testing**
-
-- Unit tests for advanced calculators (streaks, standard deviation, rolling averages).
-- Component tests mocking complex data scenarios.
-- Optional visual regression tests for charts.
-
-**Commit**
-
-- Commit Phase 6 after validations and tests.
-
-## Phase 7 – Docs, Cleanup, and Final Validation
-
-**Goals**
-
-- Ensure documentation up to date and codebase adheres to patterns.
-- Run full test suite and lint checks.
-
-**Tasks**
-
-1. Update `PLAYER_STATISTICS.md` and any README/usage docs with final implementation notes.
-2. Ensure TypeScript types exported for external reuse.
-3. Remove unused utilities or placeholder code.
-4. Run lint, unit, integration, and visual tests.
-
-**Validation**
-
-- Manual smoke test across routes.
-- Double-check cross-tab synchronization in real browser environment.
-
-**Testing**
-
-- Full CI suite.
-
-**Commit & Delivery**
-
-- Final commit with documentation updates.
-- Prepare PR summarizing phases and validations.
+- Externalize all statistics UI strings into the i18n catalog and regenerate message bundles.
+- Document the QA checklist (including multi-tab scenarios) and attach design screenshots once telemetry gaps close.
+- Re-run the full validation matrix (lint, unit, integration smoke) after guardrail work, then capture metrics for observability dashboards.

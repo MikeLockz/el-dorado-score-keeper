@@ -1,0 +1,82 @@
+@use '../../../../../styles/mixins/typography' as typography;
+@use '../../../../../styles/tokens/spacing' as spacing;
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.metrics {
+  display: grid;
+  gap: spacing.spacing('space-3');
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+@media (min-width: 40rem) {
+  .metrics {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
+}
+
+.metric {
+  display: flex;
+  gap: spacing.spacing('space-3');
+  align-items: center;
+  padding: spacing.spacing('space-3');
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-muted) 55%, transparent);
+  min-block-size: 5.5rem;
+}
+
+.metricUp {
+  border: 1px solid color-mix(in oklch, var(--color-success) 35%, transparent);
+}
+
+.metricDown {
+  border: 1px solid color-mix(in oklch, var(--color-warning) 35%, transparent);
+}
+
+.icon {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklch, var(--color-muted-foreground) 15%, transparent);
+  color: var(--color-muted-foreground);
+}
+
+.metricUp .icon {
+  color: var(--color-success);
+  background: color-mix(in oklch, var(--color-success) 12%, transparent);
+}
+
+.metricDown .icon {
+  color: var(--color-warning);
+  background: color-mix(in oklch, var(--color-warning) 12%, transparent);
+}
+
+.metricContent {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+}
+
+.label {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+  font-weight: 500;
+}
+
+.value {
+  @include typography.heading('heading-sm');
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.empty {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}

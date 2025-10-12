@@ -111,11 +111,6 @@
   border-radius: var(--radius-md);
 }
 
-.placeholderCopy {
-  color: var(--color-muted-foreground);
-  @include typography.body('body-sm');
-}
-
 .emptyCard {
   display: flex;
   flex-direction: column;

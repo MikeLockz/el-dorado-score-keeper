@@ -14,11 +14,18 @@ import {
   createEmptyPlayerStatisticsSummary,
   createErroredPlayerStatisticsSummary,
   loadPlayerStatisticsSummary,
+  resetPlayerStatisticsCache,
   type PlayerStatisticsSummary,
 } from '@/lib/state';
 import { useGamesSignalSubscription } from '@/components/hooks';
+import { captureBrowserMessage } from '@/lib/observability/browser';
 
 import PlayerMissing from '../../_components/PlayerMissing';
+import { PrimaryStatsCard } from './components/PrimaryStatsCard';
+import { SecondaryStatsCard } from './components/SecondaryStatsCard';
+import { RoundAccuracyChart } from './components/RoundAccuracyChart';
+import { HandInsightsCard } from './components/HandInsightsCard';
+import { AdvancedInsightsPanel } from './components/AdvancedInsightsPanel';
 import styles from './page.module.scss';
 
 export type PlayerStatisticsViewProps = {
@@ -51,46 +58,89 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
 
   const [summary, setSummary] = React.useState<PlayerStatisticsSummary | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
-
-  const refresh = React.useCallback(
-    (id: string) => {
-      setSummary(createPendingPlayerStatisticsSummary(id));
-      let cancelled = false;
-      void (async () => {
-        try {
-          const result = await loadPlayerStatisticsSummary({ playerId: id });
-          if (cancelled) return;
-          setSummary(
-            result ?? createEmptyPlayerStatisticsSummary(id),
-          );
-        } catch (error: unknown) {
-          if (cancelled) return;
-          const message =
-            error instanceof Error ? error.message : 'Unable to load player statistics.';
-          setSummary(createErroredPlayerStatisticsSummary(id, message));
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
-    },
-    [],
-  );
+  const stateRef = React.useRef(state);
+  stateRef.current = state;
+  const crossTabDebounceRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
+    return () => {
+      if (crossTabDebounceRef.current !== null && typeof window !== 'undefined') {
+        window.clearTimeout(crossTabDebounceRef.current);
+      }
+    };
+  }, []);
+
+  const refresh = React.useCallback((id: string, cacheKey: string) => {
+    setSummary(createPendingPlayerStatisticsSummary(id));
+    let cancelled = false;
+    void (async () => {
+      try {
+        const snapshot = stateRef.current;
+        const result = await loadPlayerStatisticsSummary({
+          playerId: id,
+          stateSnapshot: snapshot,
+          cacheKey,
+        });
+        if (cancelled) return;
+        setSummary(result ?? createEmptyPlayerStatisticsSummary(id));
+      } catch (error: unknown) {
+        if (cancelled) return;
+        const message =
+          error instanceof Error ? error.message : 'Unable to load player statistics.';
+        setSummary(createErroredPlayerStatisticsSummary(id, message));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!ready) {
+      setSummary(null);
+      return;
+    }
     if (!targetPlayerId) {
       setSummary(null);
       return;
     }
-    return refresh(targetPlayerId);
-  }, [refresh, targetPlayerId, reloadKey]);
+    const cacheKey = `${targetPlayerId}:${reloadKey}`;
+    return refresh(targetPlayerId, cacheKey);
+  }, [ready, refresh, targetPlayerId, reloadKey]);
+
+  const enqueueCrossTabRefresh = React.useCallback((reason: string) => {
+    if (typeof window === 'undefined') {
+      resetPlayerStatisticsCache();
+      setReloadKey((key) => key + 1);
+      return;
+    }
+    if (crossTabDebounceRef.current !== null) {
+      window.clearTimeout(crossTabDebounceRef.current);
+    }
+    crossTabDebounceRef.current = window.setTimeout(() => {
+      crossTabDebounceRef.current = null;
+      resetPlayerStatisticsCache();
+      setReloadKey((key) => key + 1);
+      captureBrowserMessage('player-stats.refresh.applied', {
+        level: 'info',
+        attributes: { reason },
+      });
+    }, 200);
+    captureBrowserMessage('player-stats.refresh.queued', {
+      level: 'info',
+      attributes: { reason },
+    });
+  }, []);
 
   useGamesSignalSubscription(
-    React.useCallback((signal) => {
-      if (signal.type === 'added' || signal.type === 'deleted') {
-        setReloadKey((key) => key + 1);
-      }
-    }, []),
+    React.useCallback(
+      (signal) => {
+        if (signal.type === 'added' || signal.type === 'deleted') {
+          enqueueCrossTabRefresh(signal.type);
+        }
+      },
+      [enqueueCrossTabRefresh],
+    ),
     { enabled: ready },
   );
 
@@ -106,6 +156,8 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
   const resolvedSummary = summary;
   const isLoading =
     resolvedSummary?.isLoadingHistorical === true || resolvedSummary?.isLoadingLive === true;
+  const showPrimarySkeleton = !resolvedSummary || isLoading;
+  const showSecondarySkeleton = !resolvedSummary || isLoading;
 
   if (!ready) {
     return (
@@ -178,32 +230,35 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
       <div className={styles.sectionGrid} aria-live="polite">
         <Card className={styles.metricsCard}>
           <div className={styles.cardHeading}>Primary metrics</div>
-          {isLoading ? (
+          {showPrimarySkeleton ? (
             <div className={styles.skeletonList}>
               {skeletonItems.map((_, idx) => (
                 <Skeleton key={`primary-${idx}`} className={styles.skeletonLine} />
               ))}
             </div>
           ) : (
-            <div className={styles.placeholderCopy}>
-              Primary statistics will appear here once calculations are connected.
-            </div>
+            <PrimaryStatsCard
+              loading={isLoading}
+              metrics={resolvedSummary?.primary ?? null}
+              loadError={resolvedSummary?.loadError}
+            />
           )}
         </Card>
 
         <Card className={styles.metricsCard}>
           <div className={styles.cardHeading}>Secondary metrics</div>
-          {isLoading ? (
+          {showSecondarySkeleton ? (
             <div className={styles.skeletonList}>
               {skeletonItems.map((_, idx) => (
                 <Skeleton key={`secondary-${idx}`} className={styles.skeletonLine} />
               ))}
             </div>
           ) : (
-            <div className={styles.placeholderCopy}>
-              Secondary score insights are not available yet. Finished games will populate this
-              section in a future update.
-            </div>
+            <SecondaryStatsCard
+              loading={isLoading}
+              metrics={resolvedSummary?.secondary ?? null}
+              loadError={resolvedSummary?.loadError}
+            />
           )}
         </Card>
 
@@ -216,9 +271,11 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
               ))}
             </div>
           ) : (
-            <div className={styles.placeholderCopy}>
-              Round-by-round bid accuracy visualizations will display here.
-            </div>
+            <RoundAccuracyChart
+              loading={isLoading}
+              metrics={resolvedSummary?.rounds ?? []}
+              loadError={resolvedSummary?.loadError}
+            />
           )}
         </Card>
 
@@ -231,9 +288,11 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
               ))}
             </div>
           ) : (
-            <div className={styles.placeholderCopy}>
-              Suit distributions and hand insights will appear once analytics are connected.
-            </div>
+            <HandInsightsCard
+              loading={isLoading}
+              insight={resolvedSummary?.handInsights ?? null}
+              loadError={resolvedSummary?.loadError}
+            />
           )}
         </Card>
 
@@ -246,9 +305,11 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
               ))}
             </div>
           ) : (
-            <div className={styles.placeholderCopy}>
-              Streaks, score volatility, and suit mastery visuals will land in this panel.
-            </div>
+            <AdvancedInsightsPanel
+              loading={isLoading}
+              metrics={resolvedSummary?.advanced ?? null}
+              loadError={resolvedSummary?.loadError}
+            />
           )}
         </Card>
       </div>
