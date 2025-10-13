@@ -8,10 +8,8 @@ export async function generateStaticParams() {
   return staticExportParams('gameId');
 }
 
-type PageParams = {
-  params: {
-    gameId?: string;
-  };
+type RouteParams = {
+  gameId?: string;
 };
 
 function makeTitle(gameId: string): string {
@@ -26,8 +24,13 @@ function makeDescription(gameId: string): string {
   return `Inspect archived game ${gameId}, including score history and recovery actions.`;
 }
 
-export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const gameId = scrubDynamicParam(params.gameId);
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<RouteParams>;
+}): Promise<Metadata> {
+  const { gameId: rawId = '' } = await params;
+  const gameId = scrubDynamicParam(rawId);
   const title = makeTitle(gameId);
   const description = makeDescription(gameId);
 
@@ -48,7 +51,8 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
 }
 
-export default function GameDetailPage({ params }: PageParams) {
-  const gameId = scrubDynamicParam(params.gameId);
+export default async function GameDetailPage({ params }: { params: Promise<RouteParams> }) {
+  const { gameId: rawId = '' } = await params;
+  const gameId = scrubDynamicParam(rawId);
   return <GameDetailPageClient gameId={gameId} />;
 }

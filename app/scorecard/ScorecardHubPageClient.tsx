@@ -20,6 +20,7 @@ import {
   restoreGame,
   deriveGameMode,
   isGameRecordCompleted,
+  resolveGamePlayerCount,
 } from '@/lib/state/io';
 import { subscribeToGamesSignal } from '@/lib/state/game-signals';
 import { useNewGameRequest } from '@/lib/game-flow';
@@ -298,7 +299,7 @@ export default function ScorecardHubPageClient() {
                         </span>
                         <span className={styles.metaItem}>
                           <Users aria-hidden="true" className={styles.metaIcon} />
-                          {formatPlayers(game.summary.players)}
+                          {formatPlayers(resolveGamePlayerCount(game))}
                         </span>
                         {round ? (
                           <span className={styles.metaItem}>

@@ -11,6 +11,7 @@ import {
   restoreGame,
   deriveGameMode,
   isGameRecordCompleted,
+  resolveGamePlayerCount,
 } from '@/lib/state/io';
 import { formatDateTime } from '@/lib/format';
 import { Loader2 } from 'lucide-react';
@@ -134,7 +135,7 @@ export default function QuickLinks() {
               {recents.map((game) => {
                 const mode = deriveGameMode(game);
                 const handLabel = deriveHandLabel(game, mode);
-                const playersLabel = derivePlayersLabel(game.summary.players);
+                const playersLabel = derivePlayersLabel(resolveGamePlayerCount(game));
                 const lastPlayed = formatDateTime(game.finishedAt);
                 const pending = pendingId === game.id;
                 const completed = isGameRecordCompleted(game);

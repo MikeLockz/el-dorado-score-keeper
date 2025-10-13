@@ -5,7 +5,13 @@ import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { Button, Card, Skeleton } from '@/components/ui';
 import { Loader2, MoreHorizontal } from 'lucide-react';
-import { type GameRecord, listGames, deriveGameMode, isGameRecordCompleted } from '@/lib/state';
+import {
+  type GameRecord,
+  listGames,
+  deriveGameMode,
+  isGameRecordCompleted,
+  resolveGamePlayerCount,
+} from '@/lib/state';
 import { formatDateTime } from '@/lib/format';
 import { useNewGameRequest, hasScorecardProgress, hasSinglePlayerProgress } from '@/lib/game-flow';
 import { useAppState } from '@/components/state-provider';
@@ -87,7 +93,8 @@ export default function GamesPage() {
   const load = React.useCallback(async () => {
     try {
       const list = await listGames();
-      setGames(list);
+      const singlePlayerGames = list.filter((game) => deriveGameMode(game) === 'single-player');
+      setGames(singlePlayerGames);
     } catch (error: unknown) {
       captureBrowserMessage('games.load.failed', {
         level: 'warn',
@@ -218,7 +225,7 @@ export default function GamesPage() {
                 ) : games.length === 0 ? (
                   <tr>
                     <td colSpan={5} className={styles.emptyCell}>
-                      No archived games yet.
+                      No archived single player games yet.
                     </td>
                   </tr>
                 ) : (
@@ -242,7 +249,7 @@ export default function GamesPage() {
                           {describeGameMode(g)}
                         </td>
                         <td className={clsx(styles.cell, styles.cellCenter)}>
-                          {g.summary.players}
+                          {resolveGamePlayerCount(g)}
                         </td>
                         <td className={clsx(styles.cell, styles.cellCenter, styles.cellEmphasis)}>
                           {g.summary.winnerName ?? '-'}

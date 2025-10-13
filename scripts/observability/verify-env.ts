@@ -1,3 +1,80 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+type ParsedEnv = Record<string, string>;
+
+const parseEnvFile = (path: string): ParsedEnv => {
+  const content = readFileSync(path, 'utf8');
+  const result: ParsedEnv = {};
+
+  for (const line of content.split('\n')) {
+    let current = line.trim();
+    if (!current || current.startsWith('#')) {
+      continue;
+    }
+
+    if (current.startsWith('export ')) {
+      current = current.slice(7).trimStart();
+    }
+
+    const separatorIndex = current.indexOf('=');
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = current.slice(0, separatorIndex).trim();
+    if (!key) {
+      continue;
+    }
+
+    let value = current.slice(separatorIndex + 1).trim();
+    if (!value) {
+      result[key] = '';
+      continue;
+    }
+
+    const firstChar = value[0];
+    const lastChar = value[value.length - 1];
+    const isQuoted =
+      (firstChar === '"' && lastChar === '"') || (firstChar === "'" && lastChar === "'");
+
+    if (isQuoted) {
+      value = value.slice(1, -1);
+      value = value.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+    } else {
+      const commentIndex = value.search(/[ \t]#/);
+      if (commentIndex !== -1) {
+        value = value.slice(0, commentIndex).trimEnd();
+      }
+    }
+
+    result[key] = value;
+  }
+
+  return result;
+};
+
+const loadEnvFiles = () => {
+  const nodeEnv = process.env.NODE_ENV ?? 'production';
+  const files = ['.env', `.env.${nodeEnv}`, '.env.local', `.env.${nodeEnv}.local`];
+
+  const cwd = process.cwd();
+
+  for (const file of files) {
+    const path = resolve(cwd, file);
+    if (!existsSync(path)) {
+      continue;
+    }
+
+    const parsed = parseEnvFile(path);
+    for (const [key, value] of Object.entries(parsed)) {
+      process.env[key] = value;
+    }
+  }
+};
+
+loadEnvFiles();
+
 const truthyValues = new Set(['1', 'true', 'yes', 'on']);
 const falsyValues = new Set(['0', 'false', 'no', 'off']);
 

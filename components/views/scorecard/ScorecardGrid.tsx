@@ -216,7 +216,13 @@ export default function ScorecardGrid({
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const gridRef = React.useRef<HTMLDivElement | null>(null);
-  const [applyScale, setApplyScale] = React.useState(false);
+  const [applyScaleState, setApplyScaleState] = React.useState(false);
+  const applyScaleRef = React.useRef(false);
+  const setApplyScale = React.useCallback((next: boolean) => {
+    if (applyScaleRef.current === next) return;
+    applyScaleRef.current = next;
+    setApplyScaleState(next);
+  }, []);
   const isCompact = columnCount > 4;
 
   React.useLayoutEffect(() => {
@@ -227,32 +233,61 @@ export default function ScorecardGrid({
 
     const ROUND_REM = 3;
     const COL_REM = 4.75;
+    const EPSILON = 0.001;
 
     let raf = 0;
+    let lastShouldScale = applyScaleRef.current;
+    let lastScale = 1;
+    let lastHeight = 0;
+    let lastWidth = '';
+
     const fit = () => {
       if (!container) return;
       const cw = container.clientWidth;
       const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
       const naturalPx = remPx * (ROUND_REM + COL_REM * columnCount);
-      const shouldScale = isCompact && cw < naturalPx;
+      const shouldScale = isCompact && cw + 0.5 < naturalPx;
 
       if (!shouldScale) {
-        setApplyScale(false);
-        container.style.height = '';
-        if (content) {
+        if (lastShouldScale) {
+          setApplyScale(false);
+          lastShouldScale = false;
+        }
+        if (lastHeight !== 0) {
+          container.style.height = '';
+          lastHeight = 0;
+        }
+        if (content && (lastScale !== 1 || lastWidth)) {
           content.style.transform = '';
+          content.style.transformOrigin = '';
           content.style.width = '';
+          lastScale = 1;
+          lastWidth = '';
         }
         return;
       }
 
       const next = Math.max(0.5, Math.min(1, cw / naturalPx));
-      setApplyScale(true);
-      container.style.height = `${Math.ceil(grid.scrollHeight * next)}px`;
+      if (!lastShouldScale) {
+        setApplyScale(true);
+        lastShouldScale = true;
+      }
+      const desiredHeight = Math.ceil(grid.scrollHeight * next);
+      if (desiredHeight !== lastHeight) {
+        container.style.height = `${desiredHeight}px`;
+        lastHeight = desiredHeight;
+      }
       if (content) {
-        content.style.transform = `scale(${next})`;
-        content.style.transformOrigin = 'top left';
-        content.style.width = `${ROUND_REM + COL_REM * columnCount}rem`;
+        if (Math.abs(next - lastScale) > EPSILON) {
+          content.style.transform = `scale(${next})`;
+          content.style.transformOrigin = 'top left';
+          lastScale = next;
+        }
+        const desiredWidth = `${ROUND_REM + COL_REM * columnCount}rem`;
+        if (desiredWidth !== lastWidth) {
+          content.style.width = desiredWidth;
+          lastWidth = desiredWidth;
+        }
       }
     };
     fit();
@@ -301,7 +336,7 @@ export default function ScorecardGrid({
               aria-colcount={columnCount + 1}
               className={styles.grid}
               style={{
-                gridTemplateColumns: applyScale
+                gridTemplateColumns: applyScaleState
                   ? `3rem repeat(${columnCount}, 4.75rem)`
                   : `3rem repeat(${columnCount}, 1fr)`,
               }}

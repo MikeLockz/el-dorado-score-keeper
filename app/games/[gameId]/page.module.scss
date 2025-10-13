@@ -64,6 +64,36 @@
   gap: spacing.spacing('space-2');
 }
 
+.scorecardSection {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+}
+
+.scorecardHeading {
+  @include typography.body('body-sm');
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.summarySection {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.summaryHeading {
+  @include typography.body('body-sm');
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.summaryBody {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
 .sectionHeading {
   font-weight: 600;
   color: var(--color-foreground);

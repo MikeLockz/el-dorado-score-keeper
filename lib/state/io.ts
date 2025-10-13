@@ -176,6 +176,25 @@ function deriveSlotMapping(
   return Object.keys(aliasToId).length ? { aliasToId } : null;
 }
 
+function countDistinctPlayers(playersById: Record<string, string>): number {
+  // Games can accumulate duplicate player IDs that share the same display name when rosters are
+  // rebuilt. Use the display label as the canonical key so the count matches what users see.
+  const unique = new Set<string>();
+  let fallbackCount = 0;
+  for (const [pid, rawName] of Object.entries(playersById)) {
+    const normalizedId = typeof pid === 'string' ? pid.trim() : '';
+    if (!normalizedId) continue;
+    fallbackCount += 1;
+    const name = typeof rawName === 'string' ? rawName.trim() : '';
+    if (name) {
+      unique.add(name.toLocaleLowerCase());
+    } else {
+      unique.add(`id:${normalizedId}`);
+    }
+  }
+  return unique.size > 0 ? unique.size : fallbackCount;
+}
+
 export type GameRecord = {
   id: string;
   title: string;
@@ -212,6 +231,15 @@ export type GameRecord = {
   };
   bundle: ExportBundle;
 };
+
+export function resolveSummaryPlayerCount(summary: GameRecord['summary']): number {
+  const playersById = summary.rosterSnapshot?.playersById ?? summary.playersById ?? {};
+  return countDistinctPlayers(playersById);
+}
+
+export function resolveGamePlayerCount(game: GameRecord): number {
+  return resolveSummaryPlayerCount(game.summary);
+}
 
 function asError(e: unknown, fallbackMessage: string): Error {
   if (e instanceof Error) return e;
@@ -576,9 +604,11 @@ export function summarizeState(s: AppState): GameRecord['summary'] {
     winnerId && Object.prototype.hasOwnProperty.call(playersById, winnerId)
       ? (playersById[winnerId] ?? null)
       : null;
+  const summaryPlayersById = resolvedRosterSnapshot?.playersById ?? playersById;
+  const players = countDistinctPlayers(summaryPlayersById);
 
   return {
-    players: playerIds.length,
+    players,
     scores,
     playersById,
     winnerId,
