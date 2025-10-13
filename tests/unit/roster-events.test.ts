@@ -46,5 +46,8 @@ describe('roster events', () => {
     expect(s.activeScorecardRosterId).toBeNull();
     s = reduce(s, events.rosterRestored({ rosterId: rid }));
     expect(s.rosters[rid].archivedAt).toBeNull();
+    s = reduce(s, events.rosterDeleted({ rosterId: rid }));
+    expect(s.rosters[rid]).toBeUndefined();
+    expect(s.activeScorecardRosterId).toBeNull();
   });
 });

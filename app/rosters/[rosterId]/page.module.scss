@@ -2,23 +2,46 @@
 @use '../../../styles/tokens/spacing' as spacing;
 
 .container {
-  max-inline-size: 48rem;
+  max-inline-size: 56rem;
   margin-inline: auto;
   padding: spacing.spacing('space-4');
   display: flex;
   flex-direction: column;
-  gap: spacing.spacing('space-4');
+  gap: spacing.spacing('space-5');
 }
 
 .header {
   display: flex;
   flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: spacing.spacing('space-2');
 }
 
-.title {
+.nameInput {
+  inline-size: min(100%, 32rem);
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
   @include typography.heading('heading-sm');
   font-weight: 700;
+  color: var(--color-foreground);
+
+  &:focus-visible {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 40%, transparent);
+    background: color-mix(in oklch, var(--color-background) 92%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+  }
 }
 
 .meta {
@@ -37,23 +60,121 @@
   @include typography.body('body-xs');
 }
 
-.list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: spacing.spacing('space-2');
-}
-
-.playerCard {
-  padding: spacing.spacing('space-2');
-  border: 1px solid color-mix(in oklch, var(--color-border) 85%, transparent);
-  border-radius: var(--radius-md);
-  @include typography.body('body-sm');
+.archivedBadge {
+  background: color-mix(in oklch, var(--destructive) 18%, transparent);
+  color: color-mix(in oklch, var(--destructive-foreground) 90%, var(--color-foreground) 10%);
 }
 
 .actions {
-  display: inline-flex;
-  gap: spacing.spacing('space-2');
+  display: flex;
   flex-wrap: wrap;
+  gap: spacing.spacing('space-2');
+}
+
+.section {
+  border: 1px solid color-mix(in oklch, var(--color-border) 80%, transparent);
+  border-radius: var(--radius-lg);
+  padding: spacing.spacing('space-4');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-4');
+  background: color-mix(in oklch, var(--muted) 96%, transparent);
+}
+
+.sectionTitle {
+  @include typography.heading('heading-sm');
+  font-weight: 600;
+}
+
+.sectionDescription {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.playerChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing.spacing('space-2');
+}
+
+.playerChip {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+  padding-inline: spacing.spacing('space-3');
+  padding-block: spacing.spacing('space-1');
+  border: 1px solid color-mix(in oklch, var(--color-border) 75%, transparent);
+  border-radius: var(--radius-full);
+  background: color-mix(in oklch, var(--muted) 92%, transparent);
+}
+
+.playerChipInfo {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+}
+
+.playerChipName {
+  @include typography.body('body-sm');
+  font-weight: 600;
+}
+
+.playerChipMeta {
+  @include typography.body('body-xs');
+  color: var(--color-muted-foreground);
+}
+
+.playerChipRemove {
+  color: var(--color-muted-foreground);
+  padding: 0;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--destructive);
+  }
+
+  :global(svg) {
+    inline-size: 1rem;
+    block-size: 1rem;
+  }
+}
+
+.empty {
+  border: 1px dashed color-mix(in oklch, var(--color-border) 70%, transparent);
+  border-radius: var(--radius-md);
+  padding: spacing.spacing('space-4');
+  text-align: center;
+  color: var(--color-muted-foreground);
+  @include typography.body('body-sm');
+}
+
+.addRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+}
+
+.selectControl {
+  min-inline-size: 14rem;
+  padding-inline: spacing.spacing('space-2');
+  padding-block: spacing.spacing('space-1');
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  @include typography.body('body-sm');
+
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+.statusActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing.spacing('space-2');
 }
 
 .spinnerRow {

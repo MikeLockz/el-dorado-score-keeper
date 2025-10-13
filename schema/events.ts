@@ -32,6 +32,7 @@ export const eventPayloadSchemas = {
   'roster/reset': z.object({ rosterId: id }),
   'roster/archived': z.object({ rosterId: id }),
   'roster/restored': z.object({ rosterId: id }),
+  'roster/deleted': z.object({ rosterId: id }),
   'player/added': z.object({ id, name: nonEmpty, type: playerType.optional() }),
   'player/renamed': z.object({ id, name: nonEmpty }),
   'player/removed': z.object({ id }),

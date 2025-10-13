@@ -192,6 +192,17 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
         restoredAt: coerceTimestamp(event),
       });
     }
+    case 'roster/deleted': {
+      const p = event.payload as EventMap['roster/deleted'];
+      let nextState = rosterOps.deleteRoster(state, { rosterId: p.rosterId });
+      if (nextState.activeScorecardRosterId === p.rosterId) {
+        nextState = { ...nextState, activeScorecardRosterId: null };
+      }
+      if (nextState.activeSingleRosterId === p.rosterId) {
+        nextState = { ...nextState, activeSingleRosterId: null };
+      }
+      return nextState;
+    }
     case 'player/added': {
       const { id, name, type } = event.payload as EventMap['player/added'];
       const normalizedType: 'human' | 'bot' = type ?? state.playerDetails?.[id]?.type ?? 'human';

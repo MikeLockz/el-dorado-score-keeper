@@ -55,6 +55,7 @@ describe('events factory helpers', () => {
     ['rosterReset', 'roster/reset', { rosterId: 'r1' }],
     ['rosterArchived', 'roster/archived', { rosterId: 'r1' }],
     ['rosterRestored', 'roster/restored', { rosterId: 'r1' }],
+    ['rosterDeleted', 'roster/deleted', { rosterId: 'r1' }],
     // Single-player
     ['spReset', 'sp/reset', {}],
     [

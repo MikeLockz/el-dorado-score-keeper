@@ -249,9 +249,9 @@ suite('PlayersPage UI', () => {
     const { div, root } = await renderWithProviders(React.createElement(PlayersPage));
 
     const statsButton = (await waitFor(() => {
-      const button = div.querySelector('[data-testid="view-stats-player-p1"]') as
-        | HTMLButtonElement
-        | null;
+      const button = div.querySelector(
+        '[data-testid="view-stats-player-p1"]',
+      ) as HTMLButtonElement | null;
       expect(button).toBeTruthy();
       return button;
     })) as HTMLButtonElement;
@@ -297,6 +297,67 @@ suite('PlayersPage UI', () => {
 
     await waitFor(() => {
       expect(append).toHaveBeenCalledWith(expect.objectContaining({ type: 'roster/renamed' }));
+    });
+
+    root.unmount();
+    div.remove();
+  });
+
+  it('navigates to roster detail when a roster card is clicked', async () => {
+    const { default: PlayersPage } = await import('@/app/players/page');
+    const { div, root } = await renderWithProviders(React.createElement(PlayersPage));
+
+    const rosterCard = (await waitFor(() => {
+      const element = div.querySelector('[data-testid="roster-card-r1"]') as HTMLElement | null;
+      expect(element).toBeTruthy();
+      return element;
+    })) as HTMLElement;
+
+    rosterCard.click();
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith('/rosters/r1');
+    });
+
+    root.unmount();
+    div.remove();
+  });
+
+  it('reveals archived rosters when the checkbox is toggled', async () => {
+    mockAppState.state = {
+      ...mockAppState.state,
+      rosters: {
+        ...mockAppState.state.rosters,
+        r2: {
+          name: 'Archived Squad',
+          playersById: {},
+          playerTypesById: {},
+          displayOrder: {},
+          type: 'scorecard',
+          createdAt: 0,
+          archivedAt: 10,
+        },
+      },
+    } as AppState;
+    setMockAppState(mockAppState);
+
+    const { default: PlayersPage } = await import('@/app/players/page');
+    const { div, root } = await renderWithProviders(React.createElement(PlayersPage));
+
+    const checkbox = (await waitFor(() => {
+      const input = div.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
+      expect(input).toBeTruthy();
+      return input;
+    })) as HTMLInputElement;
+
+    expect(checkbox.checked).toBe(false);
+    expect(div.textContent || '').not.toContain('Archived Squad');
+
+    checkbox.click();
+
+    await waitFor(() => {
+      expect(checkbox.checked).toBe(true);
+      expect(div.textContent || '').toContain('Archived Squad');
     });
 
     root.unmount();

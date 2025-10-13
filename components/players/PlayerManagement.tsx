@@ -12,6 +12,7 @@ import {
   selectArchivedPlayers,
   selectAllRosters,
   resolvePlayerRoute,
+  resolveRosterRoute,
 } from '@/lib/state';
 import type { AppState, KnownAppEvent } from '@/lib/state';
 import { useNewGameRequest } from '@/lib/game-flow';
@@ -146,6 +147,21 @@ export default function PlayerManagement({
   const [playerPending, setPlayerPending] = React.useState<Pending>(null);
   const [rosterPending, setRosterPending] = React.useState<RosterPending>(null);
   const [autoCreateCount, setAutoCreateCount] = React.useState(4);
+
+  const navigateToRoster = React.useCallback(
+    (rosterId: string) => {
+      if (!rosterId) return;
+      router.push(resolveRosterRoute(rosterId));
+    },
+    [router],
+  );
+
+  const shouldSkipNavigation = React.useCallback((node: EventTarget | null) => {
+    if (!(node instanceof HTMLElement)) return false;
+    if (node.closest('button')) return true;
+    if (node.closest('a')) return true;
+    return false;
+  }, []);
 
   React.useEffect(() => {
     if (playerView === 'archived' && archivedPlayers.length === 0) {
@@ -746,7 +762,9 @@ export default function PlayerManagement({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => router.push(resolvePlayerRoute(player.id, { view: 'statistics' }))}
+                        onClick={() =>
+                          router.push(resolvePlayerRoute(player.id, { view: 'statistics' }))
+                        }
                         disabled={!ready}
                         data-testid={`view-stats-player-${player.id}`}
                       >
@@ -839,9 +857,25 @@ export default function PlayerManagement({
               const detail = rosterMap[roster.rosterId];
               const playerCount = roster.players;
               return (
-                <div key={roster.rosterId} className={styles.rosterItem}>
+                <div
+                  key={roster.rosterId}
+                  className={styles.rosterItem}
+                  role="link"
+                  tabIndex={0}
+                  data-testid={`roster-card-${roster.rosterId}`}
+                  onClick={(event) => {
+                    if (shouldSkipNavigation(event.target)) return;
+                    navigateToRoster(roster.rosterId);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    if (shouldSkipNavigation(event.target)) return;
+                    event.preventDefault();
+                    navigateToRoster(roster.rosterId);
+                  }}
+                >
                   <div className={styles.rosterHeader}>
-                    <div>
+                    <div className={styles.rosterPrimary}>
                       <div className={styles.rosterTitle}>{roster.name}</div>
                       <div className={styles.rosterMeta}>
                         {playerCount} {playerCount === 1 ? 'player' : 'players'} • Created{' '}
@@ -899,13 +933,14 @@ export default function PlayerManagement({
 
         {archivedRosters.length > 0 ? (
           <div className={styles.noticeStack}>
-            <button
-              type="button"
-              className={styles.archivedToggle}
-              onClick={() => setShowArchivedRosters((prev) => !prev)}
-            >
-              {showArchivedRosters ? 'Hide archived rosters' : 'Show archived rosters'}
-            </button>
+            <label className={styles.archivedToggle}>
+              <input
+                type="checkbox"
+                checked={showArchivedRosters}
+                onChange={(event) => setShowArchivedRosters(event.target.checked)}
+              />
+              <span>Show archived rosters</span>
+            </label>
             {showArchivedRosters ? (
               <div className={styles.archivedRostersList}>
                 {archivedRosters.map((roster) => (

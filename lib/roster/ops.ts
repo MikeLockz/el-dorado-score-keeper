@@ -166,6 +166,13 @@ export function resetRoster(state: AppState, p: { rosterId: UUID }): AppState {
   return Object.assign({}, state, { rosters });
 }
 
+export function deleteRoster(state: AppState, p: { rosterId: UUID }): AppState {
+  if (!state.rosters[p.rosterId]) return state;
+  const rosters = clone(state.rosters);
+  delete rosters[p.rosterId];
+  return Object.assign({}, state, { rosters });
+}
+
 export function archiveRoster(
   state: AppState,
   p: { rosterId: UUID; archivedAt?: number },

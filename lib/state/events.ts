@@ -39,6 +39,8 @@ export const events = {
     makeEvent('roster/archived', p, m),
   rosterRestored: (p: EventPayloadByType<'roster/restored'>, m?: Meta) =>
     makeEvent('roster/restored', p, m),
+  rosterDeleted: (p: EventPayloadByType<'roster/deleted'>, m?: Meta) =>
+    makeEvent('roster/deleted', p, m),
   playerAdded: (p: EventPayloadByType<'player/added'>, m?: Meta) => makeEvent('player/added', p, m),
   playerRenamed: (p: EventPayloadByType<'player/renamed'>, m?: Meta) =>
     makeEvent('player/renamed', p, m),
