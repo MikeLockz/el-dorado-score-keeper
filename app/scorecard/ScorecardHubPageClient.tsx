@@ -29,6 +29,12 @@ import { captureBrowserMessage } from '@/lib/observability/browser';
 
 import styles from './page.module.scss';
 
+type ScorecardHubVariant = 'hub' | 'games';
+
+type ScorecardHubPageClientProps = {
+  variant?: ScorecardHubVariant;
+};
+
 function isScorecardGame(game: GameRecord): boolean {
   if (deriveGameMode(game) !== 'scorecard') return false;
   const spPhase = game.summary.sp?.phase;
@@ -49,7 +55,7 @@ function winnerLabel(game: GameRecord): string {
   return score == null ? name : `${name} (${score})`;
 }
 
-export default function ScorecardHubPageClient() {
+export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHubPageClientProps) {
   const router = useRouter();
   const { state, ready } = useAppState();
   const [games, setGames] = React.useState<GameRecord[] | null>(null);
@@ -183,15 +189,21 @@ export default function ScorecardHubPageClient() {
         : 'Add players to begin';
 
   const currentSummaryHref = hasActiveSession ? `${scorecardRoute}/summary` : null;
+  const isGamesVariant = variant === 'games';
+  const pageTitle = isGamesVariant ? 'Scorecard archives' : 'Scorecard hub';
+  const pageDescription = isGamesVariant
+    ? 'Browse archived scorecard sessions from the games library.'
+    : 'Resume your current scorecard or reopen an archived game for live tracking or summaries.';
+  const listSubtitle = isGamesVariant
+    ? 'Open an archived scorecard to review history and summaries.'
+    : 'Restore an archived scorecard to continue editing or revisit summaries.';
 
   return (
     <div className={styles.container}>
       <header className={styles.header}>
         <div>
-          <h1 className={styles.title}>Scorecard hub</h1>
-          <p className={styles.description}>
-            Resume your current scorecard or reopen an archived game for live tracking or summaries.
-          </p>
+          <h1 className={styles.title}>{pageTitle}</h1>
+          <p className={styles.description}>{pageDescription}</p>
         </div>
         <div className={styles.headerActions}>
           <Button onClick={() => void handleStartNew()} disabled={startingNew || !ready}>
@@ -220,7 +232,9 @@ export default function ScorecardHubPageClient() {
         <Card className={styles.currentCard}>
           <CardContent className={styles.currentContent}>
             <div className={styles.currentHeader}>
-              <h2 className={styles.sectionTitle}>Current scorecard</h2>
+              <h2 className={styles.sectionTitle}>
+                {isGamesVariant ? 'Active scorecard' : 'Current scorecard'}
+              </h2>
               <p className={styles.sectionSubtitle}>{activeStatus}</p>
             </div>
             {playerCount > 0 ? (
@@ -255,9 +269,7 @@ export default function ScorecardHubPageClient() {
       <section className={styles.listSection} aria-label="Archived scorecard games">
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>Scorecard games</h2>
-          <p className={styles.sectionSubtitle}>
-            Restore an archived scorecard to continue editing or revisit summaries.
-          </p>
+          <p className={styles.sectionSubtitle}>{listSubtitle}</p>
         </div>
 
         {games === null ? (
@@ -287,6 +299,13 @@ export default function ScorecardHubPageClient() {
                 typeof game.summary.scorecard?.activeRound === 'number'
                   ? game.summary.scorecard?.activeRound
                   : null;
+              const cardDisabled = !isGamesVariant && (pending || isCompleted);
+              const archiveHref = isGamesVariant
+                ? `/games/scorecards/${game.id}`
+                : `/games/${game.id}`;
+              const summaryAriaLabel = isGamesVariant
+                ? `Open archived scorecard ${game.title || game.id}`
+                : `Resume ${game.title || game.id} scorecard`;
               return (
                 <Card key={game.id} className={styles.gameCard}>
                   <CardContent className={styles.cardContent}>
@@ -308,7 +327,31 @@ export default function ScorecardHubPageClient() {
                         ) : null}
                       </div>
                     </div>
-                    <div className={styles.gameSummary}>
+                    <div
+                      className={styles.gameSummary}
+                      role="button"
+                      tabIndex={cardDisabled ? -1 : 0}
+                      aria-label={summaryAriaLabel}
+                      aria-disabled={cardDisabled ? true : undefined}
+                      onClick={() => {
+                        if (isGamesVariant) {
+                          router.push(`/games/scorecards/${game.id}`);
+                          return;
+                        }
+                        if (cardDisabled) return;
+                        void resumeGame(game);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        event.preventDefault();
+                        if (isGamesVariant) {
+                          router.push(`/games/scorecards/${game.id}`);
+                          return;
+                        }
+                        if (cardDisabled) return;
+                        void resumeGame(game);
+                      }}
+                    >
                       <Trophy aria-hidden="true" className={styles.metaIcon} />
                       <span>{winnerLabel(game)}</span>
                     </div>
@@ -330,7 +373,7 @@ export default function ScorecardHubPageClient() {
                       )}
                     </Button>
                     <Button variant="ghost" asChild>
-                      <Link href={`/games/${game.id}`}>Open archive</Link>
+                      <Link href={archiveHref}>Open archive</Link>
                     </Button>
                   </CardFooter>
                 </Card>

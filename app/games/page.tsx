@@ -71,11 +71,9 @@ export default function GamesPage() {
     resumeRouteRef.current = null;
     router.push(target);
   }, [router]);
-  const scorecardHref = React.useMemo(() => resolveScorecardRoute(state), [state]);
   const handleOpenScorecard = React.useCallback(() => {
-    if (!scorecardHref) return;
-    router.push(scorecardHref);
-  }, [router, scorecardHref]);
+    router.push('/games/scorecards');
+  }, [router]);
   const { startNewGame, pending: startPending } = useNewGameRequest({
     onSuccess: () => {
       router.push('/');

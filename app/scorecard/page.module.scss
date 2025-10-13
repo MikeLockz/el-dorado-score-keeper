@@ -169,6 +169,12 @@
   gap: spacing.spacing('space-1');
   color: var(--color-muted-foreground);
   @include typography.body('body-sm');
+  &[role='button'] {
+    cursor: pointer;
+  }
+  &[aria-disabled='true'] {
+    cursor: not-allowed;
+  }
 }
 
 .gameFooter {
