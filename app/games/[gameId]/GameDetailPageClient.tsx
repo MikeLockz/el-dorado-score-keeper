@@ -48,14 +48,73 @@ type ReadOnlyScorecardGrid = {
   rounds: ReadonlyArray<ScorecardRoundView>;
 };
 
+type ReadOnlyScorecardOptions = {
+  slotMapping?: GameRecord['summary']['slotMapping'] | null;
+  playerLimit?: number | null;
+};
+
+function normalizeAlias(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
 function buildReadOnlyScorecardGrid(
   state: AppState,
   mode: 'scorecard' | 'single-player',
+  options?: Readonly<ReadOnlyScorecardOptions>,
 ): Readonly<ReadOnlyScorecardGrid> | null {
   const rosterMode = mode === 'single-player' ? 'single' : 'scorecard';
   const rosterPlayers = selectPlayersOrderedFor(state, rosterMode);
   const fallbackPlayers = selectPlayersOrdered(state);
-  const players = rosterPlayers.length > 0 ? rosterPlayers : fallbackPlayers;
+  const initialPlayers = rosterPlayers.length > 0 ? rosterPlayers : fallbackPlayers;
+  if (initialPlayers.length === 0) return null;
+
+  const rawLimit = options?.playerLimit;
+  const normalizedLimit =
+    typeof rawLimit === 'number' && Number.isFinite(rawLimit) && rawLimit > 0
+      ? Math.floor(rawLimit)
+      : null;
+  let players = [...initialPlayers];
+
+  const aliasMap = options?.slotMapping?.aliasToId;
+  if (aliasMap && Object.keys(aliasMap).length > 0) {
+    const byId = new Map(players.map((player) => [player.id, player]));
+    const seen = new Set<string>();
+    const ordered: typeof players = [];
+    const seatCap = normalizedLimit ?? players.length;
+    for (let seat = 1; seat <= seatCap; seat++) {
+      const aliases = [`player ${seat}`, `player${seat}`, `p${seat}`];
+      let matchedId: string | null = null;
+      for (const alias of aliases) {
+        const normalizedAlias = normalizeAlias(alias);
+        if (!normalizedAlias) continue;
+        const candidateId = aliasMap[normalizedAlias];
+        if (candidateId && byId.has(candidateId)) {
+          matchedId = candidateId;
+          break;
+        }
+      }
+      if (matchedId && !seen.has(matchedId)) {
+        const player = byId.get(matchedId);
+        if (player) {
+          ordered.push(player);
+          seen.add(matchedId);
+        }
+      }
+    }
+    for (const player of players) {
+      if (normalizedLimit && ordered.length >= normalizedLimit) break;
+      if (seen.has(player.id)) continue;
+      ordered.push(player);
+      seen.add(player.id);
+    }
+    players = normalizedLimit ? ordered.slice(0, normalizedLimit) : ordered;
+  } else if (normalizedLimit != null) {
+    players = players.slice(0, normalizedLimit);
+  }
+
   if (players.length === 0) return null;
 
   const columns: ScorecardPlayerColumn[] = players.map((player) => ({
@@ -187,7 +246,14 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
 
   const scorecardGrid = React.useMemo(() => {
     if (!game || !reconstructedState) return null;
-    return buildReadOnlyScorecardGrid(reconstructedState, game.summary.mode ?? 'scorecard');
+    const playerLimit =
+      typeof game.summary.players === 'number' && Number.isFinite(game.summary.players)
+        ? Math.floor(Math.max(0, game.summary.players))
+        : null;
+    return buildReadOnlyScorecardGrid(reconstructedState, game.summary.mode ?? 'scorecard', {
+      playerLimit,
+      slotMapping: game.summary.slotMapping ?? null,
+    });
   }, [game, reconstructedState]);
 
   const scoresEntries = React.useMemo(

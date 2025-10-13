@@ -136,8 +136,14 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
     await startNewGame();
   }, [startNewGame]);
 
+  const isGamesVariant = variant === 'games';
+
   const resumeGame = React.useCallback(
     async (game: GameRecord) => {
+      if (isGamesVariant) {
+        router.push(`/games/scorecards/${game.id}`);
+        return;
+      }
       if (pendingId) return;
       if (completedMap?.[game.id]) {
         setErrorMessage('Completed games cannot be restored.');
@@ -171,7 +177,7 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
         setPendingId((prev) => (prev === game.id ? null : prev));
       }
     },
-    [pendingId, router, waitForScorecardRoute, completedMap],
+    [isGamesVariant, pendingId, router, waitForScorecardRoute, completedMap],
   );
 
   const scorecardRoute = React.useMemo(() => resolveScorecardRoute(state), [state]);
@@ -189,7 +195,6 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
         : 'Add players to begin';
 
   const currentSummaryHref = hasActiveSession ? `${scorecardRoute}/summary` : null;
-  const isGamesVariant = variant === 'games';
   const pageTitle = isGamesVariant ? 'Scorecard archives' : 'Scorecard hub';
   const pageDescription = isGamesVariant
     ? 'Browse archived scorecard sessions from the games library.'
@@ -359,9 +364,11 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
                   <CardFooter className={styles.gameFooter}>
                     <Button
                       onClick={() => void resumeGame(game)}
-                      disabled={pending || !ready || isCompleted}
+                      disabled={isGamesVariant ? false : pending || !ready || isCompleted}
                     >
-                      {pending ? (
+                      {isGamesVariant ? (
+                        'Open'
+                      ) : pending ? (
                         <>
                           <Loader2 className={styles.spinner} aria-hidden="true" />
                           Restoring…
