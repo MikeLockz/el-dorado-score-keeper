@@ -58,7 +58,7 @@ describe('ModeCard snapshots (structure only)', () => {
         icon: React.createElement(Calculator as any, { className: 'h-5 w-5' }),
         title: 'Score Card',
         description: 'Track scores for in‑person sessions. Share and export results.',
-        primary: { label: 'Open', href: '/scorecard', ariaLabel: 'Open Score Card' },
+        primary: { label: 'Open', href: '/games/scorecards', ariaLabel: 'Open Score Card' },
         primaryEvent: 'mode_scorecard_open_clicked',
         secondary: null,
         ariaLabel: 'Open score card for in‑person tallying.',
@@ -67,7 +67,7 @@ describe('ModeCard snapshots (structure only)', () => {
 
     const html = renderToStaticMarkup(tree);
     expect(sanitize(html)).toMatchInlineSnapshot(
-      '"<div><div><section aria-label=\"Start single player mode — play solo vs AI.\"><div><div><svg></svg></div><h3>Single Player</h3></div><p>Play solo against adaptive AI. Practice strategies and unlock achievements.</p><div><a aria-label=\"Start Single Player\" href=\"/single-player\">Start</a><a href=\"/single-player\">Continue last run</a></div></section></div><div><section aria-label=\"Open multiplayer — host a room or join by code.\"><div><div><svg></svg></div><h3>Multiplayer</h3></div><p>Host a room or join with a code. Cross‑device, real‑time play.</p><div><a aria-label=\"Host Game (coming soon)\" href=\"/rules\">Host</a><a href=\"/rules\">Join by code</a></div></section></div><div><section aria-label=\"Open score card for in‑person tallying.\"><div><div><svg></svg></div><h3>Score Card</h3></div><p>Track scores for in‑person sessions. Share and export results.</p><div><a aria-label=\"Open Score Card\" href=\"/scorecard\">Open</a></div></section></div></div>"',
+      '"<div><div><section aria-label=\"Start single player mode — play solo vs AI.\"><div><div><svg></svg></div><h3>Single Player</h3></div><p>Play solo against adaptive AI. Practice strategies and unlock achievements.</p><div><a aria-label=\"Start Single Player\" href=\"/single-player\">Start</a><a href=\"/single-player\">Continue last run</a></div></section></div><div><section aria-label=\"Open multiplayer — host a room or join by code.\"><div><div><svg></svg></div><h3>Multiplayer</h3></div><p>Host a room or join with a code. Cross‑device, real‑time play.</p><div><a aria-label=\"Host Game (coming soon)\" href=\"/rules\">Host</a><a href=\"/rules\">Join by code</a></div></section></div><div><section aria-label=\"Open score card for in‑person tallying.\"><div><div><svg></svg></div><h3>Score Card</h3></div><p>Track scores for in‑person sessions. Share and export results.</p><div><a aria-label=\"Open Score Card\" href=\"/games/scorecards\">Open</a></div></section></div></div>"',
     );
   });
 });

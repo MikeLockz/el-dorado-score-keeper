@@ -102,8 +102,14 @@ describe('state utils helpers', () => {
 
   it('resolveScorecardRoute falls back to scorecard hub without id', () => {
     const state = structuredClone(INITIAL_STATE);
-    expect(resolveScorecardRoute(state)).toBe('/scorecard');
-    expect(resolveScorecardRoute(state, { view: 'summary' })).toBe('/scorecard');
+    expect(resolveScorecardRoute(state)).toBe('/games/scorecards');
+    expect(resolveScorecardRoute(state, { view: 'summary' })).toBe('/games/scorecards');
+  });
+
+  it('getActiveScorecardId ignores legacy scorecard-default id', () => {
+    const state = structuredClone(INITIAL_STATE);
+    (state as any).activeScorecardRosterId = 'scorecard-default';
+    expect(getActiveScorecardId(state)).toBeNull();
   });
 
   it('singlePlayerPath builds correct sub-routes and falls back to hub', () => {
@@ -116,7 +122,7 @@ describe('state utils helpers', () => {
   it('scorecardPath builds summary and live paths with graceful fallback', () => {
     expect(scorecardPath('score-7')).toBe('/scorecard/score-7');
     expect(scorecardPath('score-7', 'summary')).toBe('/scorecard/score-7/summary');
-    expect(scorecardPath(null, 'summary')).toBe('/scorecard');
+    expect(scorecardPath(null, 'summary')).toBe('/games/scorecards');
   });
 
   it('resolvePlayerRoute handles explicit ids and archived fallbacks', () => {

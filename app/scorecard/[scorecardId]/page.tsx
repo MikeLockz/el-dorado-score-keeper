@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
 import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
+import { SCORECARD_HUB_PATH } from '@/lib/state';
 import CurrentGame from '@/components/views/CurrentGame';
 
 import styles from './page.module.scss';
@@ -9,10 +11,12 @@ export async function generateStaticParams() {
   return staticExportParams('scorecardId');
 }
 
-type Params = {
-  params: {
-    scorecardId?: string;
-  };
+type RouteParams = {
+  scorecardId?: string;
+};
+
+type PageParams = {
+  params: Promise<RouteParams>;
 };
 
 function makeTitle(scorecardId: string): string {
@@ -27,8 +31,9 @@ function makeDescription(scorecardId: string): string {
   return `Live score tracking for scorecard session ${scorecardId} with editable bids and history.`;
 }
 
-export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const scorecardId = scrubDynamicParam(params.scorecardId);
+export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
+  const { scorecardId: rawId = '' } = await params;
+  const scorecardId = scrubDynamicParam(rawId);
   const title = makeTitle(scorecardId);
   const description = makeDescription(scorecardId);
 
@@ -38,7 +43,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     openGraph: {
       title,
       description,
-      url: scorecardId ? `/scorecard/${scorecardId}` : '/scorecard',
+      url: scorecardId ? `/scorecard/${scorecardId}` : SCORECARD_HUB_PATH,
       type: 'website',
     },
     twitter: {
@@ -49,11 +54,16 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   };
 }
 
-export default function ScorecardSessionPage({ params }: Params) {
-  const scorecardId = scrubDynamicParam(params.scorecardId) || 'scorecard-session';
+export default async function ScorecardSessionPage({ params }: PageParams) {
+  const { scorecardId: rawId = '' } = await params;
+  const scorecardId = scrubDynamicParam(rawId);
+  if (scorecardId === 'scorecard-default') {
+    redirect(SCORECARD_HUB_PATH);
+  }
+  const resolvedId = scorecardId || 'scorecard-session';
   return (
     <div className={styles.container}>
-      <CurrentGame key={scorecardId} />
+      <CurrentGame key={resolvedId} />
     </div>
   );
 }

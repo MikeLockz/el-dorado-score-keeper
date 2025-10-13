@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import SinglePlayerNewPageClient from './SinglePlayerNewPageClient';
 
 export const metadata: Metadata = {
-  title: 'New Single Player game',
-  description: 'Start a fresh single-player run or resume your in-progress game.',
+  title: 'Single-player setup',
+  description: 'Pick a saved roster or generate bots before starting a new single-player run.',
 };
 
 export default function SinglePlayerNewPage() {

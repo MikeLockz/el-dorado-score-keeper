@@ -4,6 +4,7 @@ import type { AppEvent, AppState, EventMap, EventPayloadByType } from './types';
 import { INITIAL_STATE, type AppEventType, type KnownAppEvent } from './types';
 import * as rosterOps from '@/lib/roster/ops';
 import { eventPayloadSchemas } from '@/schema/events';
+import { uuid } from '@/lib/utils';
 
 function coerceTimestamp(event: KnownAppEvent): number {
   const ts = Number(event.ts);
@@ -57,27 +58,26 @@ function applyPlayerAdded(
     rounds,
   };
 
-  const rid =
-    nextState.activeScorecardRosterId ??
-    (() => {
-      const nrid = 'scorecard-default';
-      const createdAt = coerceTimestamp(event);
-      const roster = {
-        name: 'Score Card',
-        playersById: {} as Record<string, string>,
-        playerTypesById: {} as Record<string, 'human' | 'bot'>,
-        displayOrder: {} as Record<string, number>,
-        type: 'scorecard' as const,
-        createdAt,
-        archivedAt: null,
-      };
-      nextState = {
-        ...nextState,
-        rosters: { ...nextState.rosters, [nrid]: roster },
-        activeScorecardRosterId: nrid,
-      };
-      return nrid;
-    })();
+  let rid = nextState.activeScorecardRosterId;
+  if (!rid || !nextState.rosters[rid]) {
+    const nrid = uuid();
+    const createdAt = coerceTimestamp(event);
+    const roster = {
+      name: 'Score Card',
+      playersById: {} as Record<string, string>,
+      playerTypesById: {} as Record<string, 'human' | 'bot'>,
+      displayOrder: {} as Record<string, number>,
+      type: 'scorecard' as const,
+      createdAt,
+      archivedAt: null,
+    };
+    nextState = {
+      ...nextState,
+      rosters: { ...nextState.rosters, [nrid]: roster },
+      activeScorecardRosterId: nrid,
+    };
+    rid = nrid;
+  }
   const r = nextState.rosters[rid]!;
   const scPlayers = { ...r.playersById, [id]: String(trimmed) };
   const scTypes = { ...(r.playerTypesById ?? {}), [id]: payload.type };

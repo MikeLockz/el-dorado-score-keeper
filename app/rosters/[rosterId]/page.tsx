@@ -8,10 +8,12 @@ export async function generateStaticParams() {
   return staticExportParams('rosterId');
 }
 
+type RouteParams = {
+  rosterId?: string;
+};
+
 type PageParams = {
-  params: {
-    rosterId?: string;
-  };
+  params: Promise<RouteParams>;
 };
 
 function formatRosterTitle(rosterId: string): string {
@@ -27,7 +29,8 @@ function formatRosterDescription(rosterId: string): string {
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const rosterId = scrubDynamicParam(params.rosterId);
+  const { rosterId: rawId = '' } = await params;
+  const rosterId = scrubDynamicParam(rawId);
   const title = formatRosterTitle(rosterId);
   const description = formatRosterDescription(rosterId);
 
@@ -48,7 +51,8 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
 }
 
-export default function RosterDetailPage({ params }: PageParams) {
-  const rosterId = scrubDynamicParam(params.rosterId);
+export default async function RosterDetailPage({ params }: PageParams) {
+  const { rosterId: rawId = '' } = await params;
+  const rosterId = scrubDynamicParam(rawId);
   return <RosterDetailPageClient rosterId={rosterId} />;
 }

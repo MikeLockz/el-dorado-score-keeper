@@ -2,32 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { waitFor } from '@testing-library/react';
-import { INITIAL_STATE, type AppState } from '@/lib/state';
+import { INITIAL_STATE, type AppState, type KnownAppEvent } from '@/lib/state';
 
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 type RouterStub = ReturnType<(typeof import('next/navigation'))['useRouter']>;
 
 const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
 const setMockRouter = (globalThis as any).__setMockRouter as (router: RouterStub) => void;
-
-const gameFlowModule = await import('@/lib/game-flow');
-type UseNewGameRequest = typeof gameFlowModule.useNewGameRequest;
-type UseNewGameRequestOptions = Parameters<UseNewGameRequest>[0];
-
-const startNewGameSpy = vi.hoisted(() => vi.fn(async () => true));
-
-vi.spyOn(gameFlowModule, 'useNewGameRequest').mockImplementation(
-  (options?: UseNewGameRequestOptions) => ({
-    startNewGame: async (...args) => {
-      const result = await startNewGameSpy(...args);
-      if (!result) {
-        options?.onCancelled?.();
-      }
-      return result;
-    },
-    pending: false,
-  }),
-);
 
 const suite = typeof document === 'undefined' ? describe.skip : describe;
 
@@ -42,7 +23,10 @@ function createRouter() {
   } satisfies RouterStub;
 }
 
-function setState(state: AppState, overrides: Partial<MockAppStateHook> = {}) {
+function setState(
+  state: AppState,
+  overrides: Partial<MockAppStateHook> & { appendMany?: MockAppStateHook['appendMany'] } = {},
+) {
   setMockAppState({
     state,
     height: overrides.height ?? 0,
@@ -59,82 +43,147 @@ function setState(state: AppState, overrides: Partial<MockAppStateHook> = {}) {
   } as MockAppStateHook);
 }
 
-suite('Single Player new game route', () => {
+async function renderNewPage() {
+  const { default: NewPage } = await import('@/app/single-player/new/page');
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = ReactDOM.createRoot(container);
+  root.render(React.createElement(NewPage));
+  return { container, root };
+}
+
+suite('Single-player new game setup', () => {
   let router: RouterStub;
+  let appendMany: vi.Mock<[KnownAppEvent[]], Promise<number>>;
 
   beforeEach(() => {
-    startNewGameSpy.mockReset();
     router = createRouter();
     setMockRouter(router);
+    appendMany = vi.fn(async () => 0) as vi.Mock<[KnownAppEvent[]], Promise<number>>;
   });
 
-  it('auto-starts a new game when no progress exists', async () => {
+  it('clears inherited players before enabling actions', async () => {
     const state = structuredClone(INITIAL_STATE) as AppState;
-    state.sp = {
-      ...state.sp,
-      phase: 'setup',
-      trickPlays: [],
-      hands: {},
-      currentGameId: null,
-    } as AppState['sp'];
-    setState(state, { ready: true });
+    state.players = { p1: 'Alice', p2: 'Bot Bob' };
+    state.display_order = { p1: 0, p2: 1 } as Record<string, number>;
+    state.activeSingleRosterId = 'single-roster';
+    state.rosters = {
+      'single-roster': {
+        name: 'Current Roster',
+        playersById: { p1: 'Alice', p2: 'Bot Bob' },
+        playerTypesById: { p1: 'human', p2: 'bot' },
+        displayOrder: { p1: 0, p2: 1 },
+        type: 'scorecard',
+        createdAt: Date.now(),
+        archivedAt: null,
+      },
+    } as AppState['rosters'];
+    setState(state, { appendMany });
 
-    const { default: NewPage } = await import('@/app/single-player/new/page');
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = ReactDOM.createRoot(container);
-    root.render(React.createElement(NewPage));
+    const { container, root } = await renderNewPage();
 
     await waitFor(() => {
-      expect(startNewGameSpy).toHaveBeenCalledTimes(1);
+      expect(appendMany).toHaveBeenCalledTimes(1);
     });
 
-    expect(startNewGameSpy.mock.calls[0]?.[0]).toMatchObject({
-      skipConfirm: true,
-      analytics: { source: 'single-player.new.auto' },
-    });
-    expect(container.textContent || '').toMatch(/Creating a fresh single-player session/i);
+    const events = appendMany.mock.calls[0]![0];
+    expect(events.map((event) => event.type)).toEqual([
+      'player/removed',
+      'player/removed',
+      'players/reordered',
+      'roster/reset',
+    ]);
+
+    expect(container.textContent || '').toMatch(/Preparing your game/i);
 
     root.unmount();
     container.remove();
   });
 
-  it('offers archive and continue flows when progress exists', async () => {
+  it('loads a saved roster into the new game session', async () => {
     const state = structuredClone(INITIAL_STATE) as AppState;
-    state.sp = {
-      ...state.sp,
-      phase: 'playing',
-      hands: { a: [{ suit: 'spades', rank: 7 }] },
-      trickPlays: [{ playerId: 'a', card: { suit: 'spades', rank: 7 } }],
-      order: ['a'],
-      currentGameId: 'sp-live-1',
-    } as AppState['sp'];
-    setState(state, { ready: true });
+    state.players = {};
+    state.sp = { ...state.sp, currentGameId: 'sp-new-1' } as AppState['sp'];
+    state.rosters = {
+      r1: {
+        name: 'Solo Squad',
+        playersById: { h1: 'Hero', b1: 'Bot One', b2: 'Bot Two' },
+        playerTypesById: { h1: 'human', b1: 'bot', b2: 'bot' },
+        displayOrder: { h1: 0, b1: 1, b2: 2 },
+        type: 'scorecard',
+        createdAt: Date.now(),
+        archivedAt: null,
+      },
+    } as AppState['rosters'];
+    setState(state, { appendMany });
 
-    const { default: NewPage } = await import('@/app/single-player/new/page');
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = ReactDOM.createRoot(container);
-    root.render(React.createElement(NewPage));
+    const { container, root } = await renderNewPage();
 
     await waitFor(() => {
-      expect(container.textContent || '').toMatch(/Archive your current progress/i);
+      expect(container.textContent || '').toContain('Load roster');
     });
 
-    expect(startNewGameSpy).not.toHaveBeenCalled();
+    const loadButton = Array.from(container.querySelectorAll('button')).find((btn) =>
+      /Load roster/i.test(btn.textContent || ''),
+    ) as HTMLButtonElement | undefined;
+    expect(loadButton).toBeTruthy();
+    loadButton?.click();
 
-    const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[];
-    const archive = buttons.find((btn) => /Archive & start new/i.test(btn.textContent || ''));
-    const resume = buttons.find((btn) => /Continue current game/i.test(btn.textContent || ''));
+    await waitFor(() => {
+      expect(appendMany).toHaveBeenCalledTimes(1);
+    });
 
-    expect(archive).toBeTruthy();
-    expect(resume).toBeTruthy();
+    const events = appendMany.mock.calls[0]![0];
+    expect(events.slice(0, 3).map((event) => event.type)).toEqual([
+      'player/added',
+      'player/added',
+      'player/added',
+    ]);
+    expect(events[3]?.type).toBe('players/reordered');
+    expect(router.replace).toHaveBeenCalledWith('/single-player/sp-new-1');
 
-    archive?.click();
-    expect(router.push).toHaveBeenCalledWith('/single-player/new/archive');
+    root.unmount();
+    container.remove();
+  });
 
-    resume?.click();
-    expect(router.push).toHaveBeenCalledWith('/single-player/new/continue');
+  it('creates a placeholder lineup with bots', async () => {
+    const state = structuredClone(INITIAL_STATE) as AppState;
+    state.players = {};
+    state.sp = { ...state.sp, currentGameId: 'sp-new-2' } as AppState['sp'];
+    setState(state, { appendMany });
+
+    const { container, root } = await renderNewPage();
+
+    await waitFor(() => {
+      expect(container.textContent || '').toContain('Create lineup');
+    });
+
+    const countButtons = Array.from(container.querySelectorAll('button')).filter((btn) =>
+      /^[2-6]$/.test((btn.textContent || '').trim()),
+    ) as HTMLButtonElement[];
+    expect(countButtons.length).toBeGreaterThan(0);
+    const sixPlayers = countButtons.find((btn) => btn.textContent?.trim() === '6');
+    sixPlayers?.click();
+
+    const createButton = Array.from(container.querySelectorAll('button')).find((btn) =>
+      /Create lineup/i.test(btn.textContent || ''),
+    ) as HTMLButtonElement | undefined;
+    expect(createButton).toBeTruthy();
+    createButton?.click();
+
+    await waitFor(() => {
+      expect(appendMany).toHaveBeenCalledTimes(1);
+    });
+
+    const events = appendMany.mock.calls[0]![0];
+    const playerEvents = events.filter((event) => event.type === 'player/added');
+    expect(playerEvents).toHaveLength(6);
+    expect(playerEvents[0]?.payload).toMatchObject({ type: 'human', name: 'You' });
+    playerEvents.slice(1).forEach((evt, idx) => {
+      expect(evt.payload).toMatchObject({ type: 'bot', name: `Bot ${idx + 1}` });
+    });
+    expect(events.at(-1)?.type).toBe('players/reordered');
+    expect(router.replace).toHaveBeenCalledWith('/single-player/sp-new-2');
 
     root.unmount();
     container.remove();

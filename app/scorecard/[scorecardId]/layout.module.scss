@@ -71,28 +71,31 @@
   flex-direction: column;
 }
 
-.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: spacing.spacing('space-2');
-  min-block-size: 60vh;
-  color: var(--color-muted-foreground);
-  @include typography.body('body-sm');
-}
-
-.spinner {
-  inline-size: 1rem;
-  block-size: 1rem;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .missing {
   margin-block-start: spacing.spacing('space-4');
+}
+
+.skeletonStack {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+  padding: spacing.spacing('space-3');
+}
+
+.skeletonHeader {
+  inline-size: clamp(12rem, 40%, 18rem);
+  block-size: 2rem;
+  border-radius: var(--radius-md);
+}
+
+.skeletonGrid {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+}
+
+.skeletonRow {
+  inline-size: 100%;
+  block-size: 3.5rem;
+  border-radius: var(--radius-md);
 }

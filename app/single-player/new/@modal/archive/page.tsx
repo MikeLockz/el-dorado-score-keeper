@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useAppState } from '@/components/state-provider';
 import { useNewGameRequest, hasSinglePlayerProgress } from '@/lib/game-flow';
-import { getCurrentSinglePlayerGameId, singlePlayerPath } from '@/lib/state';
+import { getCurrentSinglePlayerGameId } from '@/lib/state';
 import { RoutedModalFocusManager } from '@/components/dialogs/RoutedModalFocusManager';
 
 export default function ArchiveSinglePlayerModal() {
@@ -45,7 +45,7 @@ export default function ArchiveSinglePlayerModal() {
     const nextId = getCurrentSinglePlayerGameId(state);
     if (!nextId) return;
     if (trackingId !== '__none__' && nextId === trackingId) return;
-    router.replace(singlePlayerPath(nextId));
+    router.replace('/single-player/new');
   }, [trackingId, state, router]);
 
   const handleClose = React.useCallback(() => {

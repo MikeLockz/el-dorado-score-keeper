@@ -16,12 +16,12 @@ import {
 import { formatDateTime } from '@/lib/format';
 import { Loader2 } from 'lucide-react';
 import { captureBrowserMessage } from '@/lib/observability/browser';
-import { resolveSinglePlayerRoute, resolveScorecardRoute } from '@/lib/state';
+import { resolveSinglePlayerRoute, resolveScorecardRoute, SCORECARD_HUB_PATH } from '@/lib/state';
 
 import styles from './quick-links.module.scss';
 
 export default function QuickLinks() {
-  const { ready, height, state } = useAppState();
+  const { ready, height, state, awaitHydration, hydrationEpoch } = useAppState();
   const [recents, setRecents] = React.useState<GameRecord[] | null>(null);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
   const router = useRouter();
@@ -52,7 +52,7 @@ export default function QuickLinks() {
       return { href: singleRoute, mode: 'single-player' as const };
     }
     const scorecardRoute = resolveScorecardRoute(state);
-    if (scorecardRoute.startsWith('/scorecard/') && scorecardRoute !== '/scorecard') {
+    if (scorecardRoute.startsWith('/scorecard/') && scorecardRoute !== SCORECARD_HUB_PATH) {
       return { href: scorecardRoute, mode: 'scorecard' as const };
     }
     return null;
@@ -61,26 +61,24 @@ export default function QuickLinks() {
   const showResume = ready && height > 0 && !!resumeLink;
 
   const waitForRestoredRoute = React.useCallback(
-    async (mode: 'single-player' | 'scorecard'): Promise<string> => {
-      const maxAttempts = 10;
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const snapshot = stateRef.current;
-        const candidate =
-          mode === 'single-player'
-            ? resolveSinglePlayerRoute(snapshot, { fallback: 'entry' })
-            : resolveScorecardRoute(snapshot);
-        const resolved =
-          mode === 'single-player'
-            ? candidate.startsWith('/single-player/') && candidate.split('/').length >= 3
-            : candidate.startsWith('/scorecard/') && candidate !== '/scorecard';
-        if (resolved) {
-          return candidate;
-        }
-        await new Promise((res) => setTimeout(res, 16));
+    async (mode: 'single-player' | 'scorecard', previousEpoch: number): Promise<string> => {
+      await Promise.race([
+        awaitHydration(previousEpoch),
+        new Promise((resolve) => setTimeout(resolve, 750)),
+      ]);
+      const snapshot = stateRef.current;
+      const candidate =
+        mode === 'single-player'
+          ? resolveSinglePlayerRoute(snapshot, { fallback: 'entry' })
+          : resolveScorecardRoute(snapshot);
+      if (mode === 'single-player') {
+        return candidate.startsWith('/single-player/') && candidate.split('/').length >= 3
+          ? candidate
+          : '/single-player';
       }
-      return mode === 'single-player' ? '/single-player' : '/scorecard';
+      return candidate.startsWith('/scorecard/') ? candidate : SCORECARD_HUB_PATH;
     },
-    [],
+    [awaitHydration],
   );
 
   const resumeGame = React.useCallback(
@@ -89,9 +87,10 @@ export default function QuickLinks() {
       if (isGameRecordCompleted(game)) return;
       setPendingId(game.id);
       try {
+        const previousEpoch = hydrationEpoch;
         await restoreGame(undefined, game.id);
         const mode = deriveGameMode(game);
-        const route = await waitForRestoredRoute(mode);
+        const route = await waitForRestoredRoute(mode, previousEpoch);
         router.push(route);
       } catch (error: unknown) {
         const reason = error instanceof Error ? error.message : 'Unknown error';
@@ -108,7 +107,7 @@ export default function QuickLinks() {
         setPendingId((prev) => (prev === game.id ? null : prev));
       }
     },
-    [pendingId, router, waitForRestoredRoute],
+    [pendingId, router, waitForRestoredRoute, hydrationEpoch],
   );
 
   return (

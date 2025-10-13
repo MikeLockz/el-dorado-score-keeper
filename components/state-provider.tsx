@@ -76,6 +76,9 @@ type Ctx = {
   setTimeTravelHeight: (h: number | null) => void;
   timeTraveling: boolean;
   context: RouteHydrationContext;
+  hydrationEpoch: number;
+  isHydrating: boolean;
+  awaitHydration: (epoch?: number) => Promise<void>;
 };
 
 const StateCtx = React.createContext<Ctx | null>(null);
@@ -98,8 +101,11 @@ export function StateProvider({
   const [warnings, setWarnings] = React.useState<Warning[]>([]);
   const [ttHeight, setTtHeight] = React.useState<number | null>(null);
   const [ttState, setTtState] = React.useState<AppState | null>(null);
+  const [hydrationEpoch, setHydrationEpoch] = React.useState(0);
+  const [hydrating, setHydrating] = React.useState(false);
   const instRef = React.useRef<Awaited<ReturnType<typeof createInstance>> | null>(null);
   const dbNameRef = React.useRef<string>('app-db');
+  const hydrationWaitersRef = React.useRef<Array<{ epoch: number; resolve: () => void }>>([]);
 
   // Keep a ref to onWarn to avoid re-creating the instance on prop changes
   const onWarnRef = React.useRef<typeof onWarn>(onWarn);
@@ -107,12 +113,25 @@ export function StateProvider({
     onWarnRef.current = onWarn;
   }, [onWarn]);
 
+  const resolveHydrationWaiters = React.useCallback((epoch: number) => {
+    hydrationWaitersRef.current = hydrationWaitersRef.current.filter((waiter) => {
+      if (epoch > waiter.epoch) {
+        try {
+          waiter.resolve();
+        } catch {}
+        return false;
+      }
+      return true;
+    });
+  }, []);
+
   React.useEffect(() => {
     initialRouteContextRef.current = routeContext;
   }, [routeContext]);
 
   React.useEffect(() => {
-    let unsubs: (() => void) | null = null;
+    let unsubscribeState: (() => void) | null = null;
+    let unsubscribeHydration: (() => void) | null = null;
     let closed = false;
     void (async () => {
       const initialContext = initialRouteContextRef.current;
@@ -137,6 +156,18 @@ export function StateProvider({
       }
       instRef.current = inst;
       prevRouteContextRef.current = initialRouteContextRef.current;
+      setHydrationEpoch(inst.getHydrationEpoch());
+      setHydrating(inst.isHydrating());
+      resolveHydrationWaiters(inst.getHydrationEpoch());
+      unsubscribeHydration = inst.subscribeHydration((event) => {
+        if (event.status === 'start') {
+          setHydrating(true);
+          return;
+        }
+        setHydrating(false);
+        setHydrationEpoch(event.epoch);
+        resolveHydrationWaiters(event.epoch);
+      });
       // Mark initial state set and subsequent stream updates as transitions to
       // keep input responsive during rapid event bursts (e.g., bid spamming).
       React.startTransition(() => {
@@ -144,7 +175,7 @@ export function StateProvider({
         setHeight(inst.getHeight());
         setReady(true);
       });
-      unsubs = inst.subscribe((s, h) => {
+      unsubscribeState = inst.subscribe((s, h) => {
         React.startTransition(() => {
           setState(s);
           setHeight(h);
@@ -154,14 +185,23 @@ export function StateProvider({
     return () => {
       closed = true;
       try {
-        unsubs?.();
+        unsubscribeState?.();
+      } catch {}
+      try {
+        unsubscribeHydration?.();
       } catch {}
       try {
         instRef.current?.close();
       } catch {}
       instRef.current = null;
+      hydrationWaitersRef.current.forEach((waiter) => {
+        try {
+          waiter.resolve();
+        } catch {}
+      });
+      hydrationWaitersRef.current = [];
     };
-  }, []);
+  }, [resolveHydrationWaiters]);
 
   React.useEffect(() => {
     const prev = prevRouteContextRef.current;
@@ -197,6 +237,22 @@ export function StateProvider({
     if (h === height) return state;
     return previewFromDB(dbNameRef.current, h);
   }
+
+  const awaitHydration = React.useCallback(
+    (targetEpoch?: number) => {
+      const target = typeof targetEpoch === 'number' ? targetEpoch : hydrationEpoch;
+      if (hydrationEpoch > target) {
+        return Promise.resolve();
+      }
+      if (hydrationEpoch === target && !hydrating) {
+        return Promise.resolve();
+      }
+      return new Promise<void>((resolve) => {
+        hydrationWaitersRef.current = [...hydrationWaitersRef.current, { epoch: target, resolve }];
+      });
+    },
+    [hydrationEpoch, hydrating],
+  );
 
   // Time-travel: compute a read-only preview state at a given height and expose it as the visible state
   React.useEffect(() => {
@@ -269,6 +325,9 @@ export function StateProvider({
     setTimeTravelHeight: setTtHeight,
     timeTraveling: ttHeight != null,
     context: routeContext,
+    hydrationEpoch,
+    isHydrating: hydrating,
+    awaitHydration,
   };
   // Expose simple debug helpers in dev
   React.useEffect(() => {
@@ -284,8 +343,25 @@ export function StateProvider({
       (globalThis as { __APP_ROUTE_CONTEXT__?: RouteHydrationContext }).__APP_ROUTE_CONTEXT__ =
         routeContext;
       (globalThis as { __APP_WARNINGS__?: Warning[] }).__APP_WARNINGS__ = warnings;
+      (globalThis as { __HYDRATION_EPOCH__?: number }).__HYDRATION_EPOCH__ = hydrationEpoch;
+      (globalThis as { __IS_HYDRATING__?: boolean }).__IS_HYDRATING__ = hydrating;
+      (
+        globalThis as { __AWAIT_HYDRATION__?: (epoch?: number) => Promise<void> }
+      ).__AWAIT_HYDRATION__ = awaitHydration;
     } catch {}
-  }, [state, ttState, height, append, appendMany, setTtHeight, routeContext, warnings]);
+  }, [
+    state,
+    ttState,
+    height,
+    append,
+    appendMany,
+    setTtHeight,
+    routeContext,
+    warnings,
+    hydrationEpoch,
+    hydrating,
+    awaitHydration,
+  ]);
 
   return <StateCtx.Provider value={value}>{children}</StateCtx.Provider>;
 }

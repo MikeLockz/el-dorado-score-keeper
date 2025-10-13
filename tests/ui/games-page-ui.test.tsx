@@ -182,7 +182,10 @@ suite('Games page new game flow', () => {
 
     await waitFor(() => {
       expect(startNewGameSpy).toHaveBeenCalledTimes(1);
-      expect(push).toHaveBeenCalledWith('/');
+      expect(push).toHaveBeenCalledWith('/single-player/new');
+    });
+    expect(startNewGameSpy.mock.calls[0]?.[0]).toMatchObject({
+      analytics: { mode: 'single-player', source: 'games.new-game' },
     });
 
     root.unmount();

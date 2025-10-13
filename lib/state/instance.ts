@@ -59,11 +59,16 @@ export type Instance = {
   appendMany: (events: AppEvent[]) => Promise<number>;
   getState: () => AppState;
   getHeight: () => number;
+  getHydrationEpoch: () => number;
+  isHydrating: () => boolean;
   rehydrate: (options?: {
     routeContext?: RouteHydrationContext | null;
     spGameId?: string | null;
     allowLocalFallback?: boolean;
   }) => Promise<void>;
+  subscribeHydration: (
+    cb: (event: { epoch: number; status: 'start' | 'end' }) => void,
+  ) => () => void;
   close: () => void;
   subscribe: (cb: (s: AppState, h: number) => void) => () => void;
 };
@@ -119,6 +124,18 @@ export async function createInstance(opts?: {
       console.debug('[rehydrate]', event, info ?? '');
     } catch {}
   }
+
+  let hydrationEpoch = 0;
+  let hydrationInFlight = false;
+  type HydrationListener = (event: { epoch: number; status: 'start' | 'end' }) => void;
+  const hydrationListeners = new Set<HydrationListener>();
+  const emitHydration = (event: { epoch: number; status: 'start' | 'end' }) => {
+    for (const listener of hydrationListeners) {
+      try {
+        listener(event);
+      } catch {}
+    }
+  };
   let memoryState: AppState = INITIAL_STATE;
   let height = 0;
   let isClosed = false;
@@ -535,6 +552,60 @@ export async function createInstance(opts?: {
       const newRosters: AppState['rosters'] = { [rid]: roster };
       next = Object.assign({}, next, { rosters: newRosters, activeScorecardRosterId: rid });
     }
+    const defaultRosterId = 'scorecard-default';
+    if (
+      Object.prototype.hasOwnProperty.call(next.rosters, defaultRosterId) &&
+      next.rosters[defaultRosterId]
+    ) {
+      const legacyRoster = next.rosters[defaultRosterId]!;
+      const replacementId: UUID = uuid();
+      const updatedRosters: AppState['rosters'] = Object.assign({}, next.rosters);
+      delete updatedRosters[defaultRosterId];
+      updatedRosters[replacementId] = legacyRoster;
+      const activeScorecardRosterId =
+        next.activeScorecardRosterId === defaultRosterId
+          ? replacementId
+          : next.activeScorecardRosterId;
+      next = Object.assign({}, next, {
+        rosters: updatedRosters,
+        activeScorecardRosterId,
+      });
+    }
+
+    const scorecardEntries = Object.entries(next.rosters ?? {}).filter(
+      (entry): entry is [UUID, NonNullable<AppState['rosters'][UUID]>] =>
+        !!entry[1] && entry[1].type === 'scorecard',
+    );
+
+    if (scorecardEntries.length === 0) {
+      const rid: UUID = uuid();
+      const roster = {
+        name: 'Score Card',
+        playersById: {} as Record<string, string>,
+        playerTypesById: {} as Record<string, 'human' | 'bot'>,
+        displayOrder: {} as Record<string, number>,
+        type: 'scorecard' as const,
+        createdAt: Date.now(),
+        archivedAt: null,
+      };
+      next = Object.assign({}, next, {
+        rosters: Object.assign({}, next.rosters, { [rid]: roster }),
+        activeScorecardRosterId: rid,
+      });
+    } else {
+      const activeId = next.activeScorecardRosterId;
+      const hasActive =
+        typeof activeId === 'string' &&
+        scorecardEntries.some(([rid]) => rid === activeId && next.rosters[rid]);
+      if (!hasActive) {
+        const unarchived = scorecardEntries.find(([, roster]) => !roster.archivedAt);
+        const fallback = unarchived ?? scorecardEntries[0];
+        if (fallback) {
+          next = Object.assign({}, next, { activeScorecardRosterId: fallback[0] });
+        }
+      }
+    }
+
     return ensureSinglePlayerGameIdentifiers(next);
   }
 
@@ -809,39 +880,54 @@ export async function createInstance(opts?: {
     spGameId?: string | null;
     allowLocalFallback?: boolean;
   }) {
-    if (options) {
-      if (Object.prototype.hasOwnProperty.call(options, 'routeContext')) {
-        currentRouteContext = normalizeRouteContext(
-          options?.routeContext ?? null,
-          options?.spGameId,
-        );
-      } else if (Object.prototype.hasOwnProperty.call(options, 'spGameId')) {
-        currentRouteContext = normalizeRouteContext(currentRouteContext, options?.spGameId ?? null);
+    const nextEpoch = hydrationEpoch + 1;
+    hydrationInFlight = true;
+    emitHydration({ epoch: nextEpoch, status: 'start' });
+    try {
+      if (options) {
+        if (Object.prototype.hasOwnProperty.call(options, 'routeContext')) {
+          currentRouteContext = normalizeRouteContext(
+            options?.routeContext ?? null,
+            options?.spGameId,
+          );
+        } else if (Object.prototype.hasOwnProperty.call(options, 'spGameId')) {
+          currentRouteContext = normalizeRouteContext(
+            currentRouteContext,
+            options?.spGameId ?? null,
+          );
+        }
       }
-    }
-    targetSpGameId =
-      currentRouteContext.mode === 'single-player' ? currentRouteContext.gameId : null;
-    const allowFallback = options?.allowLocalFallback ?? allowSpLocalFallback;
-    await initSnapshotStrategy();
-    let spResult: RehydrateSinglePlayerResult | null = null;
-    if (targetSpGameId) {
-      spResult = await attemptSinglePlayerRehydrate(targetSpGameId, allowFallback);
+      targetSpGameId =
+        currentRouteContext.mode === 'single-player' ? currentRouteContext.gameId : null;
+      const allowFallback = options?.allowLocalFallback ?? allowSpLocalFallback;
+      await initSnapshotStrategy();
+      let spResult: RehydrateSinglePlayerResult | null = null;
+      if (targetSpGameId) {
+        spResult = await attemptSinglePlayerRehydrate(targetSpGameId, allowFallback);
+        if (!spResult?.applied) {
+          warn('single-player.snapshot.unavailable', {
+            gameId: targetSpGameId,
+            reason: spResult?.reason ?? 'unknown',
+            source: spResult?.source ?? null,
+          });
+        }
+      }
       if (!spResult?.applied) {
-        warn('single-player.snapshot.unavailable', {
-          gameId: targetSpGameId,
-          reason: spResult?.reason ?? 'unknown',
-          source: spResult?.source ?? null,
-        });
+        await loadCurrent();
       }
+      await applyTail(height);
+      // Ensure any missing roster scaffolding is bootstrapped before persisting
+      memoryState = upgradeState(memoryState);
+      await persistCurrent();
+      notify();
+      hydrationEpoch = nextEpoch;
+    } catch (error) {
+      hydrationInFlight = false;
+      emitHydration({ epoch: hydrationEpoch, status: 'end' });
+      throw error;
     }
-    if (!spResult?.applied) {
-      await loadCurrent();
-    }
-    await applyTail(height);
-    // Ensure any missing roster scaffolding is bootstrapped before persisting
-    memoryState = upgradeState(memoryState);
-    await persistCurrent();
-    notify();
+    hydrationInFlight = false;
+    emitHydration({ epoch: hydrationEpoch, status: 'end' });
   }
 
   await rehydrate();
@@ -1106,11 +1192,18 @@ export async function createInstance(opts?: {
   function getHeight() {
     return height;
   }
+  function getHydrationEpoch() {
+    return hydrationEpoch;
+  }
+  function isHydrating() {
+    return hydrationInFlight;
+  }
   function close() {
     isClosed = true;
     try {
       chan?.close();
     } catch {}
+    hydrationListeners.clear();
     try {
       db.close();
     } catch {}
@@ -1127,13 +1220,24 @@ export async function createInstance(opts?: {
   function setTestAbortAfterAddOnce() {
     testAbortAfterAdd = true;
   }
+  function subscribeHydration(
+    cb: (event: { epoch: number; status: 'start' | 'end' }) => void,
+  ): () => void {
+    hydrationListeners.add(cb);
+    return () => {
+      hydrationListeners.delete(cb);
+    };
+  }
 
   return {
     append,
     appendMany,
     getState,
     getHeight,
+    getHydrationEpoch,
+    isHydrating,
     rehydrate,
+    subscribeHydration,
     close,
     subscribe,
     setTestAppendFailure,

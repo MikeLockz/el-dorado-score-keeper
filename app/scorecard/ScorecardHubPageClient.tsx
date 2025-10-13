@@ -12,6 +12,7 @@ import {
   selectPlayersOrdered,
   selectNextActionableRound,
   selectIsGameComplete,
+  SCORECARD_HUB_PATH,
   ROUNDS_TOTAL,
 } from '@/lib/state';
 import {
@@ -57,7 +58,7 @@ function winnerLabel(game: GameRecord): string {
 
 export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHubPageClientProps) {
   const router = useRouter();
-  const { state, ready } = useAppState();
+  const { state, ready, awaitHydration, hydrationEpoch } = useAppState();
   const [games, setGames] = React.useState<GameRecord[] | null>(null);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
@@ -100,38 +101,60 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
     });
   }, [loadGames]);
 
-  const waitForScorecardRoute = React.useCallback(async () => {
-    const maxAttempts = 20;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+  const waitForScorecardRoute = React.useCallback(
+    async (previousEpoch: number, previousActiveId?: string | null) => {
+      await Promise.race([
+        awaitHydration(previousEpoch),
+        new Promise((resolve) => setTimeout(resolve, 750)),
+      ]);
       const snapshot = stateRef.current;
       const href = resolveScorecardRoute(snapshot);
-      if (href.startsWith('/scorecard/') && href !== '/scorecard') {
+      if (href.startsWith('/scorecard/')) {
+        console.info('[scorecard-hub] resolved scorecard route after hydration', {
+          href,
+          activeScorecardRosterId: snapshot.activeScorecardRosterId,
+          previousActiveId,
+          previousEpoch,
+        });
         return href;
       }
-      await new Promise((res) => setTimeout(res, 24));
-    }
-    return '/scorecard';
-  }, []);
+      console.info('[scorecard-hub] hydration finished without scorecard route; falling back', {
+        href,
+        activeScorecardRosterId: snapshot.activeScorecardRosterId,
+        previousActiveId,
+        previousEpoch,
+      });
+      return SCORECARD_HUB_PATH;
+    },
+    [awaitHydration],
+  );
 
   const handleResumeCurrent = React.useCallback(() => {
     const href = resolveScorecardRoute(stateRef.current);
-    if (href && href !== '/scorecard') {
+    if (href && href !== SCORECARD_HUB_PATH) {
+      console.info('[scorecard-hub] resume current scorecard', { href });
       router.push(href);
+    } else {
+      console.info('[scorecard-hub] resume current scorecard fallback', { href });
     }
   }, [router]);
 
   const { startNewGame, pending: startingNew } = useNewGameRequest({
     analytics: { source: 'scorecard.hub', mode: 'scorecard' },
     onSuccess: () => {
+      console.info('[scorecard-hub] start new game succeeded, waiting for route');
       void (async () => {
-        const href = await waitForScorecardRoute();
-        router.push(href);
+        const previousActiveId = stateRef.current.activeScorecardRosterId;
+        const href = await waitForScorecardRoute(hydrationEpoch, previousActiveId);
+        console.info('[scorecard-hub] routing to scorecard setup', { href });
+        router.push('/scorecard/new');
       })();
     },
     onCancelled: handleResumeCurrent,
   });
 
   const handleStartNew = React.useCallback(async () => {
+    console.info('[scorecard-hub] start new scorecard clicked');
     setErrorMessage(null);
     await startNewGame();
   }, [startNewGame]);
@@ -141,6 +164,9 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
   const resumeGame = React.useCallback(
     async (game: GameRecord) => {
       if (isGamesVariant) {
+        console.info('[scorecard-hub] opening archived scorecard from games variant', {
+          gameId: game.id,
+        });
         router.push(`/games/scorecards/${game.id}`);
         return;
       }
@@ -152,8 +178,11 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
       setPendingId(game.id);
       setErrorMessage(null);
       try {
+        console.info('[scorecard-hub] restoring scorecard game', { gameId: game.id });
+        const previousActiveId = stateRef.current.activeScorecardRosterId;
+        const previousEpoch = hydrationEpoch;
         await restoreGame(undefined, game.id);
-        const href = await waitForScorecardRoute();
+        const href = await waitForScorecardRoute(previousEpoch, previousActiveId);
         router.push(href);
       } catch (error: unknown) {
         const reason = error instanceof Error ? error.message : 'Unknown error';
@@ -177,11 +206,11 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
         setPendingId((prev) => (prev === game.id ? null : prev));
       }
     },
-    [isGamesVariant, pendingId, router, waitForScorecardRoute, completedMap],
+    [isGamesVariant, pendingId, router, waitForScorecardRoute, completedMap, hydrationEpoch],
   );
 
   const scorecardRoute = React.useMemo(() => resolveScorecardRoute(state), [state]);
-  const hasActiveSession = scorecardRoute !== '/scorecard';
+  const hasActiveSession = scorecardRoute !== SCORECARD_HUB_PATH;
   const players = React.useMemo(() => selectPlayersOrdered(state), [state]);
   const playerCount = players.length;
   const nextRound = React.useMemo(() => selectNextActionableRound(state), [state]);
@@ -255,11 +284,6 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
             <Button onClick={handleResumeCurrent} disabled={!ready}>
               Open live scorecard
             </Button>
-            {currentSummaryHref ? (
-              <Button variant="ghost" asChild>
-                <Link href={currentSummaryHref}>View summary</Link>
-              </Button>
-            ) : null}
           </CardFooter>
         </Card>
       ) : (
@@ -378,9 +402,6 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
                       ) : (
                         'Resume'
                       )}
-                    </Button>
-                    <Button variant="ghost" asChild>
-                      <Link href={archiveHref}>Open archive</Link>
                     </Button>
                   </CardFooter>
                 </Card>

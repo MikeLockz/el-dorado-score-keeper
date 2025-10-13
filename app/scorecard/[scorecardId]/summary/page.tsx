@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
 import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
+import { SCORECARD_HUB_PATH } from '@/lib/state';
 
 import ScorecardSummaryPageClient from './ScorecardSummaryPageClient';
 
@@ -8,10 +10,12 @@ export async function generateStaticParams() {
   return staticExportParams('scorecardId');
 }
 
+type RouteParams = {
+  scorecardId?: string;
+};
+
 type PageParams = {
-  params: {
-    scorecardId?: string;
-  };
+  params: Promise<RouteParams>;
 };
 
 function makeTitle(scorecardId: string): string {
@@ -27,7 +31,8 @@ function makeDescription(scorecardId: string): string {
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const scorecardId = scrubDynamicParam(params.scorecardId);
+  const { scorecardId: rawId = '' } = await params;
+  const scorecardId = scrubDynamicParam(rawId);
   const title = makeTitle(scorecardId);
   const description = makeDescription(scorecardId);
 
@@ -37,7 +42,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
     openGraph: {
       title,
       description,
-      url: scorecardId ? `/scorecard/${scorecardId}/summary` : '/scorecard',
+      url: scorecardId ? `/scorecard/${scorecardId}/summary` : SCORECARD_HUB_PATH,
       type: 'website',
     },
     twitter: {
@@ -48,7 +53,12 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
 }
 
-export default function ScorecardSummaryPage({ params }: PageParams) {
-  const scorecardId = scrubDynamicParam(params.scorecardId);
-  return <ScorecardSummaryPageClient scorecardId={scorecardId} />;
+export default async function ScorecardSummaryPage({ params }: PageParams) {
+  const { scorecardId: rawId = '' } = await params;
+  const scorecardId = scrubDynamicParam(rawId);
+  if (scorecardId === 'scorecard-default') {
+    redirect(SCORECARD_HUB_PATH);
+  }
+  const resolvedId = scorecardId || 'scorecard-session';
+  return <ScorecardSummaryPageClient scorecardId={resolvedId} />;
 }

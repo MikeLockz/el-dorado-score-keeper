@@ -43,8 +43,13 @@ describe('feature missing components', () => {
   it('renders scorecard missing copy', () => {
     render(<ScorecardMissing />);
     expect(screen.getByText(/Scorecard session missing/i)).toBeTruthy();
-    const link = screen.getByRole('link', { name: /Open Scorecard hub/i });
-    expect(link.getAttribute('href')).toBe('/scorecard');
+    const metadata = getMissingEntityMetadata('scorecard');
+    const primary = screen.getByRole('link', { name: metadata.primary.label });
+    expect(primary.getAttribute('href')).toBe(metadata.primary.href);
+    if (metadata.secondary) {
+      const secondary = screen.getByRole('link', { name: metadata.secondary.label });
+      expect(secondary.getAttribute('href')).toBe(metadata.secondary.href);
+    }
   });
 
   it('renders player missing copy', () => {

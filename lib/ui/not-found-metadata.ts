@@ -24,8 +24,8 @@ const metadataByEntity: Record<MissingEntityKey, MissingEntityMetadata> = {
     title: 'Scorecard session missing',
     description:
       'That scorecard link no longer resolves. Check your current scorecard or browse archived games for historical exports.',
-    primary: { label: 'Open Scorecard hub', href: '/scorecard' },
-    secondary: { label: 'View Game History', href: '/games' },
+    primary: { label: 'View Scorecards', href: '/games/scorecards' },
+    secondary: { label: 'View Games', href: '/games' },
   },
   player: {
     title: 'Player record unavailable',

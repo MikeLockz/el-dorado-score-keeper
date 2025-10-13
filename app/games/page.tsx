@@ -62,7 +62,6 @@ export default function GamesPage() {
     return null;
   }, [state]);
   const resumeRoute = resumeContext?.route ?? null;
-  const resumeMode = resumeContext?.mode ?? null;
   const resumeRouteRef = React.useRef<string | null>(resumeRoute);
   resumeRouteRef.current = resumeRoute;
   const handleResumeCurrentGame = React.useCallback(() => {
@@ -74,11 +73,23 @@ export default function GamesPage() {
   const handleOpenScorecard = React.useCallback(() => {
     router.push('/games/scorecards');
   }, [router]);
+  const startModeRef = React.useRef<'single-player' | 'scorecard' | null>(null);
   const { startNewGame, pending: startPending } = useNewGameRequest({
     onSuccess: () => {
-      router.push('/');
+      const mode = startModeRef.current;
+      startModeRef.current = null;
+      if (mode === 'single-player') {
+        router.push('/single-player/new');
+      } else if (mode === 'scorecard') {
+        router.push('/scorecard/new');
+      } else {
+        router.push('/');
+      }
     },
-    onCancelled: handleResumeCurrentGame,
+    onCancelled: () => {
+      startModeRef.current = null;
+      handleResumeCurrentGame();
+    },
     analytics: { source: 'games' },
   });
 
@@ -134,14 +145,15 @@ export default function GamesPage() {
 
   const onNewGame = async () => {
     resumeRouteRef.current = resumeRoute;
-    const inferredMode: 'single-player' | 'scorecard' = resumeMode ?? 'scorecard';
+    startModeRef.current = 'single-player';
     const ok = await startNewGame({
       analytics: {
-        mode: inferredMode,
+        mode: 'single-player',
         source: 'games.new-game',
       },
     });
     if (!ok) {
+      startModeRef.current = null;
       handleResumeCurrentGame();
     }
   };

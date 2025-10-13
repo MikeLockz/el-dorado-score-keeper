@@ -8,10 +8,12 @@ export async function generateStaticParams() {
   return staticExportParams('playerId');
 }
 
+type RouteParams = {
+  playerId?: string;
+};
+
 type PageParams = {
-  params: {
-    playerId?: string;
-  };
+  params: Promise<RouteParams>;
 };
 
 function formatPlayerTitle(playerId: string): string {
@@ -27,7 +29,8 @@ function formatPlayerDescription(playerId: string): string {
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const playerId = scrubDynamicParam(params.playerId);
+  const { playerId: rawId = '' } = await params;
+  const playerId = scrubDynamicParam(rawId);
   const title = formatPlayerTitle(playerId);
   const description = formatPlayerDescription(playerId);
 
@@ -48,7 +51,8 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
 }
 
-export default function PlayerDetailPage({ params }: PageParams) {
-  const playerId = scrubDynamicParam(params.playerId);
+export default async function PlayerDetailPage({ params }: PageParams) {
+  const { playerId: rawId = '' } = await params;
+  const playerId = scrubDynamicParam(rawId);
   return <PlayerDetailPageClient playerId={playerId} />;
 }

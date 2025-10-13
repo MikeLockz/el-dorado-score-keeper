@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import clsx from 'clsx';
-import { Loader2, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Loader2, Users } from 'lucide-react';
+import clsx from 'clsx';
 
 import { useAppState } from '@/components/state-provider';
 import {
@@ -19,7 +19,8 @@ import {
   events,
   selectAllRosters,
   selectPlayersOrdered,
-  resolveSinglePlayerRoute,
+  resolveScorecardRoute,
+  SCORECARD_HUB_PATH,
   type AppState,
 } from '@/lib/state';
 import { uuid } from '@/lib/utils';
@@ -28,9 +29,6 @@ import styles from './page.module.scss';
 
 type RosterSummary = ReturnType<typeof selectAllRosters>[number];
 
-const MIN_PLAYERS = 2;
-const MAX_PLAYERS = 10;
-
 function orderedRosterIds(roster: AppState['rosters'][string]) {
   const entries = Object.entries(roster.displayOrder ?? {}).sort((a, b) => a[1] - b[1]);
   const ids = entries.map(([id]) => id);
@@ -38,7 +36,7 @@ function orderedRosterIds(roster: AppState['rosters'][string]) {
   return ids;
 }
 
-export default function SinglePlayerNewPageClient() {
+export default function ScorecardNewPageClient() {
   const router = useRouter();
   const { state, ready, appendMany } = useAppState();
   const [cleared, setCleared] = React.useState(false);
@@ -47,39 +45,39 @@ export default function SinglePlayerNewPageClient() {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [pendingAction, setPendingAction] = React.useState<'roster' | 'create' | null>(null);
 
-  const targetRoute = React.useMemo(
-    () => resolveSinglePlayerRoute(state, { fallback: 'new' }),
-    [state],
-  );
+  const targetRoute = React.useMemo(() => resolveScorecardRoute(state), [state]);
   const players = React.useMemo(() => selectPlayersOrdered(state), [state]);
   const rosterSummaries = React.useMemo(
     () =>
       selectAllRosters(state)
-        .filter((roster) => !roster.archived)
+        .filter((r) => !r.archived)
         .sort((a, b) => a.name.localeCompare(b.name)),
     [state],
   );
   const rosterMap = state.rosters;
 
   const [selectedRosterId, setSelectedRosterId] = React.useState<string | null>(null);
+  const [playerCount, setPlayerCount] = React.useState(4);
   const playerCountOptions = React.useMemo(
-    () => Array.from({ length: MAX_PLAYERS - MIN_PLAYERS + 1 }, (_, idx) => MIN_PLAYERS + idx),
+    () => Array.from({ length: 9 }, (_, idx) => idx + 2),
     [],
   );
-  const [playerCount, setPlayerCount] = React.useState(playerCountOptions[0]!);
 
+  // Ensure a roster is pre-selected when available
   React.useEffect(() => {
     if (selectedRosterId || rosterSummaries.length === 0) return;
     setSelectedRosterId(rosterSummaries[0]!.rosterId);
   }, [rosterSummaries, selectedRosterId]);
 
+  // Redirect to hub when no scorecard session exists
   React.useEffect(() => {
     if (!ready) return;
-    if (targetRoute === '/single-player') {
-      router.replace('/single-player');
+    if (targetRoute === SCORECARD_HUB_PATH) {
+      router.replace(SCORECARD_HUB_PATH);
     }
   }, [ready, router, targetRoute]);
 
+  // Clear inherited players once hydration completes
   React.useEffect(() => {
     if (!ready) return;
     if (cleared || clearing) return;
@@ -92,12 +90,8 @@ export default function SinglePlayerNewPageClient() {
     const removePlayers = async () => {
       try {
         const removalEvents = players.map((player) => events.playerRemoved({ id: player.id }));
-        const eventBatch = [...removalEvents, events.playersReordered({ order: [] })];
-        const activeSingleRosterId = state.activeSingleRosterId;
-        if (activeSingleRosterId && rosterMap[activeSingleRosterId]) {
-          eventBatch.push(events.rosterReset({ rosterId: activeSingleRosterId }));
-        }
-        await appendMany(eventBatch);
+        const reorder = events.playersReordered({ order: [] });
+        await appendMany([...removalEvents, reorder]);
         setCleared(true);
       } catch (error) {
         const message =
@@ -108,24 +102,22 @@ export default function SinglePlayerNewPageClient() {
       }
     };
     void removePlayers();
-  }, [appendMany, cleared, clearing, players, ready, rosterMap, state.activeSingleRosterId]);
+  }, [appendMany, cleared, clearing, players, ready]);
 
   const rosterPlayers = React.useMemo(() => {
     if (!selectedRosterId) return [];
     const roster = rosterMap[selectedRosterId];
     if (!roster) return [];
     const order = orderedRosterIds(roster);
-    return order.map((id, index) => ({
+    return order.map((id) => ({
       id,
       name: roster.playersById?.[id] ?? id,
-      type: index === 0 ? 'human' : roster.playerTypesById?.[id] === 'human' ? 'human' : 'bot',
+      type: roster.playerTypesById?.[id] ?? 'human',
     }));
   }, [rosterMap, selectedRosterId]);
 
   const actionPending = pendingAction !== null;
-  const awaitingSession = targetRoute === '/single-player/new';
-  const disabled = actionPending || clearing || !cleared || awaitingSession;
-  const countButtonsDisabled = actionPending || clearing || awaitingSession;
+  const disabled = actionPending || clearing || !cleared || targetRoute === SCORECARD_HUB_PATH;
 
   const handleLoadRoster = React.useCallback(async () => {
     if (!selectedRosterId) {
@@ -138,27 +130,24 @@ export default function SinglePlayerNewPageClient() {
       return;
     }
     const order = orderedRosterIds(roster);
-    if (order.length < MIN_PLAYERS) {
-      setSubmitError('Single player games require at least two players.');
+    if (order.length < 2) {
+      setSubmitError('Scorecard games require at least 2 players.');
       return;
     }
-    if (order.length > MAX_PLAYERS) {
-      setSubmitError('Single player games support a maximum of six players.');
+    if (order.length > 10) {
+      setSubmitError('Scorecard games support up to 10 players.');
       return;
     }
     setPendingAction('roster');
     setSubmitError(null);
     try {
-      const addEvents = order.map((id, index) => {
-        const baseType = roster.playerTypesById?.[id];
-        const type: 'human' | 'bot' =
-          index === 0 ? 'human' : baseType === 'human' ? 'human' : 'bot';
-        return events.playerAdded({
+      const addEvents = order.map((id) =>
+        events.playerAdded({
           id,
           name: roster.playersById?.[id] ?? id,
-          type,
-        });
-      });
+          type: roster.playerTypesById?.[id] ?? 'human',
+        }),
+      );
       const reorder = events.playersReordered({ order });
       await appendMany([...addEvents, reorder]);
       router.replace(targetRoute);
@@ -171,27 +160,23 @@ export default function SinglePlayerNewPageClient() {
   }, [appendMany, router, rosterMap, selectedRosterId, targetRoute]);
 
   const handleCreatePlayers = React.useCallback(async () => {
-    if (!Number.isFinite(playerCount) || playerCount < MIN_PLAYERS || playerCount > MAX_PLAYERS) {
-      setSubmitError('Choose between 2 and 6 players.');
+    if (!Number.isFinite(playerCount) || playerCount < 2 || playerCount > 10) {
+      setSubmitError('Choose between 2 and 10 players.');
       return;
     }
     setPendingAction('create');
     setSubmitError(null);
     try {
-      const specs = Array.from({ length: playerCount }).map((_, idx) => {
+      const addEvents = Array.from({ length: playerCount }).map((_, idx) => {
         const id = uuid();
-        const type: 'human' | 'bot' = idx === 0 ? 'human' : 'bot';
-        const name = idx === 0 ? 'You' : `Bot ${idx}`;
-        return { id, name, type };
-      });
-      const addEvents = specs.map(({ id, name, type }) =>
-        events.playerAdded({
+        return events.playerAdded({
           id,
-          name,
-          type,
-        }),
-      );
-      const reorder = events.playersReordered({ order: specs.map((spec) => spec.id) });
+          name: `Player ${idx + 1}`,
+          type: 'human',
+        });
+      });
+      const order = addEvents.map((evt) => evt.payload.id);
+      const reorder = events.playersReordered({ order });
       await appendMany([...addEvents, reorder]);
       router.replace(targetRoute);
     } catch (error) {
@@ -203,15 +188,16 @@ export default function SinglePlayerNewPageClient() {
   }, [appendMany, playerCount, router, targetRoute]);
 
   const showRosterList = rosterPlayers.length > 0;
+  const countButtonsDisabled = clearing || actionPending || targetRoute === SCORECARD_HUB_PATH;
 
   return (
     <div className={styles.container}>
       <Dialog open onOpenChange={() => undefined}>
         <DialogContent className={styles.dialog} showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Set up your new single-player game</DialogTitle>
+            <DialogTitle>Set up your new scorecard</DialogTitle>
             <DialogDescription>
-              Load a saved roster or generate bots before diving into your next run.
+              Load players from an existing roster or start fresh with a new lineup.
             </DialogDescription>
           </DialogHeader>
 
@@ -225,7 +211,7 @@ export default function SinglePlayerNewPageClient() {
             <section className={styles.section}>
               <header className={styles.sectionHeader}>
                 <h2>Load an existing roster</h2>
-                <p>Copy a saved lineup into this single-player session.</p>
+                <p>Select a saved roster to immediately populate this scorecard.</p>
               </header>
               {rosterSummaries.length === 0 ? (
                 <p className={styles.empty}>No saved rosters yet.</p>
@@ -248,13 +234,10 @@ export default function SinglePlayerNewPageClient() {
                   </label>
                   {showRosterList ? (
                     <ul className={styles.rosterList} aria-live="polite">
-                      {rosterPlayers.map((player, index) => (
+                      {rosterPlayers.map((player) => (
                         <li key={player.id}>
                           <Users aria-hidden="true" className={styles.rosterIcon} />
                           <span>{player.name}</span>
-                          <span className={styles.rosterType}>
-                            {index === 0 ? 'You' : player.type === 'bot' ? 'Bot' : 'Human'}
-                          </span>
                         </li>
                       ))}
                     </ul>
@@ -280,7 +263,7 @@ export default function SinglePlayerNewPageClient() {
             <section className={styles.section}>
               <header className={styles.sectionHeader}>
                 <h2>Create a new lineup</h2>
-                <p>Select how many seats to fill; bots join automatically.</p>
+                <p>Generate placeholder players and update their names once the game begins.</p>
               </header>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Number of players</span>
@@ -317,7 +300,7 @@ export default function SinglePlayerNewPageClient() {
                 {pendingAction === 'create' ? (
                   <>
                     <Loader2 className={styles.spinner} aria-hidden="true" />
-                    Creating lineup…
+                    Creating players…
                   </>
                 ) : (
                   'Create lineup'
@@ -337,7 +320,7 @@ export default function SinglePlayerNewPageClient() {
               {clearing ? (
                 <>
                   <Loader2 className={styles.spinner} aria-hidden="true" />
-                  Preparing your game…
+                  Preparing your scorecard…
                 </>
               ) : pendingAction === 'roster' ? (
                 <>
@@ -347,10 +330,10 @@ export default function SinglePlayerNewPageClient() {
               ) : pendingAction === 'create' ? (
                 <>
                   <Loader2 className={styles.spinner} aria-hidden="true" />
-                  Creating lineup…
+                  Creating players…
                 </>
-              ) : awaitingSession ? (
-                'Waiting for your new game…'
+              ) : disabled && targetRoute === SCORECARD_HUB_PATH ? (
+                'Waiting for scorecard session…'
               ) : null}
             </div>
           </DialogFooter>

@@ -75,7 +75,7 @@ export function getActiveScorecardId(state: AppState): string | null {
   const rid = state.activeScorecardRosterId;
   if (typeof rid === 'string') {
     const trimmed = rid.trim();
-    if (trimmed) return trimmed;
+    if (trimmed && trimmed !== 'scorecard-default') return trimmed;
   }
   return null;
 }
@@ -148,12 +148,14 @@ export type ScorecardRouteOptions = Readonly<{
   view?: ScorecardRouteView;
 }>;
 
+export const SCORECARD_HUB_PATH = '/games/scorecards';
+
 export function scorecardPath(
   id: string | null | undefined,
   view: ScorecardRouteView = 'live',
 ): string {
   const normalized = normalizeId(id);
-  if (!normalized) return '/scorecard';
+  if (!normalized) return SCORECARD_HUB_PATH;
   if (view === 'summary') return `/scorecard/${normalized}/summary`;
   return `/scorecard/${normalized}`;
 }
@@ -167,7 +169,7 @@ export function resolveScorecardRoute(
   if (id) {
     return scorecardPath(id, view);
   }
-  return '/scorecard';
+  return SCORECARD_HUB_PATH;
 }
 
 export type PlayerRouteView = 'detail' | 'statistics';

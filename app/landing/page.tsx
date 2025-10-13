@@ -16,19 +16,35 @@ export default function LandingPage() {
   const router = useRouter();
   const { state } = useAppState();
   const requestedModeRef = React.useRef<'single' | 'scorecard' | null>(null);
-  const handleNavigateToMode = React.useCallback(() => {
+  const routeToModeFallback = React.useCallback(
+    (mode: 'single' | 'scorecard') => {
+      if (mode === 'single') {
+        router.push(resolveSinglePlayerRoute(state, { fallback: 'entry' }));
+      } else {
+        router.push(resolveScorecardRoute(state));
+      }
+    },
+    [router, state],
+  );
+  const handleStartSuccess = React.useCallback(() => {
     const mode = requestedModeRef.current;
     if (!mode) return;
     requestedModeRef.current = null;
     if (mode === 'single') {
-      router.push(resolveSinglePlayerRoute(state, { fallback: 'entry' }));
+      router.push('/single-player/new');
     } else {
-      router.push(resolveScorecardRoute(state));
+      router.push('/scorecard/new');
     }
-  }, [router, state]);
+  }, [router]);
+  const handleStartCancelled = React.useCallback(() => {
+    const mode = requestedModeRef.current;
+    if (!mode) return;
+    requestedModeRef.current = null;
+    routeToModeFallback(mode);
+  }, [routeToModeFallback]);
   const { startNewGame, pending: newGamePending } = useNewGameRequest({
-    onSuccess: handleNavigateToMode,
-    onCancelled: handleNavigateToMode,
+    onSuccess: handleStartSuccess,
+    onCancelled: handleStartCancelled,
     analytics: { source: 'landing' },
   });
 
@@ -47,14 +63,10 @@ export default function LandingPage() {
       });
       if (!ok && requestedModeRef.current === mode) {
         requestedModeRef.current = null;
-        if (mode === 'single') {
-          router.push(resolveSinglePlayerRoute(state, { fallback: 'entry' }));
-        } else {
-          router.push(resolveScorecardRoute(state));
-        }
+        routeToModeFallback(mode);
       }
     },
-    [newGamePending, router, startNewGame, state],
+    [newGamePending, routeToModeFallback, startNewGame, state],
   );
 
   const singlePlayerResumeHref = React.useMemo(
