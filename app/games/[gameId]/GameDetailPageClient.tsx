@@ -11,6 +11,7 @@ import {
   getGame,
   resolveArchivedGameRoute,
   resolveGameModalRoute,
+  isGameRecordCompleted,
 } from '@/lib/state';
 import { analyzeGame } from '@/lib/analytics';
 import { formatDateTime } from '@/lib/format';
@@ -88,6 +89,7 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
   }, [gameId, game]);
 
   const stats = React.useMemo(() => (game ? analyzeGame(game) : null), [game]);
+  const isCompleted = React.useMemo(() => (game ? isGameRecordCompleted(game) : false), [game]);
   const shareTitle = game?.title?.trim() || 'Archived game';
 
   const handleCopyLink = React.useCallback(async () => {
@@ -132,18 +134,17 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
           <div className={styles.headerMeta}>Finished {formatDateTime(game.finishedAt)}</div>
         </div>
         <div className={styles.headerActions}>
-          <Button variant="outline" onClick={() => void handleCopyLink()}>
-            Copy link
-          </Button>
           <Button
             variant="outline"
             onClick={() => router.push(resolveGameModalRoute(gameId, 'delete'))}
           >
-            Delete
+            Remove
           </Button>
-          <Button onClick={() => router.push(resolveGameModalRoute(gameId, 'restore'))}>
-            Restore
-          </Button>
+          {!isCompleted ? (
+            <Button onClick={() => router.push(resolveGameModalRoute(gameId, 'restore'))}>
+              Restore
+            </Button>
+          ) : null}
         </div>
       </div>
 

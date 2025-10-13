@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import styles from './page.module.scss';
+import ScorecardHubPageClient from './ScorecardHubPageClient';
 
 export const metadata: Metadata = {
   title: 'Scorecard hub',
@@ -8,9 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function ScorecardPage() {
-  return (
-    <div className={styles.container}>
-      <div className={styles.status}>Select a scorecard to view its details.</div>
-    </div>
-  );
+  return <ScorecardHubPageClient />;
 }

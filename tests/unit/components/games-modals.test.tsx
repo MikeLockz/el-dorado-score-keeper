@@ -118,7 +118,7 @@ describe('archived game modals', () => {
     getGameSpy.mockRestore();
   });
 
-  it('deletes an archived game and tracks analytics', async () => {
+  it('removes an archived game and tracks analytics', async () => {
     const router = createRouterStub();
     setMockRouter(router);
     const deleteMock = vi.fn(async () => undefined);
@@ -128,9 +128,9 @@ describe('archived game modals', () => {
 
     render(<DeleteGameModal />);
 
-    await waitFor(() => expect(screen.getByText('Delete archived game?')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Remove archived game?')).toBeTruthy());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete game' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove game' }));
 
     await waitFor(() => expect(deleteMock).toHaveBeenCalledWith(undefined, 'game-123'));
 

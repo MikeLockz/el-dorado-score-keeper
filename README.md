@@ -70,9 +70,18 @@ Notes:
 - `test`: Run tests once with Vitest.
 - `test:watch`: Watch mode for tests.
 - `coverage`: Generate test coverage report.
+- `analyze:bundle`: Build with the bundle analyzer enabled (opens an interactive drill-down view).
 - `tokens:sync`: Regenerate Sass and JSON design token artifacts from the canonical design token catalog.
 - `tokens:watch`: Watch design token changes and regenerate artifacts on save.
 - `observability:upload-source-maps`: Package generated source maps for upload (run after a build with `ENABLE_SOURCE_MAPS=1`).
+- `analyze:sizes`: Print a breakdown of the built JavaScript bundle and total static asset footprint (requires a recent `pnpm build`).
+
+### Bundle & Asset Size
+
+Two helper commands are available after `pnpm install`:
+
+- `pnpm run analyze:bundle` — Builds with the webpack bundle analyzer enabled and writes static HTML reports to `.next/analyze/` (opens automatically). Set `BUNDLE_ANALYZER_MODE=server` if you prefer the live, drill-down UI instead.
+- `pnpm run analyze:sizes` — Summarizes the compiled client bundle (JavaScript + CSS), static media, server output, and other deployable assets in the terminal. Run this after `pnpm build` for the latest numbers.
 
 ## Tech Stack
 

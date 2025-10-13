@@ -210,6 +210,12 @@
   block-size: 0.75rem;
 }
 
+.skeletonType {
+  inline-size: 5.5rem;
+  block-size: 1rem;
+  margin-inline: auto;
+}
+
 .skeletonPlayers {
   inline-size: 2.5rem;
   block-size: 1rem;
@@ -284,8 +290,8 @@
 
 .actionCluster {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: left;
   gap: spacing.spacing('space-2');
 }
 

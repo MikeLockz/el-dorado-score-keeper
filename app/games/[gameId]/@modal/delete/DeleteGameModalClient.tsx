@@ -75,12 +75,12 @@ export default function DeleteGameModalClient() {
           contentRef={dialogContentRef}
           initialFocusRef={cancelButtonRef}
           politeness="assertive"
-          announcement={`Delete archived game dialog opened for ${title}`}
+          announcement={`Remove archived game dialog opened for ${title}`}
         />
         <DialogHeader>
-          <DialogTitle>Delete archived game?</DialogTitle>
+          <DialogTitle>Remove archived game?</DialogTitle>
           <DialogDescription>
-            Deleting {title} permanently removes the archived record. This cannot be undone.
+            Removing {title} hides it from the archive. You will no longer see it in the game list.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -92,7 +92,7 @@ export default function DeleteGameModalClient() {
             onClick={() => void handleDelete()}
             disabled={pending || !gameId}
           >
-            {pending ? 'Deleting…' : 'Delete game'}
+            {pending ? 'Removing…' : 'Remove game'}
           </Button>
         </DialogFooter>
       </DialogContent>

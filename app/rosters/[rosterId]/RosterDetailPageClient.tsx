@@ -103,9 +103,6 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
               Browse archived rosters
             </Button>
           )}
-          <Button variant="outline" onClick={() => void handleCopyLink()}>
-            Copy link
-          </Button>
         </div>
       </header>
       <div className={styles.meta}>

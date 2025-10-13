@@ -5,7 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, Button } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
-import { listGames, type GameRecord, restoreGame, deriveGameMode } from '@/lib/state/io';
+import {
+  listGames,
+  type GameRecord,
+  restoreGame,
+  deriveGameMode,
+  isGameRecordCompleted,
+} from '@/lib/state/io';
 import { formatDateTime } from '@/lib/format';
 import { Loader2 } from 'lucide-react';
 import { captureBrowserMessage } from '@/lib/observability/browser';
@@ -79,6 +85,7 @@ export default function QuickLinks() {
   const resumeGame = React.useCallback(
     async (game: GameRecord) => {
       if (pendingId) return;
+      if (isGameRecordCompleted(game)) return;
       setPendingId(game.id);
       try {
         await restoreGame(undefined, game.id);
@@ -130,19 +137,20 @@ export default function QuickLinks() {
                 const playersLabel = derivePlayersLabel(game.summary.players);
                 const lastPlayed = formatDateTime(game.finishedAt);
                 const pending = pendingId === game.id;
+                const completed = isGameRecordCompleted(game);
                 return (
                   <div
                     key={game.id}
                     role="button"
                     tabIndex={0}
                     aria-label={`Resume ${modeLabel(mode)} from ${lastPlayed}`}
-                    aria-disabled={pending || undefined}
+                    aria-disabled={pending || completed ? true : undefined}
                     onClick={() => {
-                      if (pending) return;
+                      if (pending || completed) return;
                       void resumeGame(game);
                     }}
                     onKeyDown={(event) => {
-                      if (pending) return;
+                      if (pending || completed) return;
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         void resumeGame(game);
@@ -168,16 +176,18 @@ export default function QuickLinks() {
                         variant="outline"
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (pending) return;
+                          if (pending || completed) return;
                           void resumeGame(game);
                         }}
-                        disabled={pending}
+                        disabled={pending || completed}
                       >
                         {pending ? (
                           <span className={styles.resumeButtonContent}>
                             <Loader2 className={styles.spinner} aria-hidden="true" />
                             Resume
                           </span>
+                        ) : completed ? (
+                          'Completed'
                         ) : (
                           'Resume'
                         )}

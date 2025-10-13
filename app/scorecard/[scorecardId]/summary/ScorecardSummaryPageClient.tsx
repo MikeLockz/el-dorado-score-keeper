@@ -80,22 +80,6 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <div className={styles.description}>
-          Review final totals for this scorecard and inspect round-by-round history below.
-        </div>
-        <div className={styles.actions}>
-          <Button variant="outline" onClick={() => void handleCopyLink()}>
-            Copy link
-          </Button>
-          <Button variant="outline" onClick={handlePrint}>
-            Print summary
-          </Button>
-          <Button variant="outline" onClick={() => router.push(scorecardPath(scorecardId))}>
-            Back to live scorecard
-          </Button>
-        </div>
-      </header>
       <section className={styles.summaryList} aria-label="Score totals">
         {players.length === 0 ? (
           <div className={styles.summaryItem}>No players recorded for this scorecard.</div>

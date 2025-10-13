@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "node --import tsx scripts/observability/verify-env.ts && next build",
     "dev": "node --import tsx scripts/dev.ts",
     "dev:next": "next dev",
     "dev:pages": "BASE_PATH=/$npm_package_name pnpm run dev",
@@ -20,6 +20,8 @@
     "format:write": "prettier --write .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check": "npm run lint && npm run format && npm run typecheck && npm test",
+    "analyze:bundle": "ANALYZE_BUNDLE=true next build",
+    "analyze:sizes": "node --import tsx scripts/perf/report-bundle-sizes.ts",
     "tokens:sync": "node --import tsx scripts/tokens/sync.ts",
     "tokens:watch": "node --watch --import tsx scripts/tokens/sync.ts",
     "observability:smoke": "node --import tsx scripts/observability/smoke.ts",
@@ -86,6 +88,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.1.0",
     "@hyperdx/cli": "^0.1.0",
+    "@next/bundle-analyzer": "^15.2.0",
     "@playwright/test": "^1.41.2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.0",

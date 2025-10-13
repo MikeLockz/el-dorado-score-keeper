@@ -106,21 +106,6 @@ export function SinglePlayerSummaryPageClient({ gameId }: SinglePlayerSummaryPag
   return (
     <div className={styles.container}>
       <div className={styles.inner}>
-        <header className={styles.header}>
-          <div className={styles.description}>
-            View the final totals, round-by-round breakdown, and seed information for this
-            single-player run.
-          </div>
-          <div className={styles.actions}>
-            <Button variant="outline" onClick={() => void handleCopyLink()}>
-              Copy link
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href={singlePlayerPath(gameId, 'scorecard')}>View scorecard</Link>
-            </Button>
-            <Button onClick={handleReturnToLive}>Back to live play</Button>
-          </div>
-        </header>
         <div className={styles.separator} aria-hidden="true" />
         <SpGameSummary
           title="Game summary"

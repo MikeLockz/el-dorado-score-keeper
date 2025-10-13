@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 
+import createBundleAnalyzer from '@next/bundle-analyzer';
 import { resolveSourceMapSettings } from './config/source-maps.mjs';
 
 /** @type {import('next').NextConfig} */
@@ -210,4 +211,15 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+const withBundleAnalyzer = createBundleAnalyzer({
+  enabled: process.env.ANALYZE_BUNDLE === 'true',
+  analyzerMode: process.env.BUNDLE_ANALYZER_MODE || 'static',
+  openAnalyzer: process.env.BUNDLE_ANALYZER_OPEN !== 'false',
+  analyzerPort: process.env.BUNDLE_ANALYZER_PORT
+    ? Number.parseInt(process.env.BUNDLE_ANALYZER_PORT, 10)
+    : undefined,
+  generateStatsFile: process.env.BUNDLE_ANALYZER_STATS === 'true',
+  statsFilename: process.env.BUNDLE_ANALYZER_STATS_FILENAME,
+});
+
+export default withBundleAnalyzer(nextConfig);

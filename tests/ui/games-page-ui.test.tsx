@@ -9,6 +9,9 @@ type RouterStub = ReturnType<(typeof import('next/navigation'))['useRouter']>;
 type NewGameConfirmSetter = (impl: { show: ReturnType<typeof vi.fn> }) => void;
 
 const setMockAppState = (globalThis as any).__setMockAppState as (value: MockAppStateHook) => void;
+const setMockParams = (globalThis as any).__setMockParams as (
+  params: Record<string, string>,
+) => void;
 const setMockRouter = (globalThis as any).__setMockRouter as (router: RouterStub) => void;
 const setNewGameConfirm = (globalThis as any).__setNewGameConfirm as NewGameConfirmSetter;
 
@@ -82,6 +85,7 @@ vi.spyOn(gameFlowModule, 'useNewGameRequest').mockImplementation(
 );
 
 const push = vi.fn();
+const replace = vi.fn();
 
 const append = vi.fn(async () => 1);
 const appendMany = vi.fn(async () => 1);
@@ -138,13 +142,14 @@ suite('Games page new game flow', () => {
     stateMocks.deleteGame.mockClear();
     stateMocks.restoreGame.mockClear();
     push.mockClear();
+    replace.mockClear();
     append.mockClear();
     appendMany.mockClear();
     startNewGameSpy.mockClear();
     setMockAppState(createInProgressContext());
     setMockRouter({
       push,
-      replace: vi.fn(),
+      replace,
       refresh: vi.fn(),
       forward: vi.fn(),
       back: vi.fn(),
@@ -269,14 +274,85 @@ suite('Games page new game flow', () => {
       /Restore/i.test(btn.textContent || ''),
     ) as HTMLButtonElement;
     rowRestore.click();
+    expect(push).toHaveBeenCalledWith('/games/sp-1/restore');
+
+    const modalContainer = document.createElement('div');
+    document.body.appendChild(modalContainer);
+    const modalRoot = ReactDOM.createRoot(modalContainer);
+    setMockAppState(createInProgressContext());
+    setMockParams({ gameId: 'sp-1' });
+    const { default: RestoreGameModal } = await import('@/app/games/[gameId]/@modal/restore/page');
+    modalRoot.render(React.createElement(RestoreGameModal));
 
     const dialogRestore = await screen.findByRole('button', { name: 'Restore game' });
     dialogRestore.click();
 
     await waitFor(() => {
       expect(stateMocks.restoreGame).toHaveBeenCalledWith(undefined, 'sp-1');
-      expect(push).toHaveBeenCalledWith('/single-player/sp-current-route');
+      expect(replace).toHaveBeenCalledWith('/');
     });
+
+    modalRoot.unmount();
+    modalContainer.remove();
+
+    root.unmount();
+    container.remove();
+  });
+
+  it('hides restore controls for completed games', async () => {
+    stateMocks.listGames.mockResolvedValueOnce([
+      {
+        id: 'complete-1',
+        title: 'Finished Match',
+        createdAt: Date.parse('2024-03-01T12:00:00Z'),
+        finishedAt: Date.parse('2024-03-01T13:00:00Z'),
+        lastSeq: 20,
+        summary: {
+          players: 4,
+          scores: { a: 120, b: 90, c: 75, d: 50 },
+          playersById: { a: 'Alice', b: 'Ben', c: 'Cara', d: 'Dev' },
+          winnerId: 'a',
+          winnerName: 'Alice',
+          winnerScore: 120,
+          mode: 'scorecard',
+          scorecard: { activeRound: 10 },
+          sp: {
+            phase: 'setup',
+            roundNo: null,
+            dealerId: null,
+            leaderId: null,
+            order: [],
+            trump: null,
+            trumpCard: null,
+            trickCounts: {},
+            trumpBroken: false,
+          },
+          completed: true,
+        },
+        bundle: { latestSeq: 20, events: [] },
+      },
+    ]);
+
+    const { default: GamesPage } = await import('@/app/games/page');
+    const { NewGameConfirmProvider } = await import('@/components/dialogs/NewGameConfirm');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = ReactDOM.createRoot(container);
+    root.render(React.createElement(NewGameConfirmProvider, null, React.createElement(GamesPage)));
+
+    await waitFor(() => {
+      expect(stateMocks.listGames).toHaveBeenCalledTimes(1);
+    });
+
+    const restoreButtons = Array.from(container.querySelectorAll('button')).filter((btn) =>
+      /Restore/i.test(btn.textContent || ''),
+    );
+    expect(restoreButtons.length).toBe(0);
+
+    const removeButton = Array.from(container.querySelectorAll('button')).find((btn) =>
+      /Remove/i.test(btn.textContent || ''),
+    );
+    expect(removeButton).toBeTruthy();
 
     root.unmount();
     container.remove();

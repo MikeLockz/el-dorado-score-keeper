@@ -8,8 +8,8 @@ import {
   getGame,
   deleteGame,
   GAMES_DB_NAME,
-  DEFAULT_DB_NAME,
 } from '@/lib/state/io';
+import { ROUNDS_TOTAL } from '@/lib/state';
 
 function makeDbName(prefix = 'arch') {
   return `${prefix}-${Math.random().toString(36).slice(2)}`;
@@ -71,6 +71,8 @@ describe('archive and restore flows', () => {
     const got = await getGame(GAMES_DB_NAME, rec!.id);
     expect(got?.id).toBe(rec!.id);
     await deleteGame(GAMES_DB_NAME, rec!.id);
+    const removed = await getGame(GAMES_DB_NAME, rec!.id);
+    expect(removed).toBeNull();
     const gamesAfter = await listGames(GAMES_DB_NAME);
     expect(gamesAfter.length).toBe(0);
 
@@ -86,6 +88,27 @@ describe('archive and restore flows', () => {
     // Still reset state; height 0 and empty roster
     expect(inst.getHeight()).toBe(0);
     expect(Object.keys(inst.getState().players).length).toBe(0);
+    inst.close();
+  });
+
+  it('prevents restoring completed games', async () => {
+    const dbName = makeDbName('complete');
+    const inst = await createInstance({ dbName, channelName: `chan-${dbName}` });
+    await inst.append(events.playerAdded({ id: 'p1', name: 'Alice' }));
+    await inst.append(events.playerAdded({ id: 'p2', name: 'Bob' }));
+    for (let round = 1; round <= ROUNDS_TOTAL; round++) {
+      await inst.append(events.roundStateSet({ round, state: 'scored' }));
+    }
+
+    const rec = await archiveCurrentGameAndReset(dbName, { title: 'Finished Match' });
+    expect(rec).not.toBeNull();
+    expect(rec?.summary.completed).toBe(true);
+
+    await expect(restoreGame(dbName, rec!.id)).rejects.toThrow(
+      'Completed games cannot be restored.',
+    );
+
+    await deleteGame(GAMES_DB_NAME, rec!.id);
     inst.close();
   });
 });

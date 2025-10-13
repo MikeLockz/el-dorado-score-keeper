@@ -91,27 +91,6 @@ export default function ScorecardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className={styles.layout}>
-      <header className={styles.header}>
-        <div className={styles.titleRow}>
-          <h1 className={styles.title}>Scorecard</h1>
-          <span className={styles.meta}>{formatScorecardLabel(slice)}</span>
-        </div>
-        <nav className={styles.nav} aria-label="Scorecard views">
-          {navItems.map((item) => {
-            const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={clsx(styles.navLink, active && styles.navLinkActive)}
-                aria-current={active ? 'page' : undefined}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </header>
       <section className={styles.content}>{children}</section>
     </div>
   );

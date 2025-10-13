@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { Button, Card, Skeleton } from '@/components/ui';
 import { Loader2, MoreHorizontal } from 'lucide-react';
-import { type GameRecord, listGames } from '@/lib/state';
+import { type GameRecord, listGames, deriveGameMode, isGameRecordCompleted } from '@/lib/state';
 import { formatDateTime } from '@/lib/format';
 import { useNewGameRequest, hasScorecardProgress, hasSinglePlayerProgress } from '@/lib/game-flow';
 import { useAppState } from '@/components/state-provider';
@@ -23,8 +23,21 @@ import styles from './page.module.scss';
 
 const skeletonRows = Array.from({ length: 4 });
 
+function describeGameMode(game: GameRecord): string {
+  const mode = deriveGameMode(game);
+  return mode === 'single-player' ? 'Single Player' : 'Scorecard';
+}
+
 export default function GamesPage() {
   const [games, setGames] = React.useState<GameRecord[] | null>(null);
+  const completedMap = React.useMemo<Record<string, boolean> | null>(() => {
+    if (!games) return null;
+    const map: Record<string, boolean> = {};
+    for (const game of games) {
+      map[game.id] = isGameRecordCompleted(game);
+    }
+    return map;
+  }, [games]);
   const router = useRouter();
   const { state } = useAppState();
   const resumeContext = React.useMemo(() => {
@@ -108,6 +121,11 @@ export default function GamesPage() {
     y: number;
     openUp?: boolean;
   }>(null);
+  const menuGame = React.useMemo(() => {
+    if (!menuOpen || !games) return null;
+    return games.find((item) => item.id === menuOpen.id) ?? null;
+  }, [menuOpen, games]);
+  const menuGameCompleted = menuGame ? (completedMap?.[menuGame.id] ?? false) : false;
 
   const onNewGame = async () => {
     resumeRouteRef.current = resumeRoute;
@@ -148,7 +166,7 @@ export default function GamesPage() {
             </p>
           </div>
           <Button variant="outline" onClick={handleOpenScorecard}>
-            Open scorecard view
+            View Scorecards
           </Button>
         </section>
         <Card className={styles.tableCard}>
@@ -158,6 +176,9 @@ export default function GamesPage() {
                 <tr>
                   <th scope="col" className={styles.headerCell}>
                     Title
+                  </th>
+                  <th scope="col" className={clsx(styles.headerCell, styles.headerCellCenter)}>
+                    Type
                   </th>
                   <th scope="col" className={clsx(styles.headerCell, styles.headerCellCenter)}>
                     Players
@@ -181,6 +202,9 @@ export default function GamesPage() {
                         </div>
                       </td>
                       <td className={clsx(styles.cell, styles.cellCenter)}>
+                        <Skeleton className={styles.skeletonType} />
+                      </td>
+                      <td className={clsx(styles.cell, styles.cellCenter)}>
                         <Skeleton className={styles.skeletonPlayers} />
                       </td>
                       <td className={clsx(styles.cell, styles.cellCenter)}>
@@ -193,85 +217,95 @@ export default function GamesPage() {
                   ))
                 ) : games.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className={styles.emptyCell}>
+                    <td colSpan={5} className={styles.emptyCell}>
                       No archived games yet.
                     </td>
                   </tr>
                 ) : (
-                  games.map((g) => (
-                    <tr
-                      key={g.id}
-                      className={styles.row}
-                      onClick={() => {
-                        router.push(resolveArchivedGameRoute(g.id));
-                      }}
-                    >
-                      <td className={styles.cell}>
-                        <div className={styles.titleGroup}>
-                          <div className={styles.titleText}>{g.title || 'Untitled'}</div>
-                          <div className={styles.titleMeta}>{formatDateTime(g.finishedAt)}</div>
-                        </div>
-                      </td>
-                      <td className={clsx(styles.cell, styles.cellCenter)}>{g.summary.players}</td>
-                      <td className={clsx(styles.cell, styles.cellCenter, styles.cellEmphasis)}>
-                        {g.summary.winnerName ?? '-'}
-                      </td>
-                      <td className={clsx(styles.cell, styles.cellActions)}>
-                        <div
-                          className={styles.actionCluster}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <div className={styles.desktopActions}>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                router.push(resolveGameModalRoute(g.id, 'restore'));
-                              }}
-                            >
-                              Restore
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => {
-                                router.push(resolveGameModalRoute(g.id, 'delete'));
-                              }}
-                            >
-                              Delete
-                            </Button>
+                  games.map((g) => {
+                    const isCompleted = completedMap?.[g.id] ?? false;
+                    return (
+                      <tr
+                        key={g.id}
+                        className={styles.row}
+                        onClick={() => {
+                          router.push(resolveArchivedGameRoute(g.id));
+                        }}
+                      >
+                        <td className={styles.cell}>
+                          <div className={styles.titleGroup}>
+                            <div className={styles.titleText}>{g.title || 'Untitled'}</div>
+                            <div className={styles.titleMeta}>{formatDateTime(g.finishedAt)}</div>
                           </div>
-                          <div className={styles.mobileActions}>
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              aria-label="Actions"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                const rect = (
-                                  event.currentTarget as HTMLElement
-                                ).getBoundingClientRect();
-                                const spaceBelow = window.innerHeight - rect.bottom;
-                                const openUp = spaceBelow < 140;
-                                setMenuOpen((current) =>
-                                  current && current.id === g.id
-                                    ? null
-                                    : {
-                                        id: g.id,
-                                        x: rect.right,
-                                        y: openUp ? rect.top : rect.bottom,
-                                        openUp,
-                                      },
-                                );
-                              }}
-                            >
-                              <MoreHorizontal className={styles.moreIcon} />
-                            </Button>
+                        </td>
+                        <td className={clsx(styles.cell, styles.cellCenter)}>
+                          {describeGameMode(g)}
+                        </td>
+                        <td className={clsx(styles.cell, styles.cellCenter)}>
+                          {g.summary.players}
+                        </td>
+                        <td className={clsx(styles.cell, styles.cellCenter, styles.cellEmphasis)}>
+                          {g.summary.winnerName ?? '-'}
+                        </td>
+                        <td className={clsx(styles.cell, styles.cellActions)}>
+                          <div
+                            className={styles.actionCluster}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <div className={styles.desktopActions}>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  router.push(resolveGameModalRoute(g.id, 'delete'));
+                                }}
+                              >
+                                Remove
+                              </Button>
+                              {!isCompleted ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    router.push(resolveGameModalRoute(g.id, 'restore'));
+                                  }}
+                                >
+                                  Restore
+                                </Button>
+                              ) : null}
+                            </div>
+                            <div className={styles.mobileActions}>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                aria-label="Actions"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  const rect = (
+                                    event.currentTarget as HTMLElement
+                                  ).getBoundingClientRect();
+                                  const spaceBelow = window.innerHeight - rect.bottom;
+                                  const openUp = spaceBelow < 140;
+                                  setMenuOpen((current) =>
+                                    current && current.id === g.id
+                                      ? null
+                                      : {
+                                          id: g.id,
+                                          x: rect.right,
+                                          y: openUp ? rect.top : rect.bottom,
+                                          openUp,
+                                        },
+                                  );
+                                }}
+                              >
+                                <MoreHorizontal className={styles.moreIcon} />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -288,29 +322,31 @@ export default function GamesPage() {
                 }}
                 onClick={(event) => event.stopPropagation()}
               >
-                <button
-                  className={styles.menuItem}
-                  onClick={() => {
-                    const game = games?.find((item) => item.id === menuOpen.id);
-                    if (game) {
-                      router.push(resolveGameModalRoute(game.id, 'restore'));
-                      setMenuOpen(null);
-                    }
-                  }}
-                >
-                  Restore
-                </button>
+                {!menuGameCompleted && menuGame ? (
+                  <button
+                    className={styles.menuItem}
+                    onClick={() => {
+                      if (menuGame) {
+                        router.push(resolveGameModalRoute(menuGame.id, 'restore'));
+                        setMenuOpen(null);
+                      }
+                    }}
+                    disabled={!menuGame}
+                  >
+                    Restore
+                  </button>
+                ) : null}
                 <button
                   className={clsx(styles.menuItem, styles.menuItemDestructive)}
                   onClick={() => {
-                    const game = games?.find((item) => item.id === menuOpen.id);
-                    if (game) {
-                      router.push(resolveGameModalRoute(game.id, 'delete'));
+                    if (menuGame) {
+                      router.push(resolveGameModalRoute(menuGame.id, 'delete'));
                       setMenuOpen(null);
                     }
                   }}
+                  disabled={!menuGame}
                 >
-                  Delete
+                  Remove
                 </button>
               </div>
             </>

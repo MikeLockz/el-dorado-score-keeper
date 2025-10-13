@@ -92,9 +92,6 @@ export function PlayerDetailPageClient({ playerId }: PlayerDetailPageClientProps
               View archived list
             </Button>
           ) : null}
-          <Button variant="outline" onClick={() => void handleCopyLink()}>
-            Copy link
-          </Button>
         </div>
       </header>
 

@@ -13,6 +13,7 @@ import { withSpan } from '@/lib/observability/spans';
 import { captureBrowserMessage } from '@/lib/observability/browser';
 import { scorecardPath, singlePlayerPath } from './utils';
 import { emitGamesSignal } from './game-signals';
+import { selectIsGameComplete } from './selectors';
 
 export type ExportBundle = {
   latestSeq: number;
@@ -106,7 +107,10 @@ function deriveDisplayOrderFromSources(
   return out;
 }
 
-function deriveRosterSnapshot(state: AppState, mode: 'scorecard' | 'single-player'): RosterSnapshot | null {
+function deriveRosterSnapshot(
+  state: AppState,
+  mode: 'scorecard' | 'single-player',
+): RosterSnapshot | null {
   const rosterId =
     mode === 'single-player' ? state.activeSingleRosterId : state.activeScorecardRosterId;
   const roster = rosterId ? state.rosters?.[rosterId] : undefined;
@@ -119,7 +123,7 @@ function deriveRosterSnapshot(state: AppState, mode: 'scorecard' | 'single-playe
     const label =
       typeof name === 'string' && name.trim()
         ? name.trim()
-        : state.players?.[normalizedId] ?? normalizedId;
+        : (state.players?.[normalizedId] ?? normalizedId);
     playersById[normalizedId] = label;
   }
 
@@ -178,6 +182,7 @@ export type GameRecord = {
   createdAt: number;
   finishedAt: number;
   lastSeq: number;
+  deletedAt?: number | null;
   summary: {
     players: number;
     scores: Record<string, number>;
@@ -200,6 +205,7 @@ export type GameRecord = {
       trickCounts: Record<string, number>;
       trumpBroken: boolean;
     };
+    completed?: boolean;
     metadata?: SummaryMetadata;
     rosterSnapshot?: RosterSnapshot | null;
     slotMapping?: SummarySlotMapping | null;
@@ -538,6 +544,7 @@ export function summarizeState(s: AppState): GameRecord['summary'] {
     spPhase !== 'done' &&
     ((sp.trickPlays?.length ?? 0) > 0 || Object.keys(sp.hands ?? {}).length > 0);
   const mode: 'scorecard' | 'single-player' = spActive ? 'single-player' : 'scorecard';
+  const completed = selectIsGameComplete(s);
 
   const rosterSnapshot = deriveRosterSnapshot(s, mode);
   if (rosterSnapshot) {
@@ -560,11 +567,14 @@ export function summarizeState(s: AppState): GameRecord['summary'] {
       : null);
   const slotMapping = resolvedRosterSnapshot
     ? deriveSlotMapping(resolvedRosterSnapshot.playersById, resolvedRosterSnapshot.displayOrder)
-    : deriveSlotMapping(playersById, deriveDisplayOrderFromSources(undefined, s.display_order, playerIds));
+    : deriveSlotMapping(
+        playersById,
+        deriveDisplayOrderFromSources(undefined, s.display_order, playerIds),
+      );
 
   const winnerName =
     winnerId && Object.prototype.hasOwnProperty.call(playersById, winnerId)
-      ? playersById[winnerId] ?? null
+      ? (playersById[winnerId] ?? null)
       : null;
 
   return {
@@ -589,6 +599,7 @@ export function summarizeState(s: AppState): GameRecord['summary'] {
       trickCounts: { ...(sp.trickCounts ?? {}) },
       trumpBroken: !!sp.trumpBroken,
     },
+    completed,
     metadata: {
       version: SUMMARY_METADATA_VERSION,
       generatedAt: Date.now(),
@@ -632,10 +643,11 @@ export async function listGames(gamesDbName: string = GAMES_DB_NAME): Promise<Ga
           };
           cursorReq.onerror = () => rej(asError(cursorReq.error, 'Failed listing games'));
         });
-        out.sort((a, b) => b.createdAt - a.createdAt);
-        span?.setAttribute('games.count', out.length);
+        const filtered = out.filter((game) => !game?.deletedAt);
+        filtered.sort((a, b) => b.createdAt - a.createdAt);
+        span?.setAttribute('games.count', filtered.length);
         span?.setAttribute('index.used', useIndex);
-        return out;
+        return filtered;
       } finally {
         db.close();
       }
@@ -660,8 +672,12 @@ export async function getGame(
           req.onsuccess = () => res((req.result as GameRecord | null) ?? null);
           req.onerror = () => rej(asError(req.error, 'Failed to get game record'));
         });
-        span?.setAttribute('game.found', !!rec);
-        return rec;
+        const resolved = rec && rec.deletedAt ? null : rec;
+        span?.setAttribute('game.found', !!resolved);
+        if (rec?.deletedAt) {
+          span?.setAttribute('game.deleted', true);
+        }
+        return resolved;
       } finally {
         db.close();
       }
@@ -674,15 +690,42 @@ export async function deleteGame(gamesDbName: string = GAMES_DB_NAME, id: string
   await withSpan(
     'state.game-delete',
     { dbName: gamesDbName, gameId: id },
-    async () => {
+    async (span) => {
       const db = await openDB(gamesDbName);
       try {
-        const t = tx(db, 'readwrite', [storeNames.GAMES]);
-        const req = t.objectStore(storeNames.GAMES).delete(id);
-        await new Promise<void>((res, rej) => {
-          req.onsuccess = () => res();
-          req.onerror = () => rej(asError(req.error, 'Failed to delete game record'));
+        const writeTx = tx(db, 'readwrite', [storeNames.GAMES]);
+        const writeStore = writeTx.objectStore(storeNames.GAMES);
+        const txDone = new Promise<void>((res, rej) => {
+          writeTx.oncomplete = () => res();
+          writeTx.onabort = () =>
+            rej(asError(writeTx.error, 'Transaction aborted soft deleting game record'));
+          writeTx.onerror = () =>
+            rej(asError(writeTx.error, 'Transaction error soft deleting game record'));
         });
+        const rec = await new Promise<GameRecord | null>((res, rej) => {
+          const getReq = writeStore.get(id);
+          getReq.onsuccess = () => res((getReq.result as GameRecord | null) ?? null);
+          getReq.onerror = () => rej(asError(getReq.error, 'Failed to load game record'));
+        });
+        if (!rec) {
+          span?.setAttribute('game.deleted', false);
+          await txDone.catch(() => {});
+          return;
+        }
+        if (rec.deletedAt) {
+          span?.setAttribute('game.deleted', true);
+          span?.setAttribute('game.soft', true);
+          await txDone;
+          return;
+        }
+        const putReq = writeStore.put({ ...rec, deletedAt: Date.now() });
+        await new Promise<void>((res, rej) => {
+          putReq.onsuccess = () => res();
+          putReq.onerror = () => rej(asError(putReq.error, 'Failed to soft delete game record'));
+        });
+        await txDone;
+        span?.setAttribute('game.deleted', true);
+        span?.setAttribute('game.soft', true);
         emitGamesSignal({ type: 'deleted', gameId: id });
       } finally {
         db.close();
@@ -725,6 +768,7 @@ export async function archiveCurrentGameAndReset(
         createdAt,
         finishedAt,
         lastSeq: bundle.latestSeq,
+        deletedAt: null,
         summary,
         bundle,
       };
@@ -820,6 +864,38 @@ export async function archiveCurrentGameAndReset(
   );
 }
 
+export type GameMode = 'single-player' | 'scorecard';
+
+export function deriveGameMode(game: GameRecord): GameMode {
+  const declaredMode = game.summary.mode;
+  if (declaredMode === 'single-player' || declaredMode === 'scorecard') {
+    return declaredMode;
+  }
+
+  const spPhase = game.summary.sp?.phase;
+  if (spPhase && spPhase !== 'setup' && spPhase !== 'game-summary' && spPhase !== 'done') {
+    return 'single-player';
+  }
+
+  return 'scorecard';
+}
+
+export function deriveGameRoute(game: GameRecord): string {
+  const mode = deriveGameMode(game);
+  return mode === 'single-player' ? singlePlayerPath(game.id) : scorecardPath(game.id, 'live');
+}
+
+export function isGameRecordCompleted(game: GameRecord): boolean {
+  if (!game) return false;
+  if (typeof game.summary?.completed === 'boolean') return game.summary.completed;
+  try {
+    const state = reduceBundle(game.bundle);
+    return selectIsGameComplete(state);
+  } catch {
+    return false;
+  }
+}
+
 export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string): Promise<void> {
   await withSpan(
     'state.restore-game',
@@ -829,6 +905,16 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
       if (!rec) {
         span?.setAttribute('restored', false);
         return;
+      }
+      if (isGameRecordCompleted(rec)) {
+        span?.setAttribute('restored', false);
+        span?.setAttribute('restore.blocked', 'completed');
+        const error = new Error('Completed games cannot be restored.');
+        try {
+          (error as { code?: string }).code = 'restore.completed';
+          error.name = 'CompletedGameRestoreError';
+        } catch {}
+        throw error;
       }
 
       await importBundleSoft(dbName, rec.bundle);
@@ -859,25 +945,4 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
     },
     { runtime: 'browser' },
   );
-}
-
-export type GameMode = 'single-player' | 'scorecard';
-
-export function deriveGameMode(game: GameRecord): GameMode {
-  const declaredMode = game.summary.mode;
-  if (declaredMode === 'single-player' || declaredMode === 'scorecard') {
-    return declaredMode;
-  }
-
-  const spPhase = game.summary.sp?.phase;
-  if (spPhase && spPhase !== 'setup' && spPhase !== 'game-summary' && spPhase !== 'done') {
-    return 'single-player';
-  }
-
-  return 'scorecard';
-}
-
-export function deriveGameRoute(game: GameRecord): string {
-  const mode = deriveGameMode(game);
-  return mode === 'single-player' ? singlePlayerPath(game.id) : scorecardPath(game.id, 'live');
 }
