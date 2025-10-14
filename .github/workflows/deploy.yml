@@ -53,10 +53,18 @@ jobs:
           # Inject GitHub variable into the Next.js build
           NEXT_PUBLIC_ANALYTICS_WORKER_URL: ${{ vars.NEXT_PUBLIC_ANALYTICS_WORKER_URL }}
           NEXT_PUBLIC_OBSERVABILITY_ENABLED: ${{ vars.NEXT_PUBLIC_OBSERVABILITY_ENABLED }}
+          NEXT_PUBLIC_OBSERVABILITY_PROVIDER: ${{ vars.NEXT_PUBLIC_OBSERVABILITY_PROVIDER }}
           NEXT_PUBLIC_HDX_API_KEY: ${{ vars.NEXT_PUBLIC_HDX_API_KEY }}
           NEXT_PUBLIC_HDX_HOST: ${{ vars.NEXT_PUBLIC_HDX_HOST }}
           NEXT_PUBLIC_HDX_SERVICE_NAME: ${{ vars.NEXT_PUBLIC_HDX_SERVICE_NAME }}
           NEXT_PUBLIC_APP_ENV: ${{ vars.NEXT_PUBLIC_APP_ENV }}
+          NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY: ${{ secrets.NEXT_PUBLIC_NEW_RELIC_LICENSE_KEY }}
+          NEXT_PUBLIC_NEW_RELIC_APP_ID: ${{ secrets.NEXT_PUBLIC_NEW_RELIC_APP_ID }}
+          NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL: ${{ vars.NEXT_PUBLIC_NEW_RELIC_BROWSER_SCRIPT_URL }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY || vars.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_DEBUG: ${{ vars.NEXT_PUBLIC_POSTHOG_DEBUG }}
+          POSTHOG_PERSONAL_API_KEY: ${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
           # Force basePath for GitHub Project Pages (e.g., /<repo>)
           # next.config.mjs reads BASE_PATH (or NEXT_PUBLIC_BASE_PATH) with priority
           BASE_PATH: /${{ github.event.repository.name }}
