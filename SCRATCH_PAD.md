@@ -1,3 +1,11 @@
+## Game Data Generator – Phase 1 Audit (2024-05-15)
+
+- GameRecord (`lib/state/io.ts:198`): `id`, `title`, `createdAt`, `finishedAt`, `lastSeq`, optional `deletedAt`, plus `summary` and `bundle`. `summary` carries `players`, `scores`, `playersById`, winner fields, optional `mode` (`scorecard` or `single-player`), `scorecard.activeRound`, and `sp` block (phase/round/trump/trickCounts). Note: `summary.sp` type omits `roundTallies`, but downstream code (e.g. `lib/state/player-statistics/secondary.ts`) expects it; need to account for this when generating data.
+- Export bundle + events: `bundle` matches `ExportBundle` with `latestSeq` and `events` (`AppEvent` envelopes with `{ eventId, ts, type, payload }`). Reducer logic in `lib/state/reducer.ts` uses these to rebuild `AppState`.
+- Event payload schemas (`schema/events.ts`): canonical contracts exist for `round/state-set`, `bid/set`, `made/set`, `score/added`, `round/finalize`, and single-player flow events (`sp/deal`, `sp/phase-set`, `sp/trick/played`, `sp/round-tally-set`, `sp/summary-entered-set`, etc.). There is no `game/start` or `summary/submit` schema; plan references need to map onto existing event names.
+- IndexedDB stores (`lib/state/db.ts`): `app-db` exposes stores `events`, `state`, `snapshots`; `app-games-db` adds `games` for archived `GameRecord`s. `importBundle`/`exportBundle` operate on `events` (and clear `state`/`snapshots` on soft import), while archived games persist through `tx(... storeNames.GAMES ...)`.
+- Current single-player user metadata: canonical player id lives at `AppState.humanByMode.single` (selector `selectHumanIdFor(state, 'single')`). Display name/type pulled from `state.players[id]` and `state.playerDetails[id]`; seat/order sourced from active single roster (`state.rosters[state.activeSingleRosterId]`) and selectors like `selectPlayersOrderedFor`.
+
 - shouldn't round 10 be first because it has 10 tricks? If it is the final round, why would it set the previous round to bidding? There won't be any more rounds after the final round.
 - first make a plan on how to fix it so that rounds decrease in number by the number of tricks available in each round. First round is 10 and last round is 1.
 

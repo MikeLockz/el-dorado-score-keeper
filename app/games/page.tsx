@@ -176,10 +176,10 @@ export default function GamesPage() {
         </div>
         <section className={styles.scorecardSection} aria-label="Scorecard overview">
           <div className={styles.scorecardCopy}>
-            <h2 className={styles.scorecardTitle}>Keep score with the digital scorecard</h2>
+            <h2 className={styles.scorecardTitle}>Playing in person?</h2>
             <p className={styles.scorecardDescription}>
-              Track bids, tricks, and totals for an in-person table. Jump into the live scorecard to
-              manage the current game or start recording a new one.
+              Track bids, tricks, and totals for a game with real people. Jump into the live
+              scorecard to manage the current game or start recording a new one.
             </p>
           </div>
           <Button variant="outline" onClick={handleOpenScorecard}>
