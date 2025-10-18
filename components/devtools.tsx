@@ -1,16 +1,21 @@
 'use client';
 import React from 'react';
 import { useAppState } from '@/components/state-provider';
+import { useToast } from '@/components/ui/toast';
 import type { AppState, RoundState } from '@/lib/state';
 import {
   exportBundle,
   listBackfillCandidates,
   backfillGameById,
+  deriveGameRoute,
+  selectHumanIdFor,
+  selectPlayersOrderedFor,
   type BackfillCandidate,
   type BackfillGameResult,
 } from '@/lib/state';
 import { formatTime } from '@/lib/format';
 import { captureBrowserMessage } from '@/lib/observability/browser';
+import { saveGeneratedGame } from '@/lib/devtools/generator/saveGeneratedGame';
 
 export default function Devtools() {
   const {
@@ -23,10 +28,50 @@ export default function Devtools() {
     setTimeTravelHeight,
     timeTraveling,
   } = useAppState();
+  const { toast } = useToast();
   const [cursor, setCursor] = React.useState<number>(height);
   const [followLive, setFollowLive] = React.useState(true);
   const [preview, setPreview] = React.useState<AppState | null>(null);
   const [loading, setLoading] = React.useState(false);
+  const singleRosterPlayers = React.useMemo(
+    () => selectPlayersOrderedFor(state, 'single'),
+    [state],
+  );
+  const currentHumanId = React.useMemo(() => selectHumanIdFor(state, 'single'), [state]);
+  const currentUserProfile = React.useMemo(() => {
+    if (!currentHumanId) return null;
+    const rosterId = state.activeSingleRosterId;
+    const roster = rosterId ? state.rosters[rosterId] : null;
+    const name =
+      roster?.playersById?.[currentHumanId] ?? state.players[currentHumanId] ?? 'Single Player';
+    return {
+      id: currentHumanId,
+      displayName: name,
+      avatarSeed: null,
+    };
+  }, [currentHumanId, state]);
+  const generatorPlayerCount = React.useMemo(() => {
+    const rosterCount = singleRosterPlayers.length;
+    if (rosterCount >= 2) return rosterCount;
+    return 4;
+  }, [singleRosterPlayers]);
+  const [generatorSeed, setGeneratorSeed] = React.useState('');
+  const [showGeneratorAdvanced, setShowGeneratorAdvanced] = React.useState(false);
+  const [generatorState, setGeneratorState] = React.useState<{
+    busy: boolean;
+    error: string | null;
+    lastGameId: string | null;
+    lastGameRoute: string | null;
+    lastSeed: string | null;
+    lastTitle: string | null;
+  }>({
+    busy: false,
+    error: null,
+    lastGameId: null,
+    lastGameRoute: null,
+    lastSeed: null,
+    lastTitle: null,
+  });
 
   React.useEffect(() => {
     if (followLive) setCursor(height);
@@ -176,6 +221,63 @@ export default function Devtools() {
       }
     })();
   }, [backfillState.lastResult]);
+
+  const handleGenerateGame = React.useCallback(async () => {
+    if (!currentUserProfile) {
+      toast({
+        title: 'Single player human not set',
+        description: 'Assign a primary player in single player mode to enable generation.',
+        variant: 'warning',
+      });
+      return;
+    }
+    const trimmedSeed = generatorSeed.trim();
+    setGeneratorState((prev) => ({
+      ...prev,
+      busy: true,
+      error: null,
+    }));
+    try {
+      const result = await saveGeneratedGame({
+        currentUser: currentUserProfile,
+        playerCount: generatorPlayerCount,
+        seed: trimmedSeed || undefined,
+      });
+      const route = deriveGameRoute(result.gameRecord);
+      setGeneratorState({
+        busy: false,
+        error: null,
+        lastGameId: result.gameRecord.id,
+        lastGameRoute: route,
+        lastSeed: result.seed,
+        lastTitle: result.gameRecord.title,
+      });
+      toast({
+        title: 'Synthetic game archived',
+        description: `Saved as ${result.gameRecord.title}`,
+        variant: 'success',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to generate synthetic game.';
+      captureBrowserMessage('devtools.generator.failed', {
+        level: 'error',
+        attributes: {
+          reason: message,
+          hasSeed: trimmedSeed ? 'yes' : 'no',
+        },
+      });
+      setGeneratorState((prev) => ({
+        ...prev,
+        busy: false,
+        error: message,
+      }));
+      toast({
+        title: 'Failed to generate game',
+        description: message,
+        variant: 'destructive',
+      });
+    }
+  }, [currentUserProfile, generatorPlayerCount, generatorSeed, toast]);
 
   // Helper: readable label for a round state
   function labelForRoundState(s: RoundState): string {
@@ -394,6 +496,140 @@ export default function Devtools() {
               borderTop: '1px solid rgba(148,163,184,0.25)',
             }}
           >
+            <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 13 }}>
+              Synthetic single player archive
+            </div>
+            <div style={{ fontSize: 11.5, opacity: 0.85, marginBottom: 8, lineHeight: 1.4 }}>
+              Generates a complete single player session and stores it in IndexedDB for quick QA.
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+              <button
+                onClick={handleGenerateGame}
+                disabled={generatorState.busy || !currentUserProfile}
+                style={{
+                  fontSize: 11,
+                  padding: '4px 8px',
+                  background: '#3b82f6',
+                  color: '#0f172a',
+                  borderRadius: 4,
+                  opacity: generatorState.busy || !currentUserProfile ? 0.7 : 1,
+                }}
+              >
+                {generatorState.busy ? 'Generating…' : 'Generate single player game'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowGeneratorAdvanced((prev) => !prev)}
+                style={{
+                  fontSize: 11,
+                  padding: '4px 8px',
+                  background: '#334155',
+                  color: '#fff',
+                  borderRadius: 4,
+                }}
+                aria-expanded={showGeneratorAdvanced}
+              >
+                {showGeneratorAdvanced ? 'Hide advanced' : 'Advanced'}
+              </button>
+            </div>
+            {!currentUserProfile ? (
+              <div
+                style={{
+                  background: 'rgba(248,113,113,0.15)',
+                  border: '1px solid rgba(248,113,113,0.45)',
+                  borderRadius: 4,
+                  padding: '6px 8px',
+                  fontSize: 11,
+                  marginBottom: 8,
+                }}
+              >
+                Set a single player human to enable synthetic game generation.
+              </div>
+            ) : null}
+            {showGeneratorAdvanced ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                  marginBottom: 8,
+                }}
+              >
+                <label style={{ fontSize: 11, opacity: 0.85 }}>Seed (optional)</label>
+                <input
+                  type="text"
+                  value={generatorSeed}
+                  onChange={(event) => setGeneratorSeed(event.target.value)}
+                  placeholder="Leave blank for randomized seed"
+                  style={{
+                    background: '#1f2937',
+                    color: '#f8fafc',
+                    borderRadius: 4,
+                    border: '1px solid rgba(148,163,184,0.35)',
+                    padding: '4px 6px',
+                    fontSize: 12,
+                  }}
+                />
+                <div style={{ fontSize: 11, opacity: 0.8 }}>
+                  Using {generatorPlayerCount} roster players from the active single player lineup.
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 8 }}>
+                Using {generatorPlayerCount} roster players from the active single player lineup.
+              </div>
+            )}
+            {generatorState.error ? (
+              <div
+                style={{
+                  background: 'rgba(220,38,38,0.25)',
+                  border: '1px solid rgba(248,113,113,0.6)',
+                  borderRadius: 4,
+                  padding: '6px 8px',
+                  fontSize: 11,
+                  marginBottom: 8,
+                }}
+              >
+                {generatorState.error}
+              </div>
+            ) : null}
+            {generatorState.lastGameId ? (
+              <div
+                style={{
+                  background: 'rgba(22,163,74,0.15)',
+                  border: '1px solid rgba(34,197,94,0.45)',
+                  borderRadius: 4,
+                  padding: '6px 8px',
+                  fontSize: 11,
+                  lineHeight: 1.4,
+                }}
+              >
+                <div>
+                  Last archive:{' '}
+                  <strong>{generatorState.lastTitle ?? generatorState.lastGameId}</strong>
+                </div>
+                <div>ID: {generatorState.lastGameId}</div>
+                <div>
+                  <a
+                    href={generatorState.lastGameRoute ?? undefined}
+                    style={{ color: '#bfdbfe', textDecoration: 'underline' }}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open in archive viewer
+                  </a>
+                </div>
+                <div>Seed used: {generatorState.lastSeed}</div>
+              </div>
+            ) : null}
+          </div>
+          <div
+            style={{
+              marginTop: 12,
+              paddingTop: 10,
+              borderTop: '1px solid rgba(148,163,184,0.25)',
+            }}
+          >
             <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 13 }}>Archived backfill</div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span>Remaining: {backfillState.candidates.length}</span>
@@ -443,8 +679,7 @@ export default function Devtools() {
                   background: '#22c55e',
                   color: '#0f172a',
                   borderRadius: 4,
-                  opacity:
-                    backfillState.loading || backfillState.candidates.length === 0 ? 0.7 : 1,
+                  opacity: backfillState.loading || backfillState.candidates.length === 0 ? 0.7 : 1,
                 }}
               >
                 {backfillState.loading ? 'Backfilling…' : 'Backfill selected game'}
@@ -483,7 +718,8 @@ export default function Devtools() {
             {backfillState.lastResult ? (
               <div>
                 <div style={{ fontSize: 11, opacity: 0.85, marginBottom: 4 }}>
-                  Last result: {backfillState.lastResult.record.title} ({backfillState.lastResult.id}) •{' '}
+                  Last result: {backfillState.lastResult.record.title} (
+                  {backfillState.lastResult.id}) •{' '}
                   {backfillState.lastResult.updated ? 'updated' : 'already current'}
                 </div>
                 <textarea
