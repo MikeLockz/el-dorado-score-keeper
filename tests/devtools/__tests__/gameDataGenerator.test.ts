@@ -116,6 +116,7 @@ describe('generateGameData', () => {
     expect(summary.startedAt).toBeLessThan(summary.summaryEnteredAt ?? Infinity);
     expect(summary.durationMs).toBeGreaterThan(0);
     expect(summary.id).toBe(gameRecord.id);
+    expect(summary.mode).toBe('single-player');
     expect(gameRecord.bundle.events).toEqual(events);
 
     for (const [roundKey, tallies] of Object.entries(roundTallies)) {

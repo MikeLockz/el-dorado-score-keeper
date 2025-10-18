@@ -231,6 +231,7 @@ export function generateGameData(options: GeneratedGameOptions): GeneratedGamePa
 
   const updatedSummary = {
     ...baseSummary,
+    mode: 'single-player' as const,
     id: baseSummary?.id ?? state?.sp?.sessionSeed?.toString() ?? uuid(),
     startedAt: startTimestamp,
     updatedAt: summaryEnteredAt,

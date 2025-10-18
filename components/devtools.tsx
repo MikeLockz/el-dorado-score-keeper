@@ -16,6 +16,8 @@ import {
 import { formatTime } from '@/lib/format';
 import { captureBrowserMessage } from '@/lib/observability/browser';
 import { saveGeneratedGame } from '@/lib/devtools/generator/saveGeneratedGame';
+import type { CurrentUserProfile } from '@/lib/devtools/generator/gameDataGenerator';
+import { uuid } from '@/lib/utils';
 
 export default function Devtools() {
   const {
@@ -38,6 +40,7 @@ export default function Devtools() {
     [state],
   );
   const currentHumanId = React.useMemo(() => selectHumanIdFor(state, 'single'), [state]);
+  const fallbackProfileRef = React.useRef<CurrentUserProfile | null>(null);
   const currentUserProfile = React.useMemo(() => {
     if (!currentHumanId) return null;
     const rosterId = state.activeSingleRosterId;
@@ -50,6 +53,19 @@ export default function Devtools() {
       avatarSeed: null,
     };
   }, [currentHumanId, state]);
+  const effectiveCurrentUser = React.useMemo(() => {
+    if (currentUserProfile) return currentUserProfile;
+    if (!fallbackProfileRef.current) {
+      const fallbackName = 'Dev QA Player';
+      fallbackProfileRef.current = {
+        id: `dev-${uuid()}`,
+        displayName: fallbackName,
+        avatarSeed: fallbackName.toLowerCase().replace(/\s+/g, '-'),
+      };
+    }
+    return fallbackProfileRef.current;
+  }, [currentUserProfile]);
+  const usingFallbackProfile = !currentUserProfile && Boolean(effectiveCurrentUser);
   const generatorPlayerCount = React.useMemo(() => {
     const rosterCount = singleRosterPlayers.length;
     if (rosterCount >= 2) return rosterCount;
@@ -64,6 +80,7 @@ export default function Devtools() {
     lastGameRoute: string | null;
     lastSeed: string | null;
     lastTitle: string | null;
+    usedSyntheticProfile: boolean;
   }>({
     busy: false,
     error: null,
@@ -71,6 +88,7 @@ export default function Devtools() {
     lastGameRoute: null,
     lastSeed: null,
     lastTitle: null,
+    usedSyntheticProfile: false,
   });
 
   React.useEffect(() => {
@@ -223,11 +241,12 @@ export default function Devtools() {
   }, [backfillState.lastResult]);
 
   const handleGenerateGame = React.useCallback(async () => {
-    if (!currentUserProfile) {
+    const profile = effectiveCurrentUser;
+    if (!profile) {
       toast({
-        title: 'Single player human not set',
-        description: 'Assign a primary player in single player mode to enable generation.',
-        variant: 'warning',
+        title: 'Unable to generate game',
+        description: 'No player profile could be synthesized for single player mode.',
+        variant: 'destructive',
       });
       return;
     }
@@ -239,7 +258,7 @@ export default function Devtools() {
     }));
     try {
       const result = await saveGeneratedGame({
-        currentUser: currentUserProfile,
+        currentUser: profile,
         playerCount: generatorPlayerCount,
         seed: trimmedSeed || undefined,
       });
@@ -251,10 +270,13 @@ export default function Devtools() {
         lastGameRoute: route,
         lastSeed: result.seed,
         lastTitle: result.gameRecord.title,
+        usedSyntheticProfile: usingFallbackProfile,
       });
       toast({
         title: 'Synthetic game archived',
-        description: `Saved as ${result.gameRecord.title}`,
+        description: `Saved as ${result.gameRecord.title}${
+          usingFallbackProfile ? ' (Dev QA Player synthesized)' : ''
+        }`,
         variant: 'success',
       });
     } catch (error) {
@@ -264,6 +286,7 @@ export default function Devtools() {
         attributes: {
           reason: message,
           hasSeed: trimmedSeed ? 'yes' : 'no',
+          usedSyntheticProfile: usingFallbackProfile ? 'yes' : 'no',
         },
       });
       setGeneratorState((prev) => ({
@@ -277,7 +300,7 @@ export default function Devtools() {
         variant: 'destructive',
       });
     }
-  }, [currentUserProfile, generatorPlayerCount, generatorSeed, toast]);
+  }, [effectiveCurrentUser, generatorPlayerCount, generatorSeed, toast, usingFallbackProfile]);
 
   // Helper: readable label for a round state
   function labelForRoundState(s: RoundState): string {
@@ -505,14 +528,14 @@ export default function Devtools() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
               <button
                 onClick={handleGenerateGame}
-                disabled={generatorState.busy || !currentUserProfile}
+                disabled={generatorState.busy}
                 style={{
                   fontSize: 11,
                   padding: '4px 8px',
                   background: '#3b82f6',
                   color: '#0f172a',
                   borderRadius: 4,
-                  opacity: generatorState.busy || !currentUserProfile ? 0.7 : 1,
+                  opacity: generatorState.busy ? 0.7 : 1,
                 }}
               >
                 {generatorState.busy ? 'Generating…' : 'Generate single player game'}
@@ -532,18 +555,19 @@ export default function Devtools() {
                 {showGeneratorAdvanced ? 'Hide advanced' : 'Advanced'}
               </button>
             </div>
-            {!currentUserProfile ? (
+            {usingFallbackProfile ? (
               <div
                 style={{
-                  background: 'rgba(248,113,113,0.15)',
-                  border: '1px solid rgba(248,113,113,0.45)',
+                  background: 'rgba(59,130,246,0.18)',
+                  border: '1px solid rgba(96,165,250,0.45)',
                   borderRadius: 4,
                   padding: '6px 8px',
                   fontSize: 11,
                   marginBottom: 8,
                 }}
               >
-                Set a single player human to enable synthetic game generation.
+                No single player human detected. A temporary <strong>Dev QA Player</strong> will be
+                synthesized for this archive.
               </div>
             ) : null}
             {showGeneratorAdvanced ? (
@@ -572,11 +596,17 @@ export default function Devtools() {
                 />
                 <div style={{ fontSize: 11, opacity: 0.8 }}>
                   Using {generatorPlayerCount} roster players from the active single player lineup.
+                  {usingFallbackProfile
+                    ? ' Dev QA Player will fill the human seat automatically.'
+                    : ''}
                 </div>
               </div>
             ) : (
               <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 8 }}>
                 Using {generatorPlayerCount} roster players from the active single player lineup.
+                {usingFallbackProfile
+                  ? ' Dev QA Player will fill the human seat automatically.'
+                  : ''}
               </div>
             )}
             {generatorState.error ? (
@@ -620,6 +650,9 @@ export default function Devtools() {
                   </a>
                 </div>
                 <div>Seed used: {generatorState.lastSeed}</div>
+                {generatorState.usedSyntheticProfile ? (
+                  <div>Human profile: synthetic Dev QA Player</div>
+                ) : null}
               </div>
             ) : null}
           </div>
