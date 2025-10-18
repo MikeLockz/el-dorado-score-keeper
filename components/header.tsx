@@ -123,7 +123,11 @@ export default function Header() {
                 <DropdownMenu.Item
                   key={`dropdown-${item.href}`}
                   asChild
-                  className={clsx(styles.dropdownItem, isActive(item) && styles.dropdownItemActive)}
+                  className={clsx(
+                    styles.dropdownItem,
+                    styles.dropdownItemHideWhenInlineNavVisible,
+                    isActive(item) && styles.dropdownItemActive,
+                  )}
                 >
                   <Link href={item.href} aria-current={isActive(item) ? 'page' : undefined}>
                     {item.label}
@@ -131,13 +135,22 @@ export default function Header() {
                 </DropdownMenu.Item>
               ))}
               {secondaryNav.length ? (
-                <DropdownMenu.Separator className={styles.dropdownSeparator} />
+                <DropdownMenu.Separator
+                  className={clsx(
+                    styles.dropdownSeparator,
+                    styles.dropdownSeparatorHideWhenInlineNavVisible,
+                  )}
+                />
               ) : null}
               {secondaryNav.map((item) => (
                 <DropdownMenu.Item
                   key={`dropdown-${item.href}`}
                   asChild
-                  className={clsx(styles.dropdownItem, isActive(item) && styles.dropdownItemActive)}
+                  className={clsx(
+                    styles.dropdownItem,
+                    styles.dropdownItemHideWhenInlineNavVisible,
+                    isActive(item) && styles.dropdownItemActive,
+                  )}
                 >
                   <Link href={item.href} aria-current={isActive(item) ? 'page' : undefined}>
                     {item.label}

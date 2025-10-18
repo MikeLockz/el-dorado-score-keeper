@@ -154,10 +154,22 @@
   font-weight: 600;
 }
 
+.dropdownItemHideWhenInlineNavVisible {
+  @include breakpoints.respond('md') {
+    display: none;
+  }
+}
+
 .dropdownSeparator {
   height: 1px;
   background: color-mix(in oklch, var(--border) 85%, transparent);
   margin-block: spacing.spacing('space-1');
+}
+
+.dropdownSeparatorHideWhenInlineNavVisible {
+  @include breakpoints.respond('md') {
+    display: none;
+  }
 }
 
 .menuButton {

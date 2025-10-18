@@ -28,6 +28,7 @@
     "observability:proxy": "node --import tsx scripts/observability/proxy.ts",
     "observability:upload-source-maps": "node --import tsx scripts/observability/upload-source-maps.ts",
     "postinstall": "node scripts/setup-hooks.mjs",
+    "export:indexeddb": "node scripts/tools/export-indexeddb.mjs",
     "posthog:bootstrap": "node --import tsx scripts/posthog/bootstrap-dashboards.ts"
   },
   "dependencies": {
