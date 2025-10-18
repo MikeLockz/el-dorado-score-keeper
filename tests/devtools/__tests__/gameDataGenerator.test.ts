@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  generateGameData,
   generateRoster,
   generateRoundPlan,
   getRng,
   type GeneratedRosterEntry,
 } from '@/lib/devtools/generator/gameDataGenerator';
+import { tricksForRound } from '@/lib/state/logic';
 
 function collectRandomValues(seed: string): number[] {
   const rng = getRng(seed);
@@ -69,7 +71,10 @@ describe('generateRoundPlan', () => {
     });
 
     expect(rounds).toHaveLength(6);
-    for (const descriptor of rounds) {
+    for (const [index, descriptor] of rounds.entries()) {
+      expect(descriptor.roundNumber).toBe(index + 1);
+      const expectedTricks = tricksForRound(descriptor.roundNumber);
+      expect(Math.abs(descriptor.targetTricks - expectedTricks)).toBeLessThanOrEqual(1);
       const diff = Math.abs(descriptor.totalBid - descriptor.targetTricks);
       expect(diff).toBeLessThanOrEqual(2);
       const totalTricks = Object.values(descriptor.tricksTaken).reduce(
@@ -85,6 +90,39 @@ describe('generateRoundPlan', () => {
     const rounds = generateRoundPlan({ roster, rng: getRng('rounds-seed-2'), roundCount: 3 });
     for (const descriptor of rounds) {
       expect(Object.keys(descriptor.bids)).toEqual(roster.map((player) => player.id));
+    }
+  });
+});
+
+describe('generateGameData', () => {
+  const currentUser = { id: 'current-user', displayName: 'Dev', avatarSeed: 'dev' };
+
+  it('produces monotonic event timestamps and aligned summaries', () => {
+    const { events, roundTallies, gameRecord } = generateGameData({
+      currentUser,
+      seed: 'game-seed',
+      playerCount: 4,
+    });
+
+    expect(events.length).toBeGreaterThan(0);
+    const ts = events.map((event) => event.ts);
+    for (let i = 1; i < ts.length; i += 1) {
+      expect(ts[i]).toBeGreaterThanOrEqual(ts[i - 1]!);
+    }
+
+    const summary = gameRecord.summary;
+    expect(summary.roundsCompleted).toBeGreaterThan(0);
+    expect(summary.finalScores?.length).toBe(summary.players);
+    expect(summary.startedAt).toBeLessThan(summary.summaryEnteredAt ?? Infinity);
+    expect(summary.durationMs).toBeGreaterThan(0);
+    expect(summary.id).toBe(gameRecord.id);
+    expect(gameRecord.bundle.events).toEqual(events);
+
+    for (const [roundKey, tallies] of Object.entries(roundTallies)) {
+      const round = Number(roundKey);
+      const total = Object.values(tallies ?? {}).reduce((acc, value) => acc + value, 0);
+      expect(total).toBeGreaterThan(0);
+      expect(total).toBeLessThanOrEqual(tricksForRound(round) + 2);
     }
   });
 });
