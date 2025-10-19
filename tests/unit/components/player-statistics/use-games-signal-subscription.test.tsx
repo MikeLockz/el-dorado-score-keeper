@@ -55,12 +55,9 @@ describe('useGamesSignalSubscription', () => {
       return unsubscribe;
     });
 
-    const { rerender, unmount } = renderHook(
-      ({ handler }) => useGamesSignalSubscription(handler),
-      {
-        initialProps: { handler: firstHandler },
-      },
-    );
+    const { rerender, unmount } = renderHook(({ handler }) => useGamesSignalSubscription(handler), {
+      initialProps: { handler: firstHandler },
+    });
 
     await waitFor(() => {
       expect(subscribeToGamesSignalMock).toHaveBeenCalledTimes(1);

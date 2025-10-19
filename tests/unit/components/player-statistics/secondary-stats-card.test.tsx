@@ -43,9 +43,7 @@ describe('SecondaryStatsCard', () => {
   });
 
   it('shows historical warning copy when a load error is present and metrics are empty', () => {
-    render(
-      <SecondaryStatsCard loading={false} metrics={null} loadError="db blocked" />,
-    );
+    render(<SecondaryStatsCard loading={false} metrics={null} loadError="db blocked" />);
 
     expect(
       screen.getByText(/Historical data unavailable\. Live games will populate score insights/i),
