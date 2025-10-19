@@ -260,7 +260,7 @@ export default function Devtools() {
       const result = await saveGeneratedGame({
         currentUser: profile,
         playerCount: generatorPlayerCount,
-        seed: trimmedSeed || undefined,
+        seed: trimmedSeed || null,
       });
       const route = deriveGameRoute(result.gameRecord);
       setGeneratorState({

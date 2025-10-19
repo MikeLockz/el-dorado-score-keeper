@@ -51,7 +51,7 @@ export type SecondaryMetrics = Readonly<{
 export type RoundMetric = Readonly<{
   roundNo: number;
   bidCount: number;
-  bids: number[];
+  bids: ReadonlyArray<number>;
   highestBid: number | null;
   lowestBid: number | null;
   accuracyPercent: number | null;
@@ -321,8 +321,8 @@ export type AdvancedMetrics = Readonly<{
     perfectBidStreak: number;
   }>;
   suitMastery: Readonly<{
-    trumpWinRateBySuit: Readonly<Record<'clubs' | 'diamonds' | 'hearts' | 'spades', number>>;
-    trickSuccessBySuit: Readonly<Record<'clubs' | 'diamonds' | 'hearts' | 'spades', number>>;
+    trumpWinRateBySuit: Readonly<Record<'clubs' | 'diamonds' | 'hearts' | 'spades', number | null>>;
+    trickSuccessBySuit: Readonly<Record<'clubs' | 'diamonds' | 'hearts' | 'spades', number | null>>;
   }>;
   scoreVolatility: Readonly<{
     standardDeviation: number | null;

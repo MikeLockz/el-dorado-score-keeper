@@ -7,7 +7,7 @@ import { getMissingEntityMetadata } from '@/lib/ui/not-found-metadata';
 export function SinglePlayerGameMissing({ className }: { className?: string }) {
   return (
     <EntityMissingCard
-      className={className}
+      className={className ?? ''}
       metadata={getMissingEntityMetadata('singlePlayerGame')}
     />
   );

@@ -226,22 +226,19 @@ function fingerprintSnapshot(snapshot: SinglePlayerSnapshotV1): string {
   );
 }
 
-// FNV-1a 64-bit hash constants:
-// - FNV_OFFSET is the 64-bit offset basis (0xcbf29ce484222325).
-// - FNV_PRIME is the 64-bit FNV prime (0x100000001b3).
-// - FNV_MOD constrains the result to 53 bits, the largest safe integer in JS/TS.
+// FNV-1a 32-bit hash constants:
 // See: http://www.isthe.com/chongo/tech/comp/fnv/
-const FNV_OFFSET = 0xcbf29ce484222325n;
-const FNV_PRIME = 0x100000001b3n;
-const FNV_MOD = 1n << 53n;
+const FNV_OFFSET_32 = 0x811c9dc5;
+const FNV_PRIME_32 = 0x01000193;
 
 export function computeSnapshotChecksum(serialized: string): number {
-  let hash = FNV_OFFSET;
-  for (let i = 0; i < serialized.length; i++) {
-    hash ^= BigInt(serialized.charCodeAt(i));
-    hash = (hash * FNV_PRIME) % FNV_MOD;
+  let hash = FNV_OFFSET_32;
+  for (let i = 0; i < serialized.length; i += 1) {
+    hash ^= serialized.charCodeAt(i);
+    hash = Math.imul(hash, FNV_PRIME_32);
+    hash >>>= 0;
   }
-  return Number(hash);
+  return hash;
 }
 
 export function buildSinglePlayerSnapshot(
@@ -312,7 +309,7 @@ export async function persistSpSnapshot(
   }
   const snapshot = buildSinglePlayerSnapshot(state, height, {
     gameId: options.gameId ?? null,
-    now: options.now,
+    ...(typeof options.now === 'function' ? { now: options.now } : {}),
   });
   if (!snapshot) {
     if (!dedupeCache.inactiveCleared) {
@@ -340,23 +337,31 @@ export async function persistSpSnapshot(
     }
     return { persisted: false, skippedReason: 'no-active-session', height, errors };
   }
-  const fingerprint = fingerprintSnapshot(snapshot);
+  const activeSnapshot = snapshot;
+  const fingerprint = fingerprintSnapshot(activeSnapshot);
   const checksum = computeSnapshotChecksum(fingerprint);
   if (!options.force && dedupeCache.checksum === checksum && dedupeCache.height === height) {
     dedupeCache.persisted = true;
-    dedupeCache.gameId = snapshot.gameId;
+    dedupeCache.gameId = activeSnapshot.gameId;
     dedupeCache.inactiveCleared = false;
-    return { persisted: false, skippedReason: 'dedupe', height, checksum, snapshot, errors };
+    return {
+      persisted: false,
+      skippedReason: 'dedupe',
+      height,
+      checksum,
+      snapshot: activeSnapshot,
+      errors,
+    };
   }
   dedupeCache.checksum = checksum;
   dedupeCache.height = height;
   dedupeCache.persisted = true;
-  dedupeCache.gameId = snapshot.gameId;
+  dedupeCache.gameId = activeSnapshot.gameId;
   dedupeCache.inactiveCleared = false;
-  const serialized = serializeSnapshot(snapshot);
+  const serialized = serializeSnapshot(activeSnapshot);
   if (adapters.indexedDb?.write) {
     try {
-      await adapters.indexedDb.write(snapshot);
+      await adapters.indexedDb.write(activeSnapshot);
     } catch (error) {
       errors.push({ target: 'indexed-db', error });
       options.onWarn?.('sp.snapshot.persist.indexeddb_failed', error);
@@ -373,7 +378,10 @@ export async function persistSpSnapshot(
     await new Promise<void>((resolve) => {
       enqueue(() => {
         try {
-          const maybePromise = adapters.localStorage?.write({ serialized, snapshot });
+          const maybePromise = adapters.localStorage?.write({
+            serialized,
+            snapshot: activeSnapshot,
+          });
           if (isPromiseLike<void>(maybePromise)) {
             Promise.resolve(maybePromise)
               .then(() => resolve())
@@ -393,7 +401,7 @@ export async function persistSpSnapshot(
       });
     });
   }
-  return { persisted: true, height, checksum, snapshot, errors };
+  return { persisted: true, height, checksum, snapshot: activeSnapshot, errors };
 }
 
 export async function loadLatestSnapshot(
@@ -610,6 +618,9 @@ function trimGameIndexEntries(
 export function createIndexedDbAdapter(db: IDBDatabase): SpSnapshotIndexedDbAdapter {
   return {
     write: async (snapshot) => {
+      if (!snapshot) {
+        return;
+      }
       const t = tx(db, 'readwrite', [storeNames.STATE]);
       const store = t.objectStore(storeNames.STATE);
 
@@ -637,7 +648,10 @@ export function createIndexedDbAdapter(db: IDBDatabase): SpSnapshotIndexedDbAdap
           const existingIndex = coerceGameIndexEntries(record?.games ?? record ?? {});
           const nextEntries = {
             ...existingIndex,
-            [snapshot.gameId]: { height: snapshot.height, savedAt: snapshot.savedAt },
+            [snapshot.gameId]: {
+              height: snapshot.height,
+              savedAt: snapshot.savedAt,
+            },
           };
           const trimmed = trimGameIndexEntries(nextEntries);
 

@@ -88,7 +88,7 @@ export default function SinglePlayerGameLayout({ children }: { children: React.R
   }
 
   if (!availability || availability.status !== 'found') {
-    return <SinglePlayerGameMissing className={styles.missing} />;
+    return <SinglePlayerGameMissing className={styles.missing ?? ''} />;
   }
 
   return (

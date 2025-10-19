@@ -21,11 +21,7 @@ const integerFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 0,
 });
 
-export function RoundAccuracyChart({
-  metrics,
-  loading,
-  loadError,
-}: RoundAccuracyChartProps): JSX.Element {
+export function RoundAccuracyChart({ metrics, loading, loadError }: RoundAccuracyChartProps) {
   const data = React.useMemo(() => metrics ?? [], [metrics]);
   const hasData = data.some((metric) => metric.accuracyTotal > 0 || metric.bidCount > 0);
   const emptyMessage = loadError

@@ -194,7 +194,7 @@ const createTelemetry = async (): Promise<BrowserTelemetry> => {
     base.environment = config.environment;
     base.service = config.serviceName;
     base['service.name'] = config.serviceName;
-    const sessionUrl = adapter.getSessionUrl?.();
+    const sessionUrl = activeAdapter.getSessionUrl?.();
     if (sessionUrl) {
       base.sessionUrl = sessionUrl;
     }

@@ -171,13 +171,22 @@ const emitSpanErrorLog = (details: SpanErrorLog) => {
   if (typeof window !== 'undefined') {
     void import('@/lib/client-log')
       .then(({ logEvent }) => {
-        logEvent('observability-span-error', {
+        const payload: SpanAttributesInput = {
           span: details.span,
           message: details.message,
-          name: details.name,
           runtime: details.runtime,
-          attributes: details.attributes,
-        });
+        };
+        if (details.name) {
+          payload.name = details.name;
+        }
+        if (details.attributes) {
+          try {
+            payload.attributes = JSON.stringify(details.attributes);
+          } catch {
+            payload.attributes = '[unserializable]';
+          }
+        }
+        logEvent('observability-span-error', payload);
       })
       .catch(() => {
         if (process.env.NODE_ENV !== 'production') {
@@ -239,7 +248,7 @@ export const recordSpanError = (
     message: normalizedError.message,
     name: normalizedError.name,
     runtime,
-    attributes: sanitizedAttributes,
+    ...(sanitizedAttributes ? { attributes: sanitizedAttributes } : {}),
   });
 };
 
@@ -247,8 +256,8 @@ const invokeCallback = <T>(
   span: TelemetrySpan | null,
   name: string,
   runtime: ObservabilityRuntime,
-  attributes?: SpanAttributesInput,
   callback: WithSpanCallback<T>,
+  attributes?: SpanAttributesInput,
 ): T | Promise<T> => {
   try {
     const result = callback(span);
@@ -297,22 +306,24 @@ export function withSpan<T>(
     throw new Error('withSpan requires a callback function');
   }
 
+  const executeCallback = callback;
   const resolvedOptions = options ?? {};
   const runtime = resolveRuntime(resolvedOptions.runtime);
   const attributeInput = resolvedOptions.attributes ?? attributes;
   const sanitizedAttributes = sanitizeAttributes(attributeInput);
 
   if (!shouldInstrument(runtime)) {
-    return callback(null);
+    return executeCallback(null);
   }
 
   const tracer = getTracer();
   if (!tracer) {
-    return callback(null);
+    return executeCallback(null);
   }
 
-  return tracer.startActiveSpan(name, { attributes: sanitizedAttributes }, (span) => {
-    const result = invokeCallback(span, name, runtime, attributeInput, callback);
+  const spanOptions = sanitizedAttributes ? { attributes: sanitizedAttributes } : {};
+  return tracer.startActiveSpan(name, spanOptions, (span) => {
+    const result = invokeCallback(span, name, runtime, executeCallback, attributeInput);
     if (isPromise<T>(result)) {
       return result
         .then((value) => {

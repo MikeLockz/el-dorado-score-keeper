@@ -8,8 +8,6 @@ export type PlayerStatisticsPageClientProps = {
   playerId: string;
 };
 
-export default function PlayerStatisticsPageClient({
-  playerId,
-}: PlayerStatisticsPageClientProps): JSX.Element {
+export default function PlayerStatisticsPageClient({ playerId }: PlayerStatisticsPageClientProps) {
   return <PlayerStatisticsView playerId={playerId} />;
 }

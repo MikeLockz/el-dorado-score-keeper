@@ -34,11 +34,7 @@ export type HandInsightsCardProps = Readonly<{
   loadError?: string | null;
 }>;
 
-export function HandInsightsCard({
-  loading,
-  insight,
-  loadError,
-}: HandInsightsCardProps): JSX.Element {
+export function HandInsightsCard({ loading, insight, loadError }: HandInsightsCardProps) {
   const totalHands = insight?.handsPlayed ?? 0;
   const hasData = totalHands > 0;
   const topSuit = hasData ? (insight?.topSuit ?? null) : null;

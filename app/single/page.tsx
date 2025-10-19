@@ -8,9 +8,8 @@ export const metadata: Metadata = {
     index: false,
     follow: false,
   },
-  refresh: {
-    url: TARGET,
-    seconds: 0,
+  other: {
+    refresh: `0; url=${TARGET}`,
   },
 };
 

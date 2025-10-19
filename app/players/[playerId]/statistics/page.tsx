@@ -9,17 +9,22 @@ export async function generateStaticParams() {
 }
 
 type RouteParams = {
-  playerId?: string;
+  playerId?: string | string[];
 };
 
 type PageParams = {
-  params: Promise<RouteParams> | RouteParams;
+  params?: Promise<RouteParams>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-async function resolveParams(input: PageParams['params']): Promise<RouteParams> {
-  return typeof (input as Promise<RouteParams>)?.then === 'function'
-    ? ((await input) as RouteParams)
-    : ((input as RouteParams) ?? {});
+type ResolveInput = PageParams['params'] | RouteParams | undefined;
+
+async function resolveParams(input: ResolveInput): Promise<RouteParams> {
+  if (!input) {
+    return {};
+  }
+  const resolved = await Promise.resolve(input);
+  return resolved ?? {};
 }
 
 function makeTitle(playerId: string): string {

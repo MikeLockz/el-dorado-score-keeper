@@ -3,6 +3,7 @@
 import React from 'react';
 import clsx from 'clsx';
 import { Activity, Medal, Target, TrendingDown, TrendingUp } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import type { SecondaryMetrics } from '@/lib/state/player-statistics';
 
@@ -41,7 +42,7 @@ const ordinalSuffixes: Record<Intl.LDMLPluralRule, string> = {
 type MetricConfig = Readonly<{
   key: keyof SecondaryMetrics;
   label: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  icon: LucideIcon;
   trend?: 'up' | 'down';
   formatter: (value: number | null) => string;
   description: string;
@@ -76,8 +77,7 @@ const metricConfigs: ReadonlyArray<MetricConfig> = [
     label: 'Bid accuracy',
     icon: Target,
     trend: 'up',
-    formatter: (value) =>
-      value == null ? '—' : `${percentFormatter.format(value)}%`,
+    formatter: (value) => (value == null ? '—' : `${percentFormatter.format(value)}%`),
     description: 'Share of rounds where bid matched tricks taken.',
   },
   {
@@ -90,11 +90,7 @@ const metricConfigs: ReadonlyArray<MetricConfig> = [
   },
 ];
 
-export function SecondaryStatsCard({
-  loading,
-  metrics,
-  loadError,
-}: SecondaryStatsCardProps): JSX.Element {
+export function SecondaryStatsCard({ loading, metrics, loadError }: SecondaryStatsCardProps) {
   const showEmpty = !loading && (!metrics || metrics.averageScore == null);
   const emptyMessage = loadError
     ? 'Historical data unavailable. Live games will populate score insights when complete.'

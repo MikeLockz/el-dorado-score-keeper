@@ -37,9 +37,11 @@ export async function saveGeneratedGame(
 
   const payload = generateGameData({
     currentUser: options.currentUser,
-    playerCount: options.playerCount,
-    roundCount: options.roundCount,
-    startTimestamp: options.startTimestamp,
+    ...(typeof options.playerCount === 'number' ? { playerCount: options.playerCount } : {}),
+    ...(typeof options.roundCount === 'number' ? { roundCount: options.roundCount } : {}),
+    ...(typeof options.startTimestamp === 'number'
+      ? { startTimestamp: options.startTimestamp }
+      : {}),
     seed,
   });
 

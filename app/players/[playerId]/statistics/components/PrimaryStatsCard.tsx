@@ -42,11 +42,7 @@ function formatMetricValue(name: keyof PrimaryMetrics, value: number): string {
   return integerFormatter.format(value);
 }
 
-export function PrimaryStatsCard({
-  loading,
-  metrics,
-  loadError,
-}: PrimaryStatsCardProps): JSX.Element {
+export function PrimaryStatsCard({ loading, metrics, loadError }: PrimaryStatsCardProps) {
   const displayMetrics = metrics ?? null;
   const showEmpty = !loading && (!displayMetrics || displayMetrics.totalGamesPlayed === 0);
 

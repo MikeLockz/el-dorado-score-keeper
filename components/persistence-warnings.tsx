@@ -72,7 +72,7 @@ export function PersistenceWarningBridge() {
         title: config.title,
         description,
         variant: config.variant,
-        duration: config.duration,
+        ...(typeof config.duration === 'number' ? { duration: config.duration } : {}),
       });
     }
   }, [warnings, toast]);

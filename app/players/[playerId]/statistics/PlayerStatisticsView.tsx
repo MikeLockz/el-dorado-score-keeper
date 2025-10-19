@@ -34,7 +34,7 @@ export type PlayerStatisticsViewProps = {
 
 const skeletonItems = Array.from({ length: 3 });
 
-export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): JSX.Element {
+export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps) {
   const router = useRouter();
   const { state, ready } = useAppState();
   const trimmedPlayerId = React.useMemo(() => playerId.trim(), [playerId]);
@@ -240,7 +240,7 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
             <PrimaryStatsCard
               loading={isLoading}
               metrics={resolvedSummary?.primary ?? null}
-              loadError={resolvedSummary?.loadError}
+              loadError={resolvedSummary?.loadError ?? null}
             />
           )}
         </Card>
@@ -257,7 +257,7 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
             <SecondaryStatsCard
               loading={isLoading}
               metrics={resolvedSummary?.secondary ?? null}
-              loadError={resolvedSummary?.loadError}
+              loadError={resolvedSummary?.loadError ?? null}
             />
           )}
         </Card>
@@ -274,7 +274,7 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
             <RoundAccuracyChart
               loading={isLoading}
               metrics={resolvedSummary?.rounds ?? []}
-              loadError={resolvedSummary?.loadError}
+              loadError={resolvedSummary?.loadError ?? null}
             />
           )}
         </Card>
@@ -291,7 +291,7 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
             <HandInsightsCard
               loading={isLoading}
               insight={resolvedSummary?.handInsights ?? null}
-              loadError={resolvedSummary?.loadError}
+              loadError={resolvedSummary?.loadError ?? null}
             />
           )}
         </Card>
@@ -308,7 +308,7 @@ export function PlayerStatisticsView({ playerId }: PlayerStatisticsViewProps): J
             <AdvancedInsightsPanel
               loading={isLoading}
               metrics={resolvedSummary?.advanced ?? null}
-              loadError={resolvedSummary?.loadError}
+              loadError={resolvedSummary?.loadError ?? null}
             />
           )}
         </Card>

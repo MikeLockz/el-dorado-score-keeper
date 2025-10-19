@@ -51,6 +51,9 @@ export default function SpRoundSummary(props: {
     scoreCardGrid,
   } = props;
   const autoSecs = Math.ceil((remainingMs ?? 0) / 1000);
+  if (!scoreCardGrid) {
+    return null;
+  }
   return (
     <div className={styles.root} onPointerDown={onCancelAuto}>
       <header className={styles.header}>

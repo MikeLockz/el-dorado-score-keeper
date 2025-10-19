@@ -39,11 +39,7 @@ const scoreFormatter = new Intl.NumberFormat(undefined, {
   minimumFractionDigits: 0,
 });
 
-export function AdvancedInsightsPanel({
-  loading,
-  metrics,
-  loadError,
-}: AdvancedInsightsPanelProps): JSX.Element {
+export function AdvancedInsightsPanel({ loading, metrics, loadError }: AdvancedInsightsPanelProps) {
   if (!metrics) {
     const emptyMessage = loadError
       ? 'Advanced analytics are unavailable while historical data is offline.'
@@ -209,7 +205,7 @@ type MetricTileProps = Readonly<{
   icon?: React.ReactNode;
 }>;
 
-function MetricTile({ label, description, value, icon }: MetricTileProps): JSX.Element {
+function MetricTile({ label, description, value, icon }: MetricTileProps) {
   return (
     <div className={styles.metricTile} role="group" aria-roledescription="metric">
       <div className={styles.metricHeading}>

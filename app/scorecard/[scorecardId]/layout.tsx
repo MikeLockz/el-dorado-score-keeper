@@ -126,13 +126,13 @@ export default function ScorecardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!availability || availability.status !== 'found' || availability.status === 'archived') {
+  if (!availability || availability.status !== 'found') {
     console.warn('[scorecard-layout] scorecard unavailable', {
       scorecardId,
       activeScorecardId,
       availabilityStatus: availability?.status ?? null,
     });
-    return <ScorecardMissing className={styles.missing} />;
+    return <ScorecardMissing className={styles.missing ?? ''} />;
   }
 
   return (

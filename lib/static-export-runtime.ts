@@ -68,12 +68,11 @@ const computeRewrite = (pathname: string): RewriteDetails | null => {
     return null;
   }
 
-  const root = segments[0];
-  if (!DYNAMIC_ROOT_SEGMENTS.has(root)) {
+  const [root, id] = segments;
+  if (!root || !DYNAMIC_ROOT_SEGMENTS.has(root)) {
     return null;
   }
 
-  const id = segments[1];
   if (!id || id === STATIC_EXPORT_PLACEHOLDER) {
     return null;
   }

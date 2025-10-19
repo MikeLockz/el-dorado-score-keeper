@@ -198,13 +198,13 @@ export function generateGameData(options: GeneratedGameOptions): GeneratedGamePa
   const rng = getRng(options.seed);
   const roster = generateRoster({
     currentUser: options.currentUser,
-    playerCount: options.playerCount,
+    ...(typeof options.playerCount === 'number' ? { playerCount: options.playerCount } : {}),
     rng,
   });
   const rounds = generateRoundPlan({
     roster,
     rng,
-    roundCount: options.roundCount,
+    ...(typeof options.roundCount === 'number' ? { roundCount: options.roundCount } : {}),
   });
 
   const startTimestamp =
@@ -229,6 +229,7 @@ export function generateGameData(options: GeneratedGameOptions): GeneratedGamePa
   const version = SUMMARY_METADATA_VERSION;
   const durationMs = Math.max(0, summaryEnteredAt - startTimestamp);
 
+  const spSummary = enrichSinglePlayerSummary(baseSummary, roundTallies);
   const updatedSummary = {
     ...baseSummary,
     mode: 'single-player' as const,
@@ -241,7 +242,7 @@ export function generateGameData(options: GeneratedGameOptions): GeneratedGamePa
     durationMs,
     version,
     metadata: enrichSummaryMetadata(baseSummary?.metadata, summaryEnteredAt, version),
-    sp: enrichSinglePlayerSummary(baseSummary, roundTallies),
+    ...(spSummary ? { sp: spSummary } : {}),
   };
 
   const gameId = uuid();

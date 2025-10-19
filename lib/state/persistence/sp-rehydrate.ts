@@ -153,8 +153,10 @@ export async function rehydrateSinglePlayerFromSnapshot(
   const loadResult = await loadSnapshotByGameId({
     gameId,
     adapters: options.adapters,
-    allowLocalStorageFallback: options.allowLocalStorageFallback,
-    onWarn: options.onWarn,
+    ...(typeof options.allowLocalStorageFallback === 'boolean'
+      ? { allowLocalStorageFallback: options.allowLocalStorageFallback }
+      : {}),
+    ...(options.onWarn ? { onWarn: options.onWarn } : {}),
   });
   return resolveLoadResult(baseState, loadResult);
 }

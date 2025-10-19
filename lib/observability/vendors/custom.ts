@@ -29,14 +29,23 @@ const buildNewRelicInit = (config: BrowserVendorInitConfig): BrowserVendorInitCo
     return null;
   }
 
-  return {
+  const base: BrowserVendorInitConfig = {
     apiKey: config.apiKey,
     service: config.service,
-    url: config.url,
-    consoleCapture: config.consoleCapture,
-    debug: config.debug,
-    newRelic: config.newRelic,
-  } satisfies BrowserVendorInitConfig;
+  };
+  if (typeof config.url === 'string') {
+    base.url = config.url;
+  }
+  if (typeof config.consoleCapture === 'boolean') {
+    base.consoleCapture = config.consoleCapture;
+  }
+  if (typeof config.debug === 'boolean') {
+    base.debug = config.debug;
+  }
+  if (config.newRelic) {
+    base.newRelic = config.newRelic;
+  }
+  return base;
 };
 
 const buildPosthogInit = (config: BrowserVendorInitConfig): BrowserVendorInitConfig | null => {
@@ -45,14 +54,23 @@ const buildPosthogInit = (config: BrowserVendorInitConfig): BrowserVendorInitCon
     return null;
   }
 
-  return {
+  const base: BrowserVendorInitConfig = {
     apiKey: posthog.apiKey,
     service: config.service,
-    url: posthog.host,
-    consoleCapture: config.consoleCapture,
-    debug: posthog.debug ?? config.debug,
     posthog,
-  } satisfies BrowserVendorInitConfig;
+  };
+  if (typeof posthog.host === 'string') {
+    base.url = posthog.host;
+  }
+  if (typeof config.consoleCapture === 'boolean') {
+    base.consoleCapture = config.consoleCapture;
+  }
+  if (typeof posthog.debug === 'boolean') {
+    base.debug = posthog.debug;
+  } else if (typeof config.debug === 'boolean') {
+    base.debug = config.debug;
+  }
+  return base;
 };
 
 const toPromise = (result: InitResult): Promise<void> | null => {

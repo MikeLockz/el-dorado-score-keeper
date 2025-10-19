@@ -24,6 +24,14 @@ export type HistoricalSummaryBackfillResult = HistoricalSummaryBackfillProgress 
   durationMs: number;
 };
 
+type MutableHistoricalSummaryBackfillProgress = {
+  processed: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  lastGameId: string | null;
+};
+
 export type BackfillCandidate = Readonly<{
   id: string;
   title: string;
@@ -471,8 +479,8 @@ function canonicalizeSummary(
       playerTypesById: playerTypes,
       displayOrder: { ...snapshot.displayOrder },
     },
-    slotMapping,
-    sp,
+    slotMapping: slotMapping ?? null,
+    ...(sp ? { sp } : {}),
   };
 }
 
@@ -575,7 +583,7 @@ export async function runHistoricalSummaryBackfill({
   limit?: number;
 } = {}): Promise<HistoricalSummaryBackfillResult> {
   const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  const progress: HistoricalSummaryBackfillProgress = {
+  const progress: MutableHistoricalSummaryBackfillProgress = {
     processed: 0,
     updated: 0,
     skipped: 0,
@@ -634,8 +642,8 @@ export async function ensureHistoricalSummariesBackfilled(
     try {
       const result = await runHistoricalSummaryBackfill({
         gamesDbName: options.gamesDbName ?? GAMES_DB_NAME,
-        onProgress: options.onProgress,
-        limit: options.limit,
+        ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+        ...(typeof options.limit === 'number' ? { limit: options.limit } : {}),
       });
       if (result.failed === 0) {
         persistBackfillVersion(SUMMARY_METADATA_VERSION);

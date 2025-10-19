@@ -62,10 +62,15 @@ const resolveAdapterConfig = (
     return null;
   }
 
-  const host = config.posthog?.host ?? config.url;
   const debug = Boolean(config.posthog?.debug ?? config.debug);
 
-  return { apiKey, host, debug };
+  const init: { apiKey: string; host?: string; debug: boolean } = { apiKey, debug };
+  const host = config.posthog?.host ?? config.url;
+  if (typeof host === 'string' && host.length > 0) {
+    init.host = host;
+  }
+
+  return init;
 };
 
 const toCaptureProperties = (attributes?: Record<string, unknown>) => {

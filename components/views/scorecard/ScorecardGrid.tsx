@@ -592,7 +592,7 @@ export default function ScorecardGrid({
                         <>
                           <FitRow
                             id={cellKeyId}
-                            className={styles.detailRow}
+                            className={styles.detailRow ?? ''}
                             maxRem={0.65}
                             minRem={0.5}
                             full={
@@ -614,7 +614,7 @@ export default function ScorecardGrid({
                             }
                           />
                           <FitRow
-                            className={styles.detailRow}
+                            className={styles.detailRow ?? ''}
                             maxRem={0.65}
                             minRem={0.5}
                             abbrevAtRem={0.55}

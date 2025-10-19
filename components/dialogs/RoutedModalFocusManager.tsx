@@ -26,8 +26,8 @@ const VISUALLY_HIDDEN_STYLES: Partial<CSSStyleDeclaration> = {
 };
 
 export type RoutedModalFocusManagerProps = {
-  contentRef: React.RefObject<HTMLElement>;
-  initialFocusRef?: React.RefObject<HTMLElement>;
+  contentRef: React.RefObject<HTMLElement | null>;
+  initialFocusRef?: React.RefObject<HTMLElement | null>;
   announcement?: string;
   politeness?: 'polite' | 'assertive';
   restoreFocusDelayMs?: number;
@@ -42,8 +42,8 @@ export function RoutedModalFocusManager({
 }: RoutedModalFocusManagerProps) {
   useRoutedModalFocusManager({
     contentRef,
-    initialFocusRef,
-    announcement,
+    ...(initialFocusRef ? { initialFocusRef } : {}),
+    ...(announcement !== undefined ? { announcement } : {}),
     politeness,
     restoreFocusDelayMs,
   });

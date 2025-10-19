@@ -22,6 +22,7 @@ import {
   resolveScorecardRoute,
   SCORECARD_HUB_PATH,
   type AppState,
+  type AppEvent,
 } from '@/lib/state';
 import { uuid } from '@/lib/utils';
 
@@ -104,7 +105,13 @@ export default function ScorecardNewPageClient() {
     void removePlayers();
   }, [appendMany, cleared, clearing, players, ready]);
 
-  const rosterPlayers = React.useMemo(() => {
+  type RosterPlayerSummary = {
+    id: string;
+    name: string;
+    type: 'human' | 'bot';
+  };
+
+  const rosterPlayers = React.useMemo<RosterPlayerSummary[]>(() => {
     if (!selectedRosterId) return [];
     const roster = rosterMap[selectedRosterId];
     if (!roster) return [];
@@ -112,7 +119,7 @@ export default function ScorecardNewPageClient() {
     return order.map((id) => ({
       id,
       name: roster.playersById?.[id] ?? id,
-      type: roster.playerTypesById?.[id] ?? 'human',
+      type: (roster.playerTypesById?.[id] ?? 'human') as 'human' | 'bot',
     }));
   }, [rosterMap, selectedRosterId]);
 
@@ -167,15 +174,19 @@ export default function ScorecardNewPageClient() {
     setPendingAction('create');
     setSubmitError(null);
     try {
-      const addEvents = Array.from({ length: playerCount }).map((_, idx) => {
+      const addEvents: AppEvent[] = [];
+      const order: string[] = [];
+      for (let idx = 0; idx < playerCount; idx += 1) {
         const id = uuid();
-        return events.playerAdded({
-          id,
-          name: `Player ${idx + 1}`,
-          type: 'human',
-        });
-      });
-      const order = addEvents.map((evt) => evt.payload.id);
+        addEvents.push(
+          events.playerAdded({
+            id,
+            name: `Player ${idx + 1}`,
+            type: 'human',
+          }),
+        );
+        order.push(id);
+      }
       const reorder = events.playersReordered({ order });
       await appendMany([...addEvents, reorder]);
       router.replace(targetRoute);

@@ -14,6 +14,7 @@ import {
 import { ensureSinglePlayerGameIdentifiers } from './utils';
 import { uuid } from '@/lib/utils';
 import { captureBrowserMessage, trackBrowserEvent } from '@/lib/observability/browser';
+import type { SpanAttributesInput } from '@/lib/observability/spans';
 
 export type RouteHydrationContext = Readonly<{
   mode: 'single-player' | 'scorecard' | null;
@@ -145,7 +146,7 @@ export async function createInstance(opts?: {
   };
   const localSnapshotAdapter = createLocalStorageAdapter();
   function logSnapshotWarning(code: string, info: unknown, currentHeight: number) {
-    const attributes: Record<string, unknown> = { code, height: currentHeight };
+    const attributes: SpanAttributesInput = { code, height: currentHeight };
     if (info instanceof Error) {
       attributes.reason = info.message;
       attributes.errorName = info.name;
@@ -299,7 +300,7 @@ export async function createInstance(opts?: {
     const roundedDuration = Number.isFinite(durationMs)
       ? Number(Math.max(0, durationMs).toFixed(2))
       : 0;
-    const metrics: Record<string, unknown> = {
+    const metrics: SpanAttributesInput = {
       height: result?.height ?? currentHeight,
       duration_ms: roundedDuration,
       persisted: Boolean(result?.persisted),
@@ -628,7 +629,7 @@ export async function createInstance(opts?: {
         onWarn: (code, info) => logSnapshotWarning(code, info, height),
       });
       const durationMs = Number(Math.max(0, readTimer() - started).toFixed(2));
-      const metrics: Record<string, unknown> = {
+      const metrics: SpanAttributesInput = {
         game_id: target,
         height: result.height,
         applied: result.applied,

@@ -181,13 +181,23 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   if (verboseLogging) {
     console.info('[observability] proxy request', req.method, targetUrl.pathname);
     const apiKeyHeader = headers['api-key'] ?? headers.authorization;
-    if (apiKeyHeader) {
-      const normalized = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : String(apiKeyHeader);
-      const masked =
-        normalized.length > 8 ? `${normalized.slice(0, 4)}…${normalized.slice(-4)}` : normalized;
-      console.info('[observability] proxy api key detected', masked);
-    } else {
+    if (apiKeyHeader == null) {
       console.info('[observability] proxy api key missing');
+    } else {
+      const normalized = Array.isArray(apiKeyHeader)
+        ? (apiKeyHeader.find(
+            (value): value is string => typeof value === 'string' && value.length > 0,
+          ) ?? null)
+        : typeof apiKeyHeader === 'string'
+          ? apiKeyHeader
+          : null;
+      if (normalized && normalized.length > 0) {
+        const masked =
+          normalized.length > 8 ? `${normalized.slice(0, 4)}…${normalized.slice(-4)}` : normalized;
+        console.info('[observability] proxy api key detected', masked);
+      } else {
+        console.info('[observability] proxy api key empty');
+      }
     }
 
     const requestChunks: Buffer[] = [];

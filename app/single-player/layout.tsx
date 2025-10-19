@@ -24,20 +24,11 @@ export default function SinglePlayerLayout({ children }: { children: React.React
     if (redirectRef.current) return;
 
     const currentId = getCurrentSinglePlayerGameId(state);
-    let target: string | null = null;
-    if (currentId) {
-      target = singlePlayerPath(currentId);
-    } else if (hasSinglePlayerProgress(state)) {
-      target = '/single-player/new/archive';
-    } else {
-      target = '/single-player/new';
-    }
-
-    if (!target) {
-      redirectRef.current = true;
-      setHasRedirected(true);
-      return;
-    }
+    const target = currentId
+      ? singlePlayerPath(currentId)
+      : hasSinglePlayerProgress(state)
+        ? '/single-player/new/archive'
+        : '/single-player/new';
 
     redirectRef.current = true;
     void Promise.resolve().then(() => {
