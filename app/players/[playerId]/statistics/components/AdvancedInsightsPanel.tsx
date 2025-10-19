@@ -181,6 +181,24 @@ export function AdvancedInsightsPanel({ loading, metrics, loadError }: AdvancedI
           <TrendingUp size={18} aria-hidden="true" />
           <span>Momentum</span>
         </header>
+        <div className={styles.sparklineWrapper}>
+          {loading ? (
+            <div className={styles.sparklineEmpty}>Calculating rolling average…</div>
+          ) : sparkline ? (
+            <svg
+              className={styles.sparkline}
+              viewBox="0 0 240 80"
+              role="img"
+              aria-label="Rolling average score trend"
+            >
+              <path className={styles.sparklinePath} d={sparkline} />
+            </svg>
+          ) : (
+            <div className={styles.sparklineEmpty}>
+              Play additional games to unlock momentum trends.
+            </div>
+          )}
+        </div>
         <div className={styles.momentumGrid}>
           <MetricTile
             label="Current win streak"
@@ -193,6 +211,13 @@ export function AdvancedInsightsPanel({ loading, metrics, loadError }: AdvancedI
             value={loading ? '...' : formatInteger(momentum.longestWinStreak)}
           />
         </div>
+        {rollingWindow > 0 ? (
+          <div className={styles.momentumHint} role="note">
+            {`Rolling average covers the last ${rollingWindow} ${
+              rollingWindow === 1 ? 'game' : 'games'
+            }.`}
+          </div>
+        ) : null}
       </section>
     </div>
   );

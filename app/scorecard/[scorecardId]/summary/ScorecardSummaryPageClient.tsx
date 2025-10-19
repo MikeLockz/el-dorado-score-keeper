@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 import { useAppState } from '@/components/state-provider';
 import { selectScorecardById, scorecardPath } from '@/lib/state';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { trackScorecardSummaryExport } from '@/lib/observability/events';
 import { shareLink } from '@/lib/ui/share';
 import { useToast } from '@/components/ui/toast';
+import { scrubDynamicParam } from '@/lib/static-export';
 
 import ScorecardMissing from '../_components/ScorecardMissing';
 import styles from './page.module.scss';
@@ -22,17 +23,30 @@ type ScorecardPlayer = {
 };
 
 export type ScorecardSummaryPageClientProps = {
-  scorecardId: string;
+  scorecardId?: string;
 };
 
 export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPageClientProps) {
   const router = useRouter();
+  const params = useParams();
   const { state, ready } = useAppState();
-  const { toast } = useToast();
+  let toastApi: ReturnType<typeof useToast> | null = null;
+  try {
+    toastApi = useToast();
+  } catch {
+    toastApi = null;
+  }
+  const toast = toastApi?.toast ?? (() => {});
+
+  const resolvedScorecardId = React.useMemo(() => {
+    if (scorecardId && scorecardId.trim()) return scorecardId.trim();
+    const raw = params?.scorecardId as string | string[] | undefined;
+    return scrubDynamicParam(raw);
+  }, [params, scorecardId]);
 
   const session = React.useMemo(
-    () => selectScorecardById(state, scorecardId),
-    [state, scorecardId],
+    () => selectScorecardById(state, resolvedScorecardId),
+    [state, resolvedScorecardId],
   );
 
   const players: ScorecardPlayer[] = React.useMemo(() => {
@@ -44,24 +58,26 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
   const maxScore = players.length > 0 ? Math.max(...players.map((p) => p.score)) : 0;
 
   const handlePrint = React.useCallback(() => {
+    if (!resolvedScorecardId) return;
     trackScorecardSummaryExport({
-      scorecardId,
+      scorecardId: resolvedScorecardId,
       format: 'print',
       source: 'scorecard.summary.page',
     });
     if (typeof window !== 'undefined' && typeof window.print === 'function') {
       window.print();
     }
-  }, [scorecardId]);
+  }, [resolvedScorecardId]);
 
   const handleCopyLink = React.useCallback(async () => {
+    if (!resolvedScorecardId) return;
     await shareLink({
-      href: scorecardPath(scorecardId, 'summary'),
+      href: scorecardPath(resolvedScorecardId, 'summary'),
       toast,
       title: 'Scorecard summary',
       successMessage: 'Scorecard summary link copied',
     });
-  }, [scorecardId, toast]);
+  }, [resolvedScorecardId, toast]);
 
   if (!ready) {
     return (
@@ -78,8 +94,33 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
     return <ScorecardMissing />;
   }
 
+  const canRenderCurrentGame =
+    typeof window !== 'undefined' && typeof (window as any).ResizeObserver === 'function';
+
   return (
     <div className={styles.container}>
+      <header className={styles.header}>
+        <div>
+          <h2 className={styles.title}>Score totals</h2>
+          <p className={styles.description}>
+            {players.length > 0
+              ? 'Share or print the final scores for this session.'
+              : 'Add players to this scorecard to view summary totals.'}
+          </p>
+        </div>
+        <div className={styles.actions}>
+          <Button
+            variant="outline"
+            onClick={() => void handleCopyLink()}
+            aria-label="Copy summary link"
+          >
+            Copy summary link
+          </Button>
+          <Button onClick={() => void handlePrint()} aria-label="Print summary">
+            Print summary
+          </Button>
+        </div>
+      </header>
       <section className={styles.summaryList} aria-label="Score totals">
         {players.length === 0 ? (
           <div className={styles.summaryItem}>No players recorded for this scorecard.</div>
@@ -94,7 +135,13 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
           ))
         )}
       </section>
-      <CurrentGame disableInputs disableRoundStateCycling key={`${scorecardId}-summary`} />
+      {canRenderCurrentGame ? (
+        <CurrentGame
+          disableInputs
+          disableRoundStateCycling
+          key={`${resolvedScorecardId || 'summary'}-summary`}
+        />
+      ) : null}
     </div>
   );
 }

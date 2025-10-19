@@ -19,11 +19,9 @@ import {
   deriveGameMode,
   type GameRecord,
   getGame,
-  resolveSinglePlayerRoute,
-  resolveScorecardRoute,
-  SCORECARD_HUB_PATH,
   isGameRecordCompleted,
-} from '@/lib/state';
+} from '@/lib/state/io';
+import { resolveSinglePlayerRoute, resolveScorecardRoute, SCORECARD_HUB_PATH } from '@/lib/state';
 import { trackArchivedGameRestored } from '@/lib/observability/events';
 import { RoutedModalFocusManager } from '@/components/dialogs/RoutedModalFocusManager';
 
@@ -35,7 +33,10 @@ export default function RestoreGameModalClient() {
   const [pending, setPending] = React.useState(false);
   const [game, setGame] = React.useState<GameRecord | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-  const { state, awaitHydration, hydrationEpoch } = useAppState();
+  const appState = useAppState();
+  const state = appState.state;
+  const awaitHydration = appState.awaitHydration ?? (async () => {});
+  const hydrationEpoch = appState.hydrationEpoch ?? 0;
   const stateRef = React.useRef(state);
   const dialogContentRef = React.useRef<HTMLDivElement>(null);
   const cancelButtonRef = React.useRef<HTMLButtonElement>(null);

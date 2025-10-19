@@ -133,7 +133,29 @@ function readGameId(state: AppState, explicit?: string | null): string | null {
     const trimmed = explicit.trim();
     if (trimmed) return trimmed;
   }
-  return getCurrentSinglePlayerGameId(state);
+  const derived = getCurrentSinglePlayerGameId(state);
+  if (!derived) return null;
+  const sp = state.sp as
+    | (AppState['sp'] & { currentGameId?: unknown; gameId?: unknown })
+    | undefined;
+  const explicitInState =
+    (typeof sp?.currentGameId === 'string' && sp.currentGameId.trim().length > 0) ||
+    (typeof sp?.gameId === 'string' && sp.gameId.trim().length > 0);
+  if (!explicitInState) {
+    const phase = sp?.phase;
+    if (phase === 'setup' || phase === 'game-summary' || phase === 'done' || !phase) {
+      const hasOrder = Array.isArray(sp?.order) && (sp?.order?.length ?? 0) > 0;
+      const hasTricks = Array.isArray(sp?.trickPlays) && (sp?.trickPlays?.length ?? 0) > 0;
+      const hands = sp?.hands ?? {};
+      const hasHands = Object.values(hands).some(
+        (cards) => Array.isArray(cards) && cards.length > 0,
+      );
+      if (!hasOrder && !hasTricks && !hasHands) {
+        return null;
+      }
+    }
+  }
+  return derived;
 }
 
 function deriveRoster(state: AppState): {

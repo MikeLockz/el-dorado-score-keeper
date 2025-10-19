@@ -579,20 +579,26 @@ export async function createInstance(opts?: {
     );
 
     if (scorecardEntries.length === 0) {
-      const rid: UUID = uuid();
-      const roster = {
-        name: 'Score Card',
-        playersById: {} as Record<string, string>,
-        playerTypesById: {} as Record<string, 'human' | 'bot'>,
-        displayOrder: {} as Record<string, number>,
-        type: 'scorecard' as const,
-        createdAt: Date.now(),
-        archivedAt: null,
-      };
-      next = Object.assign({}, next, {
-        rosters: Object.assign({}, next.rosters, { [rid]: roster }),
-        activeScorecardRosterId: rid,
-      });
+      const rosterCount = Object.keys(next.rosters ?? {}).length;
+      const shouldCreateScorecard = rosterCount > 0 || hasLegacyPlayers;
+      if (shouldCreateScorecard) {
+        const rid: UUID = uuid();
+        const roster = {
+          name: 'Score Card',
+          playersById: {} as Record<string, string>,
+          playerTypesById: {} as Record<string, 'human' | 'bot'>,
+          displayOrder: {} as Record<string, number>,
+          type: 'scorecard' as const,
+          createdAt: Date.now(),
+          archivedAt: null,
+        };
+        next = Object.assign({}, next, {
+          rosters: Object.assign({}, next.rosters, { [rid]: roster }),
+          activeScorecardRosterId: rid,
+        });
+      } else {
+        next = Object.assign({}, next, { activeScorecardRosterId: null });
+      }
     } else {
       const activeId = next.activeScorecardRosterId;
       const hasActive =

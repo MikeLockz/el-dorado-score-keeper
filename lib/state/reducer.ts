@@ -11,6 +11,42 @@ function coerceTimestamp(event: KnownAppEvent): number {
   return Number.isFinite(ts) ? ts : Date.now();
 }
 
+function deriveAutoScorecardRosterId(event: KnownAppEvent, state: AppState): string {
+  const existing = new Set(Object.keys(state.rosters ?? {}));
+  const parts: string[] = [];
+  const ts = coerceTimestamp(event);
+  if (Number.isFinite(ts)) {
+    parts.push(`ts${Math.floor(ts).toString(36)}`);
+  }
+  if (typeof event.eventId === 'string') {
+    const normalized = event.eventId
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    if (normalized) {
+      parts.push(normalized);
+    }
+  }
+  if (parts.length === 0) {
+    parts.push('auto');
+  }
+  let base = `scorecard-${parts.join('-')}`.replace(/-+/g, '-').replace(/^-|-$/g, '');
+  if (!base) {
+    base = 'scorecard-auto';
+  }
+  if (base === 'scorecard-default') {
+    base = 'scorecard-default-1';
+  }
+  let candidate = base;
+  let suffix = 1;
+  while (existing.has(candidate)) {
+    suffix += 1;
+    candidate = `${base}-${suffix}`;
+  }
+  return candidate;
+}
+
 function applyPlayerAdded(
   state: AppState,
   event: KnownAppEvent,
@@ -60,7 +96,7 @@ function applyPlayerAdded(
 
   let rid = nextState.activeScorecardRosterId;
   if (!rid || !nextState.rosters[rid]) {
-    const nrid = uuid();
+    const nrid = deriveAutoScorecardRosterId(event, nextState);
     const createdAt = coerceTimestamp(event);
     const roster = {
       name: 'Score Card',

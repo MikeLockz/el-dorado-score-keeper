@@ -15,7 +15,7 @@ type RouteParams = {
 };
 
 type PageParams = {
-  params: Promise<RouteParams>;
+  params: RouteParams;
 };
 
 function makeTitle(scorecardId: string): string {
@@ -31,7 +31,7 @@ function makeDescription(scorecardId: string): string {
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const { scorecardId: rawId = '' } = await params;
+  const { scorecardId: rawId = '' } = params ?? {};
   const scorecardId = scrubDynamicParam(rawId);
   const title = makeTitle(scorecardId);
   const description = makeDescription(scorecardId);
@@ -53,12 +53,11 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
 }
 
-export default async function ScorecardSummaryPage({ params }: PageParams) {
-  const { scorecardId: rawId = '' } = await params;
+export default function ScorecardSummaryPage({ params }: PageParams) {
+  const { scorecardId: rawId = '' } = params ?? {};
   const scorecardId = scrubDynamicParam(rawId);
   if (scorecardId === 'scorecard-default') {
     redirect(SCORECARD_HUB_PATH);
   }
-  const resolvedId = scorecardId || 'scorecard-session';
-  return <ScorecardSummaryPageClient scorecardId={resolvedId} />;
+  return <ScorecardSummaryPageClient scorecardId={scorecardId || undefined} />;
 }

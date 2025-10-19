@@ -1,7 +1,22 @@
+import { expect } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { beforeEach, vi } from 'vitest';
 import { INITIAL_STATE } from '@/lib/state';
+
+expect.extend({
+  toBeInTheDocument(received: unknown) {
+    const pass =
+      typeof received === 'object' &&
+      received !== null &&
+      'ownerDocument' in (received as Record<string, unknown>) &&
+      ((received as { ownerDocument?: Document | null }).ownerDocument ?? null) !== null;
+    return {
+      pass,
+      message: () => `expected element ${pass ? 'not ' : ''}to be in the document`,
+    };
+  },
+});
 
 // Ensure JSX that relies on the global React object (e.g. Next layouts) keeps working
 if (!(globalThis as any).React) {
