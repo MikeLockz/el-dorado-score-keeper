@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { waitFor, screen } from '@testing-library/react';
@@ -50,39 +50,41 @@ const stateMocks = vi.hoisted(() => ({
   restoreGame: vi.fn(async () => {}),
 }));
 
-vi.restoreAllMocks();
-
-const stateModule = await import('@/lib/state');
-vi.spyOn(stateModule, 'listGames').mockImplementation(
-  async (...args: Parameters<typeof stateModule.listGames>) => stateMocks.listGames(...args),
-);
-vi.spyOn(stateModule, 'deleteGame').mockImplementation(
-  async (...args: Parameters<typeof stateModule.deleteGame>) => stateMocks.deleteGame(...args),
-);
-vi.spyOn(stateModule, 'restoreGame').mockImplementation(
-  async (...args: Parameters<typeof stateModule.restoreGame>) => stateMocks.restoreGame(...args),
-);
-
-const gameFlowModule = await import('@/lib/game-flow');
-type UseNewGameRequest = typeof gameFlowModule.useNewGameRequest;
-type UseNewGameRequestOptions = Parameters<UseNewGameRequest>[0];
+const setListGamesMock = (globalThis as any).__setListGamesMock as (
+  fn: typeof stateMocks.listGames,
+) => void;
+const setRestoreGameMock = (globalThis as any).__setRestoreGameMock as (
+  fn: typeof stateMocks.restoreGame,
+) => void;
+const setDeleteGameMock = (globalThis as any).__setDeleteGameMock as (
+  fn: typeof stateMocks.deleteGame,
+) => void;
 
 const startNewGameSpy = vi.hoisted(() => vi.fn(async () => true));
 
-vi.spyOn(gameFlowModule, 'useNewGameRequest').mockImplementation(
-  (options?: UseNewGameRequestOptions) => ({
-    startNewGame: async (...args) => {
-      const result = await startNewGameSpy(...args);
-      if (result) {
-        options?.onSuccess?.();
-      } else {
-        options?.onCancelled?.();
-      }
-      return result;
-    },
-    pending: false,
-  }),
-);
+type GameFlowModule = typeof import('@/lib/game-flow');
+type UseNewGameRequestOptions = Parameters<GameFlowModule['useNewGameRequest']>[0];
+type UseNewGameRequestResult = ReturnType<GameFlowModule['useNewGameRequest']>;
+type StartNewGameArgs = Parameters<UseNewGameRequestResult['startNewGame']>;
+
+vi.mock('@/lib/game-flow', async () => {
+  const actual = await vi.importActual<GameFlowModule>('@/lib/game-flow');
+  return {
+    ...actual,
+    useNewGameRequest: (options?: UseNewGameRequestOptions) => ({
+      startNewGame: async (...args: StartNewGameArgs) => {
+        const result = await startNewGameSpy(...args);
+        if (result) {
+          options?.onSuccess?.();
+        } else {
+          options?.onCancelled?.();
+        }
+        return result;
+      },
+      pending: false,
+    }),
+  };
+});
 
 const push = vi.fn();
 const replace = vi.fn();
@@ -146,6 +148,12 @@ suite('Games page new game flow', () => {
     append.mockClear();
     appendMany.mockClear();
     startNewGameSpy.mockClear();
+    setListGamesMock((async (...args) =>
+      stateMocks.listGames(...args)) as typeof stateMocks.listGames);
+    setRestoreGameMock((async (...args) =>
+      stateMocks.restoreGame(...args)) as typeof stateMocks.restoreGame);
+    setDeleteGameMock((async (...args) =>
+      stateMocks.deleteGame(...args)) as typeof stateMocks.deleteGame);
     setMockAppState(createInProgressContext());
     setMockRouter({
       push,
@@ -360,8 +368,4 @@ suite('Games page new game flow', () => {
     root.unmount();
     container.remove();
   });
-});
-
-afterAll(() => {
-  vi.restoreAllMocks();
 });

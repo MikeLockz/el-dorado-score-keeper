@@ -4,7 +4,15 @@ import type { AppEvent, AppState, EventMap, EventPayloadByType } from './types';
 import { INITIAL_STATE, type AppEventType, type KnownAppEvent } from './types';
 import * as rosterOps from '@/lib/roster/ops';
 import { eventPayloadSchemas } from '@/schema/events';
-import { uuid } from '@/lib/utils';
+
+function deriveDefaultScorecardRosterId(event: KnownAppEvent): string {
+  const base = `${event.eventId ?? ''}|${coerceTimestamp(event)}`;
+  let hash = 0;
+  for (let i = 0; i < base.length; i++) {
+    hash = Math.imul(hash ^ base.charCodeAt(i), 0x45d9f3b);
+  }
+  return `scorecard-${(hash >>> 0).toString(36)}`;
+}
 
 function coerceTimestamp(event: KnownAppEvent): number {
   const ts = Number(event.ts);
@@ -60,7 +68,7 @@ function applyPlayerAdded(
 
   let rid = nextState.activeScorecardRosterId;
   if (!rid || !nextState.rosters[rid]) {
-    const nrid = uuid();
+    const nrid = deriveDefaultScorecardRosterId(event);
     const createdAt = coerceTimestamp(event);
     const roster = {
       name: 'Score Card',

@@ -25,6 +25,7 @@ describe('reducer contract: payload schemas', () => {
         'roster/reset',
         'roster/archived',
         'roster/restored',
+        'roster/deleted',
         'bid/set',
         'made/set',
         'player/added',

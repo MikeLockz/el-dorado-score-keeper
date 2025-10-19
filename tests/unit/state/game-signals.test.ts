@@ -7,6 +7,11 @@ import {
   subscribeToGamesSignal,
 } from '@/lib/state/game-signals';
 
+const originalWindow = (globalThis as { window?: Window }).window;
+const originalLocalStorage = (globalThis as { localStorage?: Storage }).localStorage;
+const originalBroadcastChannel = (globalThis as { BroadcastChannel?: typeof BroadcastChannel })
+  .BroadcastChannel;
+
 const setupWindow = () => {
   const storage = new Map<string, string>();
   const localStorageMock = {
@@ -70,9 +75,21 @@ describe('game signals', () => {
   });
 
   afterEach(() => {
-    delete (globalThis as { window?: unknown }).window;
-    delete (globalThis as { localStorage?: Storage }).localStorage;
-    delete (globalThis as { BroadcastChannel?: unknown }).BroadcastChannel;
+    if (originalWindow) {
+      (globalThis as any).window = originalWindow;
+    } else {
+      delete (globalThis as { window?: unknown }).window;
+    }
+    if (originalLocalStorage) {
+      (globalThis as any).localStorage = originalLocalStorage;
+    } else {
+      delete (globalThis as { localStorage?: Storage }).localStorage;
+    }
+    if (originalBroadcastChannel) {
+      (globalThis as any).BroadcastChannel = originalBroadcastChannel;
+    } else {
+      delete (globalThis as { BroadcastChannel?: unknown }).BroadcastChannel;
+    }
   });
 
   it('parses signals from serialized payloads', () => {

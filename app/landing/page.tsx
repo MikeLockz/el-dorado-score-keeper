@@ -84,6 +84,92 @@ export default function LandingPage() {
         <HeroCtas />
       </section>
 
+      {/* Modes Grid */}
+      <section aria-label="Modes" className={styles.modesGrid}>
+        <ModeCard
+          icon={<Compass />}
+          title="Single Player"
+          description="Play against the computer. Practice strategies and unlock achievements."
+          primary={
+            singlePlayerActive
+              ? {
+                  label: 'Resume Game',
+                  href: singlePlayerResumeHref,
+                  ariaLabel: 'Resume single player game',
+                  disabled: newGamePending,
+                }
+              : {
+                  label: 'New Game',
+                  onClick: () => {
+                    void handleStartNew('single');
+                  },
+                  pending: newGamePending,
+                  ariaLabel: 'Start a new single player game',
+                }
+          }
+          secondary={
+            singlePlayerActive
+              ? {
+                  label: 'Start a new game',
+                  onClick: () => {
+                    void handleStartNew('single');
+                  },
+                  disabled: newGamePending,
+                  pending: newGamePending,
+                  ariaLabel: 'Archive current single player game and start over',
+                }
+              : null
+          }
+          ariaLabel="Single player mode actions"
+        />
+        <ModeCard
+          icon={<Flame />}
+          title="Multiplayer"
+          description="Host a room or join with a code. Cross‑device, real‑time play."
+          primary={{ label: 'Host', href: '#', ariaLabel: 'Host Game (coming soon)' }}
+          primaryEvent="mode_multiplayer_host_clicked"
+          secondary={{ label: 'Join by code', href: '/rules' }}
+          ariaLabel="Open multiplayer — host a room or join by code."
+        />
+        <ModeCard
+          icon={<Calculator />}
+          title="Score Card"
+          description="Track scores for in-person sessions. Share and export results."
+          primary={
+            scorecardActive
+              ? {
+                  label: 'Resume Score Card',
+                  href: scorecardResumeHref,
+                  ariaLabel: 'Resume current score card',
+                  disabled: newGamePending,
+                }
+              : {
+                  label: 'New Score Card',
+                  onClick: () => {
+                    void handleStartNew('scorecard');
+                  },
+                  pending: newGamePending,
+                  ariaLabel: 'Start a new score card',
+                }
+          }
+          secondary={
+            scorecardActive
+              ? {
+                  label: 'Start a new score card',
+                  onClick: () => {
+                    void handleStartNew('scorecard');
+                  },
+                  disabled: newGamePending,
+                  pending: newGamePending,
+                  ariaLabel: 'Archive current score card and start over',
+                }
+              : null
+          }
+          ariaLabel="Open score card for in-person tallying"
+          primaryEvent="mode_scorecard_open_clicked"
+        />
+      </section>
+
       {/* Quick Links */}
       <QuickLinks />
     </div>

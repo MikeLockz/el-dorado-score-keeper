@@ -522,9 +522,8 @@ export async function createInstance(opts?: {
     });
 
     // Bootstrap default scorecard roster from legacy players if rosters are empty
-    const hasAnyRoster = Object.keys(next.rosters ?? {}).length > 0;
-    const hasLegacyPlayers = next.players && Object.keys(next.players).length > 0;
-    if (!hasAnyRoster && hasLegacyPlayers) {
+    const hadLegacyPlayers = next.players && Object.keys(next.players).length > 0;
+    if (!Object.keys(next.rosters ?? {}).length && hadLegacyPlayers) {
       const rid: UUID = uuid();
       // Build display order from legacy mapping with dense fallback
       const legacyOrderEntries = Object.entries(next.display_order ?? {}).sort(
@@ -573,26 +572,34 @@ export async function createInstance(opts?: {
       });
     }
 
-    const scorecardEntries = Object.entries(next.rosters ?? {}).filter(
+    const rosterEntries = Object.entries(next.rosters ?? {});
+    const hasAnyRoster = rosterEntries.length > 0;
+    const hasLegacyPlayers = hadLegacyPlayers;
+    const scorecardEntries = rosterEntries.filter(
       (entry): entry is [UUID, NonNullable<AppState['rosters'][UUID]>] =>
         !!entry[1] && entry[1].type === 'scorecard',
     );
 
     if (scorecardEntries.length === 0) {
-      const rid: UUID = uuid();
-      const roster = {
-        name: 'Score Card',
-        playersById: {} as Record<string, string>,
-        playerTypesById: {} as Record<string, 'human' | 'bot'>,
-        displayOrder: {} as Record<string, number>,
-        type: 'scorecard' as const,
-        createdAt: Date.now(),
-        archivedAt: null,
-      };
-      next = Object.assign({}, next, {
-        rosters: Object.assign({}, next.rosters, { [rid]: roster }),
-        activeScorecardRosterId: rid,
-      });
+      const shouldCreateFallback = hasAnyRoster || hasLegacyPlayers;
+      if (shouldCreateFallback) {
+        const rid: UUID = uuid();
+        const roster = {
+          name: 'Score Card',
+          playersById: {} as Record<string, string>,
+          playerTypesById: {} as Record<string, 'human' | 'bot'>,
+          displayOrder: {} as Record<string, number>,
+          type: 'scorecard' as const,
+          createdAt: Date.now(),
+          archivedAt: null,
+        };
+        next = Object.assign({}, next, {
+          rosters: Object.assign({}, next.rosters, { [rid]: roster }),
+          activeScorecardRosterId: rid,
+        });
+      } else {
+        next = Object.assign({}, next, { activeScorecardRosterId: null });
+      }
     } else {
       const activeId = next.activeScorecardRosterId;
       const hasActive =

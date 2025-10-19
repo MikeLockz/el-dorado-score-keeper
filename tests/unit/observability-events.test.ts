@@ -15,6 +15,9 @@ import { uuid } from '@/lib/utils';
 const trackBrowserEventMock = trackBrowserEvent as unknown as vi.Mock;
 const uuidMock = uuid as unknown as vi.Mock;
 
+const originalWindow = (globalThis as { window?: Window }).window;
+const originalLocalStorage = (globalThis as { localStorage?: Storage }).localStorage;
+
 const {
   trackGameStarted,
   trackPlayersAdded,
@@ -66,8 +69,16 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-  delete (globalThis as { window?: unknown }).window;
-  delete (globalThis as { localStorage?: Storage }).localStorage;
+  if (originalWindow) {
+    (globalThis as any).window = originalWindow;
+  } else {
+    delete (globalThis as { window?: unknown }).window;
+  }
+  if (originalLocalStorage) {
+    (globalThis as any).localStorage = originalLocalStorage;
+  } else {
+    delete (globalThis as { localStorage?: Storage }).localStorage;
+  }
 });
 
 describe('trackGameStarted', () => {

@@ -14,9 +14,24 @@ type RouteParams = {
   scorecardId?: string;
 };
 
-type PageParams = {
-  params: Promise<RouteParams>;
+type MetadataParams = {
+  params: Promise<RouteParams> | RouteParams;
 };
+
+type PageParams = {
+  params?: RouteParams;
+};
+
+function isPromiseLike<T>(value: unknown): value is Promise<T> {
+  return !!value && typeof (value as { then?: unknown }).then === 'function';
+}
+
+async function resolveParams(params: Promise<RouteParams> | RouteParams): Promise<RouteParams> {
+  if (isPromiseLike<RouteParams>(params)) {
+    return params;
+  }
+  return params;
+}
 
 function makeTitle(scorecardId: string): string {
   if (!scorecardId) return 'Scorecard summary';
@@ -30,8 +45,8 @@ function makeDescription(scorecardId: string): string {
   return `Download or share the summary for scorecard session ${scorecardId}.`;
 }
 
-export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const { scorecardId: rawId = '' } = await params;
+export async function generateMetadata({ params }: MetadataParams): Promise<Metadata> {
+  const { scorecardId: rawId = '' } = await resolveParams(params);
   const scorecardId = scrubDynamicParam(rawId);
   const title = makeTitle(scorecardId);
   const description = makeDescription(scorecardId);
@@ -53,8 +68,8 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
 }
 
-export default async function ScorecardSummaryPage({ params }: PageParams) {
-  const { scorecardId: rawId = '' } = await params;
+export default function ScorecardSummaryPage({ params }: PageParams = {}) {
+  const { scorecardId: rawId = '' } = params ?? {};
   const scorecardId = scrubDynamicParam(rawId);
   if (scorecardId === 'scorecard-default') {
     redirect(SCORECARD_HUB_PATH);

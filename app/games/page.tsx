@@ -102,8 +102,7 @@ export default function GamesPage() {
   const load = React.useCallback(async () => {
     try {
       const list = await listGames();
-      const singlePlayerGames = list.filter((game) => deriveGameMode(game) === 'single-player');
-      setGames(singlePlayerGames);
+      setGames(list);
     } catch (error: unknown) {
       captureBrowserMessage('games.load.failed', {
         level: 'warn',

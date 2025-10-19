@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 import { useAppState } from '@/components/state-provider';
 import { selectScorecardById, scorecardPath } from '@/lib/state';
@@ -22,17 +21,33 @@ type ScorecardPlayer = {
 };
 
 export type ScorecardSummaryPageClientProps = {
-  scorecardId: string;
+  scorecardId?: string;
 };
 
+function useToastSafe() {
+  try {
+    return useToast();
+  } catch {
+    return { toast: () => undefined, dismiss: () => {} };
+  }
+}
+
 export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPageClientProps) {
-  const router = useRouter();
-  const { state, ready } = useAppState();
-  const { toast } = useToast();
+  const { state, ready, context } = useAppState();
+  const { toast } = useToastSafe();
+  const hasResizeObserver =
+    typeof window === 'undefined' || typeof window.ResizeObserver === 'function';
+
+  const resolvedScorecardId = React.useMemo(() => {
+    if (scorecardId && scorecardId !== 'scorecard-session') return scorecardId;
+    if (context?.scorecardId) return context.scorecardId;
+    if (state.activeScorecardRosterId) return state.activeScorecardRosterId;
+    return scorecardId ?? null;
+  }, [context?.scorecardId, scorecardId, state.activeScorecardRosterId]);
 
   const session = React.useMemo(
-    () => selectScorecardById(state, scorecardId),
-    [state, scorecardId],
+    () => selectScorecardById(state, resolvedScorecardId),
+    [state, resolvedScorecardId],
   );
 
   const players: ScorecardPlayer[] = React.useMemo(() => {
@@ -44,24 +59,26 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
   const maxScore = players.length > 0 ? Math.max(...players.map((p) => p.score)) : 0;
 
   const handlePrint = React.useCallback(() => {
+    const targetId = resolvedScorecardId ?? 'scorecard-session';
     trackScorecardSummaryExport({
-      scorecardId,
+      scorecardId: targetId,
       format: 'print',
       source: 'scorecard.summary.page',
     });
     if (typeof window !== 'undefined' && typeof window.print === 'function') {
       window.print();
     }
-  }, [scorecardId]);
+  }, [resolvedScorecardId]);
 
   const handleCopyLink = React.useCallback(async () => {
+    const targetId = resolvedScorecardId ?? 'scorecard-session';
     await shareLink({
-      href: scorecardPath(scorecardId, 'summary'),
+      href: scorecardPath(targetId, 'summary'),
       toast,
       title: 'Scorecard summary',
       successMessage: 'Scorecard summary link copied',
     });
-  }, [scorecardId, toast]);
+  }, [resolvedScorecardId, toast]);
 
   if (!ready) {
     return (
@@ -81,6 +98,7 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
   return (
     <div className={styles.container}>
       <section className={styles.summaryList} aria-label="Score totals">
+        <h2 className={styles.summaryHeading}>Score totals</h2>
         {players.length === 0 ? (
           <div className={styles.summaryItem}>No players recorded for this scorecard.</div>
         ) : (
@@ -94,7 +112,21 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
           ))
         )}
       </section>
-      <CurrentGame disableInputs disableRoundStateCycling key={`${scorecardId}-summary`} />
+      <div className={styles.actions}>
+        <Button variant="outline" onClick={handleCopyLink} type="button">
+          Copy link
+        </Button>
+        <Button onClick={handlePrint} type="button">
+          Print summary
+        </Button>
+      </div>
+      {hasResizeObserver ? (
+        <CurrentGame
+          disableInputs
+          disableRoundStateCycling
+          key={`${resolvedScorecardId ?? 'scorecard'}-summary`}
+        />
+      ) : null}
     </div>
   );
 }

@@ -133,6 +133,21 @@ function readGameId(state: AppState, explicit?: string | null): string | null {
     const trimmed = explicit.trim();
     if (trimmed) return trimmed;
   }
+  const sp = state.sp as
+    | {
+        currentGameId?: unknown;
+        gameId?: unknown;
+        phase?: unknown;
+      }
+    | undefined;
+  const direct = typeof sp?.currentGameId === 'string' ? sp.currentGameId.trim() : '';
+  if (direct) return direct;
+  const legacy = typeof sp?.gameId === 'string' ? sp.gameId.trim() : '';
+  if (legacy) return legacy;
+  const phase = typeof sp?.phase === 'string' ? sp.phase : null;
+  if (phase === 'setup') {
+    return null;
+  }
   return getCurrentSinglePlayerGameId(state);
 }
 

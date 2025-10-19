@@ -24,7 +24,7 @@ import {
   SCORECARD_HUB_PATH,
   isGameRecordCompleted,
 } from '@/lib/state';
-import { trackArchivedGameRestored } from '@/lib/observability/events';
+import * as analyticsEvents from '@/lib/observability/events';
 import { RoutedModalFocusManager } from '@/components/dialogs/RoutedModalFocusManager';
 
 export default function RestoreGameModalClient() {
@@ -71,10 +71,12 @@ export default function RestoreGameModalClient() {
 
   const waitForRestoredRoute = React.useCallback(
     async (mode: 'single-player' | 'scorecard', previousEpoch: number): Promise<string> => {
-      await Promise.race([
-        awaitHydration(previousEpoch),
-        new Promise((resolve) => setTimeout(resolve, 750)),
-      ]);
+      if (awaitHydration) {
+        await Promise.race([
+          awaitHydration(previousEpoch),
+          new Promise((resolve) => setTimeout(resolve, 750)),
+        ]);
+      }
       const snapshot = stateRef.current;
       const candidate =
         mode === 'single-player'
@@ -108,7 +110,11 @@ export default function RestoreGameModalClient() {
           : mode === 'scorecard'
             ? await waitForRestoredRoute('scorecard', previousEpoch)
             : '/';
-      trackArchivedGameRestored({ gameId, mode, source: 'games.modal.restore' });
+      analyticsEvents.trackArchivedGameRestored({
+        gameId,
+        mode,
+        source: 'games.modal.restore',
+      });
       router.replace(redirectPath);
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : 'Unable to restore game.';

@@ -83,6 +83,11 @@ export function AdvancedInsightsPanel({ loading, metrics, loadError }: AdvancedI
   );
 
   const rollingWindow = Math.min(momentum.rollingAverageScores.length, 5);
+  const momentumHint = loading
+    ? 'Calculating rolling average momentum…'
+    : rollingWindow > 0
+      ? `Rolling average covers the last ${rollingWindow} ${rollingWindow === 1 ? 'game' : 'games'}.`
+      : 'Rolling average appears after you complete your next game.';
 
   return (
     <div className={styles.root}>
@@ -193,6 +198,29 @@ export function AdvancedInsightsPanel({ loading, metrics, loadError }: AdvancedI
             value={loading ? '...' : formatInteger(momentum.longestWinStreak)}
           />
         </div>
+        <div
+          className={styles.sparklineWrapper}
+          role="img"
+          aria-label="Rolling average score trend"
+        >
+          {sparkline ? (
+            <svg
+              className={styles.sparkline}
+              viewBox="0 0 240 80"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <path d={sparkline} className={styles.sparklinePath} />
+            </svg>
+          ) : (
+            <span className={styles.sparklineEmpty}>
+              Play a few more games to unlock momentum trends.
+            </span>
+          )}
+        </div>
+        <p className={styles.momentumHint} role="note">
+          {momentumHint}
+        </p>
       </section>
     </div>
   );
