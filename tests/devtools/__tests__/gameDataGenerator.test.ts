@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { generateGameData, generateRoundPlan } from '@/lib/devtools/generator/gameDataGenerator';
 import {
-  generateGameData,
   generateRoster,
-  generateRoundPlan,
   getRng,
   type GeneratedRosterEntry,
-} from '@/lib/devtools/generator/gameDataGenerator';
+} from '@/lib/devtools/generator/playerDataGenerator';
 import { tricksForRound } from '@/lib/state/logic';
 
 function collectRandomValues(seed: string): number[] {

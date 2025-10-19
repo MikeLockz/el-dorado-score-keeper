@@ -97,6 +97,7 @@ Two helper commands are available after `pnpm install`:
 - `app/`: App Router pages, layout, and styles.
 - `components/`: UI components and state provider.
 - `lib/`: State management, storage, and selectors.
+- `lib/devtools/generator/playerDataGenerator.ts`: Shared roster helper leveraged by DevTools generators (documented in `PLAYER_DATA_GENERATOR.md`).
 - `docs/ROSTERS.md`: Roster model (mode-scoped players), events, selectors, and migration notes.
 - `public/`: Static assets and PWA icons/manifest.
 - `styles/`: Global styles.

@@ -1,4 +1,3 @@
-import { mulberry32 } from '@/lib/single-player/rng';
 import type { Suit } from '@/lib/single-player/types';
 import { uuid } from '@/lib/utils';
 import { tricksForRound } from '@/lib/state/logic';
@@ -16,48 +15,21 @@ import {
   type GameRecord,
   type SummaryMetadata,
 } from '@/lib/state/io';
+import {
+  generateRoster,
+  getRng,
+  type CurrentUserProfile,
+  type GeneratedRosterEntry,
+  type PlayerStyle,
+  type Rng,
+} from './playerDataGenerator';
 
-type Rng = () => number;
-
-const NAME_REGISTRY = [
-  { id: '585a8ad2-0dfb-4c32-9f92-0b2d1a7f3d51', displayName: 'bob', avatarSeed: 'bob' },
-  { id: 'a0c69b29-914f-4ec1-9c0e-7f5471a2c4b5', displayName: 'sue', avatarSeed: 'sue' },
-  { id: '6b7f6d21-e8a1-4d6c-9dc1-1c6c73bb8e5c', displayName: 'pat', avatarSeed: 'pat' },
-  { id: '4b1cf7a5-8f20-4e2d-9c9f-3a48f351aa19', displayName: 'amy', avatarSeed: 'amy' },
-  { id: 'f68fb18b-82d5-45f8-8c83-40e501cdb525', displayName: 'rex', avatarSeed: 'rex' },
-  { id: '7e8bd9b3-0ba8-4fae-8c9c-5c881f0cc3bf', displayName: 'liv', avatarSeed: 'liv' },
-  { id: 'c918e1b6-3f2a-4f3c-8a96-1c4c24c6e219', displayName: 'gus', avatarSeed: 'gus' },
-  { id: '1fb0a0ad-d3ea-4688-9c6f-4753a91fd5ab', displayName: 'uma', avatarSeed: 'uma' },
-  { id: 'b5f54233-54fe-4b4a-8de5-4c43d945350f', displayName: 'ned', avatarSeed: 'ned' },
-  { id: 'd72a5f4f-b771-4f29-86bd-3e9c5587039d', displayName: 'ivy', avatarSeed: 'ivy' },
-] as const;
+export { generateRoster, getRng } from './playerDataGenerator';
+export type { CurrentUserProfile, GeneratedRosterEntry, PlayerStyle } from './playerDataGenerator';
+export type { GenerateRosterOptions as RosterOptions } from './playerDataGenerator';
 
 const SUITS: readonly Suit[] = ['clubs', 'diamonds', 'hearts', 'spades'];
 const ROUND_SEQUENCE_DEFAULT = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
-
-export type PlayerStyle = 'cautious' | 'balanced' | 'aggressive';
-
-export type GeneratedRosterEntry = Readonly<{
-  id: string;
-  displayName: string;
-  avatarSeed: string | null;
-  seat: number;
-  isBot: boolean;
-  style: PlayerStyle;
-  isCurrentUser: boolean;
-}>;
-
-export type CurrentUserProfile = Readonly<{
-  id: string;
-  displayName: string;
-  avatarSeed?: string | null;
-}>;
-
-export type RosterOptions = Readonly<{
-  playerCount?: number;
-  currentUser: CurrentUserProfile;
-  rng?: Rng;
-}>;
 
 export type RoundDescriptor = Readonly<{
   roundNumber: number;
@@ -94,45 +66,6 @@ export type GeneratedGamePayload = Readonly<{
   roundTallies: RoundTallies;
   gameRecord: GameRecord;
 }>;
-
-export function getRng(seed?: string): Rng {
-  const normalizedSeed = typeof seed === 'string' && seed.trim().length > 0 ? seed.trim() : null;
-  const sourceSeed = normalizedSeed ?? randomSeedString();
-  const hash = hashSeed(sourceSeed);
-  return mulberry32(hash);
-}
-
-export function generateRoster(options: RosterOptions): GeneratedRosterEntry[] {
-  const playerCount = clamp(Math.trunc(options.playerCount ?? 4), 2, NAME_REGISTRY.length);
-  const rng = options.rng ?? getRng();
-  const currentUser = normalizeCurrentUser(options.currentUser);
-
-  const sampled = sampleRegistry(playerCount - 1, rng, currentUser.id);
-  const seats: GeneratedRosterEntry[] = [];
-  seats.push(
-    createRosterEntry({
-      base: currentUser,
-      seat: 0,
-      isBot: false,
-      isCurrentUser: true,
-      rng,
-    }),
-  );
-
-  for (const [index, reg] of sampled.entries()) {
-    seats.push(
-      createRosterEntry({
-        base: reg,
-        seat: index + 1,
-        isBot: true,
-        isCurrentUser: false,
-        rng,
-      }),
-    );
-  }
-
-  return seats;
-}
 
 export function generateRoundPlan(options: RoundGenerationOptions): RoundDescriptor[] {
   const roster = Array.isArray(options.roster) ? options.roster : [];
@@ -268,87 +201,8 @@ export function generateGameData(options: GeneratedGameOptions): GeneratedGamePa
   };
 }
 
-function randomSeedString(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  const array = new Uint32Array(1);
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    crypto.getRandomValues(array);
-    return array[0]!.toString(36);
-  }
-  return `${Math.random()}`.slice(2);
-}
-
-function hashSeed(value: string): number {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function normalizeCurrentUser(profile: CurrentUserProfile): CurrentUserProfile {
-  const id = typeof profile.id === 'string' && profile.id.trim().length ? profile.id.trim() : null;
-  if (!id) throw new Error('Current user id is required');
-  const displayName =
-    typeof profile.displayName === 'string' && profile.displayName.trim().length
-      ? profile.displayName.trim()
-      : 'Player';
-  return {
-    id,
-    displayName,
-    avatarSeed: profile.avatarSeed ?? null,
-  };
-}
-
-type RegistryEntry = (typeof NAME_REGISTRY)[number];
-
-function sampleRegistry(count: number, rng: Rng, forbiddenId: string): RegistryEntry[] {
-  if (count <= 0) return [];
-  const pool = NAME_REGISTRY.filter((entry) => entry.id !== forbiddenId);
-  const indices = pool.map((_entry, index) => index);
-  shuffle(indices, rng);
-  return indices.slice(0, count).map((idx) => pool[idx]!);
-}
-
-function shuffle<T>(indices: T[], rng: Rng): void {
-  for (let i = indices.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(rng() * (i + 1));
-    [indices[i], indices[j]] = [indices[j]!, indices[i]!];
-  }
-}
-
-type CreateRosterEntryInput = {
-  base: { id: string; displayName: string; avatarSeed?: string | null };
-  seat: number;
-  isBot: boolean;
-  isCurrentUser: boolean;
-  rng: Rng;
-};
-
-function createRosterEntry(input: CreateRosterEntryInput): GeneratedRosterEntry {
-  return {
-    id: input.base.id,
-    displayName: input.base.displayName,
-    avatarSeed: input.base.avatarSeed ?? null,
-    seat: input.seat,
-    isBot: input.isBot,
-    style: assignStyle(input.rng),
-    isCurrentUser: input.isCurrentUser,
-  };
-}
-
-function assignStyle(rng: Rng): PlayerStyle {
-  const roll = rng();
-  if (roll < 0.33) return 'cautious';
-  if (roll < 0.66) return 'balanced';
-  return 'aggressive';
 }
 
 type GenerateBidsInput = {
