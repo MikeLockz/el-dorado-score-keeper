@@ -103,3 +103,11 @@ Under games, don't allow any game to be resumed if it is already complete.
 Under games, change the button to Archive from Delete. Archive removes the game from the list of games but does not delete it permanently. Archived games can be viewed in a separate list of archived games with an option to restore them. Archived games should not be shown in the main game list or in the resume dropdown when resuming a game. When in archive view there should be a link to "Back to games" to return to the main game list.
 
 in the /games/{id} view, add the scorecard in a read-only mode at the top of the page. Below that show the single player summary with all the stats and charts.
+
+## Player Data Generator – Phase 1 Audit (2024-05-17)
+
+- Roster entity expectations: `AppState.rosters[rosterId]` stores `playersById`, `playerTypesById`, and `displayOrder`; selectors like `selectPlayersOrderedFor` derive ordered ids and default missing types to `'human'` while `selectHumanIdFor('single')` reads from `state.humanByMode.single`.
+- DevTools currently synthesize a fallback current user when the selector returns `null`, defaulting avatar seeds to a slugified display name in `components/devtools.tsx`.
+- Existing `gameDataGenerator.ts` inlines roster generation helpers (registry, RNG, style assignment) that will be extracted; downstream tests import `GeneratedRosterEntry`, `PlayerStyle`, and `generateRoster` directly from that module.
+- Open question: should the shared generator expose a helper to infer current-user avatar seeds (slugify) to match DevTools fallback behavior, or continue letting callers provide explicit seeds?
+- Open question: when callers request `playerCount` larger than the registry (currently 10 entries), should we throw or clamp? Plan suggests clamping, but confirm whether DevTools expects an explicit error to prompt UI feedback.

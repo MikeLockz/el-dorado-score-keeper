@@ -35,8 +35,8 @@
 
 ### 4.1 Roster Creation
 
-- Derive between 2–10 players per game (align with single-player archive rules); default 4 unless overridden.
-- Maintain a deterministic pool of 10 simple three-letter names and UUIDs and sample without replacement per game:
+- Derive between 2–10 players per game (align with single-player archive rules); default 4 unless overridden. The shared roster helper in `lib/devtools/generator/playerDataGenerator.ts` implements this contract—see `PLAYER_DATA_GENERATOR.md` for the full API surface.
+- Maintain a deterministic pool of 10 simple three-letter names and UUIDs and sample without replacement per game (templates centralized in the player data generator module):
   - `bob` → `585a8ad2-0dfb-4c32-9f92-0b2d1a7f3d51`
   - `sue` → `a0c69b29-914f-4ec1-9c0e-7f5471a2c4b5`
   - `pat` → `6b7f6d21-e8a1-4d6c-9dc1-1c6c73bb8e5c`
@@ -115,7 +115,7 @@
 ## 8. Implementation Steps
 
 1. **Schema Audit:** Confirm structures for `GameRecord`, event payloads, and IndexedDB stores.
-2. **Generator Library:** Implement pure functions for roster, rounds, bids, trick outcomes, and scoring using shared utilities.
+2. **Generator Library:** Implement pure functions for rounds, bids, trick outcomes, and scoring using shared utilities. Roster generation (registry, RNG, normalization) now lives in `playerDataGenerator.ts`; reuse those exports instead of duplicating logic.
 3. **Event Assembly:** Translate generated structures into chronological event list + summary bundle.
 4. **Persistence Adapter:** Reuse existing import/save functions to write into IndexedDB while explicitly skipping scorecard-related stores; add guard rails for dev use.
 5. **DevTools UI:** Add button + status handling; wire click to generator workflow.
