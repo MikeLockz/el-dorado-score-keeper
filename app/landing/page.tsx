@@ -158,40 +158,6 @@ export default function LandingPage() {
         <HeroCtas />
       </section>
 
-      <div className={styles.modesGrid}>
-        <ModeCard
-          icon={<Compass size={24} aria-hidden="true" />}
-          title="Single Player"
-          description="Play solo against adaptive AI. Practice strategies and unlock achievements."
-          ariaLabel="Start single player mode — play solo vs AI."
-          primary={singlePrimaryAction}
-          secondary={singleSecondaryAction ?? undefined}
-          primaryEvent="landing.single.primary"
-        />
-        <ModeCard
-          icon={<Flame size={24} aria-hidden="true" />}
-          title="Multiplayer"
-          description="Host a room or join with a code. Cross-device, real-time play."
-          ariaLabel="Open multiplayer — host a room or join by code."
-          primary={{
-            label: 'Host',
-            ariaLabel: 'Host Game (coming soon)',
-            onClick: () => void handleHostMultiplayer('/rules'),
-          }}
-          secondary={{ label: 'Join by code', href: '/rules' }}
-          primaryEvent="mode_multiplayer_host_clicked"
-        />
-        <ModeCard
-          icon={<Calculator size={24} aria-hidden="true" />}
-          title="Score Card"
-          description="Track scores for in-person sessions. Share and export results."
-          ariaLabel="Open score card for in-person tallying"
-          primary={scorecardPrimaryAction}
-          secondary={scorecardSecondaryAction ?? undefined}
-          primaryEvent="mode_scorecard_open_clicked"
-        />
-      </div>
-
       {/* Quick Links */}
       <QuickLinks />
     </div>

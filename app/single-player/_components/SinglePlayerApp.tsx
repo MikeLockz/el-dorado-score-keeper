@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
-import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { startRound, mulberry32, deriveSeed } from '@/lib/single-player';
 // import CurrentGame from '@/components/views/CurrentGame';
@@ -17,7 +17,6 @@ import {
   selectSpTricksForRound,
   selectSpHandBySuit,
 } from '@/lib/state';
-import { uuid } from '@/lib/utils';
 import { useSinglePlayerEngine } from '@/lib/single-player/use-engine';
 import { INITIAL_STATE } from '@/lib/state';
 import { captureBrowserMessage } from '@/lib/observability/browser';
@@ -26,7 +25,8 @@ import { applyRoundAnalyticsFromEvents } from '@/lib/observability/events';
 import styles from '../page.module.scss';
 
 export default function SinglePlayerApp() {
-  const { state, append, appendMany, ready, isBatchPending } = useAppState();
+  const router = useRouter();
+  const { state, appendMany, ready, isBatchPending } = useAppState();
   // Deterministic RNG per session/round for bots, derived from session seed
   const rngRef = React.useRef<() => number>(() => Math.random());
   // Stable base when sessionSeed is absent: capture once per mount
@@ -266,8 +266,6 @@ export default function SinglePlayerApp() {
   // Round finalization now handled by useSinglePlayerEngine
   // First-run modal: prompt to create an SP roster if none exists
   const spRoster = React.useMemo(() => selectActiveRoster(state, 'single'), [state]);
-  const scRoster = React.useMemo(() => selectActiveRoster(state, 'scorecard'), [state]);
-  const [quickCount, setQuickCount] = React.useState<number>(2);
 
   if (!ready) {
     return (
@@ -284,86 +282,21 @@ export default function SinglePlayerApp() {
     return (
       <div className={styles.setupScreen}>
         <div className={styles.setupCard}>
-          <h1 className={styles.setupTitle}>Set up Single Player</h1>
-          <p className={styles.setupCopy}>
-            Choose players for Single Player. You can copy your Score Card players or start a quick
-            game.
+          <h1 className={styles.setupTitle}>Game unavailable</h1>
+          <p className={styles.setupCopy} role="alert">
+            We could not load the single-player roster for this game. Create a new game to continue
+            playing.
           </p>
           <div className={styles.setupActions}>
             <button
               className={styles.primaryAction}
-              disabled={!scRoster}
-              onClick={async () => {
-                const rid = uuid();
-                const name = 'Single Player';
-                const order = Object.entries(scRoster?.displayOrder ?? {})
-                  .sort((a, b) => a[1] - b[1])
-                  .map(([id]) => id);
-                await appendMany([
-                  events.rosterCreated({ rosterId: rid, name, type: 'single' }),
-                  ...order.map((id) =>
-                    events.rosterPlayerAdded({
-                      rosterId: rid,
-                      id,
-                      name: scRoster!.playersById[id] ?? id,
-                    }),
-                  ),
-                  events.rosterPlayersReordered({ rosterId: rid, order }),
-                  events.rosterActivated({ rosterId: rid, mode: 'single' }),
-                ]);
+              type="button"
+              onClick={() => {
+                router.replace('/single-player/new');
               }}
-              aria-label="Use Score Card players"
             >
-              Use Score Card players
+              Create new game
             </button>
-            <div>
-              <div className={styles.quickStartLabel}>Quick start</div>
-              <div className={styles.quickStartOptions}>
-                {[2, 3, 4, 5, 6].map((n) => (
-                  <button
-                    key={`qc-${n}`}
-                    className={clsx(
-                      styles.quickCountButton,
-                      quickCount === n && styles.quickCountButtonActive,
-                    )}
-                    onClick={() => setQuickCount(n)}
-                    aria-label={`Set players to ${n}`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <button
-                className={styles.secondaryAction}
-                onClick={async () => {
-                  const rid = uuid();
-                  const name = 'Single Player';
-                  const ids: string[] = [];
-                  // Ensure the human player is first in the quick start roster.
-                  const humanId = uuid();
-                  ids.push(humanId);
-                  const evts = [events.rosterCreated({ rosterId: rid, name, type: 'single' })];
-                  evts.push(events.rosterPlayerAdded({ rosterId: rid, id: humanId, name: 'You' }));
-                  for (let i = 1; i < quickCount; i++) {
-                    const id = uuid();
-                    ids.push(id);
-                    evts.push(
-                      events.rosterPlayerAdded({
-                        rosterId: rid,
-                        id,
-                        name: `Bot ${i}`,
-                      }),
-                    );
-                  }
-                  evts.push(events.rosterPlayersReordered({ rosterId: rid, order: ids }));
-                  evts.push(events.rosterActivated({ rosterId: rid, mode: 'single' }));
-                  await appendMany(evts);
-                }}
-                aria-label="Quick start"
-              >
-                Start with {quickCount} players
-              </button>
-            </div>
           </div>
         </div>
       </div>
