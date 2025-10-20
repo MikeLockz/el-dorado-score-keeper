@@ -611,6 +611,18 @@ function reduceSinglePlayer(state: AppState, event: KnownAppEvent): AppState | n
       roundTallies[roundNo] = { ...tallies };
       return { ...state, sp: { ...state.sp, roundTallies } };
     }
+    case 'sp/human-set': {
+      const { id } = event.payload as EventMap['sp/human-set'];
+      const normalized = typeof id === 'string' ? id.trim() : '';
+      const nextId = normalized.length > 0 ? normalized : null;
+      const current = state.humanByMode?.single ?? null;
+      if (current === nextId) return state;
+      const humanByMode = {
+        ...(state.humanByMode ?? {}),
+        single: nextId,
+      } as AppState['humanByMode'];
+      return { ...state, humanByMode };
+    }
     default:
       return null;
   }

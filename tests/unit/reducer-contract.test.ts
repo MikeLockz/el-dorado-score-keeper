@@ -52,6 +52,7 @@ describe('reducer contract: payload schemas', () => {
         'sp/summary-entered-set',
         'sp/round-tally-set',
         'sp/seed-set',
+        'sp/human-set',
       ].sort(),
     );
   });

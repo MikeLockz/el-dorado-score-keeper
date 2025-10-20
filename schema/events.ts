@@ -71,6 +71,7 @@ export const eventPayloadSchemas = {
     round,
     tallies: z.record(z.number().int().min(0)),
   }),
+  'sp/human-set': z.object({ id }),
 } as const;
 
 export type AppEventType = keyof typeof eventPayloadSchemas;

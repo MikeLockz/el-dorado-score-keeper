@@ -250,7 +250,10 @@ export default function SinglePlayerNewPageClient() {
         }),
       );
       const reorder = events.playersReordered({ order });
-      await appendMany([...rosterEvents, ...addEvents, reorder]);
+      const humanId = specs.find((spec) => spec.type === 'human')?.id ?? null;
+      const batch: KnownAppEvent[] = [...rosterEvents, ...addEvents, reorder];
+      if (humanId) batch.push(events.spHumanSet({ id: humanId }));
+      await appendMany(batch);
       router.replace(targetRoute);
     } catch (error) {
       const message =
@@ -286,7 +289,10 @@ export default function SinglePlayerNewPageClient() {
         }),
       );
       const reorder = events.playersReordered({ order: specs.map((spec) => spec.id) });
-      await appendMany([...rosterEvents, ...addEvents, reorder]);
+      const humanId = specs.find((spec) => spec.type === 'human')?.id ?? null;
+      const batch: KnownAppEvent[] = [...rosterEvents, ...addEvents, reorder];
+      if (humanId) batch.push(events.spHumanSet({ id: humanId }));
+      await appendMany(batch);
       router.replace(targetRoute);
     } catch (error) {
       const message =
