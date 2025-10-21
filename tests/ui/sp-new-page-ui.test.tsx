@@ -143,7 +143,7 @@ suite('Single-player new game setup', () => {
     expect(types[reorderIndex + 1]).toBe('roster/activated');
     const playerEvents = events.filter((event) => event.type === 'player/added');
     expect(playerEvents).toHaveLength(3);
-    expect(types.at(-1)).toBe('players/reordered');
+    expect(types.at(-1)).toBe('sp/human-set');
     expect(router.replace).toHaveBeenCalledWith('/single-player/sp-new-1');
 
     root.unmount();
@@ -193,7 +193,7 @@ suite('Single-player new game setup', () => {
     playerEvents.slice(1).forEach((evt, idx) => {
       expect(evt.payload).toMatchObject({ type: 'bot', name: `Bot ${idx + 1}` });
     });
-    expect(types.at(-1)).toBe('players/reordered');
+    expect(types.at(-1)).toBe('sp/human-set');
     expect(router.replace).toHaveBeenCalledWith('/single-player/sp-new-2');
 
     root.unmount();

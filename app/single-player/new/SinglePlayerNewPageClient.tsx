@@ -146,6 +146,11 @@ export default function SinglePlayerNewPageClient() {
     [],
   );
   const [playerCount, setPlayerCount] = React.useState(playerCountOptions[0]!);
+  const playerCountRef = React.useRef(playerCount);
+
+  React.useEffect(() => {
+    playerCountRef.current = playerCount;
+  }, [playerCount]);
 
   React.useEffect(() => {
     if (selectedRosterId || rosterSummaries.length === 0) return;
@@ -222,7 +227,7 @@ export default function SinglePlayerNewPageClient() {
       return;
     }
     if (order.length > MAX_PLAYERS) {
-      setSubmitError('Single player games support a maximum of six players.');
+      setSubmitError(`Single player games support a maximum of ${MAX_PLAYERS} players.`);
       return;
     }
     setPendingAction('roster');
@@ -264,14 +269,15 @@ export default function SinglePlayerNewPageClient() {
   }, [appendMany, router, rosterMap, selectedRosterId, state, targetRoute]);
 
   const handleCreatePlayers = React.useCallback(async () => {
-    if (!Number.isFinite(playerCount) || playerCount < MIN_PLAYERS || playerCount > MAX_PLAYERS) {
-      setSubmitError('Choose between 2 and 6 players.');
+    const count = playerCountRef.current;
+    if (!Number.isFinite(count) || count < MIN_PLAYERS || count > MAX_PLAYERS) {
+      setSubmitError(`Choose between ${MIN_PLAYERS} and ${MAX_PLAYERS} players.`);
       return;
     }
     setPendingAction('create');
     setSubmitError(null);
     try {
-      const specs: PlayerSpec[] = Array.from({ length: playerCount }).map((_, idx) => {
+      const specs: PlayerSpec[] = Array.from({ length: count }).map((_, idx) => {
         const id = uuid();
         const type: 'human' | 'bot' = idx === 0 ? 'human' : 'bot';
         const name = idx === 0 ? 'You' : `Bot ${idx}`;
@@ -300,7 +306,7 @@ export default function SinglePlayerNewPageClient() {
       setSubmitError(message);
       setPendingAction(null);
     }
-  }, [appendMany, playerCount, rosterMap, router, state, targetRoute]);
+  }, [appendMany, playerCountRef, rosterMap, router, state, targetRoute]);
 
   const showRosterList = rosterPlayers.length > 0;
 
@@ -344,6 +350,7 @@ export default function SinglePlayerNewPageClient() {
                         onClick={() => {
                           if (countButtonsDisabled) return;
                           setPlayerCount(count);
+                          playerCountRef.current = count;
                         }}
                         disabled={countButtonsDisabled}
                       >

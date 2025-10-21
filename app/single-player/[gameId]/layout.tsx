@@ -60,9 +60,9 @@ export default function SinglePlayerGameLayout({ children }: { children: React.R
   const navItems = React.useMemo(() => {
     const base = `/single-player/${gameId}`;
     return [
-      { href: base, label: 'Live play' },
-      { href: `${base}/scorecard`, label: 'Scorecard' },
-      { href: `${base}/summary`, label: 'Summary' },
+      { href: base, label: 'Live play', view: 'live' as const },
+      { href: `${base}/scorecard`, label: 'Scorecard', view: 'scorecard' as const },
+      { href: `${base}/summary`, label: 'Summary', view: 'summary' as const },
     ];
   }, [gameId]);
 
@@ -91,8 +91,27 @@ export default function SinglePlayerGameLayout({ children }: { children: React.R
     return <SinglePlayerGameMissing className={styles.missing ?? ''} />;
   }
 
+  const activeView = resolveView(pathname, gameId);
+
   return (
     <div className={styles.layout}>
+      <header className={styles.header}>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>{formatGameLabel(gameSlice)}</h1>
+          <span className={styles.meta}>Single Player</span>
+        </div>
+        <nav className={styles.nav} aria-label="Single player views">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={clsx(styles.navLink, activeView === item.view && styles.navLinkActive)}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </header>
       <section className={styles.content}>{children}</section>
     </div>
   );

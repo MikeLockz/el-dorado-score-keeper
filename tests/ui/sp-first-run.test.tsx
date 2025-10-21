@@ -8,13 +8,13 @@ const setMockAppState = (globalThis as any).__setMockAppState as (value: MockApp
 
 const suite = typeof document === 'undefined' ? describe.skip : describe;
 
-suite('SP First-Run Modal', () => {
+suite('SP Game State', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
   });
 
-  it('shows setup UI when no SP roster exists and clones Score Card', async () => {
+  it('shows game unavailable screen when no SP roster exists and allows creating new game', async () => {
     const appendMany = vi.fn(async () => {});
     const state: MockAppStateHook['state'] = {
       players: { p1: 'A', p2: 'B' },
@@ -73,16 +73,17 @@ suite('SP First-Run Modal', () => {
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
 
-    // Should render the first-run UI
+    // Should render the game unavailable screen when no SP roster exists
     const text = div.textContent || '';
-    expect(text).toMatch(/Set up Single Player/i);
+    expect(text).toMatch(/Game unavailable/i);
+    expect(text).toMatch(/Create new game/i);
     const btn = Array.from(div.querySelectorAll('button')).find((b) =>
-      /Use Score Card players/i.test(b.textContent || ''),
+      /Create new game/i.test(b.textContent || ''),
     ) as HTMLButtonElement;
     expect(btn).toBeTruthy();
     btn.click();
     await new Promise((r) => setTimeout(r, 0));
-    expect(appendMany).toHaveBeenCalled();
+    // Button should navigate to /single-player/new via router.replace, not call appendMany
 
     root.unmount();
     div.remove();

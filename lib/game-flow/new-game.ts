@@ -172,6 +172,8 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
   const analyticsRef = React.useRef<NewGameAnalyticsContext | undefined>(analyticsDefaults);
   const appRef = React.useRef(app);
   appRef.current = app;
+  const batchPendingRef = React.useRef<boolean>(app?.isBatchPending ?? false);
+  batchPendingRef.current = app?.isBatchPending ?? false;
 
   React.useEffect(() => {
     telemetryRef.current = telemetry;
@@ -270,7 +272,13 @@ export function useNewGameRequest(options: UseNewGameRequestOptions = {}): Start
       const { skipConfirm = false, analytics: analyticsOverride } = requestOptions;
       if (pending) return false;
       const latestApp = appRef.current ?? app;
-      if (requireIdle && latestApp?.isBatchPending) return false;
+      const isBatchPending =
+        typeof latestApp?.isBatchPending === 'boolean'
+          ? latestApp.isBatchPending
+          : batchPendingRef.current;
+      if (requireIdle && isBatchPending) {
+        return false;
+      }
 
       const effectiveState = timeTraveling ? liveStateRef.current : state;
       const hasProgress = forceHasProgress ?? hasInProgressGame(effectiveState);

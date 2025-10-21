@@ -37,6 +37,15 @@
   background: color-mix(in oklch, var(--color-muted) 20%, transparent);
 }
 
+.summaryHeading {
+  margin: 0;
+  @include typography.body('body-xs');
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted-foreground);
+}
+
 .summaryItem {
   display: flex;
   justify-content: space-between;

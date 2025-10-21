@@ -133,28 +133,35 @@ function readGameId(state: AppState, explicit?: string | null): string | null {
     const trimmed = explicit.trim();
     if (trimmed) return trimmed;
   }
+  const sp = state.sp as
+    | (AppState['sp'] & {
+        currentGameId?: unknown;
+        gameId?: unknown;
+        phase?: unknown;
+        order?: unknown;
+        trickPlays?: unknown;
+        hands?: unknown;
+      })
+    | undefined;
+  const direct = typeof sp?.currentGameId === 'string' ? sp.currentGameId.trim() : '';
+  if (direct) return direct;
+  const legacy = typeof sp?.gameId === 'string' ? sp.gameId.trim() : '';
+  if (legacy) return legacy;
+
   const derived = getCurrentSinglePlayerGameId(state);
   if (!derived) return null;
-  const sp = state.sp as
-    | (AppState['sp'] & { currentGameId?: unknown; gameId?: unknown })
-    | undefined;
-  const explicitInState =
-    (typeof sp?.currentGameId === 'string' && sp.currentGameId.trim().length > 0) ||
-    (typeof sp?.gameId === 'string' && sp.gameId.trim().length > 0);
-  if (!explicitInState) {
-    const phase = sp?.phase;
-    if (phase === 'setup' || phase === 'game-summary' || phase === 'done' || !phase) {
-      const hasOrder = Array.isArray(sp?.order) && (sp?.order?.length ?? 0) > 0;
-      const hasTricks = Array.isArray(sp?.trickPlays) && (sp?.trickPlays?.length ?? 0) > 0;
-      const hands = sp?.hands ?? {};
-      const hasHands = Object.values(hands).some(
-        (cards) => Array.isArray(cards) && cards.length > 0,
-      );
-      if (!hasOrder && !hasTricks && !hasHands) {
-        return null;
-      }
+
+  const phase = typeof sp?.phase === 'string' ? sp.phase : null;
+  if (phase === 'setup' || phase === 'game-summary' || phase === 'done' || !phase) {
+    const hasOrder = Array.isArray(sp?.order) && (sp?.order?.length ?? 0) > 0;
+    const hasTricks = Array.isArray(sp?.trickPlays) && (sp?.trickPlays?.length ?? 0) > 0;
+    const hands = sp?.hands ?? {};
+    const hasHands = Object.values(hands).some((cards) => Array.isArray(cards) && cards.length > 0);
+    if (!hasOrder && !hasTricks && !hasHands) {
+      return null;
     }
   }
+
   return derived;
 }
 

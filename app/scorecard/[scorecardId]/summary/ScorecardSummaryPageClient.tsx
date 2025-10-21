@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 
 import { useAppState } from '@/components/state-provider';
 import { selectScorecardById, scorecardPath } from '@/lib/state';
@@ -26,23 +26,29 @@ export type ScorecardSummaryPageClientProps = {
   scorecardId?: string;
 };
 
-export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPageClientProps) {
-  const router = useRouter();
-  const params = useParams();
-  const { state, ready } = useAppState();
-  let toastApi: ReturnType<typeof useToast> | null = null;
+function useToastSafe() {
   try {
-    toastApi = useToast();
+    return useToast();
   } catch {
-    toastApi = null;
+    return { toast: () => undefined, dismiss: () => {} };
   }
-  const toast = toastApi?.toast ?? (() => {});
+}
+
+export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPageClientProps) {
+  const params = useParams();
+  const { state, ready, context } = useAppState();
+  const { toast } = useToastSafe();
 
   const resolvedScorecardId = React.useMemo(() => {
-    if (scorecardId && scorecardId.trim()) return scorecardId.trim();
-    const raw = params?.scorecardId as string | string[] | undefined;
-    return scrubDynamicParam(raw);
-  }, [params, scorecardId]);
+    const trimmed = scorecardId?.trim() ?? '';
+    if (trimmed && trimmed !== 'scorecard-session') return trimmed;
+    const rawParam = params?.scorecardId as string | string[] | undefined;
+    const paramId = scrubDynamicParam(rawParam);
+    if (paramId) return paramId;
+    if (context?.scorecardId) return context.scorecardId;
+    if (state.activeScorecardRosterId) return state.activeScorecardRosterId;
+    return trimmed || null;
+  }, [context?.scorecardId, params, scorecardId, state.activeScorecardRosterId]);
 
   const session = React.useMemo(
     () => selectScorecardById(state, resolvedScorecardId),
@@ -58,9 +64,9 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
   const maxScore = players.length > 0 ? Math.max(...players.map((p) => p.score)) : 0;
 
   const handlePrint = React.useCallback(() => {
-    if (!resolvedScorecardId) return;
+    const targetId = resolvedScorecardId ?? 'scorecard-session';
     trackScorecardSummaryExport({
-      scorecardId: resolvedScorecardId,
+      scorecardId: targetId,
       format: 'print',
       source: 'scorecard.summary.page',
     });
@@ -70,9 +76,9 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
   }, [resolvedScorecardId]);
 
   const handleCopyLink = React.useCallback(async () => {
-    if (!resolvedScorecardId) return;
+    const targetId = resolvedScorecardId ?? 'scorecard-session';
     await shareLink({
-      href: scorecardPath(resolvedScorecardId, 'summary'),
+      href: scorecardPath(targetId, 'summary'),
       toast,
       title: 'Scorecard summary',
       successMessage: 'Scorecard summary link copied',
@@ -95,7 +101,7 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
   }
 
   const canRenderCurrentGame =
-    typeof window !== 'undefined' && typeof (window as any).ResizeObserver === 'function';
+    typeof window !== 'undefined' && typeof window.ResizeObserver === 'function';
 
   return (
     <div className={styles.container}>
@@ -122,6 +128,7 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
         </div>
       </header>
       <section className={styles.summaryList} aria-label="Score totals">
+        <h2 className={styles.summaryHeading}>Score totals</h2>
         {players.length === 0 ? (
           <div className={styles.summaryItem}>No players recorded for this scorecard.</div>
         ) : (
@@ -135,6 +142,14 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
           ))
         )}
       </section>
+      <div className={styles.actions}>
+        <Button variant="outline" onClick={handleCopyLink} type="button">
+          Copy link
+        </Button>
+        <Button onClick={handlePrint} type="button">
+          Print summary
+        </Button>
+      </div>
       {canRenderCurrentGame ? (
         <CurrentGame
           disableInputs
