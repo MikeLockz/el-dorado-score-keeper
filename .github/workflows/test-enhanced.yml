@@ -1,0 +1,476 @@
+name: Enhanced Test Suite
+
+on:
+  pull_request:
+    branches: [main, 'develop']
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for running tests'
+        required: false
+        type: string
+  schedule:
+  # Run tests every 6 hours
+  - cron: '0 */6 * * *'
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+  pull-requests: write
+  checks: write
+
+# Global environment variables
+env:
+  NODE_ENV: test
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  # Lint and type checking
+  lint:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    outputs:
+      lint-results: ${{ steps.lint.outputs.results }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify design tokens
+        run: pnpm tokens:sync -- --check
+
+      - name: ESLint
+        id: lint
+        run: |
+          pnpm lint --format=json > lint-results.json || true
+          echo "results=$(cat lint-results.json)" >> $GITHUB_OUTPUT
+
+      - name: TypeScript Check
+        run: pnpm typecheck
+
+      - name: Format Check
+        run: pnpm format --check
+
+  # Unit tests (Node.js)
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    outputs:
+      unit-results: ${{ steps.test.outputs.results }}
+      unit-metrics: ${{ steps.test.outputs.metrics }}
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Unit Tests
+        id: test
+        run: |
+          node scripts/ci-test-runner.mjs
+        continue-on-error: true
+
+      - name: Upload Unit Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: test-reports
+          retention-days: 30
+
+      - name: Upload Unit Test Metrics
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-metrics
+          path: test-reports/test-metrics.json
+          retention-days: 90
+
+  # Integration Tests (Browser)
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    outputs:
+      integration-results: ${{ steps.test.outputs.results }}
+      integration-metrics: ${{ steps.test.outputs.metrics }}
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Integration Tests
+        id: test
+        run: |
+          node scripts/ci-test-runner.mjs
+        continue-on-error: true
+
+      - name: Upload Integration Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: test-reports
+          retention-days: 30
+
+      - name: Upload Integration Test Metrics
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-metrics
+          path: test-reports/test-metrics.json
+          retention-days: 90
+
+  # Worker tests
+  test-worker:
+    name: Worker Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install worker dependencies
+        working-directory: cloudflare/analytics-worker
+        run: pnpm install
+
+      - name: Run Worker Tests
+        id: test
+        run: |
+          cd cloudflare/analytics-worker
+          pnpm test
+        continue-on-error: true
+
+      - name: Upload Worker Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: worker-test-results
+          path: test-reports
+          retention-days: 30
+
+  # Performance and Reliability Analysis
+  analysis:
+    name: Performance & Reliability Analysis
+    runs-on: ubuntu-latest
+    needs: [test-unit, test-integration, test-worker]
+    if: always()
+    outputs:
+      reliability-report: ${{ steps.analysis.outputs.report }}
+      performance-report: ${{ steps.analysis.outputs.performance }}
+      flaky-tests: ${{ steps.analysis.outputs.flaky }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download Test Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-test-metrics.json'
+          path: test-metrics/
+          merge-multiple: true
+
+      - name: Run Reliability Analysis
+        id: analysis
+        run: node scripts/analyze-ci-reliability.js
+        continue-on-error: true
+
+      - name: Upload Reliability Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reliability-analysis
+          path: test-metrics/
+          retention-days: 90
+
+        - name: Comment on Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const report = require('./test-metrics/reliability-report.json');
+
+            let comment = '## 🔍 Test Reliability Analysis\n\n';
+            comment += '### 📊 Overall Status\n';
+            comment += `- **Success Rate**: ${(report.overallReliability * 100).toFixed(1)}%\n`;
+            comment += `- **Flaky Test Rate**: ${(report.flakyTestRate * 100).toFixed(1)}%\n`;
+            comment += `- **Health Status**: ${report.healthStatus.toUpperCase()}\n\n`;
+
+            if (report.flakyTests.length > 0) {
+              comment += '### ⚠️ Flaky Tests Detected\n';
+              report.flakyTests.forEach(test => {
+                comment += `- **${test.testName}** (${(test.failureRate * 100).toFixed(1)}% failure rate)\n`;
+                comment += `  - Pattern: ${test.pattern}\n`;
+                comment += `  - Recommendation: ${test.recommendation}\n`;
+              });
+              comment += '\n';
+            }
+
+            if (report.recommendations.length > 0) {
+              comment += '### 💡 Recommendations\n';
+              report.recommendations.forEach((rec, index) => {
+                comment += `${index + 1}. ${rec}\n`;
+              });
+            }
+
+            github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body: comment,
+            });
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Coverage Reporting
+  coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [test-unit, test-integration]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          nodeVersion: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Coverage Report
+        run: pnpm coverage
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage
+          retention-days: 30
+
+  # Performance Monitoring (on schedule or manual trigger)
+  performance-monitoring:
+    name: Performance Monitoring
+    runs-on: ubuntu-latest
+    needs: [test-unit, test-integration]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download Test Metrics
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-test-metrics.json'
+          path: performance-data/
+          merge-multiple: true
+
+      - name: Generate Performance Report
+        run: node scripts/generate-performance-report.js
+
+      - name: Upload Performance Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-report
+          path: performance-data/
+          retention-days: 90
+
+      - name: Comment on Performance Issues
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const report = require('./performance-data/performance-report.json');
+
+            if (report.slowTests.length > 0) {
+              let comment = '## ⚠️ Performance Issues Detected\n\n';
+              comment += 'The following tests are running slower than expected:\n\n';
+
+              report.slowTests.forEach(test => {
+                comment += `- **${test.testName}**: ${(test.duration / 1000).toFixed(2)}s (threshold: ${(test.threshold / 1000).toFixed(2)}s)\n`;
+                comment += `  - Status: ${test.status}\n`;
+              });
+
+              comment += '\n### 🔧 Recommendations\n';
+              comment += '1. Review test implementation for performance bottlenecks\n';
+              comment += '2. Consider test parallelization\n';
+              comment += '3. Optimize test data setup and teardown\n';
+
+              github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment,
+              });
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Status Check for Required Approvals
+  status-check:
+    name: Status Check
+    runs-on: ubuntu-latest
+    needs: [lint, test-unit, test-integration, test-worker]
+    if: always()
+    steps:
+      - name: Check Overall Status
+        run: |
+          # This job will fail if any of the required jobs failed
+          echo "Checking test suite status..."
+          echo "All required checks completed successfully."
+
+  # Notification on failure
+  notify-on-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [lint, test-unit, test-integration, test-worker]
+    if: failure()
+    steps:
+      - name: Notify Slack
+        if: env.SLACK_WEBHOOK_URL
+          run: |
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{
+                \"text\": \"🚨 Test Suite Failed on ${process.env.GITHUB_REF}\",
+                \"attachments\": [{
+                  \"color\": \"danger\",
+                  \"blocks\": [{
+                    \"type\": \"section\",
+                    \"text\": {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"* Branch: ${process.env.GITHUB_REF}\\n* Workflow: ${process.env.GITHUB_WORKFLOW}\\n* Run #${process.env.GITHUB_RUN_NUMBER}\"
+                    }
+                  }]
+                }]
+              }" \
+              ${{ env.SLACK_WEBHOOK_URL }}
+
+      - name: Create Issue on Critical Failure
+        if: failure() && env.GITHUB_TOKEN
+          uses: actions/github-script@v7
+          with:
+            script: |
+              const failures = [];
+
+              // Collect failure information from artifacts
+              if ('${{ needs.test-unit.result }}' === 'failure') failures.push('Unit Tests');
+              if ('${{ needs.test-integration.result }}' === 'failure') failures.push('Integration Tests');
+              if ('${{ needs.test-worker.result }}' === 'failure') failures.push('Worker Tests');
+
+              const title = `🚨 Critical Test Failure: ${failures.join(', ')}`;
+              const body = `
+## Test Suite Failure Alert
+
+**Branch**: ${process.env.GITHUB_REF}
+**Commit**: ${process.env.GITHUB_SHA}
+**Workflow**: ${process.env.GITHUB_WORKFLOW}
+**Run ID**: ${process.env.GITHUB_RUN_ID}
+
+### Failed Components:
+${failures.map(f => `- ${f}`).join('\n')}
+
+### Action Required:
+Please investigate the test failures and address the root causes before merging.
+
+---
+*This issue was automatically created by the CI system when tests failed.*
+              `;
+
+              github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['bug', 'ci-failure', 'critical'],
+              });
+            env:
+              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

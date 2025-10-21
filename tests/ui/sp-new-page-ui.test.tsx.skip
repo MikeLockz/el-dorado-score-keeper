@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { waitFor } from '@testing-library/react';
 import { INITIAL_STATE, type AppState, type KnownAppEvent } from '@/lib/state';
+import { cleanupDevelopmentGlobals } from '../utils/component-lifecycle';
 
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 type RouterStub = ReturnType<(typeof import('next/navigation'))['useRouter']>;
@@ -57,9 +58,17 @@ suite('Single-player new game setup', () => {
   let appendMany: vi.Mock<[KnownAppEvent[]], Promise<number>>;
 
   beforeEach(() => {
+    // Enhanced cleanup for development globals
+    cleanupDevelopmentGlobals();
+
     router = createRouter();
     setMockRouter(router);
     appendMany = vi.fn(async () => 0) as vi.Mock<[KnownAppEvent[]], Promise<number>>;
+  });
+
+  afterEach(() => {
+    // Enhanced cleanup for development globals after each test
+    cleanupDevelopmentGlobals();
   });
 
   it('clears inherited players before enabling actions', async () => {
