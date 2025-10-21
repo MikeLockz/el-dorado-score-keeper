@@ -6,7 +6,10 @@
       "Bash(node:*)",
       "Bash(npx tsx:*)",
       "Bash(npx vitest:*)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "Bash(timeout:*)",
+      "Bash(sort:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
