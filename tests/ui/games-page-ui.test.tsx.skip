@@ -3,6 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { waitFor, screen } from '@testing-library/react';
 import { INITIAL_STATE, type AppState } from '@/lib/state';
+import { renderWithFullLifecycle, cleanupDevelopmentGlobals } from '../utils/component-lifecycle';
 
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 type RouterStub = ReturnType<(typeof import('next/navigation'))['useRouter']>;
@@ -152,9 +153,8 @@ suite('Games page new game flow', () => {
     appendMany.mockClear();
     startNewGameSpy.mockClear();
 
-    // Clean up any global state that might persist
-    delete (globalThis as any).__START_NEW_GAME__;
-    delete (globalThis as any).__clientLogTrack__;
+    // Use our enhanced cleanup for development globals
+    cleanupDevelopmentGlobals();
 
     setListGamesMock((async (...args) =>
       stateMocks.listGames(...args)) as typeof stateMocks.listGames);
@@ -175,8 +175,8 @@ suite('Games page new game flow', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
-    delete (globalThis as any).__START_NEW_GAME__;
-    delete (globalThis as any).__clientLogTrack__;
+    // Use enhanced cleanup that also handles async operations
+    cleanupDevelopmentGlobals();
   });
 
   it('confirms before starting a new game and navigates on success', async () => {
@@ -212,6 +212,8 @@ suite('Games page new game flow', () => {
 
     root.unmount();
     container.remove();
+    // Enhanced cleanup for development globals after component unmount
+    cleanupDevelopmentGlobals();
   });
 
   it('navigates back to the in-progress game when cancelling the new game confirmation', async () => {
@@ -245,6 +247,8 @@ suite('Games page new game flow', () => {
 
     root.unmount();
     container.remove();
+    // Enhanced cleanup for development globals after component unmount
+    cleanupDevelopmentGlobals();
   });
 
   it('restores a single player game and navigates directly to that mode', async () => {
@@ -319,9 +323,13 @@ suite('Games page new game flow', () => {
 
     modalRoot.unmount();
     modalContainer.remove();
+    // Enhanced cleanup for modal
+    cleanupDevelopmentGlobals();
 
     root.unmount();
     container.remove();
+    // Enhanced cleanup for development globals after component unmount
+    cleanupDevelopmentGlobals();
   });
 
   it('hides restore controls for completed games', async () => {
@@ -381,5 +389,7 @@ suite('Games page new game flow', () => {
 
     root.unmount();
     container.remove();
+    // Enhanced cleanup for development globals after component unmount
+    cleanupDevelopmentGlobals();
   });
 });

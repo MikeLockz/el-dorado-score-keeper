@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppState } from '@/lib/state/types';
 import { INITIAL_STATE } from '@/lib/state/types';
+import { cleanupDevelopmentGlobals, clearTimeoutsAndIntervals } from '../../utils/component-lifecycle';
 
 type ConfirmHandler = (context: {
   reason: 'in-progress';
@@ -70,7 +71,11 @@ describe('useNewGameRequest', () => {
   let newGameConfirmShow: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    // Enhanced cleanup to prevent test interference
+    cleanupDevelopmentGlobals();
+    clearTimeoutsAndIntervals();
     vi.clearAllMocks();
+
     context = createAppContext();
     setMockAppState(context);
     newGameConfirmShow = vi.fn().mockResolvedValue(true);
@@ -82,9 +87,6 @@ describe('useNewGameRequest', () => {
         () => true,
       );
     }
-
-    // Clean up any global state that might persist between tests
-    delete (globalThis as any).__START_NEW_GAME__;
 
     // Clear any pending broadcast channels or storage listeners
     if (typeof window !== 'undefined') {
@@ -99,8 +101,9 @@ describe('useNewGameRequest', () => {
   });
 
   afterEach(() => {
-    // Clean up global state after each test
-    delete (globalThis as any).__START_NEW_GAME__;
+    // Enhanced cleanup to prevent test interference
+    cleanupDevelopmentGlobals();
+    clearTimeoutsAndIntervals();
 
     // Clear any storage event listeners by triggering cleanup
     if (typeof window !== 'undefined') {
@@ -163,18 +166,26 @@ describe('useNewGameRequest', () => {
   });
 
   it('blocks when requireIdle is true and a batch is pending', async () => {
-    context.isBatchPending = true;
-    setMockAppState(context);
+    // Create a completely isolated context
+    const isolatedContext = createAppContext({ isBatchPending: true });
 
-    const { result, rerender } = renderHook(() => {
-      setMockAppState(context);
+    // Clear everything first to ensure clean state
+    vi.clearAllMocks();
+    cleanupDevelopmentGlobals();
+    clearTimeoutsAndIntervals();
+
+    // Set our isolated context
+    setMockAppState(isolatedContext);
+
+    // Force a tick to ensure context is set
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Render the hook
+    const { result } = renderHook(() => {
       return useNewGameRequest({ requireIdle: true, forceHasProgress: true });
     });
 
     await act(async () => {
-      context.isBatchPending = true;
-      setMockAppState(context);
-      rerender();
       const ok = await result.current.startNewGame();
       expect(ok).toBe(false);
     });

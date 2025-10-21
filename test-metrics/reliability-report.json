@@ -1,0 +1,13 @@
+{
+  "timestamp": "2025-10-21T20:20:03.040Z",
+  "overallReliability": 0,
+  "flakyTestRate": 0,
+  "healthStatus": "critical",
+  "flakyTests": [],
+  "recommendations": ["Overall test reliability is below 80% - review test infrastructure"],
+  "trends": {
+    "reliabilityTrend": [],
+    "performanceTrend": [],
+    "flakyTestTrend": []
+  }
+}

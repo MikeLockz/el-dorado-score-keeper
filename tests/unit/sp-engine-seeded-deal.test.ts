@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildNextRoundDealBatch } from '@/lib/single-player/engine';
 import type { AppState } from '@/lib/state/types';
+import { createUnitTestTemplate } from '../utils/test-patterns';
 
 function baseState(sessionSeed: number): AppState {
   return {
@@ -35,7 +36,7 @@ function baseState(sessionSeed: number): AppState {
   };
 }
 
-describe('buildNextRoundDealBatch seeding', () => {
+createUnitTestTemplate('buildNextRoundDealBatch seeding', {}, () => {
   it('produces identical deals for same sessionSeed', () => {
     const s = baseState(424242);
     const now = 111111;

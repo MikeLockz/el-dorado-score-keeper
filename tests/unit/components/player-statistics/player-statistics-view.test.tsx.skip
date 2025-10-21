@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AppState } from '@/lib/state';
 import { INITIAL_STATE } from '@/lib/state';
+import { cleanupDevelopmentGlobals } from '../../../utils/component-lifecycle';
 
 const setMockAppState = (globalThis as any).__setMockAppState as (
   value: ReturnType<(typeof import('@/components/state-provider'))['useAppState']>,
@@ -86,11 +87,15 @@ describe('PlayerStatisticsView', () => {
     vi.clearAllMocks();
     loadPlayerStatisticsSummaryMock.mockReset();
     setMockRouter(createRouterStub());
+    // Enhanced cleanup for development globals
+    cleanupDevelopmentGlobals();
   });
 
   afterEach(() => {
     loadPlayerStatisticsSummaryMock.mockReset();
     cleanup();
+    // Enhanced cleanup for development globals
+    cleanupDevelopmentGlobals();
   });
 
   it('renders skeleton placeholders while loading statistics', async () => {

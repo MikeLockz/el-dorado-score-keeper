@@ -1,0 +1,30 @@
+{
+  "timestamp": "2025-10-21T20:20:05.263Z",
+  "summary": {
+    "totalTests": 0,
+    "totalDuration": 0,
+    "averageDuration": 0,
+    "slowestTest": "N/A",
+    "fastestTest": "N/A",
+    "successRate": 0
+  },
+  "slowTests": [],
+  "trends": {
+    "performanceTrend": [],
+    "durationTrend": [],
+    "memoryTrend": []
+  },
+  "bottlenecks": {
+    "slowestSuites": [],
+    "memoryIntensiveTests": []
+  },
+  "recommendations": [
+    "Low test success rate may be impacting performance - fix failing tests first"
+  ],
+  "thresholds": {
+    "testWarningThreshold": 5000,
+    "testCriticalThreshold": 10000,
+    "suiteWarningThreshold": 30000,
+    "suiteCriticalThreshold": 60000
+  }
+}
