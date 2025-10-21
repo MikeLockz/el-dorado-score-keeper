@@ -44,16 +44,3 @@
   }
 }
 
-.modesGrid {
-  display: grid;
-  gap: spacing.spacing('space-4');
-
-  @include breakpoints.respond('sm') {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: spacing.spacing('space-6');
-  }
-
-  @include breakpoints.respond('lg') {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
