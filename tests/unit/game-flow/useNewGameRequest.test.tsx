@@ -166,10 +166,21 @@ describe('useNewGameRequest', () => {
   });
 
   it('blocks when requireIdle is true and a batch is pending', async () => {
-    // Ensure complete isolation from other tests
+    // Create a completely isolated context
     const isolatedContext = createAppContext({ isBatchPending: true });
+
+    // Clear everything first to ensure clean state
+    vi.clearAllMocks();
+    cleanupDevelopmentGlobals();
+    clearTimeoutsAndIntervals();
+
+    // Set our isolated context
     setMockAppState(isolatedContext);
 
+    // Force a tick to ensure context is set
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Render the hook
     const { result } = renderHook(() => {
       return useNewGameRequest({ requireIdle: true, forceHasProgress: true });
     });
