@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppState } from '@/lib/state/types';
 import { INITIAL_STATE } from '@/lib/state/types';
+import { cleanupDevelopmentGlobals } from '../../utils/component-lifecycle';
 
 type ConfirmHandler = (context: {
   reason: 'in-progress';
@@ -83,8 +84,8 @@ describe('useNewGameRequest', () => {
       );
     }
 
-    // Clean up any global state that might persist between tests
-    delete (globalThis as any).__START_NEW_GAME__;
+    // Use enhanced cleanup for all development globals
+    cleanupDevelopmentGlobals();
 
     // Clear any pending broadcast channels or storage listeners
     if (typeof window !== 'undefined') {
@@ -99,8 +100,8 @@ describe('useNewGameRequest', () => {
   });
 
   afterEach(() => {
-    // Clean up global state after each test
-    delete (globalThis as any).__START_NEW_GAME__;
+    // Use enhanced cleanup for all development globals and async operations
+    cleanupDevelopmentGlobals();
 
     // Clear any storage event listeners by triggering cleanup
     if (typeof window !== 'undefined') {

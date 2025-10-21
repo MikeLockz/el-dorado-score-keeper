@@ -5,6 +5,7 @@ import { waitFor } from '@testing-library/react';
 
 import type { AppState, RoundData } from '@/lib/state/types';
 import { INITIAL_STATE } from '@/lib/state/types';
+import { cleanupDevelopmentGlobals } from '../utils/component-lifecycle';
 
 type MockAppStateHook = ReturnType<(typeof import('@/components/state-provider'))['useAppState']>;
 
@@ -139,6 +140,10 @@ suite('SinglePlayerDesktop view', () => {
     append.mockClear();
     appendMany.mockClear();
     stateRef = makeDesktopState();
+
+    // Enhanced cleanup for development globals
+    cleanupDevelopmentGlobals();
+
     mockContext = {
       state: stateRef,
       height: 480,
@@ -165,6 +170,8 @@ suite('SinglePlayerDesktop view', () => {
     container = null;
     root = null;
     setMockAppState(createDefaultMockContext());
+    // Enhanced cleanup for development globals after component unmount
+    cleanupDevelopmentGlobals();
   });
 
   it('renders desktop overview and routes actions through shared view model', async () => {
