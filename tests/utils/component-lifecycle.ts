@@ -77,6 +77,23 @@ export function compareDevelopmentStates(
 }
 
 /**
+ * Restore development globals to a previously captured state
+ */
+export function restoreDevelopmentGlobals(globals: ReturnType<typeof captureDevelopmentGlobals>) {
+  if (globals.__START_NEW_GAME__) {
+    (globalThis as any).__START_NEW_GAME__ = globals.__START_NEW_GAME__;
+  } else {
+    delete (globalThis as any).__START_NEW_GAME__;
+  }
+
+  if (globals.__clientLogTrack__) {
+    (globalThis as any).__clientLogTrack__ = globals.__clientLogTrack__;
+  } else {
+    delete (globalThis as any).__clientLogTrack__;
+  }
+}
+
+/**
  * Higher-order function that ensures development globals are properly managed
  * during a test function execution.
  */
