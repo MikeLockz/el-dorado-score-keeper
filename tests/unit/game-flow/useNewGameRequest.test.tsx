@@ -164,18 +164,16 @@ describe('useNewGameRequest', () => {
   });
 
   it('blocks when requireIdle is true and a batch is pending', async () => {
-    context.isBatchPending = true;
+    // Ensure clean state
+    vi.clearAllMocks();
+    context = createAppContext({ isBatchPending: true });
     setMockAppState(context);
 
-    const { result, rerender } = renderHook(() => {
-      setMockAppState(context);
+    const { result } = renderHook(() => {
       return useNewGameRequest({ requireIdle: true, forceHasProgress: true });
     });
 
     await act(async () => {
-      context.isBatchPending = true;
-      setMockAppState(context);
-      rerender();
       const ok = await result.current.startNewGame();
       expect(ok).toBe(false);
     });
