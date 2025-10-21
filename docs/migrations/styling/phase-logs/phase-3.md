@@ -45,7 +45,7 @@
 
 ## Summary
 
-- Migrated the toast system, global header, and landing hero components (`HeroCtas`, `ModeCard`, `QuickLinks`) to Sass modules with token-driven spacing and state mixins.
+- Migrated the toast system, global header, and landing hero components (`HeroCtas`, `QuickLinks`) to Sass modules with token-driven spacing and state mixins.
 - Removed remaining Tailwind utility strings from those surfaces and updated the migration checklist with QA follow-ups.
 
 ## Risks / Follow-ups
@@ -171,3 +171,28 @@
 - `pnpm lint` ✅
 - `pnpm test` not rerun; waiting until Playwright harness issue is resolved.
 - `pnpm test:playwright` ❌ (fails to start local server: `listen EPERM 0.0.0.0:3100` inside sandbox).
+
+---
+
+# Phase 3 Log – 2025-10-21 (ModeCard Removal Update)
+
+## Summary
+
+- Removed the `ModeCard` component and related Modes Grid section from the landing page as part of a UI simplification effort.
+- Updated documentation and migration checklist to reflect the component removal.
+- Landing page now consists of Hero section + Quick Links only, providing a cleaner user experience.
+
+## Files Removed
+
+- `components/landing/ModeCard.tsx` - Component removed
+- `components/landing/mode-card.module.scss` - Styles removed
+- `tests/ui/landing-snapshots.test.ts` - Tests removed
+- `tests/ui/landing-ui.test.tsx` - Tests removed
+- `tests/ui/landing-analytics.test.tsx` - Tests removed
+
+## QA Status
+
+- `pnpm lint` ✅
+- `pnpm test` ✅ - All tests pass after removal
+- `pnpm build` ✅ - Application builds successfully
+- Documentation updated to reflect current implementation

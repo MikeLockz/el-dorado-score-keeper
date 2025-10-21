@@ -1,14 +1,14 @@
 # Game Landing Page — Design Recommendations
 
-A welcoming, mode-driven hub that lets players quickly choose how they want to play: Single Player, Multiplayer, or Score Card for in‑person score keeping.
+A welcoming landing page that introduces the El Dorado card game and provides quick access to recent games and learning resources.
 
 ---
 
 ## Objectives
 
-- Clarity: Make the three core modes unmistakable and one tap/click away.
-- Invitation: Use engaging icons/visuals and action-oriented copy to encourage exploration.
-- Speed: Provide “Quick Actions” (resume last game, join by code) from the hero.
+- Clarity: Clearly introduce the El Dorado card game with concise messaging.
+- Invitation: Use engaging visuals and action-oriented copy to encourage exploration.
+- Speed: Provide "Quick Actions" to resume recent games and access key resources.
 - Cohesion: Use existing color, type, iconography.
 - Accessibility: AA contrast, keyboard-first navigability, screen reader clarity.
 
@@ -17,9 +17,8 @@ A welcoming, mode-driven hub that lets players quickly choose how they want to p
 ## Information Architecture
 
 - Header: Logo/wordmark, `How To Play`, `Settings` (gear), optional theme toggle.
-- Hero: Tagline, brief subcopy, prominent CTAs for top tasks.
-- Modes Grid: Three feature cards — Single Player, Multiplayer, Score Card.
-- Secondary: Recent sessions, Import/Export score files, Tips.
+- Hero: Tagline, brief subcopy, prominent primary CTAs.
+- Quick Links: Recent sessions, access to game modes and learning resources.
 - Footer: Credits, version, privacy/help links.
 
 Suggested routes:
@@ -36,44 +35,45 @@ Suggested routes:
 
 - Color contrast: All text ≥ AA (4.5:1); large text ≥ 3:1.
 - Keyboard nav: Logical tab order, `Skip to content` link, ESC to close overlays.
-- Screen readers: Descriptive `aria-label` on each mode card, e.g., “Start single player mode; play solo vs AI”.
+- Screen readers: Descriptive `aria-label` on interactive elements.
 - Motion: Respect `prefers-reduced-motion: reduce` (disable parallax, animation).
 - Hit targets: Minimum 44×44 px.
 
 ---
 
-## Mode Cards
+## Hero Section
 
-Each card contains: icon, title, 1–2 line description, primary CTA, and a lighter secondary link.
+Contains the game introduction and primary call-to-action buttons.
 
-1. Single Player
+1. Hero Content
 
-- Description: “Play solo against adaptive AI. Practice strategies and unlock achievements.”
-- Primary CTA: “Start Single Player” → `/single`
-- Secondary: “Continue last run” (if available)
+- Title: "Set Out for El Dorado"
+- Description: "A card game from south western Michigan."
+- Primary CTA: "Start Single Player" → `/single-player`
 
-2. Multiplayer
+---
 
-- Description: “Host a room or join with a code. Cross‑device, real‑time play.”
-- Primary CTA: “Host Game” → `/multi/host`
-- Secondary: “Join by code” → `/multi/join`
+## Quick Links Section
 
-3. Score Card
+Provides access to recent games and key resources.
 
-- Description: “Track scores for in‑person sessions. Share and export results.”
-- Primary CTA: “Open Score Card” → `/scorecard`
-- Secondary: “Import previous scores”
+1. Recent Games
+   - Displays archived games with resume functionality
+   - Shows game mode, player count, and progress
+   - Empty state: "Your games will appear here."
 
-Secondary quick links (below grid): Recent Sessions, How to Play, Import/Export.
+2. Quick Access
+   - "How to Play" link → `/rules`
+   - Additional resources and settings access
 
 ---
 
 ## Content & Copy (Examples)
 
-- Hero Title: “Set Out for El Dorado”
-- Subcopy: “Choose your path: practice solo, gather your party, or tally scores on the go.”
-- CTAs: “Start Single Player” • “Host Game” • “Open Score Card”
-- Empty recents: “No games.”
+- Hero Title: "Set Out for El Dorado"
+- Subcopy: "A card game from south western Michigan."
+- Primary CTA: "Start Single Player"
+- Empty recents: "Your games will appear here."
 
 ---
 
@@ -88,19 +88,18 @@ Use these ASCII wireframes as structure guides. They show layout, hierarchy, and
 │ LOGO                How To Play     Settings ⚙︎            Theme ◐        │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                         Set Out for El Dorado                              │
-│        Choose your path: solo, together, or track scores in person.        │
-│        [ Start Single Player ]   [ Host Game ]   [ Open Score Card ]       │
+│              A card game from south western Michigan.                      │
+│                       [ Start Single Player ]                              │
 ├────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────┐  ┌─────────────────────────┐  ┌─────────────┐ │
-│  │        🧭               │  │         🔥              │  │      🧮     │ │
-│  │  Single Player          │  │  Multiplayer            │  │  Score Card │ │
-│  │  Practice vs AI and     │  │  Host or join to play   │  │  Keep scores│ │
-│  │  unlock achievements.   │  │  together in real time. │  │  in person. │ │
-│  │  [ Start ]  (Continue)  │  │  [ Host ]  (Join code)  │  │  [ Open ]   │ │
-│  └─────────────────────────┘  └─────────────────────────┘  └─────────────┘ │
-├────────────────────────────────────────────────────────────────────────────┤
-│  Recent Sessions    • 07/12 “River Run”  • 07/10 “Temple Dash”   [View All] │
-│  Tips & Rules       • Learn the basics →  • Advanced scoring →              │
+│                           Quick Links                                      │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                      Recent Games                                    │  │
+│  │  • 07/12 "River Run" - Single Player    [ Resume ]                  │  │
+│  │  • 07/10 "Temple Dash" - Score Card      [ Resume ]                  │  │
+│  │  • 07/08 "Mountain Pass" - Single Player [ Resume ]                  │  │
+│  │                                                                      │  │
+│  │                    How to Play →                                     │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
 ├────────────────────────────────────────────────────────────────────────────┤
 │ © El Dorado Score Keeper · v1.0  ·  Privacy  ·  Help                        │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -108,9 +107,9 @@ Use these ASCII wireframes as structure guides. They show layout, hierarchy, and
 
 Labels:
 
-- Hero CTAs are the fastest routes to each mode.
-- Modes Grid uses equal-height cards; primary action visually dominant.
-- Secondary area lists recents and learning resources.
+- Hero section introduces the game with primary CTA.
+- Quick Links section shows recent games and learning resources.
+- Clean, focused layout with clear hierarchy.
 
 ### Tablet (≈ 768–1023px)
 
@@ -119,20 +118,17 @@ Labels:
 │ LOGO            How To Play    ⚙︎            │
 ├──────────────────────────────────────────────┤
 │          Set Out for El Dorado              │
-│  Choose your path: solo, together, or score │
-│  [ Start Single ]  [ Host Game ]  [ Score ] │
+│      A card game from south western Michigan │
+│           [ Start Single Player ]           │
 ├──────────────────────────────────────────────┤
-│  ┌─────────────────────┐  ┌─────────────────┐│
-│  │ 🧭 Single Player     │  │ 🔥 Multiplayer  ││
-│  │ Practice vs AI...   │  │ Host/Join room  ││
-│  │ [ Start ] (Cont.)   │  │ [ Host ] (Join) ││
-│  └─────────────────────┘  └─────────────────┘│
-│  ┌──────────────────────────────────────────┐│
-│  │ 🧮 Score Card                            ││
-│  │ Keep scores in person.  [ Open ]         ││
-│  └──────────────────────────────────────────┘│
-├──────────────────────────────────────────────┤
-│ Recent • River Run • Temple Dash   [View All]│
+│                Quick Links                   │
+│  ┌────────────────────────────────────────┐ │
+│  │ Recent Games                          │ │
+│  │ • River Run - Single Player [ Resume ] │ │
+│  │ • Temple Dash - Score Card [ Resume ] │ │
+│  │                                        │ │
+│  │ How to Play →                          │ │
+│  └────────────────────────────────────────┘ │
 └──────────────────────────────────────────────┘
 ```
 
@@ -143,28 +139,20 @@ Labels:
 │ LOGO                         ☰       │
 ├──────────────────────────────────────┤
 │   Set Out for El Dorado             │
-│   Solo, together, or track scores.  │
-│   [ Start Single ]                  │
-│   [ Host Game ]                     │
-│   [ Open Score Card ]               │
+│ A card game from south western      │
+│           Michigan                  │
+│   [ Start Single Player ]           │
 ├──────────────────────────────────────┤
+│              Quick Links             │
 │ ┌──────────────────────────────────┐ │
-│ │ 🧭  Single Player                │ │
-│ │ Practice vs AI...               │ │
-│ │ [ Start ]   (Continue)          │ │
+│ │ Recent Games                    │ │
+│ │ • River Run                     │ │
+│ │   Single Player [ Resume ]      │ │
+│ │ • Temple Dash                   │ │
+│ │   Score Card [ Resume ]         │ │
+│ │                                │ │
+│ │ How to Play →                  │ │
 │ └──────────────────────────────────┘ │
-│ ┌──────────────────────────────────┐ │
-│ │ 🔥  Multiplayer                  │ │
-│ │ Host or join a room.            │ │
-│ │ [ Host ]   (Join code)          │ │
-│ └──────────────────────────────────┘ │
-│ ┌──────────────────────────────────┐ │
-│ │ 🧮  Score Card                   │ │
-│ │ Keep scores in person.           │ │
-│ │ [ Open ]                         │ │
-│ └──────────────────────────────────┘ │
-├──────────────────────────────────────┤
-│ Recent Sessions                      │
 └──────────────────────────────────────┘
 ```
 
@@ -172,9 +160,8 @@ Labels:
 
 ## Layout & Spacing
 
-- Grid: 3 columns on desktop, 2 on tablet, 1 on mobile; 24–32px gutters.
-- Card: 16–24px internal padding; 12–16px between icon, title, and text.
-- Hero: 64–96px vertical padding; CTAs grouped with 12px gap.
+- Hero: 64–96px vertical padding; primary CTA centered.
+- Quick Links: 24–32px gutters; 16–24px internal padding.
 - Visual rhythm: consistent 8px base unit; round corners 12–16px.
 
 ---
@@ -182,18 +169,19 @@ Labels:
 ## Components (for implementation)
 
 - `Header`: logo, top nav, theme toggle, responsive menu.
-- `Hero`: title, subcopy, three quick CTAs.
-- `ModeCard`: props: `icon`, `title`, `description`, `primaryCta` {label, to}, `secondary` {label, to}.
-- `QuickLinks`: recent sessions (reads from storage/API), link to How To Play.
+- `HeroCtas`: title, subcopy, primary call-to-action buttons.
+- `QuickLinks`: recent games (reads from storage/API), link to How To Play.
 - `Footer`: version, links.
 
-Example ModeCard anatomy:
+Example QuickLinks anatomy:
 
 ```
 ┌────────────────────────────────────────┐
-│  [Icon]  Title                         │
-│  Short description over 1–2 lines.     │
-│  [ Primary CTA ]    Secondary link →   │
+│           Recent Games                │
+│  • Game Title - Mode    [ Resume ]    │
+│  • Game Title - Mode    [ Resume ]    │
+│                                      │
+│         How to Play →                │
 └────────────────────────────────────────┘
 ```
 
@@ -201,20 +189,19 @@ Example ModeCard anatomy:
 
 ## States & Edge Cases
 
-- Empty State: Hide recents; show “Your games will appear here.”
-- Offline: Multiplayer card explains limited functionality; disable Host/Join.
-- Loading: Skeleton cards for recents; shimmer on buttons.
+- Empty State: Show "Your games will appear here." in Quick Links.
+- Offline: Graceful handling with appropriate messaging.
+- Loading: Skeleton states for recent games; shimmer on buttons.
 - Error: Toast near top (non-blocking) with retry affordance.
-- Auth (if applicable): If signed in, show “Resume last game” on first card.
 
 ---
 
 ## Microcopy & Labels
 
 - `aria-label` examples
-  - Single Player card: “Start single player mode — play solo vs AI.”
-  - Multiplayer card: “Open multiplayer — host a room or join by code.”
-  - Score Card card: “Open score card for in‑person tallying.”
+  - Primary CTA: "Start Single Player"
+  - Resume button: "Resume [game title]"
+  - How to Play: "Learn how to play El Dorado"
 
 ---
 
@@ -222,14 +209,14 @@ Example ModeCard anatomy:
 
 - Keep navigation semantic (`<nav>`, `<main>`, `<section>`); use `<button>` for actions; links for navigation.
 - Store recent sessions under `localStorage['eldorado.recents']` as an array of `{id, title, date, route}` for quick links.
-- Analytics events: `hero_start_single_clicked`, `mode_multiplayer_host_clicked`, `mode_scorecard_open_clicked`.
+- Analytics events: `hero_start_single_clicked`, `recent_game_resumed`, `how_to_play_clicked`.
 - Respect user theme preference and store in `localStorage['eldorado.theme']`.
 
 ---
 
 ## Success Criteria Checklist
 
-- Landing clearly shows three modes with strong CTAs.
+- Landing clearly introduces the game with strong primary CTA.
 - Fully responsive with accessible focus and contrast.
-- Quick paths (resume/join) reduce friction.
-- Empty, loading, and offline states feel intentional.
+- Quick paths to recent games reduce friction.
+- Empty, loading, and error states feel intentional.
