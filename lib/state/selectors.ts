@@ -169,8 +169,23 @@ export const selectPlayersOrderedFor = memo2((s: AppState, mode: Mode): PlayerIt
 });
 
 export const selectHumanIdFor = memo2((s: AppState, mode: Mode): string | null => {
-  if (mode === 'single') return s.humanByMode?.single ?? null;
-  return null;
+  if (mode !== 'single') return null;
+  const explicit = s.humanByMode?.single ?? null;
+  if (explicit) return explicit;
+  const roster = selectActiveRoster(s, 'single');
+  if (!roster) return null;
+  const entries = Object.entries(roster.displayOrder ?? {}).sort(
+    (a, b) => (a[1] ?? 0) - (b[1] ?? 0),
+  );
+  const orderedIds = entries.map(([id]) => id);
+  for (const id of Object.keys(roster.playersById ?? {}))
+    if (!orderedIds.includes(id)) orderedIds.push(id);
+  for (const id of orderedIds) {
+    const type = roster.playerTypesById?.[id];
+    if (type === 'human' || type == null) return id;
+  }
+  const fallbackId = orderedIds[0] ?? Object.keys(roster.playersById ?? {})[0] ?? null;
+  return fallbackId ?? null;
 });
 
 export type ArchivedPlayer = {

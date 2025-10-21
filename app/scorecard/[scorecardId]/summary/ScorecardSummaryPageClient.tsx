@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';
+import { useParams } from 'next/navigation';
 
 import { useAppState } from '@/components/state-provider';
 import { selectScorecardById, scorecardPath } from '@/lib/state';
@@ -10,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { trackScorecardSummaryExport } from '@/lib/observability/events';
 import { shareLink } from '@/lib/ui/share';
 import { useToast } from '@/components/ui/toast';
+import { scrubDynamicParam } from '@/lib/static-export';
 
 import ScorecardMissing from '../_components/ScorecardMissing';
 import styles from './page.module.scss';
@@ -33,17 +35,20 @@ function useToastSafe() {
 }
 
 export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPageClientProps) {
+  const params = useParams();
   const { state, ready, context } = useAppState();
   const { toast } = useToastSafe();
-  const hasResizeObserver =
-    typeof window === 'undefined' || typeof window.ResizeObserver === 'function';
 
   const resolvedScorecardId = React.useMemo(() => {
-    if (scorecardId && scorecardId !== 'scorecard-session') return scorecardId;
+    const trimmed = scorecardId?.trim() ?? '';
+    if (trimmed && trimmed !== 'scorecard-session') return trimmed;
+    const rawParam = params?.scorecardId as string | string[] | undefined;
+    const paramId = scrubDynamicParam(rawParam);
+    if (paramId) return paramId;
     if (context?.scorecardId) return context.scorecardId;
     if (state.activeScorecardRosterId) return state.activeScorecardRosterId;
-    return scorecardId ?? null;
-  }, [context?.scorecardId, scorecardId, state.activeScorecardRosterId]);
+    return trimmed || null;
+  }, [context?.scorecardId, params, scorecardId, state.activeScorecardRosterId]);
 
   const session = React.useMemo(
     () => selectScorecardById(state, resolvedScorecardId),
@@ -95,8 +100,33 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
     return <ScorecardMissing />;
   }
 
+  const canRenderCurrentGame =
+    typeof window !== 'undefined' && typeof window.ResizeObserver === 'function';
+
   return (
     <div className={styles.container}>
+      <header className={styles.header}>
+        <div>
+          <h2 className={styles.title}>Score totals</h2>
+          <p className={styles.description}>
+            {players.length > 0
+              ? 'Share or print the final scores for this session.'
+              : 'Add players to this scorecard to view summary totals.'}
+          </p>
+        </div>
+        <div className={styles.actions}>
+          <Button
+            variant="outline"
+            onClick={() => void handleCopyLink()}
+            aria-label="Copy summary link"
+          >
+            Copy summary link
+          </Button>
+          <Button onClick={() => void handlePrint()} aria-label="Print summary">
+            Print summary
+          </Button>
+        </div>
+      </header>
       <section className={styles.summaryList} aria-label="Score totals">
         <h2 className={styles.summaryHeading}>Score totals</h2>
         {players.length === 0 ? (
@@ -120,11 +150,11 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
           Print summary
         </Button>
       </div>
-      {hasResizeObserver ? (
+      {canRenderCurrentGame ? (
         <CurrentGame
           disableInputs
           disableRoundStateCycling
-          key={`${resolvedScorecardId ?? 'scorecard'}-summary`}
+          key={`${resolvedScorecardId || 'summary'}-summary`}
         />
       ) : null}
     </div>

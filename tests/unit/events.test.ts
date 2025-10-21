@@ -83,6 +83,7 @@ describe('events factory helpers', () => {
     ['spTrickCleared', 'sp/trick/cleared', { winnerId: 'p2' }],
     ['spTrumpBrokenSet', 'sp/trump-broken-set', { broken: true }],
     ['spLeaderSet', 'sp/leader-set', { leaderId: 'p2' }],
+    ['spHumanSet', 'sp/human-set', { id: 'p1' }],
   ];
 
   it('produces correctly typed events with payload passthrough', () => {

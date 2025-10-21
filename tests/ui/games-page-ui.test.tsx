@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { waitFor, screen } from '@testing-library/react';
@@ -140,6 +140,9 @@ const suite = typeof document === 'undefined' ? describe.skip : describe;
 
 suite('Games page new game flow', () => {
   beforeEach(() => {
+    // Complete cleanup of all mocks and global state
+    vi.clearAllMocks();
+
     stateMocks.listGames.mockClear();
     stateMocks.deleteGame.mockClear();
     stateMocks.restoreGame.mockClear();
@@ -148,6 +151,11 @@ suite('Games page new game flow', () => {
     append.mockClear();
     appendMany.mockClear();
     startNewGameSpy.mockClear();
+
+    // Clean up any global state that might persist
+    delete (globalThis as any).__START_NEW_GAME__;
+    delete (globalThis as any).__clientLogTrack__;
+
     setListGamesMock((async (...args) =>
       stateMocks.listGames(...args)) as typeof stateMocks.listGames);
     setRestoreGameMock((async (...args) =>
@@ -163,6 +171,12 @@ suite('Games page new game flow', () => {
       back: vi.fn(),
       prefetch: vi.fn().mockResolvedValue(undefined),
     });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    delete (globalThis as any).__START_NEW_GAME__;
+    delete (globalThis as any).__clientLogTrack__;
   });
 
   it('confirms before starting a new game and navigates on success', async () => {

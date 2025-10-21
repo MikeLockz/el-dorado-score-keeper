@@ -38,13 +38,13 @@
 
 ### 4.2 Secondary Metrics
 
-| Metric         | Definition                                 | Calculation                          | Current Game Source                                        | Archived Games Source                                               |
-| -------------- | ------------------------------------------ | ------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------- |
-| Avg Score/Game   | Average final score across completed games          | `sum(finalScore) / totalGamesPlayed`                              | Use `state.scores[playerId]` when phase >= `summary`       | Use `GameRecord.summary.scores[playerId]` aggregated across records |
-| Highest Score    | Peak final score in any completed game              | `max(finalScore)`                                                 | Compare active game `state.scores[playerId]` once finished | Max of `GameRecord.summary.scores[playerId]`                        |
-| Lowest Score     | Minimum final score in any completed game           | `min(finalScore)`                                                 | Compare active game `state.scores[playerId]` once finished | Min of `GameRecord.summary.scores[playerId]`                        |
-| Bid Accuracy     | Share of rounds where bid equals tricks taken       | `matchingRounds / totalRounds`                                    | Compare `state.rounds[round].bids[playerId]` vs tallies    | Replay `bid/set` + `sp/round-tally-set` events per game            |
-| Median Placement | Median finishing position across completed games    | Median of ordinal placements (1 = highest score, ties share rank) | Determine placement from live `state.scores` once finished | Determine placement from `GameRecord.summary.scores`               |
+| Metric           | Definition                                       | Calculation                                                       | Current Game Source                                        | Archived Games Source                                               |
+| ---------------- | ------------------------------------------------ | ----------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------- |
+| Avg Score/Game   | Average final score across completed games       | `sum(finalScore) / totalGamesPlayed`                              | Use `state.scores[playerId]` when phase >= `summary`       | Use `GameRecord.summary.scores[playerId]` aggregated across records |
+| Highest Score    | Peak final score in any completed game           | `max(finalScore)`                                                 | Compare active game `state.scores[playerId]` once finished | Max of `GameRecord.summary.scores[playerId]`                        |
+| Lowest Score     | Minimum final score in any completed game        | `min(finalScore)`                                                 | Compare active game `state.scores[playerId]` once finished | Min of `GameRecord.summary.scores[playerId]`                        |
+| Bid Accuracy     | Share of rounds where bid equals tricks taken    | `matchingRounds / totalRounds`                                    | Compare `state.rounds[round].bids[playerId]` vs tallies    | Replay `bid/set` + `sp/round-tally-set` events per game             |
+| Median Placement | Median finishing position across completed games | Median of ordinal placements (1 = highest score, ties share rank) | Determine placement from live `state.scores` once finished | Determine placement from `GameRecord.summary.scores`                |
 
 ### 4.3 Tertiary Metrics: Round-Level
 

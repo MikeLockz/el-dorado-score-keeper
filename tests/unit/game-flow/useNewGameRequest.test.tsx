@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppState } from '@/lib/state/types';
 import { INITIAL_STATE } from '@/lib/state/types';
 
@@ -82,6 +82,37 @@ describe('useNewGameRequest', () => {
         () => true,
       );
     }
+
+    // Clean up any global state that might persist between tests
+    delete (globalThis as any).__START_NEW_GAME__;
+
+    // Clear any pending broadcast channels or storage listeners
+    if (typeof window !== 'undefined') {
+      // Clear storage events
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'app-events:signal:app-db',
+          newValue: null,
+        }),
+      );
+    }
+  });
+
+  afterEach(() => {
+    // Clean up global state after each test
+    delete (globalThis as any).__START_NEW_GAME__;
+
+    // Clear any storage event listeners by triggering cleanup
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'app-events:signal:app-db',
+          newValue: null,
+        }),
+      );
+    }
+
+    vi.clearAllMocks();
   });
 
   it('runs without confirmation when no progress is detected', async () => {

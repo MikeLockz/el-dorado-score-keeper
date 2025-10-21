@@ -13,13 +13,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { scrubDynamicParam } from '@/lib/static-export';
-import {
-  deleteGame,
-  deriveGameMode,
-  getGame,
-  type GameRecord,
-  resolveArchivedGameRoute,
-} from '@/lib/state';
+import { deleteGame, deriveGameMode, getGame, type GameRecord } from '@/lib/state/io';
+import { resolveArchivedGameRoute } from '@/lib/state';
 import { trackArchivedGameDeleted } from '@/lib/observability/events';
 import { RoutedModalFocusManager } from '@/components/dialogs/RoutedModalFocusManager';
 

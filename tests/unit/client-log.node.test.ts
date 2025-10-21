@@ -1,17 +1,23 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const telemetry = vi.hoisted(() => ({
   track: vi.fn(),
 }));
 
 vi.mock('@/lib/observability/browser', () => {
-  (globalThis as any).__clientLogTrack__ = telemetry.track;
   return {
     trackBrowserEvent: telemetry.track,
   };
 });
 
 describe('client log (node runtime)', () => {
+  beforeEach(() => {
+    // Clear any existing global override
+    delete (globalThis as any).__clientLogTrack__;
+    // Set our mock as the global override
+    (globalThis as any).__clientLogTrack__ = telemetry.track;
+  });
+
   afterEach(() => {
     telemetry.track.mockClear();
     delete (globalThis as any).__clientLogTrack__;

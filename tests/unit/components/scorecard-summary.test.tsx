@@ -68,9 +68,11 @@ describe('scorecard summary export', () => {
 
     render(<ScorecardSummaryPage />);
 
-    await waitFor(() => expect(screen.getByText('Score totals')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Copy summary link' })).toBeInTheDocument(),
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Print summary' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Print summary' })[0]);
 
     expect(trackSummaryExportSpy).toHaveBeenCalledWith({
       scorecardId: 'roster-1',

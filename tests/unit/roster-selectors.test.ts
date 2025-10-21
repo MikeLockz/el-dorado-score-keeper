@@ -76,4 +76,20 @@ describe('roster selectors', () => {
     expect(selectHumanIdFor(s, 'single')).toBe('me');
     expect(selectHumanIdFor(s, 'scorecard')).toBeNull();
   });
+
+  it('human id falls back to first human in active single roster', () => {
+    const s = makeBase();
+    s.rosters = {
+      r1: {
+        name: 'Single Player',
+        playersById: { human: 'You', bot1: 'Bot 1', bot2: 'Bot 2' },
+        playerTypesById: { human: 'human', bot1: 'bot', bot2: 'bot' },
+        displayOrder: { human: 0, bot1: 1, bot2: 2 },
+        type: 'single',
+        createdAt: 1,
+      },
+    } as any;
+    s.activeSingleRosterId = 'r1';
+    expect(selectHumanIdFor(s, 'single')).toBe('human');
+  });
 });

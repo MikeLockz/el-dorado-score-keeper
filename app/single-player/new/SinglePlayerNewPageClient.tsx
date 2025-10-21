@@ -21,6 +21,7 @@ import {
   selectPlayersOrdered,
   resolveSinglePlayerRoute,
   type AppState,
+  type KnownAppEvent,
 } from '@/lib/state';
 import { uuid } from '@/lib/utils';
 
@@ -31,11 +32,89 @@ type RosterSummary = ReturnType<typeof selectAllRosters>[number];
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 10;
 
+type PlayerSpec = Readonly<{
+  id: string;
+  name: string;
+  type: 'human' | 'bot';
+}>;
+
 function orderedRosterIds(roster: AppState['rosters'][string]) {
   const entries = Object.entries(roster.displayOrder ?? {}).sort((a, b) => a[1] - b[1]);
   const ids = entries.map(([id]) => id);
   for (const id of Object.keys(roster.playersById ?? {})) if (!ids.includes(id)) ids.push(id);
   return ids;
+}
+
+function buildSingleRosterEvents(
+  state: AppState,
+  rosterMap: AppState['rosters'],
+  specs: PlayerSpec[],
+  options: { name: string; desiredRosterId?: string | null },
+): KnownAppEvent[] {
+  if (specs.length === 0) return [];
+  const trimmedName = options.name?.trim();
+  const rosterName = trimmedName && trimmedName.length > 0 ? trimmedName : 'Single Player';
+  const desiredIdInput = options.desiredRosterId ?? null;
+  const desiredId = typeof desiredIdInput === 'string' ? desiredIdInput.trim() : null;
+  const activeIdInput = state.activeSingleRosterId ?? null;
+  const activeId = typeof activeIdInput === 'string' ? activeIdInput.trim() : null;
+
+  const pickExisting = (candidate: string | null) => {
+    if (!candidate) return null;
+    const existing = rosterMap[candidate];
+    return existing && existing.type === 'single' ? { id: candidate, roster: existing } : null;
+  };
+
+  const activeRoster = pickExisting(activeId);
+  const desiredRoster = pickExisting(desiredId);
+
+  let targetId: string;
+  let baseline: (typeof activeRoster)['roster'] | null = null;
+  if (activeRoster) {
+    targetId = activeRoster.id;
+    baseline = activeRoster.roster;
+  } else if (desiredRoster) {
+    targetId = desiredRoster.id;
+    baseline = desiredRoster.roster;
+  } else {
+    const preferredId = desiredId && !rosterMap[desiredId] ? desiredId : null;
+    targetId = preferredId ?? `sp-${uuid()}`;
+    // Avoid collisions with any existing roster ids.
+    while (rosterMap[targetId]) {
+      targetId = `sp-${uuid()}`;
+    }
+  }
+
+  const eventsList: KnownAppEvent[] = [];
+  if (!baseline) {
+    eventsList.push(events.rosterCreated({ rosterId: targetId, name: rosterName, type: 'single' }));
+  } else {
+    eventsList.push(events.rosterReset({ rosterId: targetId }));
+    if (baseline.name !== rosterName) {
+      eventsList.push(events.rosterRenamed({ rosterId: targetId, name: rosterName }));
+    }
+  }
+
+  for (const spec of specs) {
+    eventsList.push(
+      events.rosterPlayerAdded({
+        rosterId: targetId,
+        id: spec.id,
+        name: spec.name,
+        type: spec.type,
+      }),
+    );
+  }
+
+  eventsList.push(
+    events.rosterPlayersReordered({
+      rosterId: targetId,
+      order: specs.map((spec) => spec.id),
+    }),
+  );
+  eventsList.push(events.rosterActivated({ rosterId: targetId, mode: 'single' }));
+
+  return eventsList;
 }
 
 export default function SinglePlayerNewPageClient() {
@@ -154,18 +233,32 @@ export default function SinglePlayerNewPageClient() {
     setPendingAction('roster');
     setSubmitError(null);
     try {
-      const addEvents = order.map((id, index) => {
+      const specs: PlayerSpec[] = order.map((id, index) => {
         const baseType = roster.playerTypesById?.[id];
         const type: 'human' | 'bot' =
           index === 0 ? 'human' : baseType === 'human' ? 'human' : 'bot';
-        return events.playerAdded({
+        return {
           id,
           name: roster.playersById?.[id] ?? id,
           type,
-        });
+        };
       });
+      const rosterEvents = buildSingleRosterEvents(state, rosterMap, specs, {
+        name: roster.name,
+        desiredRosterId: state.activeSingleRosterId ?? `sp-${selectedRosterId}`,
+      });
+      const addEvents = specs.map(({ id, name, type }) =>
+        events.playerAdded({
+          id,
+          name,
+          type,
+        }),
+      );
       const reorder = events.playersReordered({ order });
-      await appendMany([...addEvents, reorder]);
+      const humanId = specs.find((spec) => spec.type === 'human')?.id ?? null;
+      const batch: KnownAppEvent[] = [...rosterEvents, ...addEvents, reorder];
+      if (humanId) batch.push(events.spHumanSet({ id: humanId }));
+      await appendMany(batch);
       router.replace(targetRoute);
     } catch (error) {
       const message =
@@ -173,7 +266,7 @@ export default function SinglePlayerNewPageClient() {
       setSubmitError(message);
       setPendingAction(null);
     }
-  }, [appendMany, router, rosterMap, selectedRosterId, targetRoute]);
+  }, [appendMany, router, rosterMap, selectedRosterId, state, targetRoute]);
 
   const handleCreatePlayers = React.useCallback(async () => {
     const count = playerCountRef.current;
@@ -184,11 +277,15 @@ export default function SinglePlayerNewPageClient() {
     setPendingAction('create');
     setSubmitError(null);
     try {
-      const specs = Array.from({ length: count }).map((_, idx) => {
+      const specs: PlayerSpec[] = Array.from({ length: count }).map((_, idx) => {
         const id = uuid();
         const type: 'human' | 'bot' = idx === 0 ? 'human' : 'bot';
         const name = idx === 0 ? 'You' : `Bot ${idx}`;
         return { id, name, type };
+      });
+      const rosterEvents = buildSingleRosterEvents(state, rosterMap, specs, {
+        name: 'Single Player',
+        desiredRosterId: state.activeSingleRosterId,
       });
       const addEvents = specs.map(({ id, name, type }) =>
         events.playerAdded({
@@ -198,7 +295,10 @@ export default function SinglePlayerNewPageClient() {
         }),
       );
       const reorder = events.playersReordered({ order: specs.map((spec) => spec.id) });
-      await appendMany([...addEvents, reorder]);
+      const humanId = specs.find((spec) => spec.type === 'human')?.id ?? null;
+      const batch: KnownAppEvent[] = [...rosterEvents, ...addEvents, reorder];
+      if (humanId) batch.push(events.spHumanSet({ id: humanId }));
+      await appendMany(batch);
       router.replace(targetRoute);
     } catch (error) {
       const message =
@@ -206,7 +306,7 @@ export default function SinglePlayerNewPageClient() {
       setSubmitError(message);
       setPendingAction(null);
     }
-  }, [appendMany, router, targetRoute]);
+  }, [appendMany, playerCountRef, rosterMap, router, state, targetRoute]);
 
   const showRosterList = rosterPlayers.length > 0;
 
@@ -228,6 +328,55 @@ export default function SinglePlayerNewPageClient() {
           ) : null}
 
           <div className={styles.content}>
+            <section className={styles.section}>
+              <header className={styles.sectionHeader}>
+                <h2>Create a new lineup</h2>
+                <p>Select how many seats to fill; bots join automatically.</p>
+              </header>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Number of players</span>
+                <div className={styles.countOptions} role="group" aria-label="Select player count">
+                  {playerCountOptions.map((count) => {
+                    const active = playerCount === count;
+                    return (
+                      <Button
+                        key={count}
+                        type="button"
+                        size="sm"
+                        variant={active ? 'default' : 'outline'}
+                        aria-pressed={active}
+                        className={clsx(styles.countButton, active && styles.countButtonActive)}
+                        data-active={active ? 'true' : 'false'}
+                        onClick={() => {
+                          if (countButtonsDisabled) return;
+                          setPlayerCount(count);
+                          playerCountRef.current = count;
+                        }}
+                        disabled={countButtonsDisabled}
+                      >
+                        {count}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+              <Button
+                className={styles.actionButton}
+                variant="secondary"
+                onClick={() => void handleCreatePlayers()}
+                disabled={disabled}
+              >
+                {pendingAction === 'create' ? (
+                  <>
+                    <Loader2 className={styles.spinner} aria-hidden="true" />
+                    Creating lineup…
+                  </>
+                ) : (
+                  'Create lineup'
+                )}
+              </Button>
+            </section>
+
             <section className={styles.section}>
               <header className={styles.sectionHeader}>
                 <h2>Load an existing roster</h2>
@@ -282,55 +431,6 @@ export default function SinglePlayerNewPageClient() {
                 </>
               )}
             </section>
-
-            <section className={styles.section}>
-              <header className={styles.sectionHeader}>
-                <h2>Create a new lineup</h2>
-                <p>Select how many seats to fill; bots join automatically.</p>
-              </header>
-              <div className={styles.field}>
-                <span className={styles.fieldLabel}>Number of players</span>
-                <div className={styles.countOptions} role="group" aria-label="Select player count">
-                  {playerCountOptions.map((count) => {
-                    const active = playerCount === count;
-                    return (
-                      <Button
-                        key={count}
-                        type="button"
-                        size="sm"
-                        variant={active ? 'default' : 'outline'}
-                        aria-pressed={active}
-                        className={clsx(styles.countButton, active && styles.countButtonActive)}
-                        data-active={active ? 'true' : 'false'}
-                        onClick={() => {
-                          if (countButtonsDisabled) return;
-                          setPlayerCount(count);
-                          playerCountRef.current = count;
-                        }}
-                        disabled={countButtonsDisabled}
-                      >
-                        {count}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-              <Button
-                className={styles.actionButton}
-                variant="secondary"
-                onClick={() => void handleCreatePlayers()}
-                disabled={disabled}
-              >
-                {pendingAction === 'create' ? (
-                  <>
-                    <Loader2 className={styles.spinner} aria-hidden="true" />
-                    Creating lineup…
-                  </>
-                ) : (
-                  'Create lineup'
-                )}
-              </Button>
-            </section>
           </div>
 
           {submitError ? (
@@ -357,10 +457,7 @@ export default function SinglePlayerNewPageClient() {
                   Creating lineup…
                 </>
               ) : awaitingSession ? (
-                <>
-                  <Loader2 className={styles.spinner} aria-hidden="true" />
-                  Preparing your game…
-                </>
+                'Waiting for your new game…'
               ) : null}
             </div>
           </DialogFooter>

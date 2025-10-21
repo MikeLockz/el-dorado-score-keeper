@@ -84,6 +84,7 @@ export const events = {
   spSeedSet: (p: EventPayloadByType<'sp/seed-set'>, m?: Meta) => makeEvent('sp/seed-set', p, m),
   spRoundTallySet: (p: EventPayloadByType<'sp/round-tally-set'>, m?: Meta) =>
     makeEvent('sp/round-tally-set', p, m),
+  spHumanSet: (p: EventPayloadByType<'sp/human-set'>, m?: Meta) => makeEvent('sp/human-set', p, m),
 };
 
 export type { AppEventType, EventPayloadByType, KnownAppEvent };

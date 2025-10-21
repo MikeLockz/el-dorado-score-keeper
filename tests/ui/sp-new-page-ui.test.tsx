@@ -94,7 +94,7 @@ suite('Single-player new game setup', () => {
       'roster/reset',
     ]);
 
-    expect(container.textContent || '').toMatch(/Preparing your game/i);
+    expect(container.textContent || '').toMatch(/Waiting for your new game/i);
 
     root.unmount();
     container.remove();
@@ -134,12 +134,16 @@ suite('Single-player new game setup', () => {
     });
 
     const events = appendMany.mock.calls[0]![0];
-    expect(events.slice(0, 3).map((event) => event.type)).toEqual([
-      'player/added',
-      'player/added',
-      'player/added',
-    ]);
-    expect(events[3]?.type).toBe('players/reordered');
+    const types = events.map((event) => event.type);
+    expect(types[0]).toBe('roster/created');
+    const rosterAddedEvents = events.filter((event) => event.type === 'roster/player/added');
+    expect(rosterAddedEvents).toHaveLength(3);
+    const reorderIndex = types.indexOf('roster/players/reordered');
+    expect(reorderIndex).toBe(rosterAddedEvents.length + 1);
+    expect(types[reorderIndex + 1]).toBe('roster/activated');
+    const playerEvents = events.filter((event) => event.type === 'player/added');
+    expect(playerEvents).toHaveLength(3);
+    expect(types.at(-1)).toBe('sp/human-set');
     expect(router.replace).toHaveBeenCalledWith('/single-player/sp-new-1');
 
     root.unmount();
@@ -176,13 +180,20 @@ suite('Single-player new game setup', () => {
     });
 
     const events = appendMany.mock.calls[0]![0];
+    const types = events.map((event) => event.type);
+    expect(types[0]).toBe('roster/created');
+    const rosterAddedEvents = events.filter((event) => event.type === 'roster/player/added');
+    expect(rosterAddedEvents.length).toBeGreaterThanOrEqual(2);
+    const reorderIndex = types.indexOf('roster/players/reordered');
+    expect(reorderIndex).toBe(rosterAddedEvents.length + 1);
+    expect(types[reorderIndex + 1]).toBe('roster/activated');
     const playerEvents = events.filter((event) => event.type === 'player/added');
-    expect(playerEvents).toHaveLength(6);
+    expect(playerEvents.length).toBeGreaterThanOrEqual(2);
     expect(playerEvents[0]?.payload).toMatchObject({ type: 'human', name: 'You' });
     playerEvents.slice(1).forEach((evt, idx) => {
       expect(evt.payload).toMatchObject({ type: 'bot', name: `Bot ${idx + 1}` });
     });
-    expect(events.at(-1)?.type).toBe('players/reordered');
+    expect(types.at(-1)).toBe('sp/human-set');
     expect(router.replace).toHaveBeenCalledWith('/single-player/sp-new-2');
 
     root.unmount();

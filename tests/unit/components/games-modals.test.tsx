@@ -63,13 +63,21 @@ const sampleGame: GameRecord = {
 
 describe('archived game modals', () => {
   beforeEach(() => {
+    // Clear all mocks and global state
+    vi.clearAllMocks();
+
+    // Set up fresh mocks
     setMockParams({ gameId: 'game-123' });
+    const router = createRouterStub();
+    setMockRouter(router);
+
     const baseState = JSON.parse(JSON.stringify(INITIAL_STATE)) as AppState;
     baseState.sp = {
       ...baseState.sp,
       phase: 'playing',
       currentGameId: 'game-123',
     } as AppState['sp'];
+
     setMockAppState({
       state: baseState,
       height: 10,
@@ -88,9 +96,11 @@ describe('archived game modals', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it('restores an archived game and tracks analytics', async () => {
+    // Ensure fresh mocks for this specific test
     const router = createRouterStub();
     setMockRouter(router);
     const restoreMock = vi.fn(async () => undefined);

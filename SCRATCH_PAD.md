@@ -5,6 +5,8 @@
 - Event payload schemas (`schema/events.ts`): canonical contracts exist for `round/state-set`, `bid/set`, `made/set`, `score/added`, `round/finalize`, and single-player flow events (`sp/deal`, `sp/phase-set`, `sp/trick/played`, `sp/round-tally-set`, `sp/summary-entered-set`, etc.). There is no `game/start` or `summary/submit` schema; plan references need to map onto existing event names.
 - IndexedDB stores (`lib/state/db.ts`): `app-db` exposes stores `events`, `state`, `snapshots`; `app-games-db` adds `games` for archived `GameRecord`s. `importBundle`/`exportBundle` operate on `events` (and clear `state`/`snapshots` on soft import), while archived games persist through `tx(... storeNames.GAMES ...)`.
 - Current single-player user metadata: canonical player id lives at `AppState.humanByMode.single` (selector `selectHumanIdFor(state, 'single')`). Display name/type pulled from `state.players[id]` and `state.playerDetails[id]`; seat/order sourced from active single roster (`state.rosters[state.activeSingleRosterId]`) and selectors like `selectPlayersOrderedFor`.
+- Single-player roster expectations: `selectPlayersOrderedFor('single')` and `selectActiveRoster('single')` require `state.activeSingleRosterId` to point at a roster created via `roster/*` events with `displayOrder` populated. The `/single-player/new` modal currently emits `player/*` events without seeding a roster, so the `/single-player/[gameId]` route mounts without roster data.
+- Current-user derivation for generated games flows from `state.humanByMode.single`; when not set, DevTools fall back to a synthetic `CurrentUserProfile`. Need to ensure roster generation also updates `humanByMode.single` (either via events or generator integration) so selectors resolve predictable ids.
 
 - shouldn't round 10 be first because it has 10 tricks? If it is the final round, why would it set the previous round to bidding? There won't be any more rounds after the final round.
 - first make a plan on how to fix it so that rounds decrease in number by the number of tricks available in each round. First round is 10 and last round is 1.
@@ -103,3 +105,11 @@ Under games, don't allow any game to be resumed if it is already complete.
 Under games, change the button to Archive from Delete. Archive removes the game from the list of games but does not delete it permanently. Archived games can be viewed in a separate list of archived games with an option to restore them. Archived games should not be shown in the main game list or in the resume dropdown when resuming a game. When in archive view there should be a link to "Back to games" to return to the main game list.
 
 in the /games/{id} view, add the scorecard in a read-only mode at the top of the page. Below that show the single player summary with all the stats and charts.
+
+## Player Data Generator – Phase 1 Audit (2024-05-17)
+
+- Roster entity expectations: `AppState.rosters[rosterId]` stores `playersById`, `playerTypesById`, and `displayOrder`; selectors like `selectPlayersOrderedFor` derive ordered ids and default missing types to `'human'` while `selectHumanIdFor('single')` reads from `state.humanByMode.single`.
+- DevTools currently synthesize a fallback current user when the selector returns `null`, defaulting avatar seeds to a slugified display name in `components/devtools.tsx`.
+- Existing `gameDataGenerator.ts` inlines roster generation helpers (registry, RNG, style assignment) that will be extracted; downstream tests import `GeneratedRosterEntry`, `PlayerStyle`, and `generateRoster` directly from that module.
+- Open question: should the shared generator expose a helper to infer current-user avatar seeds (slugify) to match DevTools fallback behavior, or continue letting callers provide explicit seeds?
+- Open question: when callers request `playerCount` larger than the registry (currently 10 entries), should we throw or clamp? Plan suggests clamping, but confirm whether DevTools expects an explicit error to prompt UI feedback.

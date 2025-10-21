@@ -581,8 +581,8 @@ export async function createInstance(opts?: {
     );
 
     if (scorecardEntries.length === 0) {
-      const shouldCreateFallback = hasAnyRoster || hasLegacyPlayers;
-      if (shouldCreateFallback) {
+      const shouldCreateScorecard = hasAnyRoster || hasLegacyPlayers;
+      if (shouldCreateScorecard) {
         const rid: UUID = uuid();
         const roster = {
           name: 'Score Card',

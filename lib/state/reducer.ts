@@ -4,19 +4,47 @@ import type { AppEvent, AppState, EventMap, EventPayloadByType } from './types';
 import { INITIAL_STATE, type AppEventType, type KnownAppEvent } from './types';
 import * as rosterOps from '@/lib/roster/ops';
 import { eventPayloadSchemas } from '@/schema/events';
-
-function deriveDefaultScorecardRosterId(event: KnownAppEvent): string {
-  const base = `${event.eventId ?? ''}|${coerceTimestamp(event)}`;
-  let hash = 0;
-  for (let i = 0; i < base.length; i++) {
-    hash = Math.imul(hash ^ base.charCodeAt(i), 0x45d9f3b);
-  }
-  return `scorecard-${(hash >>> 0).toString(36)}`;
-}
+import { uuid } from '@/lib/utils';
 
 function coerceTimestamp(event: KnownAppEvent): number {
   const ts = Number(event.ts);
   return Number.isFinite(ts) ? ts : Date.now();
+}
+
+function deriveAutoScorecardRosterId(event: KnownAppEvent, state: AppState): string {
+  const existing = new Set(Object.keys(state.rosters ?? {}));
+  const parts: string[] = [];
+  const ts = coerceTimestamp(event);
+  if (Number.isFinite(ts)) {
+    parts.push(`ts${Math.floor(ts).toString(36)}`);
+  }
+  if (typeof event.eventId === 'string') {
+    const normalized = event.eventId
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    if (normalized) {
+      parts.push(normalized);
+    }
+  }
+  if (parts.length === 0) {
+    parts.push('auto');
+  }
+  let base = `scorecard-${parts.join('-')}`.replace(/-+/g, '-').replace(/^-|-$/g, '');
+  if (!base) {
+    base = 'scorecard-auto';
+  }
+  if (base === 'scorecard-default') {
+    base = 'scorecard-default-1';
+  }
+  let candidate = base;
+  let suffix = 1;
+  while (existing.has(candidate)) {
+    suffix += 1;
+    candidate = `${base}-${suffix}`;
+  }
+  return candidate;
 }
 
 function applyPlayerAdded(
@@ -68,7 +96,7 @@ function applyPlayerAdded(
 
   let rid = nextState.activeScorecardRosterId;
   if (!rid || !nextState.rosters[rid]) {
-    const nrid = deriveDefaultScorecardRosterId(event);
+    const nrid = deriveAutoScorecardRosterId(event, nextState);
     const createdAt = coerceTimestamp(event);
     const roster = {
       name: 'Score Card',
@@ -582,6 +610,18 @@ function reduceSinglePlayer(state: AppState, event: KnownAppEvent): AppState | n
       const roundTallies = { ...(state.sp.roundTallies ?? {}) };
       roundTallies[roundNo] = { ...tallies };
       return { ...state, sp: { ...state.sp, roundTallies } };
+    }
+    case 'sp/human-set': {
+      const { id } = event.payload as EventMap['sp/human-set'];
+      const normalized = typeof id === 'string' ? id.trim() : '';
+      const nextId = normalized.length > 0 ? normalized : null;
+      const current = state.humanByMode?.single ?? null;
+      if (current === nextId) return state;
+      const humanByMode = {
+        ...(state.humanByMode ?? {}),
+        single: nextId,
+      } as AppState['humanByMode'];
+      return { ...state, humanByMode };
     }
     default:
       return null;

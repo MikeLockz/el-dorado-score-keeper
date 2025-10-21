@@ -26,7 +26,10 @@ function isPromiseLike<T>(value: unknown): value is Promise<T> {
   return !!value && typeof (value as { then?: unknown }).then === 'function';
 }
 
-async function resolveParams(params: Promise<RouteParams> | RouteParams): Promise<RouteParams> {
+async function resolveParams(
+  params: Promise<RouteParams> | RouteParams | undefined,
+): Promise<RouteParams> {
+  if (!params) return {};
   if (isPromiseLike<RouteParams>(params)) {
     return params;
   }
@@ -74,6 +77,5 @@ export default function ScorecardSummaryPage({ params }: PageParams = {}) {
   if (scorecardId === 'scorecard-default') {
     redirect(SCORECARD_HUB_PATH);
   }
-  const resolvedId = scorecardId || 'scorecard-session';
-  return <ScorecardSummaryPageClient scorecardId={resolvedId} />;
+  return <ScorecardSummaryPageClient scorecardId={scorecardId || undefined} />;
 }

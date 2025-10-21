@@ -8,7 +8,11 @@ import QuickLinks from '@/components/landing/QuickLinks';
 import HeroCtas from '@/components/landing/HeroCtas';
 import { useAppState } from '@/components/state-provider';
 import { useNewGameRequest, hasScorecardProgress, hasSinglePlayerProgress } from '@/lib/game-flow';
-import { resolveScorecardRoute, resolveSinglePlayerRoute } from '@/lib/state';
+import {
+  resolveScorecardRoute,
+  resolveSinglePlayerRoute,
+  archiveCurrentGameAndReset,
+} from '@/lib/state';
 
 import styles from './page.module.scss';
 
@@ -54,6 +58,7 @@ export default function LandingPage() {
   const handleStartNew = React.useCallback(
     async (mode: 'single' | 'scorecard') => {
       if (newGamePending) return;
+      await archiveCurrentGameAndReset();
       requestedModeRef.current = mode;
       const ok = await startNewGame({
         analytics: {
@@ -74,6 +79,75 @@ export default function LandingPage() {
     [state],
   );
   const scorecardResumeHref = React.useMemo(() => resolveScorecardRoute(state), [state]);
+
+  const handleHostMultiplayer = React.useCallback(
+    async (destination: string) => {
+      await archiveCurrentGameAndReset();
+      router.push(destination);
+    },
+    [router],
+  );
+
+  const singlePrimaryAction = React.useMemo(
+    () =>
+      singlePlayerActive
+        ? {
+            label: 'Resume Game',
+            href: singlePlayerResumeHref,
+            ariaLabel: 'Resume your in-progress single player game',
+          }
+        : {
+            label: 'New Game',
+            onClick: () => void handleStartNew('single'),
+            pending: newGamePending,
+            disabled: newGamePending,
+          },
+    [singlePlayerActive, singlePlayerResumeHref, newGamePending, handleStartNew],
+  );
+
+  const singleSecondaryAction = React.useMemo(
+    () =>
+      singlePlayerActive
+        ? {
+            label: 'Start a new game',
+            onClick: () => void handleStartNew('single'),
+            pending: newGamePending,
+            disabled: newGamePending,
+          }
+        : null,
+    [singlePlayerActive, newGamePending, handleStartNew],
+  );
+
+  const scorecardPrimaryAction = React.useMemo(
+    () =>
+      scorecardActive
+        ? {
+            label: 'Resume Score Card',
+            href: scorecardResumeHref,
+            ariaLabel: 'Resume your active score card',
+          }
+        : {
+            label: 'Open',
+            onClick: () => void handleStartNew('scorecard'),
+            pending: newGamePending,
+            disabled: newGamePending,
+            ariaLabel: 'Open Score Card',
+          },
+    [scorecardActive, scorecardResumeHref, newGamePending, handleStartNew],
+  );
+
+  const scorecardSecondaryAction = React.useMemo(
+    () =>
+      scorecardActive
+        ? {
+            label: 'Start a new score card',
+            onClick: () => void handleStartNew('scorecard'),
+            pending: newGamePending,
+            disabled: newGamePending,
+          }
+        : null,
+    [scorecardActive, newGamePending, handleStartNew],
+  );
 
   return (
     <div className={styles.container}>

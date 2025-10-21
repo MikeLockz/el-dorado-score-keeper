@@ -19,12 +19,10 @@ import {
   deriveGameMode,
   type GameRecord,
   getGame,
-  resolveSinglePlayerRoute,
-  resolveScorecardRoute,
-  SCORECARD_HUB_PATH,
   isGameRecordCompleted,
-} from '@/lib/state';
-import * as analyticsEvents from '@/lib/observability/events';
+} from '@/lib/state/io';
+import { resolveSinglePlayerRoute, resolveScorecardRoute, SCORECARD_HUB_PATH } from '@/lib/state';
+import { trackArchivedGameRestored } from '@/lib/observability/events';
 import { RoutedModalFocusManager } from '@/components/dialogs/RoutedModalFocusManager';
 
 export default function RestoreGameModalClient() {
@@ -35,7 +33,10 @@ export default function RestoreGameModalClient() {
   const [pending, setPending] = React.useState(false);
   const [game, setGame] = React.useState<GameRecord | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-  const { state, awaitHydration, hydrationEpoch } = useAppState();
+  const appState = useAppState();
+  const state = appState.state;
+  const awaitHydration = appState.awaitHydration ?? (async () => {});
+  const hydrationEpoch = appState.hydrationEpoch ?? 0;
   const stateRef = React.useRef(state);
   const dialogContentRef = React.useRef<HTMLDivElement>(null);
   const cancelButtonRef = React.useRef<HTMLButtonElement>(null);
@@ -71,12 +72,10 @@ export default function RestoreGameModalClient() {
 
   const waitForRestoredRoute = React.useCallback(
     async (mode: 'single-player' | 'scorecard', previousEpoch: number): Promise<string> => {
-      if (awaitHydration) {
-        await Promise.race([
-          awaitHydration(previousEpoch),
-          new Promise((resolve) => setTimeout(resolve, 750)),
-        ]);
-      }
+      await Promise.race([
+        awaitHydration(previousEpoch),
+        new Promise((resolve) => setTimeout(resolve, 750)),
+      ]);
       const snapshot = stateRef.current;
       const candidate =
         mode === 'single-player'
@@ -110,11 +109,7 @@ export default function RestoreGameModalClient() {
           : mode === 'scorecard'
             ? await waitForRestoredRoute('scorecard', previousEpoch)
             : '/';
-      analyticsEvents.trackArchivedGameRestored({
-        gameId,
-        mode,
-        source: 'games.modal.restore',
-      });
+      trackArchivedGameRestored({ gameId, mode, source: 'games.modal.restore' });
       router.replace(redirectPath);
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : 'Unable to restore game.';

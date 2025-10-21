@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { INITIAL_STATE, loadPlayerStatisticsSummary, resetPlayerStatisticsCache } from '@/lib/state';
+import {
+  INITIAL_STATE,
+  loadPlayerStatisticsSummary,
+  resetPlayerStatisticsCache,
+} from '@/lib/state';
 import type { AppState } from '@/lib/state';
 import type { GameRecord } from '@/lib/state/io';
 
@@ -91,8 +95,18 @@ describe('loadPlayerStatisticsSummary – secondary metrics', () => {
         bundle: {
           latestSeq: 6,
           events: [
-            { eventId: 'e1', ts: 1, type: 'bid/set', payload: { round: 1, playerId: 'p1', bid: 3 } },
-            { eventId: 'e2', ts: 2, type: 'bid/set', payload: { round: 2, playerId: 'p1', bid: 2 } },
+            {
+              eventId: 'e1',
+              ts: 1,
+              type: 'bid/set',
+              payload: { round: 1, playerId: 'p1', bid: 3 },
+            },
+            {
+              eventId: 'e2',
+              ts: 2,
+              type: 'bid/set',
+              payload: { round: 2, playerId: 'p1', bid: 2 },
+            },
             {
               eventId: 'e3',
               ts: 3,
@@ -133,8 +147,10 @@ describe('loadPlayerStatisticsSummary – secondary metrics', () => {
         2: { p1: 0, p2: 3 },
       },
     };
-    const roundOne = state.rounds[1] ?? ({ state: 'locked', bids: {}, made: {} } as AppState['rounds'][number]);
-    const roundTwo = state.rounds[2] ?? ({ state: 'locked', bids: {}, made: {} } as AppState['rounds'][number]);
+    const roundOne =
+      state.rounds[1] ?? ({ state: 'locked', bids: {}, made: {} } as AppState['rounds'][number]);
+    const roundTwo =
+      state.rounds[2] ?? ({ state: 'locked', bids: {}, made: {} } as AppState['rounds'][number]);
     state.rounds = {
       ...state.rounds,
       1: { ...roundOne, bids: { ...(roundOne.bids ?? {}), p1: 2 } },
@@ -158,7 +174,12 @@ describe('loadPlayerStatisticsSummary – secondary metrics', () => {
         bundle: {
           latestSeq: 4,
           events: [
-            { eventId: 'h1', ts: 1, type: 'bid/set', payload: { round: 1, playerId: 'p1', bid: 1 } },
+            {
+              eventId: 'h1',
+              ts: 1,
+              type: 'bid/set',
+              payload: { round: 1, playerId: 'p1', bid: 1 },
+            },
             {
               eventId: 'h2',
               ts: 2,
