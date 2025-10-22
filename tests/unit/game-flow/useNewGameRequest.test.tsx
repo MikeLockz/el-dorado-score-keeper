@@ -2,7 +2,10 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppState } from '@/lib/state/types';
 import { INITIAL_STATE } from '@/lib/state/types';
-import { cleanupDevelopmentGlobals, clearTimeoutsAndIntervals } from '../../utils/component-lifecycle';
+import {
+  cleanupDevelopmentGlobals,
+  clearTimeoutsAndIntervals,
+} from '../../utils/component-lifecycle';
 
 type ConfirmHandler = (context: {
   reason: 'in-progress';
@@ -177,8 +180,11 @@ describe('useNewGameRequest', () => {
     // Set our isolated context
     setMockAppState(isolatedContext);
 
+    // Also set the global batchPending ref to ensure proper isolation
+    (globalThis as any).__batchPendingRef = { current: true };
+
     // Force a tick to ensure context is set
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Render the hook
     const { result } = renderHook(() => {
