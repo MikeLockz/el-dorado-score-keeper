@@ -409,9 +409,7 @@ function analyzeGame(
   const tricksWonBySuit = createSuitCounter(() => 0);
   const tricksPlayedBySuit = createSuitCounter(() => 0);
 
-  const events = Array.isArray(record.bundle?.events)
-    ? record.bundle?.events
-    : [];
+  const events = Array.isArray(record.bundle?.events) ? record.bundle?.events : [];
 
   let currentRoundTrump: SuitKey | null = null;
   let gameTrump: SuitKey | null = null;

@@ -18,6 +18,20 @@ describe('player-statistics cache', () => {
   beforeEach(() => {
     // Reset the cache before each test
     resetPlayerStatisticsCache();
+
+    // Comprehensive global state cleanup based on interference analysis
+    cleanupDevelopmentGlobals();
+
+    // Comprehensive test isolation (from documentation)
+    // This prevents test interference by ensuring clean state
+    vi.resetModules();
+
+    // Re-mock the module after reset
+    vi.doMock('@/lib/observability/browser', () => ({
+      captureBrowserMessage: vi.fn(),
+    }));
+
+    // Reset the specific mock to prevent interference
     mockCaptureBrowserMessage.mockClear();
   });
 
@@ -27,7 +41,30 @@ describe('player-statistics cache', () => {
     delete process.env.PLAYER_STATS_CACHE_LOGS;
     delete process.env.NEXT_PUBLIC_ENABLE_PLAYER_STATS_CACHE_LOGS;
     delete process.env.ENABLE_PLAYER_STATS_CACHE_LOGS;
+
+    // Additional cleanup to prevent test interference
+    cleanupDevelopmentGlobals();
+
+    // Reset modules to prevent interference
+    vi.resetModules();
+
+    // Reset the mock for next test
+    mockCaptureBrowserMessage.mockClear();
   });
+
+  // Helper function to clean up development globals (from documentation)
+  function cleanupDevelopmentGlobals() {
+    // Clean up production development globals that cause test interference
+    delete (globalThis as any).__START_NEW_GAME__;
+    delete (globalThis as any).__clientLogTrack__;
+
+    // Additional cleanup based on interference analysis
+    // Clear any other global state that might interfere
+    delete (globalThis as any).__batchPendingRef;
+
+    // Clear any global overrides that might interfere with mocks
+    delete (globalThis as any).__captureBrowserMessage__;
+  }
 
   const createMockGame = (id: string): NormalizedHistoricalGame => ({
     id,
@@ -139,6 +176,9 @@ describe('player-statistics cache', () => {
 
   describe('cache telemetry', () => {
     it('should log cache miss events when telemetry is enabled', () => {
+      // Ensure mock is properly set up for this test
+      mockCaptureBrowserMessage.mockClear();
+
       // Enable telemetry by setting NODE_ENV to development
       const originalNodeEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'development';
@@ -160,12 +200,14 @@ describe('player-statistics cache', () => {
     });
 
     it('should log cache hit events when telemetry is enabled', () => {
+      // Ensure mock is properly set up for this test
+      mockCaptureBrowserMessage.mockClear();
+
       const originalNodeEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'development';
 
       const game = createMockGame('game1');
       setCachedHistoricalGame('game1', game);
-      vi.clearAllMocks();
 
       getCachedHistoricalGame('game1');
 
@@ -184,6 +226,9 @@ describe('player-statistics cache', () => {
     });
 
     it('should log cache store events when telemetry is enabled', () => {
+      // Ensure mock is properly set up for this test
+      mockCaptureBrowserMessage.mockClear();
+
       const originalNodeEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'development';
 
@@ -206,6 +251,9 @@ describe('player-statistics cache', () => {
     });
 
     it('should log cache reset events when telemetry is enabled', () => {
+      // Ensure mock is properly set up for this test
+      mockCaptureBrowserMessage.mockClear();
+
       const originalNodeEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'development';
 

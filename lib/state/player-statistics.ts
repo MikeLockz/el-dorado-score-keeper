@@ -796,7 +796,11 @@ function deriveLiveHandInsights(state: AppState, playerId: string): HistoricalHa
   }
   const lastSnapshot = state.sp?.lastTrickSnapshot;
   if (lastSnapshot && Array.isArray(lastSnapshot.plays)) {
-    plays.push(...lastSnapshot.plays.filter((play): play is object => typeof play === 'object' && play !== null));
+    plays.push(
+      ...lastSnapshot.plays.filter(
+        (play): play is object => typeof play === 'object' && play !== null,
+      ),
+    );
   }
 
   if (plays.length === 0) {

@@ -128,7 +128,7 @@ describe('backfill operations', () => {
     global.performance = {
       now: vi.fn(() => {
         callCount++;
-        return 100 + (callCount * 10); // Return increasing values
+        return 100 + callCount * 10; // Return increasing values
       }),
     } as any;
 
@@ -163,21 +163,21 @@ describe('backfill operations', () => {
           title: 'Game 1',
           createdAt: 1000,
           finishedAt: 2000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
         {
           id: 'game2',
           title: 'Game 2',
           createdAt: 1000,
           finishedAt: 3000,
-          summary: { metadata: { version: 2 } }
+          summary: { metadata: { version: 2 } },
         },
         {
           id: 'game3',
           title: 'Game 3',
           createdAt: 1000,
           finishedAt: 2500,
-          summary: null
+          summary: null,
         },
       ];
 
@@ -199,14 +199,14 @@ describe('backfill operations', () => {
           title: 'Game 1',
           createdAt: 1000,
           finishedAt: 1000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
         {
           id: 'game2',
           title: 'Game 2',
           createdAt: 1000,
           finishedAt: 2000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
       ];
 
@@ -241,7 +241,7 @@ describe('backfill operations', () => {
           title: 'Game 1',
           createdAt: 1000,
           finishedAt: 2000,
-          summary: null
+          summary: null,
         },
       ];
 
@@ -277,7 +277,7 @@ describe('backfill operations', () => {
         expect.objectContaining({
           level: 'warn',
           attributes: { gameId: 'nonexistent' },
-        })
+        }),
       );
     });
 
@@ -339,7 +339,7 @@ describe('backfill operations', () => {
             gameId: 'game1',
             dryRun: true,
           }),
-        })
+        }),
       );
     });
 
@@ -383,7 +383,7 @@ describe('backfill operations', () => {
             gameId: 'game1',
             dryRun: false,
           }),
-        })
+        }),
       );
     });
 
@@ -465,14 +465,14 @@ describe('backfill operations', () => {
           title: 'Game 1',
           createdAt: 1000,
           finishedAt: 2000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
         {
           id: 'game2',
           title: 'Game 2',
           createdAt: 1000,
           finishedAt: 3000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
       ];
 
@@ -522,7 +522,7 @@ describe('backfill operations', () => {
           title: 'Game 1',
           createdAt: 1000,
           finishedAt: 2000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
       ];
 
@@ -539,7 +539,7 @@ describe('backfill operations', () => {
         expect.objectContaining({
           level: 'warn',
           attributes: { gameId: 'game1', reason: 'Processing error' },
-        })
+        }),
       );
     });
 
@@ -550,21 +550,21 @@ describe('backfill operations', () => {
           title: 'Game 1',
           createdAt: 1000,
           finishedAt: 2000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
         {
           id: 'game2',
           title: 'Game 2',
           createdAt: 1000,
           finishedAt: 3000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
         {
           id: 'game3',
           title: 'Game 3',
           createdAt: 1000,
           finishedAt: 4000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
       ];
 
@@ -626,7 +626,7 @@ describe('backfill operations', () => {
           title: 'Game 1',
           createdAt: 1000,
           finishedAt: 2000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
       ];
 
@@ -663,7 +663,7 @@ describe('backfill operations', () => {
           title: 'Game 1',
           createdAt: 1000,
           finishedAt: 2000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
       ];
 
@@ -715,7 +715,7 @@ describe('backfill operations', () => {
           title: 'Game 1',
           createdAt: 1000,
           finishedAt: 2000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
       ];
 
@@ -753,7 +753,7 @@ describe('backfill operations', () => {
           title: 'Game 1',
           createdAt: 1000,
           finishedAt: 2000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
       ];
 
@@ -799,7 +799,7 @@ describe('backfill operations', () => {
           title: 'Game 1',
           createdAt: 1000,
           finishedAt: 2000,
-          summary: { metadata: { version: 1 } }
+          summary: { metadata: { version: 1 } },
         },
       ];
 

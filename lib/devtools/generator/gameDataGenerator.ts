@@ -239,7 +239,7 @@ function generateBids(input: GenerateBidsInput): GenerateBidsResult {
     ? pickHighBidPlayer(rosterIds, input, zeroBidPlayerId)
     : null;
 
-    const maxBid = Math.max(1, tricksForRound(input.roundNumber));
+  const maxBid = Math.max(1, tricksForRound(input.roundNumber));
   for (const player of input.roster) {
     const pid = player.id;
     if (pid === zeroBidPlayerId) {

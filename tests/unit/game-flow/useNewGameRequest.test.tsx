@@ -177,21 +177,29 @@ describe('useNewGameRequest', () => {
     cleanupDevelopmentGlobals();
     clearTimeoutsAndIntervals();
 
-    // Set our isolated context
-    setMockAppState(isolatedContext);
-
-    // Also set the global batchPending ref to ensure proper isolation
+    // Force override the global batchPending ref
     (globalThis as any).__batchPendingRef = { current: true };
+
+    // Set our isolated context multiple times to ensure it's properly set
+    setMockAppState(isolatedContext);
 
     // Force a tick to ensure context is set
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // Render the hook
+    // Render the hook with explicit state setting
     const { result } = renderHook(() => {
+      // Double-ensure the mock state is set
+      setMockAppState(isolatedContext);
+      // Also override the global ref again inside the render
+      (globalThis as any).__batchPendingRef = { current: true };
       return useNewGameRequest({ requireIdle: true, forceHasProgress: true });
     });
 
     await act(async () => {
+      // Ensure state is still correct before calling startNewGame
+      setMockAppState(isolatedContext);
+      (globalThis as any).__batchPendingRef = { current: true };
+
       const ok = await result.current.startNewGame();
       expect(ok).toBe(false);
     });

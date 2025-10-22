@@ -4,10 +4,7 @@ import React from 'react';
 import { usePathname, useParams, useRouter } from 'next/navigation';
 
 import { useAppState } from '@/components/state-provider';
-import {
-  assertEntityAvailable,
-  selectScorecardById,
-} from '@/lib/state';
+import { assertEntityAvailable, selectScorecardById } from '@/lib/state';
 import { trackScorecardView } from '@/lib/observability/events';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -21,7 +18,6 @@ function useScorecardId(): string {
   if (typeof raw === 'string') return raw;
   return '';
 }
-
 
 function resolveView(pathname: string | null | undefined, scorecardId: string): 'live' | 'summary' {
   if (!pathname) return 'live';

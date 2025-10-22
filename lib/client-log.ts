@@ -35,7 +35,14 @@ export function logEvent(type: string, extra?: SpanAttributesInput) {
   if (typeof require === 'function') {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mod = require('./observability/browser') as { trackBrowserEvent?: (type: string, attributes: Record<string, unknown>) => void; default?: { trackBrowserEvent?: (type: string, attributes: Record<string, unknown>) => void } } | undefined;
+      const mod = require('./observability/browser') as
+        | {
+            trackBrowserEvent?: (type: string, attributes: Record<string, unknown>) => void;
+            default?: {
+              trackBrowserEvent?: (type: string, attributes: Record<string, unknown>) => void;
+            };
+          }
+        | undefined;
       const candidate = mod?.trackBrowserEvent ?? mod?.default?.trackBrowserEvent;
       if (typeof candidate === 'function') {
         trackFn = candidate;

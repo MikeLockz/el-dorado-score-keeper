@@ -13,7 +13,9 @@ export default function NotFound() {
         <h1 className={styles.title}>Page not found</h1>
         <p className={styles.description}>The page you requested could not be located.</p>
         <p>
-          <Link href="/" className={styles.link}>Return to the homepage</Link>
+          <Link href="/" className={styles.link}>
+            Return to the homepage
+          </Link>
         </p>
       </div>
     );
@@ -49,7 +51,10 @@ export default function NotFound() {
       <script dangerouslySetInnerHTML={{ __html: script }} />
       <noscript>
         JavaScript is required to load saved sessions.{' '}
-        <a href={BASE_PATH || '/'} className={styles.link}>Return to the homepage</a>.
+        <a href={BASE_PATH || '/'} className={styles.link}>
+          Return to the homepage
+        </a>
+        .
       </noscript>
     </div>
   );

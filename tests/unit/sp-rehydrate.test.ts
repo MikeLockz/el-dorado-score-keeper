@@ -368,14 +368,14 @@ describe('deriveStateFromSnapshot', () => {
       roster: {
         playersById: {
           '': 'Empty Name',
-          'p2': '',
-          'p3': null as any,
-          'p4': 'Valid Player',
+          p2: '',
+          p3: null as any,
+          p4: 'Valid Player',
           123: 'Numeric Key',
         },
         playerTypesById: {
-          'p2': 'bot',
-          'p4': 'human',
+          p2: 'bot',
+          p4: 'human',
         },
         displayOrder: {},
       },
@@ -545,7 +545,9 @@ describe('clonePlain function edge cases', () => {
     // This test indirectly covers the JSON.parse(JSON.stringify()) fallback path
     // by creating complex objects that might fail structuredClone
     const complexObj = {
-      fn: function() { return 'test'; },
+      fn: function () {
+        return 'test';
+      },
       symbol: Symbol('test'),
       circular: null as any,
     };
