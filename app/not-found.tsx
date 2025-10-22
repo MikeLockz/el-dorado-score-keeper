@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import styles from './not-found.module.scss';
+
 const BASE_PATH = (process.env.NEXT_PUBLIC_BASE_PATH || '').replace(/\/+$/, '');
 const STATIC_EXPORT_REDIRECT =
   process.env.NEXT_OUTPUT_EXPORT === 'true' || process.env.GITHUB_ACTIONS === 'true';
@@ -7,11 +9,11 @@ const STATIC_EXPORT_REDIRECT =
 export default function NotFound() {
   if (!STATIC_EXPORT_REDIRECT) {
     return (
-      <div className="not-found">
-        <h1>Page not found</h1>
-        <p>The page you requested could not be located.</p>
+      <div className={styles.container}>
+        <h1 className={styles.title}>Page not found</h1>
+        <p className={styles.description}>The page you requested could not be located.</p>
         <p>
-          <Link href="/">Return to the homepage</Link>
+          <Link href="/" className={styles.link}>Return to the homepage</Link>
         </p>
       </div>
     );
@@ -42,12 +44,12 @@ export default function NotFound() {
   `;
 
   return (
-    <div className="not-found-redirect" suppressHydrationWarning>
-      <p>Redirecting to the requested view…</p>
+    <div className={styles.redirectContainer} suppressHydrationWarning>
+      <p className={styles.description}>Redirecting to the requested view…</p>
       <script dangerouslySetInnerHTML={{ __html: script }} />
       <noscript>
         JavaScript is required to load saved sessions.{' '}
-        <a href={BASE_PATH || '/'}>Return to the homepage</a>.
+        <a href={BASE_PATH || '/'} className={styles.link}>Return to the homepage</a>.
       </noscript>
     </div>
   );

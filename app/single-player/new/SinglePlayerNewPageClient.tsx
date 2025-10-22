@@ -69,7 +69,7 @@ function buildSingleRosterEvents(
   const desiredRoster = pickExisting(desiredId);
 
   let targetId: string;
-  let baseline: (typeof activeRoster)['roster'] | null = null;
+  let baseline: AppState['rosters'][string] | null = null;
   if (activeRoster) {
     targetId = activeRoster.id;
     baseline = activeRoster.roster;

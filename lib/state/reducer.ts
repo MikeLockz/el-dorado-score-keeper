@@ -4,7 +4,6 @@ import type { AppEvent, AppState, EventMap, EventPayloadByType } from './types';
 import { INITIAL_STATE, type AppEventType, type KnownAppEvent } from './types';
 import * as rosterOps from '@/lib/roster/ops';
 import { eventPayloadSchemas } from '@/schema/events';
-import { uuid } from '@/lib/utils';
 
 function coerceTimestamp(event: KnownAppEvent): number {
   const ts = Number(event.ts);
@@ -617,10 +616,9 @@ function reduceSinglePlayer(state: AppState, event: KnownAppEvent): AppState | n
       const nextId = normalized.length > 0 ? normalized : null;
       const current = state.humanByMode?.single ?? null;
       if (current === nextId) return state;
-      const humanByMode = {
-        ...(state.humanByMode ?? {}),
-        single: nextId,
-      } as AppState['humanByMode'];
+      const humanByMode: AppState['humanByMode'] = state.humanByMode
+        ? { ...state.humanByMode, single: nextId }
+        : { single: nextId };
       return { ...state, humanByMode };
     }
     default:

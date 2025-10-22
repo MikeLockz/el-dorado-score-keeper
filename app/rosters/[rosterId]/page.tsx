@@ -4,7 +4,7 @@ import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
 
 import RosterDetailPageClient from './RosterDetailPageClient';
 
-export async function generateStaticParams() {
+export function generateStaticParams() {
   return staticExportParams('rosterId');
 }
 

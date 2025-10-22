@@ -527,7 +527,7 @@ export default function Devtools() {
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
               <button
-                onClick={handleGenerateGame}
+                onClick={() => void handleGenerateGame()}
                 disabled={generatorState.busy}
                 style={{
                   fontSize: 11,
@@ -700,7 +700,7 @@ export default function Devtools() {
             )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
               <button
-                onClick={handleBackfillClick}
+                onClick={() => void handleBackfillClick()}
                 disabled={
                   backfillState.loading ||
                   backfillState.candidates.length === 0 ||

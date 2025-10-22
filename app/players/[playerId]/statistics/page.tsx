@@ -4,7 +4,7 @@ import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
 
 import PlayerStatisticsPageClient from './PlayerStatisticsPageClient';
 
-export async function generateStaticParams() {
+export function generateStaticParams() {
   return staticExportParams('playerId');
 }
 

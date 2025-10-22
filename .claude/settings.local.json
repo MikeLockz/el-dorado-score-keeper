@@ -20,7 +20,10 @@
       "Bash(git reset:*)",
       "Bash(git rm:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(pnpm format:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm lint:*)"
     ],
     "deny": [],
     "ask": []

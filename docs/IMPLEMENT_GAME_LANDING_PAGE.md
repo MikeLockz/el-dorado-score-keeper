@@ -30,11 +30,13 @@ A guide for the simplified landing page implementation that introduces the El Do
 The landing page has been implemented with the following components:
 
 ### Core Structure
+
 - `app/landing/page.tsx` - Main landing page component
 - `components/landing/HeroCtas.tsx` - Hero section with primary CTA
 - `components/landing/QuickLinks.tsx` - Recent games and resource links
 
 ### Features
+
 - Hero section introducing "Set Out for El Dorado" with game description
 - Primary "Start Single Player" call-to-action button
 - Quick Links section displaying recent games with resume functionality
@@ -43,7 +45,9 @@ The landing page has been implemented with the following components:
 - Accessibility features with proper ARIA labels
 
 ### Removed Components
+
 The following components were removed during simplification:
+
 - `components/landing/ModeCard.tsx` - Previously displayed three game mode cards
 - Modes Grid section that contained Single Player, Multiplayer, and Score Card options
 - Associated tests and styling for the removed components
@@ -53,11 +57,13 @@ The following components were removed during simplification:
 ## Implementation Notes
 
 ### Hero Section
+
 - Contains the game title "Set Out for El Dorado"
 - Subtitle: "A card game from south western Michigan"
 - Primary CTA button linking to `/single-player`
 
 ### Quick Links Section
+
 - Displays recent games from IndexedDB storage
 - Shows game mode, player count, and current progress
 - Provides resume buttons for active/in-progress games
@@ -65,12 +71,14 @@ The following components were removed during simplification:
 - Displays empty state when no recent games exist
 
 ### Styling
+
 - Uses SCSS modules for component styling
 - Responsive design with breakpoints for mobile/tablet/desktop
 - Consistent with existing application design patterns
 - Proper spacing and visual hierarchy
 
 ### Analytics
+
 - Tracks hero CTA clicks: `hero_start_single_clicked`
 - Monitors recent game resume actions
 - Follows existing analytics patterns in the application

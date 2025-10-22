@@ -663,7 +663,7 @@ export function createIndexedDbAdapter(db: IDBDatabase): SpSnapshotIndexedDbAdap
         const fail = (err: unknown) => {
           if (settled) return;
           settled = true;
-          reject(err instanceof Error ? err : new Error(String(err ?? 'Unknown error')));
+          reject(err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Unknown error'));
         };
 
         t.oncomplete = finish;

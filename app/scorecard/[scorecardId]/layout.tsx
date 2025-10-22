@@ -7,7 +7,6 @@ import { useAppState } from '@/components/state-provider';
 import {
   assertEntityAvailable,
   selectScorecardById,
-  type ScorecardSessionSlice,
 } from '@/lib/state';
 import { trackScorecardView } from '@/lib/observability/events';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,12 +22,6 @@ function useScorecardId(): string {
   return '';
 }
 
-function formatScorecardLabel(session: ScorecardSessionSlice | null): string {
-  if (!session?.id) return 'Scorecard session';
-  const name = session.roster?.name?.trim();
-  if (name) return name;
-  return `Scorecard ${session.id.slice(0, 8).toUpperCase()}`;
-}
 
 function resolveView(pathname: string | null | undefined, scorecardId: string): 'live' | 'summary' {
   if (!pathname) return 'live';

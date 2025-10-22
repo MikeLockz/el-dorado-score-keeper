@@ -223,7 +223,6 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
         ? 'Ready to start'
         : 'Add players to begin';
 
-  const currentSummaryHref = hasActiveSession ? `${scorecardRoute}/summary` : null;
   const pageTitle = isGamesVariant ? 'Scorecard archives' : 'Scorecard hub';
   const pageDescription = isGamesVariant
     ? 'Browse archived scorecard sessions from the games library.'
@@ -329,9 +328,6 @@ export default function ScorecardHubPageClient({ variant = 'hub' }: ScorecardHub
                   ? game.summary.scorecard?.activeRound
                   : null;
               const cardDisabled = !isGamesVariant && (pending || isCompleted);
-              const archiveHref = isGamesVariant
-                ? `/games/scorecards/${game.id}`
-                : `/games/${game.id}`;
               const summaryAriaLabel = isGamesVariant
                 ? `Open archived scorecard ${game.title || game.id}`
                 : `Resume ${game.title || game.id} scorecard`;

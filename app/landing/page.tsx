@@ -1,14 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import QuickLinks from '@/components/landing/QuickLinks';
 import HeroCtas from '@/components/landing/HeroCtas';
 
 import styles from './page.module.scss';
 
 export default function LandingPage() {
-
   return (
     <div className={styles.container}>
       {/* Hero */}
@@ -18,7 +16,6 @@ export default function LandingPage() {
         <HeroCtas />
       </section>
 
-  
       {/* Quick Links */}
       <QuickLinks />
     </div>
