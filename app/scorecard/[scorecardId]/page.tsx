@@ -7,7 +7,7 @@ import CurrentGame from '@/components/views/CurrentGame';
 
 import styles from './page.module.scss';
 
-export async function generateStaticParams() {
+export function generateStaticParams() {
   return staticExportParams('scorecardId');
 }
 

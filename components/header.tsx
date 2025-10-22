@@ -10,7 +10,6 @@ import { Button } from '@/components/ui';
 import { Menu } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
 import {
-  resolveScorecardRoute,
   resolveSinglePlayerRoute,
   resolvePlayerRoute,
   resolveArchivedGameRoute,
@@ -30,7 +29,6 @@ export default function Header() {
     match?: (path: string) => boolean;
   };
 
-  const scorecardRoute = React.useMemo(() => resolveScorecardRoute(state), [state]);
   const singlePlayerRoute = React.useMemo(
     () => resolveSinglePlayerRoute(state, { fallback: 'entry' }),
     [state],
@@ -59,7 +57,7 @@ export default function Header() {
       { href: '/settings', label: 'Settings', group: 'secondary' },
       { href: '/rules', label: 'Rules', group: 'secondary' },
     ],
-    [scorecardRoute, singlePlayerRoute],
+    [singlePlayerRoute],
   );
   const primaryNav = navItems.filter((item) => item.group === 'primary');
   const secondaryNav = navItems.filter((item) => item.group === 'secondary');

@@ -796,7 +796,11 @@ function deriveLiveHandInsights(state: AppState, playerId: string): HistoricalHa
   }
   const lastSnapshot = state.sp?.lastTrickSnapshot;
   if (lastSnapshot && Array.isArray(lastSnapshot.plays)) {
-    plays.push(...lastSnapshot.plays);
+    plays.push(
+      ...lastSnapshot.plays.filter(
+        (play): play is object => typeof play === 'object' && play !== null,
+      ),
+    );
   }
 
   if (plays.length === 0) {
@@ -928,7 +932,7 @@ function calculateMedianPlacement(placements: ReadonlyArray<number>): number | n
   if (!Array.isArray(placements) || placements.length === 0) return null;
   const valid = placements
     .filter((value) => Number.isFinite(value))
-    .map((value) => Math.trunc(value));
+    .map((value) => Math.trunc(Number(value)));
   if (valid.length === 0) return null;
   const sorted = [...valid].sort((a, b) => a - b);
   const midIndex = Math.floor((sorted.length - 1) / 2);

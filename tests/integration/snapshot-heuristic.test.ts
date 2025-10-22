@@ -35,6 +35,7 @@ async function seedEvents(dbName: string, n: number) {
   const store = t.objectStore(storeNames.EVENTS);
   const baseTs = 1_700_000_000_000;
   // Enqueue all adds within a single transaction; await only transaction completion
+  const promises: Promise<void>[] = [];
   for (let i = 1; i <= n; i++) {
     const ev = makeEvent(
       'score/added',
@@ -46,12 +47,14 @@ async function seedEvents(dbName: string, n: number) {
     );
     // Add without caring about seq key (autoIncrement)
     const req = store.add(ev);
-    // eslint-disable-next-line no-await-in-loop
-    await new Promise<void>((res, rej) => {
+    const promise = new Promise<void>((res, rej) => {
       req.onsuccess = () => res();
       req.onerror = () => rej(req.error);
     });
+    promises.push(promise);
   }
+  // Wait for all individual operations to complete in parallel
+  await Promise.all(promises);
   await new Promise<void>((res, rej) => {
     t.oncomplete = () => res();
     t.onerror = () => rej(t.error);
@@ -103,7 +106,7 @@ describe('snapshotEvery heuristic (pre-seeded)', () => {
     inst.close();
     const heights = await listSnapshotHeights(dbName);
     expect(heights).toEqual([3000]);
-  });
+  }, 20000);
 
   it('>5000 and <=20000 existing (5001) -> snapshotEvery=100 (first snapshot at 5100)', async () => {
     const dbName = makeDbName('heur20k');

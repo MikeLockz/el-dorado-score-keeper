@@ -1,0 +1,45 @@
+@use '../styles/mixins/typography' as typography;
+@use '../styles/tokens/spacing' as spacing;
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 50vh;
+  text-align: center;
+  padding-inline: spacing.spacing('space-4');
+  gap: spacing.spacing('space-4');
+}
+
+.title {
+  @include typography.heading('heading-lg');
+  color: var(--foreground);
+}
+
+.description {
+  @include typography.body('body-md');
+  color: var(--muted-foreground);
+  max-inline-size: 30rem;
+}
+
+.link {
+  @include typography.body('body-sm');
+  color: var(--primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.redirectContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 50vh;
+  text-align: center;
+  padding-inline: spacing.spacing('space-4');
+  gap: spacing.spacing('space-4');
+}

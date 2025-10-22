@@ -557,7 +557,7 @@ export async function createInstance(opts?: {
       Object.prototype.hasOwnProperty.call(next.rosters, defaultRosterId) &&
       next.rosters[defaultRosterId]
     ) {
-      const legacyRoster = next.rosters[defaultRosterId]!;
+      const legacyRoster = next.rosters[defaultRosterId];
       const replacementId: UUID = uuid();
       const updatedRosters: AppState['rosters'] = Object.assign({}, next.rosters);
       delete updatedRosters[defaultRosterId];

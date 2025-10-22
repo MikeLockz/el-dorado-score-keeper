@@ -119,7 +119,7 @@ export function deriveAdvancedMetrics({
   try {
     const samples: AdvancedGameSample[] = [];
     if (Array.isArray(historicalGames)) {
-      samples.push(...historicalGames.filter(Boolean));
+      samples.push(...(historicalGames as AdvancedGameSample[]).filter(Boolean));
     }
     if (liveGame) {
       samples.push(liveGame);
@@ -409,9 +409,7 @@ function analyzeGame(
   const tricksWonBySuit = createSuitCounter(() => 0);
   const tricksPlayedBySuit = createSuitCounter(() => 0);
 
-  const events = Array.isArray(record.bundle?.events)
-    ? (record.bundle?.events as GameRecord['bundle']['events'])
-    : [];
+  const events = Array.isArray(record.bundle?.events) ? record.bundle?.events : [];
 
   let currentRoundTrump: SuitKey | null = null;
   let gameTrump: SuitKey | null = null;

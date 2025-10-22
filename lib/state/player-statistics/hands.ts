@@ -86,9 +86,7 @@ function deriveMutableHandInsights(
   record: GameRecord,
   normalized: NormalizedHistoricalGame,
 ): Map<string, MutableHandInsight> {
-  const events = Array.isArray(record.bundle?.events)
-    ? (record.bundle?.events as GameRecord['bundle']['events'])
-    : [];
+  const events = Array.isArray(record.bundle?.events) ? record.bundle?.events : [];
 
   const insights = new Map<string, MutableHandInsight>();
 

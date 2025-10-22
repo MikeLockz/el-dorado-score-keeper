@@ -8,8 +8,6 @@ import { Button, Card } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import { assertEntityAvailable, selectPlayerById, resolvePlayerRoute } from '@/lib/state';
 import { trackPlayerDetailView } from '@/lib/observability/events';
-import { shareLink } from '@/lib/ui/share';
-import { useToast } from '@/components/ui/toast';
 
 import PlayerMissing from '../_components/PlayerMissing';
 import styles from './page.module.scss';
@@ -21,7 +19,6 @@ export type PlayerDetailPageClientProps = {
 export function PlayerDetailPageClient({ playerId }: PlayerDetailPageClientProps) {
   const router = useRouter();
   const { state, ready } = useAppState();
-  const { toast } = useToast();
 
   const playerSlice = React.useMemo(() => selectPlayerById(state, playerId), [state, playerId]);
   const availability = React.useMemo(
@@ -34,7 +31,6 @@ export function PlayerDetailPageClient({ playerId }: PlayerDetailPageClientProps
         : null,
     [ready, playerSlice, playerId],
   );
-  const sharePlayerName = playerSlice?.name ?? playerId;
 
   React.useEffect(() => {
     if (!ready) return;
@@ -45,15 +41,6 @@ export function PlayerDetailPageClient({ playerId }: PlayerDetailPageClientProps
       source: 'players.detail.page',
     });
   }, [ready, availability, playerId]);
-
-  const handleCopyLink = React.useCallback(async () => {
-    await shareLink({
-      href: resolvePlayerRoute(playerId),
-      toast,
-      title: sharePlayerName || 'Player detail',
-      successMessage: 'Player link copied',
-    });
-  }, [playerId, sharePlayerName, toast]);
 
   if (!ready) {
     return (

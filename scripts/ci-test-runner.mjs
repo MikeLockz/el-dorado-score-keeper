@@ -73,7 +73,7 @@ function shouldRetry(error) {
     'connection',
   ];
 
-  return retryableErrors.some(pattern => errorMessage.includes(pattern));
+  return retryableErrors.some((pattern) => errorMessage.includes(pattern));
 }
 
 /**
@@ -82,7 +82,7 @@ function shouldRetry(error) {
 function parseTestResults(jsonOutput) {
   try {
     return JSON.parse(jsonOutput);
-  } catch {
+  } catch (error) {
     // Fallback parsing for different output formats
     const lines = jsonOutput.split('\n');
     const results = [];
@@ -92,15 +92,13 @@ function parseTestResults(jsonOutput) {
         try {
           const parsed = JSON.parse(line);
           results.push(parsed);
-        } catch {
+        } catch (parseError) {
           // Skip invalid JSON lines
         }
       }
     }
 
     return results[results.length - 1] || { numFailedTests: 0, numPassedTests: 0 };
-  } catch {
-    return { numFailedTests: 0, numPassedTests: 0 };
   }
 }
 
@@ -214,7 +212,6 @@ async function runTests() {
       console.log('\n✅ All Tests Passed');
       process.exit(0);
     }
-
   } catch (error) {
     console.error('\n💥 Test Execution Failed:');
     console.error(`   Error: ${error.message}`);

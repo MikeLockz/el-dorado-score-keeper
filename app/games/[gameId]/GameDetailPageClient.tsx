@@ -15,7 +15,6 @@ import {
   type AppState,
   type GameRecord,
   getGame,
-  resolveArchivedGameRoute,
   resolveGameModalRoute,
   isGameRecordCompleted,
   INITIAL_STATE,
@@ -31,8 +30,6 @@ import { analyzeGame } from '@/lib/analytics';
 import { formatDateTime } from '@/lib/format';
 import { formatDuration } from '@/lib/utils';
 import { captureBrowserMessage } from '@/lib/observability/browser';
-import { shareLink } from '@/lib/ui/share';
-import { useToast } from '@/components/ui/toast';
 import ArchivedGameMissing from '../_components/ArchivedGameMissing';
 import { subscribeToGamesSignal } from '@/lib/state/game-signals';
 import { trackGameDetailView } from '@/lib/observability/events';
@@ -164,7 +161,6 @@ function buildReadOnlyScorecardGrid(
 export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
   const router = useRouter();
   const [game, setGame] = React.useState<GameRecord | null | undefined>(undefined);
-  const { toast } = useToast();
 
   const describeError = React.useCallback((error: unknown) => {
     if (error instanceof Error) return error.message;
@@ -222,19 +218,6 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
 
   const stats = React.useMemo(() => (game ? analyzeGame(game) : null), [game]);
   const isCompleted = React.useMemo(() => (game ? isGameRecordCompleted(game) : false), [game]);
-  const shareTitle = game?.title?.trim() || 'Archived game';
-
-  const handleCopyLink = React.useCallback(async () => {
-    if (!gameId) return;
-    const href = resolveArchivedGameRoute(gameId);
-    await shareLink({
-      href,
-      toast,
-      title: shareTitle,
-      successMessage: 'Archived game link copied',
-    });
-  }, [gameId, shareTitle, toast]);
-
   const reconstructedState = React.useMemo(() => {
     if (!game) return null;
     let next = INITIAL_STATE;

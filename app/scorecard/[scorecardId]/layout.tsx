@@ -4,11 +4,7 @@ import React from 'react';
 import { usePathname, useParams, useRouter } from 'next/navigation';
 
 import { useAppState } from '@/components/state-provider';
-import {
-  assertEntityAvailable,
-  selectScorecardById,
-  type ScorecardSessionSlice,
-} from '@/lib/state';
+import { assertEntityAvailable, selectScorecardById } from '@/lib/state';
 import { trackScorecardView } from '@/lib/observability/events';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -21,13 +17,6 @@ function useScorecardId(): string {
   if (Array.isArray(raw)) return raw[0] ?? '';
   if (typeof raw === 'string') return raw;
   return '';
-}
-
-function formatScorecardLabel(session: ScorecardSessionSlice | null): string {
-  if (!session?.id) return 'Scorecard session';
-  const name = session.roster?.name?.trim();
-  if (name) return name;
-  return `Scorecard ${session.id.slice(0, 8).toUpperCase()}`;
 }
 
 function resolveView(pathname: string | null | undefined, scorecardId: string): 'live' | 'summary' {

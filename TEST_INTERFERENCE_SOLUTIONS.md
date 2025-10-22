@@ -9,6 +9,7 @@ Your test suite has **global state pollution** issues where tests are interferin
 ### **Sources of Global State Pollution**
 
 #### **1. Global Mock References**
+
 ```typescript
 // In tests/setup/jsdom.ts
 const appStateRef: { current: MockAppState | null } = { current: null };
@@ -19,15 +20,16 @@ const paramsRef: { current: ParamsRecord } = { current: {} };
 **Problem:** These global references persist between tests and can be modified by one test, affecting subsequent tests.
 
 #### **2. Global Development Globals**
+
 ```typescript
 // Production globals set by components
-(globalThis as any).__START_NEW_GAME__
-(globalThis as any).__clientLogTrack__
+(globalThis as any).__START_NEW_GAME__(globalThis as any).__clientLogTrack__;
 ```
 
 **Problem:** Components set these globals during testing but they're not properly cleaned up.
 
 #### **3. Mock Implementation Persistence**
+
 ```typescript
 let listGamesMockImpl: ListGamesFn;
 let restoreGameMockImpl: RestoreGameFn;
@@ -38,7 +40,9 @@ let newGameConfirmMock: NewGameConfirmMock;
 **Problem:** Mock implementations persist across test runs and aren't properly reset.
 
 #### **4. DOM Event Listeners**
+
 The Phase 4 integration test detected many uncleared event listeners:
+
 ```
 Event listeners not cleaned up: click, mousedown, mouseup, keydown, etc.
 ```
@@ -46,6 +50,7 @@ Event listeners not cleaned up: click, mousedown, mouseup, keydown, etc.
 **Problem:** React components aren't being properly unmounted, leaving behind event listeners.
 
 #### **5. Browser API Mocks**
+
 ```typescript
 const originalFetch = (globalThis as any).fetch;
 const fetchMock = vi.fn(async () => ({...}));
@@ -59,6 +64,7 @@ const fetchMock = vi.fn(async () => ({...}));
 ### **Phase 1: Enhanced Test Isolation Infrastructure**
 
 #### **1. Create Test Context Manager**
+
 ```typescript
 // tests/utils/test-context-manager.ts
 export interface TestContext {
@@ -85,6 +91,7 @@ export function withTestContext<T>(testFn: (context: TestContext) => T): T {
 ```
 
 #### **2. Global State Reset Utilities**
+
 ```typescript
 // tests/utils/global-state-reset.ts
 export function resetGlobalState() {
@@ -116,6 +123,7 @@ export function resetMockImplementations() {
 ```
 
 #### **3. Enhanced Component Cleanup**
+
 ```typescript
 // tests/utils/component-cleanup.ts
 export function cleanupComponent(renderResult: RenderResult) {
@@ -123,7 +131,7 @@ export function cleanupComponent(renderResult: RenderResult) {
   renderResult.unmount();
 
   // Wait for React cleanup cycles
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
 
   // Clean up development globals
   cleanupDevelopmentGlobals();
@@ -138,7 +146,7 @@ export function cleanupComponent(renderResult: RenderResult) {
 function cleanupEventListeners() {
   // Detect and remove orphaned event listeners
   const elements = document.querySelectorAll('*');
-  elements.forEach(element => {
+  elements.forEach((element) => {
     // Remove all event listeners (this is a simplified approach)
     const newElement = element.cloneNode(true);
     element.parentNode?.replaceChild(newElement, element);
@@ -149,6 +157,7 @@ function cleanupEventListeners() {
 ### **Phase 2: Test Pattern Improvements**
 
 #### **1. Standardized Test Pattern**
+
 ```typescript
 // Replace existing pattern:
 beforeEach(() => {
@@ -177,6 +186,7 @@ describe('Feature', () => {
 ```
 
 #### **2. Isolated Mock Management**
+
 ```typescript
 // Instead of global mock assignments:
 const setMockAppState = (globalThis as any).__setMockAppState;
@@ -187,11 +197,12 @@ const testContext = createTestContext({
   mocks: {
     listGames: vi.fn(async () => mockGames),
     // ...
-  }
+  },
 });
 ```
 
 #### **3. Enhanced Assertion Helpers**
+
 ```typescript
 // tests/utils/assertion-helpers.ts
 export function expectDevelopmentGlobalsClean() {
@@ -214,9 +225,11 @@ export function expectGlobalStateReset() {
 ### **Phase 3: Specific Test File Fixes**
 
 #### **1. Phase 4 Production Integration Test**
+
 **Issues:** Event listener pollution, lifecycle management
 
 **Solution:**
+
 ```typescript
 // tests/integration/phase-4-production-integration.test.tsx
 describe('Phase 4: Production Integration Tests', () => {
@@ -249,9 +262,11 @@ describe('Phase 4: Production Integration Tests', () => {
 ```
 
 #### **2. Games Page UI Test**
+
 **Issues:** Mock function call tracking, global state interference
 
 **Solution:**
+
 ```typescript
 // tests/ui/games-page-ui.test.tsx
 describe('Games page new game flow', () => {
@@ -288,9 +303,11 @@ describe('Games page new game flow', () => {
 ```
 
 #### **3. Player Statistics Tests**
+
 **Issues:** Multiple element selection, DOM pollution
 
 **Solution:**
+
 ```typescript
 // tests/unit/components/player-statistics/advanced-insights-panel.test.tsx
 describe('AdvancedInsightsPanel Component Tests', () => {
@@ -329,6 +346,7 @@ describe('AdvancedInsightsPanel Component Tests', () => {
 ### **Phase 4: Infrastructure Improvements**
 
 #### **1. Enhanced jsdom Setup**
+
 ```typescript
 // tests/setup/jsdom.ts (enhanced)
 beforeEach(() => {
@@ -355,6 +373,7 @@ afterEach(() => {
 ```
 
 #### **2. Parallel Test Support**
+
 ```typescript
 // vitest.config.ts
 export default defineConfig({
@@ -378,6 +397,7 @@ export default defineConfig({
 ```
 
 #### **3. Global State Monitoring**
+
 ```typescript
 // tests/utils/global-state-monitor.ts
 export function createGlobalStateMonitor() {
@@ -385,16 +405,18 @@ export function createGlobalStateMonitor() {
 
   return {
     captureSnapshot() {
-      snapshots.push(JSON.stringify({
-        appState: appStateRef.current,
-        router: routerRef.current,
-        params: paramsRef.current,
-        developmentGlobals: {
-          __START_NEW_GAME__: (globalThis as any).__START_NEW_GAME__,
-          __clientLogTrack__: (globalThis as any).__clientLogTrack__,
-        },
-        domContent: document.body.innerHTML,
-      }));
+      snapshots.push(
+        JSON.stringify({
+          appState: appStateRef.current,
+          router: routerRef.current,
+          params: paramsRef.current,
+          developmentGlobals: {
+            __START_NEW_GAME__: (globalThis as any).__START_NEW_GAME__,
+            __clientLogTrack__: (globalThis as any).__clientLogTrack__,
+          },
+          domContent: document.body.innerHTML,
+        }),
+      );
     },
 
     verifyNoLeaks() {
@@ -412,21 +434,25 @@ export function createGlobalStateMonitor() {
 ## 🚀 **Implementation Roadmap**
 
 ### **Week 1: Foundation**
+
 1. **Create test context manager** (`tests/utils/test-context-manager.ts`)
 2. **Implement global state reset utilities** (`tests/utils/global-state-reset.ts`)
 3. **Add enhanced component cleanup** (`tests/utils/component-cleanup.ts`)
 
 ### **Week 2: Infrastructure**
+
 1. **Update jsdom setup** with enhanced isolation
 2. **Create assertion helpers** for state verification
 3. **Add global state monitoring** for debugging
 
 ### **Week 3: Test Migration**
+
 1. **Fix Phase 4 integration test** with proper isolation
 2. **Fix games-page-ui test** with context-based approach
 3. **Fix player statistics tests** with unique containers
 
 ### **Week 4: Validation**
+
 1. **Run all tests in isolation** to verify fixes
 2. **Run tests in parallel** to ensure no interference
 3. **Add CI monitoring** for test flakiness
@@ -435,12 +461,14 @@ export function createGlobalStateMonitor() {
 ## 📊 **Success Metrics**
 
 ### **Before Fix:**
+
 - ❌ 6 failed test files out of 157
 - ❌ Test interference between files
 - ❌ Flaky test results
 - ❌ Global state pollution
 
 ### **After Fix:**
+
 - ✅ 0 failed test files
 - ✅ Complete test isolation
 - ✅ Deterministic test results
@@ -449,6 +477,7 @@ export function createGlobalStateMonitor() {
 ## 🔧 **Quick Wins (Implement Today)**
 
 1. **Add afterEach cleanup to all failing tests:**
+
 ```typescript
 afterEach(() => {
   cleanupDevelopmentGlobals();
@@ -458,6 +487,7 @@ afterEach(() => {
 ```
 
 2. **Reset global mocks in beforeEach:**
+
 ```typescript
 beforeEach(() => {
   resetGlobalState();
@@ -466,6 +496,7 @@ beforeEach(() => {
 ```
 
 3. **Add state verification in afterEach:**
+
 ```typescript
 afterEach(() => {
   expectDevelopmentGlobalsClean();

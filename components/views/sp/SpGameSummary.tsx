@@ -29,7 +29,6 @@ export default function SpGameSummary(props: {
 }) {
   const {
     title,
-    players,
     seed,
     onDetailsToggle,
     detailsActive,

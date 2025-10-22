@@ -211,7 +211,7 @@ function deriveCanonicalRosterSnapshot(
   const displayOrder: Record<string, number> = {};
 
   if (Array.isArray(state.sp?.order)) {
-    state.sp!.order.forEach((pid, index) => {
+    state.sp.order.forEach((pid, index) => {
       if (typeof pid !== 'string') return;
       const trimmed = pid.trim();
       if (!trimmed || playersById[trimmed]) return;
@@ -244,7 +244,7 @@ function deriveCanonicalRosterSnapshot(
 }
 
 type AliasResolver = {
-  resolve: (rawId: string | null | undefined, hint?: string | null | undefined) => string | null;
+  resolve: (rawId: string | null | undefined, hint?: string | null) => string | null;
   buildSlotMapping: () => GameRecord['summary']['slotMapping'];
 };
 

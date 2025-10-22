@@ -6,7 +6,7 @@ import { SCORECARD_HUB_PATH } from '@/lib/state';
 
 import ScorecardSummaryPageClient from './ScorecardSummaryPageClient';
 
-export async function generateStaticParams() {
+export function generateStaticParams() {
   return staticExportParams('scorecardId');
 }
 
@@ -77,5 +77,5 @@ export default function ScorecardSummaryPage({ params }: PageParams = {}) {
   if (scorecardId === 'scorecard-default') {
     redirect(SCORECARD_HUB_PATH);
   }
-  return <ScorecardSummaryPageClient scorecardId={scorecardId || undefined} />;
+  return <ScorecardSummaryPageClient scorecardId={scorecardId} />;
 }

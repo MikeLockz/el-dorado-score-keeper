@@ -40,6 +40,14 @@ const scoreFormatter = new Intl.NumberFormat(undefined, {
 });
 
 export function AdvancedInsightsPanel({ loading, metrics, loadError }: AdvancedInsightsPanelProps) {
+  const volatility = metrics?.scoreVolatility;
+  const momentum = metrics?.momentum;
+
+  const sparkline = React.useMemo(
+    () => buildSparklinePath(momentum?.rollingAverageScores.map((entry) => entry.average) ?? []),
+    [momentum?.rollingAverageScores],
+  );
+
   if (!metrics) {
     const emptyMessage = loadError
       ? 'Advanced analytics are unavailable while historical data is offline.'
@@ -74,15 +82,7 @@ export function AdvancedInsightsPanel({ loading, metrics, loadError }: AdvancedI
     return best;
   }, null);
 
-  const volatility = metrics.scoreVolatility;
-  const momentum = metrics.momentum;
-
-  const sparkline = React.useMemo(
-    () => buildSparklinePath(momentum.rollingAverageScores.map((entry) => entry.average)),
-    [momentum.rollingAverageScores],
-  );
-
-  const rollingWindow = Math.min(momentum.rollingAverageScores.length, 5);
+  const rollingWindow = Math.min(momentum!.rollingAverageScores.length, 5);
   const momentumHint = loading
     ? 'Calculating rolling average momentum…'
     : rollingWindow > 0
@@ -320,7 +320,7 @@ function buildSparklinePath(values: ReadonlyArray<number>): string | null {
   const segments = values
     .slice(1)
     .map((value, index) => {
-      const [x, y] = toPoint(value!, index + 1);
+      const [x, y] = toPoint(value, index + 1);
       return `L ${x.toFixed(2)} ${y.toFixed(2)}`;
     })
     .join(' ');

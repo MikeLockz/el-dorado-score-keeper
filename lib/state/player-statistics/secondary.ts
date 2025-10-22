@@ -66,7 +66,7 @@ export function deriveHistoricalSecondaryMetrics(
   const recordEvents: ReadonlyArray<GameRecord['bundle']['events'][number]> = Array.isArray(
     record.bundle?.events,
   )
-    ? (record.bundle?.events as GameRecord['bundle']['events'])
+    ? record.bundle?.events
     : [];
   for (const event of recordEvents) {
     if (!event || typeof event !== 'object') continue;

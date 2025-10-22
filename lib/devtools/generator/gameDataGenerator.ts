@@ -80,7 +80,10 @@ export function generateRoundPlan(options: RoundGenerationOptions): RoundDescrip
 
   const styleByPlayer = new Map<string, PlayerStyle>();
   for (const player of roster) {
-    styleByPlayer.set(player.id, player.style);
+    if (player && typeof player === 'object' && 'id' in player && 'style' in player) {
+      const playerObj = player as Record<string, unknown>;
+      styleByPlayer.set(String(playerObj.id), playerObj.style as PlayerStyle);
+    }
   }
 
   const descriptors: RoundDescriptor[] = [];
@@ -236,7 +239,6 @@ function generateBids(input: GenerateBidsInput): GenerateBidsResult {
     ? pickHighBidPlayer(rosterIds, input, zeroBidPlayerId)
     : null;
 
-  let runningTotal = 0;
   const maxBid = Math.max(1, tricksForRound(input.roundNumber));
   for (const player of input.roster) {
     const pid = player.id;
@@ -258,7 +260,6 @@ function generateBids(input: GenerateBidsInput): GenerateBidsResult {
 
     bid = clamp(Math.trunc(bid), 0, Math.max(maxBid, input.targetTricks + 2));
     bids[pid] = bid;
-    runningTotal += bid;
   }
 
   const { totalBid, adjustedBids } = adjustBidTotals({

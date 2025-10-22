@@ -8,14 +8,19 @@
 
 import * as React from 'react';
 import { renderHook, RenderHookResult, RenderHookOptions } from '@testing-library/react';
-import { captureDevelopmentGlobals, restoreDevelopmentGlobals, cleanupDevelopmentGlobals } from './component-lifecycle';
+import {
+  captureDevelopmentGlobals,
+  restoreDevelopmentGlobals,
+  cleanupDevelopmentGlobals,
+} from './component-lifecycle';
 import { setupAsyncEventManagement } from './async-management';
 import { createProductionLifecycleManager } from './production-lifecycle';
 
 /**
  * Enhanced result for production hook testing
  */
-export interface ProductionHookTestResult<Result, Props> extends Omit<RenderHookResult<Result, Props>, 'unmount'> {
+export interface ProductionHookTestResult<Result, Props>
+  extends Omit<RenderHookResult<Result, Props>, 'unmount'> {
   unmount: () => HookCleanupResult;
   verifyProductionGlobals: () => ProductionGlobalVerification;
   simulateProductionUnmount: () => ProductionUnmountResult;
@@ -100,7 +105,7 @@ export function createProductionHookTestEnvironment() {
 
   const trackGlobalChange = () => {
     const newGlobals = captureDevelopmentGlobals();
-    Object.keys(newGlobals).forEach(key => {
+    Object.keys(newGlobals).forEach((key) => {
       if (newGlobals[key] !== currentGlobals[key]) {
         updateMetric('globalStateChanges');
       }
@@ -110,7 +115,7 @@ export function createProductionHookTestEnvironment() {
 
   const renderProductionHook = <Result, Props>(
     hook: (props: Props) => Result,
-    options?: RenderHookOptions<Props>
+    options?: RenderHookOptions<Props>,
   ): ProductionHookTestResult<Result, Props> => {
     updateMetric('renderCount');
 
@@ -141,10 +146,12 @@ export function createProductionHookTestEnvironment() {
         const remainingGlobals: string[] = [];
 
         // Check for remaining production globals
-        Object.keys(globalsAfterUnmount).forEach(key => {
-          if (globalsAfterUnmount[key] !== undefined &&
-              globalsAfterUnmount[key] !== initialGlobals[key] &&
-              key.startsWith('__')) {
+        Object.keys(globalsAfterUnmount).forEach((key) => {
+          if (
+            globalsAfterUnmount[key] !== undefined &&
+            globalsAfterUnmount[key] !== initialGlobals[key] &&
+            key.startsWith('__')
+          ) {
             remainingGlobals.push(key);
           }
         });
@@ -160,7 +167,10 @@ export function createProductionHookTestEnvironment() {
         cleanupDevelopmentGlobals();
 
         return {
-          success: remainingGlobals.length === 0 && leakedAsyncOperations === 0 && leakedEventListeners === 0,
+          success:
+            remainingGlobals.length === 0 &&
+            leakedAsyncOperations === 0 &&
+            leakedEventListeners === 0,
           remainingGlobals,
           leakedAsyncOperations,
           leakedEventListeners,
@@ -182,7 +192,7 @@ export function createProductionHookTestEnvironment() {
       const globals = captureDevelopmentGlobals();
       const changesSinceMount: Record<string, { before: any; after: any }> = {};
 
-      Object.keys(globals).forEach(key => {
+      Object.keys(globals).forEach((key) => {
         if (globals[key] !== initialGlobals[key]) {
           changesSinceMount[key] = {
             before: initialGlobals[key],
@@ -193,8 +203,9 @@ export function createProductionHookTestEnvironment() {
 
       const hasProductionGlobals = !!(globals.__START_NEW_GAME__ || globals.__clientLogTrack__);
 
-      const isProductionCompatible = !!(globals.__START_NEW_GAME__ && typeof globals.__START_NEW_GAME__ === 'function') ||
-                                    !!(globals.__clientLogTrack__ && typeof globals.__clientLogTrack__ === 'function');
+      const isProductionCompatible =
+        !!(globals.__START_NEW_GAME__ && typeof globals.__START_NEW_GAME__ === 'function') ||
+        !!(globals.__clientLogTrack__ && typeof globals.__clientLogTrack__ === 'function');
 
       return {
         hasProductionGlobals,
@@ -219,14 +230,20 @@ export function createProductionHookTestEnvironment() {
         // Check for production globals that should be cleaned up
         if (globalsBeforeUnmount.__START_NEW_GAME__ && !globalsAfterUnmount.__START_NEW_GAME__) {
           // Good: __START_NEW_GAME__ was cleaned up
-        } else if (globalsBeforeUnmount.__START_NEW_GAME__ && globalsAfterUnmount.__START_NEW_GAME__) {
+        } else if (
+          globalsBeforeUnmount.__START_NEW_GAME__ &&
+          globalsAfterUnmount.__START_NEW_GAME__
+        ) {
           warnings.push('__START_NEW_GAME__ was not cleaned up during unmount');
           remainingGlobals.push('__START_NEW_GAME__');
         }
 
         if (globalsBeforeUnmount.__clientLogTrack__ && !globalsAfterUnmount.__clientLogTrack__) {
           // Good: __clientLogTrack__ was cleaned up
-        } else if (globalsBeforeUnmount.__clientLogTrack__ && globalsAfterUnmount.__clientLogTrack__) {
+        } else if (
+          globalsBeforeUnmount.__clientLogTrack__ &&
+          globalsAfterUnmount.__clientLogTrack__
+        ) {
           warnings.push('__clientLogTrack__ was not cleaned up during unmount');
           remainingGlobals.push('__clientLogTrack__');
         }
@@ -330,7 +347,7 @@ function ProductionHookWrapper({
   // Track effect runs
   React.useEffect(() => {
     onEffectRun?.();
-    setEffectCount(prev => prev + 1);
+    setEffectCount((prev) => prev + 1);
 
     return () => {
       onCleanup?.();
@@ -361,7 +378,7 @@ function ProductionHookWrapper({
  */
 export function useProductionDevelopmentFeature<T>(
   featureName: string,
-  featureFactory: () => T
+  featureFactory: () => T,
 ): [T, (newValue?: T) => void, () => boolean] {
   const [feature, setFeature] = React.useState<T>(() => {
     try {
@@ -372,17 +389,20 @@ export function useProductionDevelopmentFeature<T>(
     }
   });
 
-  const updateFeature = React.useCallback((newValue?: T) => {
-    if (newValue !== undefined) {
-      setFeature(newValue);
-    } else {
-      try {
-        setFeature(featureFactory());
-      } catch (error) {
-        console.warn(`Failed to update ${featureName}:`, error);
+  const updateFeature = React.useCallback(
+    (newValue?: T) => {
+      if (newValue !== undefined) {
+        setFeature(newValue);
+      } else {
+        try {
+          setFeature(featureFactory());
+        } catch (error) {
+          console.warn(`Failed to update ${featureName}:`, error);
+        }
       }
-    }
-  }, [featureName, featureFactory]);
+    },
+    [featureName, featureFactory],
+  );
 
   const isAvailable = React.useCallback(() => {
     return feature !== null && feature !== undefined;
@@ -397,9 +417,7 @@ export function useProductionDevelopmentFeature<T>(
 export function testProductionHook<Result, Props>(
   useHook: (props: Props) => Result,
   initialProps: Props,
-  testFn: (
-    hookResult: ProductionHookTestResult<Result, Props>
-  ) => void | Promise<void>
+  testFn: (hookResult: ProductionHookTestResult<Result, Props>) => void | Promise<void>,
 ) {
   const environment = createProductionHookTestEnvironment();
 
@@ -414,10 +432,7 @@ export function testProductionHook<Result, Props>(
 /**
  * Test helper for verifying hook cleanup behavior
  */
-export function expectHookCleanup<Result, Props>(
-  useHook: (props: Props) => Result,
-  props: Props
-) {
+export function expectHookCleanup<Result, Props>(useHook: (props: Props) => Result, props: Props) {
   const environment = createProductionHookTestEnvironment();
 
   const hookResult = environment.renderProductionHook(useHook, { initialProps: props });

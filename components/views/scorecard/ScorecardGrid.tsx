@@ -316,7 +316,7 @@ export default function ScorecardGrid({
       roGrid.disconnect();
       window.removeEventListener('orientationchange', onOrient);
     };
-  }, [isCompact, columnCount]);
+  }, [isCompact, columnCount, setApplyScale]);
 
   const biddingSet = React.useMemo(() => {
     if (!biddingInteractiveIds) return null;

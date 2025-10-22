@@ -42,7 +42,7 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
   const resolvedScorecardId = React.useMemo(() => {
     const trimmed = scorecardId?.trim() ?? '';
     if (trimmed && trimmed !== 'scorecard-session') return trimmed;
-    const rawParam = params?.scorecardId as string | string[] | undefined;
+    const rawParam = params?.scorecardId;
     const paramId = scrubDynamicParam(rawParam);
     if (paramId) return paramId;
     if (context?.scorecardId) return context.scorecardId;
@@ -143,7 +143,7 @@ export function ScorecardSummaryPageClient({ scorecardId }: ScorecardSummaryPage
         )}
       </section>
       <div className={styles.actions}>
-        <Button variant="outline" onClick={handleCopyLink} type="button">
+        <Button variant="outline" onClick={() => void handleCopyLink()} type="button">
           Copy link
         </Button>
         <Button onClick={handlePrint} type="button">

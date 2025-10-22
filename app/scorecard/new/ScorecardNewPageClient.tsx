@@ -119,7 +119,7 @@ export default function ScorecardNewPageClient() {
     return order.map((id) => ({
       id,
       name: roster.playersById?.[id] ?? id,
-      type: (roster.playerTypesById?.[id] ?? 'human') as 'human' | 'bot',
+      type: roster.playerTypesById?.[id] ?? 'human',
     }));
   }, [rosterMap, selectedRosterId]);
 

@@ -35,7 +35,6 @@ export default function RestoreGameModalClient() {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const appState = useAppState();
   const state = appState.state;
-  const awaitHydration = appState.awaitHydration ?? (async () => {});
   const hydrationEpoch = appState.hydrationEpoch ?? 0;
   const stateRef = React.useRef(state);
   const dialogContentRef = React.useRef<HTMLDivElement>(null);
@@ -72,6 +71,7 @@ export default function RestoreGameModalClient() {
 
   const waitForRestoredRoute = React.useCallback(
     async (mode: 'single-player' | 'scorecard', previousEpoch: number): Promise<string> => {
+      const awaitHydration = appState.awaitHydration ?? (async () => {});
       await Promise.race([
         awaitHydration(previousEpoch),
         new Promise((resolve) => setTimeout(resolve, 750)),
@@ -88,7 +88,7 @@ export default function RestoreGameModalClient() {
       }
       return candidate.startsWith('/scorecard/') ? candidate : SCORECARD_HUB_PATH;
     },
-    [awaitHydration],
+    [appState.awaitHydration],
   );
 
   const handleRestore = React.useCallback(async () => {
