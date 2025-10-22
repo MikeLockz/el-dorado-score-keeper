@@ -23,7 +23,10 @@
       "Bash(git commit:*)",
       "Bash(pnpm format:*)",
       "Bash(pnpm typecheck:*)",
-      "Bash(pnpm lint:*)"
+      "Bash(pnpm lint:*)",
+      "Bash(npm run test:*)",
+      "Bash(pnpm coverage:*)",
+      "Bash(pnpm vitest run:*)"
     ],
     "deny": [],
     "ask": []
