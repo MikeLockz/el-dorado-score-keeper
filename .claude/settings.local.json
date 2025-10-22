@@ -20,7 +20,10 @@
       "Bash(git reset:*)",
       "Bash(git rm:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npm run test:*)",
+      "Bash(pnpm coverage:*)",
+      "Bash(pnpm vitest run:*)"
     ],
     "deny": [],
     "ask": []
