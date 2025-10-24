@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 import { scrubDynamicParam, staticExportParams } from '@/lib/static-export';
 
-import PlayerDetailPageClient from './PlayerDetailPageClient';
+import { PlayerDetailPage } from './PlayerDetailPage';
 
 export function generateStaticParams() {
   return staticExportParams('playerId');
@@ -51,8 +51,8 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   };
 }
 
-export default async function PlayerDetailPage({ params }: PageParams) {
+export default async function PlayerDetailPageRoute({ params }: PageParams) {
   const { playerId: rawId = '' } = await params;
   const playerId = scrubDynamicParam(rawId);
-  return <PlayerDetailPageClient playerId={playerId} />;
+  return <PlayerDetailPage playerId={playerId} />;
 }
