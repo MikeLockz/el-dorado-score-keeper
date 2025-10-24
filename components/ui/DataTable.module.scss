@@ -1,0 +1,274 @@
+.tableContainer {
+  width: 100%;
+}
+
+/* Desktop Table View */
+.desktopView {
+  width: 100%;
+  overflow-x: auto;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-background);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tableHeader {
+  background: var(--color-muted);
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-foreground);
+  border-bottom: 2px solid var(--color-border);
+
+  &:not(:first-child) {
+    min-width: 120px;
+  }
+}
+
+.sortableHeader {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    color: var(--color-primary);
+  }
+}
+
+.sortIcon {
+  font-size: 0.8em;
+  opacity: 0.6;
+}
+
+.tableRow {
+  border-bottom: 1px solid var(--color-border);
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--color-muted);
+
+    // Ensure buttons remain visible when row is hovered
+    .button[data-variant='outline'] {
+      background: color-mix(in oklch, var(--background) 80%, transparent);
+      border-color: var(--border);
+      color: var(--foreground);
+
+      &:hover {
+        background: color-mix(in oklch, var(--accent) 60%, transparent);
+        border-color: var(--accent);
+        color: var(--accent-foreground);
+      }
+    }
+  }
+
+  &:active {
+    background: var(--color-muted);
+    transform: scale(0.99);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.tableCell {
+  padding: 16px;
+  vertical-align: middle;
+  font-size: 0.875rem;
+  color: var(--color-foreground);
+}
+
+.nameCell {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-foreground);
+  margin-bottom: 4px;
+}
+
+.secondaryText {
+  color: var(--color-muted-foreground);
+}
+
+.typeBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.singleBadge {
+  background: color-mix(in oklch, var(--color-accent) 25%, transparent);
+  color: var(--color-accent-foreground);
+  border: 1px solid color-mix(in oklch, var(--color-accent) 50%, transparent);
+}
+
+.scorecardBadge {
+  background: color-mix(in oklch, var(--color-primary) 20%, transparent);
+  color: var(--color-primary);
+  border: 1px solid color-mix(in oklch, var(--color-primary) 40%, transparent);
+}
+
+.humanBadge {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+.botBadge {
+  background: var(--color-secondary);
+  color: var(--color-secondary-foreground);
+}
+
+.typeSelect {
+  min-inline-size: 6rem;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--color-muted-foreground);
+
+  p {
+    margin: 0;
+    font-size: 1rem;
+  }
+}
+
+/* Mobile Stacked Card View */
+.mobileView {
+  display: none;
+  width: 100%;
+
+  @media (max-width: 768px) {
+    display: block;
+  }
+}
+
+.mobileCard {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+
+  &:hover {
+    background: var(--color-muted);
+    border-color: var(--color-border);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+    // Ensure buttons remain visible when card is hovered
+    .button[data-variant='outline'] {
+      background: color-mix(in oklch, var(--background) 80%, transparent);
+      border-color: var(--border);
+      color: var(--foreground);
+
+      &:hover {
+        background: color-mix(in oklch, var(--accent) 60%, transparent);
+        border-color: var(--accent);
+        color: var(--accent-foreground);
+      }
+    }
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.mobileCardContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobileCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobilePrimaryText {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.mobileMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mobileSecondaryText {
+  font-size: 0.875rem;
+  color: var(--color-muted-foreground);
+}
+
+.mobileActions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+@media (max-width: 480px) {
+  .mobileMeta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .mobileActions {
+    justify-content: stretch;
+  }
+}

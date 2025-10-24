@@ -49,6 +49,12 @@ export default function Header() {
         match: (path) => path === '/players' || path.startsWith('/players/'),
       },
       {
+        href: '/rosters',
+        label: 'Rosters',
+        group: 'primary',
+        match: (path) => path === '/rosters' || path.startsWith('/rosters/'),
+      },
+      {
         href: singlePlayerRoute,
         label: 'Single Player',
         group: 'primary',

@@ -2,26 +2,25 @@
 
 import React from 'react';
 import clsx from 'clsx';
-import { Edit } from 'lucide-react';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  flexRender,
-  createColumnHelper,
-  type SortingState,
-} from '@tanstack/react-table';
+import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
 
-import { Button } from '@/components/ui';
+import { Button, EditableCell, useToast, DataTable } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
-import { selectPlayersOrdered, resolvePlayerRoute, events } from '@/lib/state';
+import {
+  selectPlayersOrdered,
+  selectArchivedPlayers,
+  resolvePlayerRoute,
+  events,
+} from '@/lib/state';
 import { formatDate } from '@/lib/format';
 import { captureBrowserException } from '@/lib/observability/browser';
 import { useRouter } from 'next/navigation';
 
-import styles from './players-table.module.scss';
-
 type Player = ReturnType<typeof selectPlayersOrdered>[number] & {
+  createdAt?: number | undefined;
+};
+
+type ArchivedPlayer = ReturnType<typeof selectArchivedPlayers>[number] & {
   createdAt?: number | undefined;
 };
 
@@ -61,30 +60,38 @@ function ensureUniqueName(name: string, players: Player[], excludeId?: string): 
 
 type PlayersTableProps = {
   onPlayersChange?: () => void;
+  players?: Player[] | ArchivedPlayer[];
+  showArchived?: boolean;
 };
 
-export function PlayersTable({ onPlayersChange }: PlayersTableProps = {}) {
+export function PlayersTable({
+  onPlayersChange,
+  players: externalPlayers,
+  showArchived = false,
+}: PlayersTableProps = {}) {
   const router = useRouter();
   const { state, ready, append } = useAppState();
+  const { toast } = useToast();
   const players = React.useMemo(() => {
+    if (externalPlayers) {
+      return externalPlayers.map((player) => ({
+        ...player,
+        createdAt: state.playerDetails?.[player.id]?.createdAt || player.createdAt,
+        archived: showArchived ? true : player.archived,
+      }));
+    }
+
     const orderedPlayers = selectPlayersOrdered(state);
     return orderedPlayers.map((player) => ({
       ...player,
       createdAt: state.playerDetails?.[player.id]?.createdAt,
     }));
-  }, [state]);
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [editingPlayerId, setEditingPlayerId] = React.useState<string | null>(null);
-  const [editingName, setEditingName] = React.useState('');
-  const [editError, setEditError] = React.useState<string | null>(null);
+  }, [state, externalPlayers, showArchived]);
 
   const handlePlayerClick = React.useCallback(
     (player: Player, event?: React.MouseEvent) => {
-      // If event is provided and the click is on a player name container, don't navigate
-      if (
-        event &&
-        (event.target as HTMLElement).closest('.playerNameContainer, .mobilePlayerName')
-      ) {
+      // If event is provided and the click is on an editable cell, don't navigate
+      if (event && (event.target as HTMLElement).closest('.editContainer, .inlineEditContainer')) {
         return;
       }
       router.push(resolvePlayerRoute(player.id));
@@ -92,286 +99,136 @@ export function PlayersTable({ onPlayersChange }: PlayersTableProps = {}) {
     [router],
   );
 
-  const handleStartEditing = React.useCallback((player: Player, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent navigation
-    setEditingPlayerId(player.id);
-    setEditingName(player.name);
-    setEditError(null);
-  }, []);
-
-  const handleCancelEditing = React.useCallback(() => {
-    setEditingPlayerId(null);
-    setEditingName('');
-    setEditError(null);
-  }, []);
-
-  const handleSaveName = React.useCallback(
-    async (player: Player, event: React.MouseEvent) => {
-      event.stopPropagation(); // Prevent navigation
-
-      const trimmed = editingName.trim();
-      if (!trimmed) {
-        setEditError('Player name cannot be empty.');
-        return;
-      }
-
-      if (trimmed === player.name.trim()) {
-        // No change, just cancel
-        handleCancelEditing();
-        return;
-      }
-
-      const unique = ensureUniqueName(trimmed, players, player.id);
-      if (!unique) {
-        setEditError('That name is already in use.');
-        return;
-      }
-
-      try {
-        await runWithPlayerError('rename-player', async () => {
-          await append(events.playerRenamed({ id: player.id, name: unique }));
-        });
-        handleCancelEditing();
+  const handleSavePlayerName = React.useCallback(
+    async (playerId: string, newName: string) => {
+      const ok = await runWithPlayerError('rename-player', async () => {
+        await append(events.playerRenamed({ id: playerId, name: newName }));
+      });
+      if (ok) {
         onPlayersChange?.();
-      } catch (error: unknown) {
-        const normalized = error instanceof Error ? error : new Error('Failed to rename player');
-        reportPlayerError('rename-player', normalized);
-        setEditError('Failed to rename player. Please try again.');
       }
+      return ok;
     },
-    [editingName, players, append, handleCancelEditing, onPlayersChange],
+    [append, onPlayersChange],
   );
 
-  const handleKeyDown = React.useCallback(
-    (event: React.KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        handleCancelEditing();
-      } else if (event.key === 'Enter') {
-        const player = players.find((p) => p.id === editingPlayerId);
-        if (player) {
-          handleSaveName(player, event as any);
-        }
+  const handleChangePlayerType = React.useCallback(
+    async (playerId: string, newType: 'human' | 'bot') => {
+      try {
+        await append(events.playerTypeSet({ id: playerId, type: newType }));
+        toast({
+          title: 'Player type updated',
+          description: `Type changed to ${newType === 'bot' ? 'Bot' : 'Human'}`,
+        });
+        onPlayersChange?.();
+      } catch (error: unknown) {
+        const normalized =
+          error instanceof Error ? error : new Error('Failed to update player type');
+        reportPlayerError('change-player-type', normalized);
+        toast({
+          title: 'Failed to update type',
+          description: 'Please try again.',
+          variant: 'destructive',
+        });
       }
     },
-    [editingPlayerId, players, handleCancelEditing, handleSaveName],
+    [append, toast, onPlayersChange],
   );
 
   const columnHelper = createColumnHelper<Player>();
 
-  const columns = [
+  const columns: ColumnDef<Player>[] = [
     columnHelper.accessor('name', {
       header: ({ column }) => (
         <button
-          className={styles.sortableHeader}
+          className="sortableHeader"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           Player Name
-          <span className={styles.sortIcon}>
+          <span className="sortIcon">
             {column.getIsSorted() === 'asc' ? ' ↑' : column.getIsSorted() === 'desc' ? ' ↓' : ''}
           </span>
         </button>
       ),
       cell: ({ row }) => {
         const player = row.original;
-        const isEditing = editingPlayerId === player.id;
-
-        if (isEditing) {
-          return (
-            <div className={styles.inlineEditContainer}>
-              <input
-                type="text"
-                value={editingName}
-                onChange={(e) => setEditingName(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onClick={(e) => e.stopPropagation()}
-                className={styles.inlineEditInput}
-                placeholder="Player name"
-                autoFocus
-              />
-              <div className={styles.inlineEditActions}>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCancelEditing();
-                  }}
-                  className={styles.inlineEditButton}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={(e) => handleSaveName(player, e)}
-                  className={styles.inlineEditButton}
-                >
-                  Save
-                </Button>
-              </div>
-              {editError && <div className={styles.inlineEditError}>{editError}</div>}
-            </div>
-          );
-        }
-
         return (
-          <div
-            onClick={(e) => handleStartEditing(player, e)}
-            className={styles.playerNameContainer}
-          >
-            <div className={styles.playerName}>{player.name}</div>
-            <Edit className={styles.editIcon} aria-hidden="true" />
-          </div>
+          <EditableCell
+            value={player.name}
+            onSave={(newName) => handleSavePlayerName(player.id, newName)}
+            placeholder="Player name"
+            validate={(value) => {
+              const trimmed = value.trim();
+              if (!trimmed) return 'Player name cannot be empty';
+              const unique = ensureUniqueName(trimmed, players, player.id);
+              if (!unique) return 'That name is already in use';
+              return null;
+            }}
+            saveLabel="Save"
+            cancelLabel="Cancel"
+            errorLabel="Failed to save player name"
+            showEditIcon={true}
+            fontWeight={600}
+          />
         );
       },
     }),
     columnHelper.accessor('type', {
-      header: 'Type',
-      cell: ({ row }) => (
-        <span className={clsx(styles.typeBadge, styles[row.getValue('type')])}>
-          {row.getValue('type')}
-        </span>
-      ),
-    }),
-    columnHelper.accessor('createdAt', {
       header: ({ column }) => (
         <button
-          className={styles.sortableHeader}
+          className="sortableHeader"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          Created
-          <span className={styles.sortIcon}>
+          Type
+          <span className="sortIcon">
             {column.getIsSorted() === 'asc' ? ' ↑' : column.getIsSorted() === 'desc' ? ' ↓' : ''}
           </span>
         </button>
       ),
-      cell: ({ row }) => formatDate(row.getValue('createdAt')),
+      cell: ({ row }) => {
+        const player = row.original;
+        return (
+          <select
+            value={row.getValue('type')}
+            onChange={(e) =>
+              void handleChangePlayerType(player.id, e.target.value as 'human' | 'bot')
+            }
+            disabled={!ready}
+            className="typeSelect"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <option value="human">Human</option>
+            <option value="bot">Bot</option>
+          </select>
+        );
+      },
+    }),
+    columnHelper.accessor('createdAt', {
+      header: ({ column }) => (
+        <button
+          className="sortableHeader"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Created
+          <span className="sortIcon">
+            {column.getIsSorted() === 'asc' ? ' ↑' : column.getIsSorted() === 'desc' ? ' ↓' : ''}
+          </span>
+        </button>
+      ),
+      cell: ({ row }) => (
+        <span className="secondaryText">{formatDate(row.getValue('createdAt'))}</span>
+      ),
     }),
   ];
 
-  const table = useReactTable({
-    data: players,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-    },
-    onSortingChange: setSorting,
-  });
-
-  if (players.length === 0) {
-    return (
-      <div className={styles.emptyState}>
-        <p>No active players to display.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className={styles.tableContainer}>
-      {/* Desktop Table View */}
-      <div className={styles.desktopView}>
-        <table className={styles.playersTable}>
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id} className={styles.tableHeader}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                className={styles.tableRow}
-                onClick={(e) => handlePlayerClick(row.original, e)}
-                style={{ cursor: 'pointer' }}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className={styles.tableCell}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile Stacked Card View */}
-      <div className={styles.mobileView}>
-        {table.getRowModel().rows.map((row) => (
-          <div
-            key={row.id}
-            className={styles.mobileCard}
-            onClick={(e) => handlePlayerClick(row.original, e)}
-            style={{ cursor: 'pointer' }}
-          >
-            {/* Player Info */}
-            <div className={styles.mobilePlayerInfo}>
-              {editingPlayerId === row.original.id ? (
-                <div className={styles.mobileInlineEditContainer}>
-                  <input
-                    type="text"
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    onClick={(e) => e.stopPropagation()}
-                    className={styles.mobileInlineEditInput}
-                    placeholder="Player name"
-                    autoFocus
-                  />
-                  <div className={styles.mobileInlineEditActions}>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCancelEditing();
-                      }}
-                      className={styles.mobileInlineEditButton}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={(e) => handleSaveName(row.original, e)}
-                      className={styles.mobileInlineEditButton}
-                    >
-                      Save
-                    </Button>
-                  </div>
-                  {editError && <div className={styles.mobileInlineEditError}>{editError}</div>}
-                </div>
-              ) : (
-                <>
-                  <div
-                    className={styles.mobilePlayerName}
-                    onClick={(e) => handleStartEditing(row.original, e)}
-                  >
-                    {row.original.name}
-                    <Edit className={styles.mobileEditIcon} aria-hidden="true" />
-                  </div>
-                  <div className={styles.mobilePlayerMeta}>
-                    <span className={clsx(styles.mobileTypeBadge, styles[row.original.type])}>
-                      {row.original.type}
-                    </span>
-                    <span className={styles.mobileCreatedDate}>
-                      Created {formatDate(row.original.createdAt)}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <DataTable
+      data={players}
+      columns={columns}
+      onRowClick={handlePlayerClick}
+      emptyMessage={
+        showArchived ? 'No archived players to display.' : 'No active players to display.'
+      }
+    />
   );
 }

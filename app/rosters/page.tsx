@@ -7,57 +7,56 @@ import { Button, Card } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import { selectAllRosters } from '@/lib/state';
 import { trackRostersView } from '@/lib/observability/events';
+import { RostersTable } from '@/components/rosters/RostersTable';
+import { Plus } from 'lucide-react';
 
 import styles from './page.module.scss';
 
 export default function RostersPage() {
-  const { state } = useAppState();
+  const { state, ready } = useAppState();
   const rosters = selectAllRosters(state);
   const active = rosters.filter((roster) => !roster.archived);
+
+  // Force re-render when rosters change
+  const [key, setKey] = React.useState(0);
+  const handleRostersChange = React.useCallback(() => {
+    setKey((prev) => prev + 1);
+  }, []);
 
   React.useEffect(() => {
     trackRostersView({ filter: 'active', source: 'rosters.page' });
   }, []);
 
+  // Recalculate active rosters when state or key changes
+  const currentActive = React.useMemo(() => {
+    return selectAllRosters(state).filter((roster) => !roster.archived);
+  }, [state, key]);
+
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Rosters</h1>
-          <p className={styles.description}>
-            Manage saved lineups for scorecard and single-player modes.
-          </p>
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <h1 className={styles.title}>Rosters</h1>
+            <p className={styles.description}>
+              Manage saved lineups for scorecard and single-player modes.
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/rosters/new">
+              <Plus aria-hidden="true" /> Create New Roster
+            </Link>
+          </Button>
         </div>
-        <Button variant="outline" asChild>
-          <Link href="/players">Manage via Players hub</Link>
-        </Button>
-      </header>
-      {active.length === 0 ? (
-        <p className={styles.emptyState}>
-          No active rosters yet. Use the Players hub to create one.
-        </p>
-      ) : (
-        <div className={styles.list}>
-          {active.map((roster) => (
-            <Card key={roster.rosterId} className={styles.card}>
-              <div className={styles.cardTitle}>{roster.name}</div>
-              <div className={styles.meta}>Players: {roster.players}</div>
-              <div className={styles.meta}>
-                Mode:{' '}
-                <span className={styles.badge}>
-                  {roster.type === 'single' ? 'Single Player' : 'Scorecard'}
-                </span>
-              </div>
-              <Button variant="outline" asChild>
-                <Link href={`/rosters/${roster.rosterId}`}>View details</Link>
-              </Button>
-            </Card>
-          ))}
+        <Card>
+          <RostersTable rosters={currentActive} onRostersChange={handleRostersChange} />
+        </Card>
+        <div className={styles.archivedLinkContainer}>
+          <Link href="/rosters/archived" className={styles.archivedLink}>
+            Browse archived rosters
+          </Link>
         </div>
-      )}
-      <Button variant="ghost" asChild>
-        <Link href="/rosters/archived">Browse archived rosters</Link>
-      </Button>
+      </div>
     </div>
   );
 }

@@ -90,6 +90,11 @@
   @include typography.body('body-md');
   color: var(--color-foreground);
   text-align: right;
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing.spacing('space-2');
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .playerName {
@@ -131,6 +136,48 @@
   border: 1px solid color-mix(in oklch, var(--color-muted) 50%, transparent);
 }
 
+.singlePlayerHumanBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing.spacing('space-1');
+  padding: spacing.spacing('space-1') spacing.spacing('space-3');
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  @include typography.body('body-sm');
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+
+  // Constrain icon size to match text height
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.typeSelect {
+  min-inline-size: 8rem;
+  padding: spacing.spacing('space-2') spacing.spacing('space-3');
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  @include typography.body('body-sm');
+  font-weight: 500;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
 .playerId {
   background: color-mix(in oklch, var(--color-muted) 20%, transparent);
   padding: spacing.spacing('space-1') spacing.spacing('space-2');
@@ -139,6 +186,57 @@
   @include typography.body('body-sm');
   color: var(--color-foreground);
   border: 1px solid var(--color-border);
+}
+
+/* Player Actions Section */
+.playerActionsSection {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 3px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  overflow: hidden;
+}
+
+.playerActionsHeader {
+  padding: spacing.spacing('space-6');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+}
+
+.playerActionsTitle {
+  @include typography.heading('heading-lg');
+  font-weight: 700;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.playerActionsDescription {
+  @include typography.body('body-md');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.playerActionsList {
+  padding: spacing.spacing('space-6');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+  justify-content: flex-start;
+  min-height: 2.75rem;
+  width: 100%;
+
+  @media (min-width: 640px) {
+    width: auto;
+    min-width: 12rem;
+  }
 }
 
 .spinnerRow {
@@ -159,6 +257,77 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Player Name Inline Edit Styles */
+.playerNameContainer {
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid transparent;
+
+  &:hover {
+    color: var(--color-primary);
+    background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+    border-color: var(--color-border);
+  }
+
+  &:hover .editIcon {
+    opacity: 1;
+  }
+}
+
+.editIcon {
+  width: 1rem;
+  height: 1rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: var(--color-muted-foreground);
+}
+
+.inlineEditContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inlineEditInput {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  @include typography.body('body-md');
+  font-weight: 700;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+}
+
+.inlineEditActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.inlineEditButton {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+}
+
+.inlineEditError {
+  color: var(--color-destructive);
+  font-size: 0.75rem;
+  margin-top: 4px;
 }
 
 /* Statistics Section Styles - Following AdvancedInsightsPanel pattern */
@@ -568,6 +737,10 @@
 
   .playerDetailsDescription {
     text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: spacing.spacing('space-2');
+    align-items: flex-start;
   }
 
   .statisticsGrid {

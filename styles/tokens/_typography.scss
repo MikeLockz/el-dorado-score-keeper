@@ -4,6 +4,12 @@
 @use 'sass:string';
 
 $typography-tokens: (
+  'display-xl': (
+    'font-size': '3rem',
+    'line-height': '3.75rem',
+    'font-weight': '700',
+    'letter-spacing': '-0.025em',
+  ),
   'display-lg': (
     'font-size': '2.5rem',
     'line-height': '3rem',
@@ -15,6 +21,18 @@ $typography-tokens: (
     'line-height': '2.5rem',
     'font-weight': '700',
     'letter-spacing': '-0.015em',
+  ),
+  'display-xs': (
+    'font-size': '1.5rem',
+    'line-height': '2rem',
+    'font-weight': '700',
+    'letter-spacing': '-0.01em',
+  ),
+  'heading-xl': (
+    'font-size': '2.25rem',
+    'line-height': '2.75rem',
+    'font-weight': '700',
+    'letter-spacing': '-0.025em',
   ),
   'heading-lg': (
     'font-size': '1.75rem',
@@ -33,6 +51,18 @@ $typography-tokens: (
     'line-height': '1.75rem',
     'font-weight': '600',
     'letter-spacing': '-0.005em',
+  ),
+  'heading-xs': (
+    'font-size': '1rem',
+    'line-height': '1.5rem',
+    'font-weight': '600',
+    'letter-spacing': '-0.0025em',
+  ),
+  'body-xl': (
+    'font-size': '1.25rem',
+    'line-height': '1.75rem',
+    'font-weight': '400',
+    'letter-spacing': '-0.01em',
   ),
   'body-lg': (
     'font-size': '1.125rem',
@@ -58,11 +88,23 @@ $typography-tokens: (
     'font-weight': '400',
     'letter-spacing': '0em',
   ),
+  'label-xl': (
+    'font-size': '0.875rem',
+    'line-height': '1.25rem',
+    'font-weight': '500',
+    'letter-spacing': '0.025em',
+  ),
   'label-sm': (
     'font-size': '0.75rem',
     'line-height': '1rem',
     'font-weight': '500',
     'letter-spacing': '0.02em',
+  ),
+  'label-xs': (
+    'font-size': '0.625rem',
+    'line-height': '0.75rem',
+    'font-weight': '500',
+    'letter-spacing': '0.015em',
   ),
 );
 

@@ -5,21 +5,27 @@ import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-import { Button, Card } from '@/components/ui';
+import { Button, Card, InlineEdit } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import {
   assertEntityAvailable,
   selectPlayerById,
+  selectHumanIdFor,
   resolvePlayerRoute,
   createPendingPlayerStatisticsSummary,
   createEmptyPlayerStatisticsSummary,
   createErroredPlayerStatisticsSummary,
   loadPlayerStatisticsSummary,
   resetPlayerStatisticsCache,
+  events,
   type PlayerStatisticsSummary,
 } from '@/lib/state';
 import { useGamesSignalSubscription } from '@/components/hooks';
 import { trackPlayerDetailView } from '@/lib/observability/events';
+import { useConfirmDialog } from '@/components/dialogs/ConfirmDialog';
+import { useToast } from '@/components/ui/toast';
+import { Archive, Undo2, User } from 'lucide-react';
+import { captureBrowserException } from '@/lib/observability/browser';
 
 import PlayerMissing from '../_components/PlayerMissing';
 import { PrimaryStatsCard } from './statistics/components/PrimaryStatsCard';
@@ -35,7 +41,9 @@ export type PlayerDetailPageProps = {
 
 export function PlayerDetailPage({ playerId }: PlayerDetailPageProps) {
   const router = useRouter();
-  const { state, ready } = useAppState();
+  const { state, ready, append } = useAppState();
+  const confirmDialog = useConfirmDialog();
+  const { toast } = useToast();
 
   // Force scroll to top immediately on component mount
   React.useEffect(() => {
@@ -158,6 +166,123 @@ export function PlayerDetailPage({ playerId }: PlayerDetailPageProps) {
     });
   }, [ready, availability, playerId]);
 
+  const handleArchivePlayer = React.useCallback(async () => {
+    if (!availability || availability.status !== 'found') return;
+
+    const playerDetail = availability.entity;
+    const playerName = playerDetail?.name ?? playerDetail?.id ?? 'Unknown player';
+
+    const confirmed = await confirmDialog({
+      title: 'Archive player',
+      description: `Archive ${playerName}? They will be removed from the active player list but can be restored later.`,
+      confirmLabel: 'Archive player',
+      cancelLabel: 'Cancel',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await append(events.playerRemoved({ id: playerId }));
+      toast({
+        title: 'Player archived',
+        description: `${playerName} has been archived.`,
+      });
+      // Navigate to archived players list after a short delay
+      setTimeout(() => {
+        router.push(resolvePlayerRoute(null, { fallback: 'archived' }));
+      }, 1000);
+    } catch (error) {
+      captureBrowserException(
+        error instanceof Error ? error : new Error('Failed to archive player'),
+        {
+          scope: 'player-detail',
+          action: 'archive-player',
+          playerId,
+        },
+      );
+      toast({
+        title: 'Failed to archive player',
+        description: 'Please try again.',
+        variant: 'destructive',
+      });
+    }
+  }, [availability, playerId, confirmDialog, append, toast, router]);
+
+  const handleUnarchivePlayer = React.useCallback(async () => {
+    if (!availability || availability.status !== 'found') return;
+
+    const playerDetail = availability.entity;
+    const playerName = playerDetail?.name ?? playerDetail?.id ?? 'Unknown player';
+
+    const confirmed = await confirmDialog({
+      title: 'Restore player',
+      description: `Restore ${playerName} to the active player list?`,
+      confirmLabel: 'Restore player',
+      cancelLabel: 'Cancel',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await append(events.playerRestored({ id: playerId }));
+      toast({
+        title: 'Player restored',
+        description: `${playerName} has been restored to the active player list.`,
+      });
+      // Navigate to main players list after a short delay
+      setTimeout(() => {
+        router.push('/players');
+      }, 1000);
+    } catch (error) {
+      captureBrowserException(
+        error instanceof Error ? error : new Error('Failed to restore player'),
+        {
+          scope: 'player-detail',
+          action: 'restore-player',
+          playerId,
+        },
+      );
+      toast({
+        title: 'Failed to restore player',
+        description: 'Please try again.',
+        variant: 'destructive',
+      });
+    }
+  }, [availability, playerId, confirmDialog, append, toast, router]);
+
+  // Player name editing handler
+  const handleSavePlayerName = React.useCallback(
+    async (newName: string) => {
+      try {
+        await append(events.playerRenamed({ id: playerId, name: newName }));
+        toast({
+          title: 'Player name updated',
+          description: `Name changed to "${newName}"`,
+        });
+      } catch (error) {
+        throw new Error('Failed to update player name');
+      }
+    },
+    [playerId, append, toast],
+  );
+
+  // Player type change handler
+  const handleChangePlayerType = React.useCallback(
+    async (newType: 'human' | 'bot') => {
+      try {
+        await append(events.playerTypeSet({ id: playerId, type: newType }));
+        toast({
+          title: 'Player type updated',
+          description: `Type changed to ${newType === 'bot' ? 'Bot' : 'Human'}`,
+        });
+      } catch (error) {
+        throw new Error('Failed to update player type');
+      }
+    },
+    [playerId, append, toast],
+  );
+
   // Additional scroll fix when content changes to ensure top position
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -185,6 +310,12 @@ export function PlayerDetailPage({ playerId }: PlayerDetailPageProps) {
   const archivedAt = detail?.detail?.archivedAt ?? null;
   const type = detail?.detail?.type ?? 'human';
 
+  // Check if this player is designated as the single-player human
+  const isSinglePlayerHuman = React.useMemo(() => {
+    const singlePlayerHumanId = selectHumanIdFor(state, 'single');
+    return singlePlayerHumanId === playerId;
+  }, [state, playerId]);
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
@@ -209,22 +340,46 @@ export function PlayerDetailPage({ playerId }: PlayerDetailPageProps) {
           <div className={styles.playerDetailsItem}>
             <dt className={styles.playerDetailsTerm}>Name</dt>
             <dd className={styles.playerDetailsDescription}>
-              <span className={styles.playerName}>{detail?.name ?? detail?.id}</span>
+              <InlineEdit
+                value={detail?.name ?? detail?.id ?? ''}
+                onSave={handleSavePlayerName}
+                placeholder="Player name"
+                disabled={!ready}
+                fontWeight={700}
+                validate={(value) => {
+                  if (!value.trim()) return 'Player name is required';
+                  return null;
+                }}
+                saveLabel="Save"
+                cancelLabel="Cancel"
+                errorLabel="Failed to update player name"
+              />
             </dd>
           </div>
           <div className={styles.playerDetailsItem}>
             <dt className={styles.playerDetailsTerm}>Type</dt>
             <dd className={styles.playerDetailsDescription}>
-              <span
-                className={clsx(
-                  styles.playerBadge,
-                  styles[type === 'bot' ? 'botBadge' : 'humanBadge'],
-                )}
+              <select
+                value={type}
+                onChange={(e) => void handleChangePlayerType(e.target.value as 'human' | 'bot')}
+                disabled={!ready}
+                className={styles.typeSelect}
               >
-                {type === 'bot' ? 'Bot' : 'Human'}
-              </span>
+                <option value="human">Human</option>
+                <option value="bot">Bot</option>
+              </select>
             </dd>
           </div>
+          {isSinglePlayerHuman && (
+            <div className={styles.playerDetailsItem}>
+              <dt className={styles.playerDetailsTerm}>Single Player</dt>
+              <dd className={styles.playerDetailsDescription}>
+                <span className={styles.singlePlayerHumanBadge}>
+                  <User aria-hidden="true" /> Designated
+                </span>
+              </dd>
+            </div>
+          )}
           <div className={styles.playerDetailsItem}>
             <dt className={styles.playerDetailsTerm}>Status</dt>
             <dd className={styles.playerDetailsDescription}>
@@ -241,7 +396,7 @@ export function PlayerDetailPage({ playerId }: PlayerDetailPageProps) {
           <div className={styles.playerDetailsItem}>
             <dt className={styles.playerDetailsTerm}>Player ID</dt>
             <dd className={styles.playerDetailsDescription}>
-              <code className={styles.playerId}>{detail?.id}</code>
+              <code>{detail?.id}</code>
             </dd>
           </div>
           {archivedAt ? (
@@ -253,6 +408,35 @@ export function PlayerDetailPage({ playerId }: PlayerDetailPageProps) {
             </div>
           ) : null}
         </dl>
+      </Card>
+
+      {/* Player Actions Section */}
+      <Card className={styles.playerActionsSection}>
+        <div className={styles.playerActionsHeader}>
+          <h2 className={styles.playerActionsTitle}>Player Actions</h2>
+          <p className={styles.playerActionsDescription}>
+            Manage this player's status and availability.
+          </p>
+        </div>
+        <div className={styles.playerActionsList}>
+          {archived ? (
+            <Button
+              variant="outline"
+              onClick={handleUnarchivePlayer}
+              className={styles.actionButton}
+            >
+              <Undo2 aria-hidden="true" /> Restore Player
+            </Button>
+          ) : (
+            <Button
+              variant="destructive"
+              onClick={handleArchivePlayer}
+              className={styles.actionButton}
+            >
+              <Archive aria-hidden="true" /> Archive Player
+            </Button>
+          )}
+        </div>
       </Card>
 
       {/* Statistics Section - Following AdvancedInsightsPanel pattern */}
