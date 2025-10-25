@@ -3,8 +3,9 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { Button, Card, Skeleton } from '@/components/ui';
-import { Loader2, MoreHorizontal } from 'lucide-react';
+import { Button, Card, Skeleton, BackLink } from '@/components/ui';
+import { GamesTable } from '@/components/games';
+import { Loader2 } from 'lucide-react';
 import {
   type GameRecord,
   listGames,
@@ -12,7 +13,6 @@ import {
   isGameRecordCompleted,
   resolveGamePlayerCount,
 } from '@/lib/state';
-import { formatDateTime } from '@/lib/format';
 import { useNewGameRequest, hasScorecardProgress, hasSinglePlayerProgress } from '@/lib/game-flow';
 import { useAppState } from '@/components/state-provider';
 import { captureBrowserMessage } from '@/lib/observability/browser';
@@ -27,23 +27,8 @@ import { trackGamesListView } from '@/lib/observability/events';
 
 import styles from './page.module.scss';
 
-const skeletonRows = Array.from({ length: 4 });
-
-function describeGameMode(game: GameRecord): string {
-  const mode = deriveGameMode(game);
-  return mode === 'single-player' ? 'Single Player' : 'Scorecard';
-}
-
 export default function GamesPage() {
   const [games, setGames] = React.useState<GameRecord[] | null>(null);
-  const completedMap = React.useMemo<Record<string, boolean> | null>(() => {
-    if (!games) return null;
-    const map: Record<string, boolean> = {};
-    for (const game of games) {
-      map[game.id] = isGameRecordCompleted(game);
-    }
-    return map;
-  }, [games]);
   const router = useRouter();
   const { state } = useAppState();
   const resumeContext = React.useMemo(() => {
@@ -131,18 +116,6 @@ export default function GamesPage() {
     });
   }, [load]);
 
-  const [menuOpen, setMenuOpen] = React.useState<null | {
-    id: string;
-    x: number;
-    y: number;
-    openUp?: boolean;
-  }>(null);
-  const menuGame = React.useMemo(() => {
-    if (!menuOpen || !games) return null;
-    return games.find((item) => item.id === menuOpen.id) ?? null;
-  }, [menuOpen, games]);
-  const menuGameCompleted = menuGame ? (completedMap?.[menuGame.id] ?? false) : false;
-
   const onNewGame = async () => {
     resumeRouteRef.current = resumeRoute;
     startModeRef.current = 'single-player';
@@ -159,15 +132,24 @@ export default function GamesPage() {
   };
 
   return (
-    <>
-      <div className={styles.page}>
-        <div className={styles.headerRow}>
-          <h1 className={styles.title}>Games</h1>
-          <Button onClick={() => void onNewGame()} disabled={startPending}>
+    <div className={styles.container}>
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <h1 className={styles.title}>Games</h1>
+            <p className={styles.description}>
+              View and manage completed games, restore in-progress games, or start new games.
+            </p>
+          </div>
+          <Button
+            onClick={() => void onNewGame()}
+            disabled={startPending}
+            className={styles.newGameButton}
+          >
             {startPending ? (
               <>
                 <Loader2 className={styles.loaderIcon} aria-hidden="true" />
-                Archiving…
+                Starting…
               </>
             ) : (
               'New Game'
@@ -186,190 +168,10 @@ export default function GamesPage() {
             View Scorecards
           </Button>
         </section>
-        <Card className={styles.tableCard}>
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead className={styles.tableHead}>
-                <tr>
-                  <th scope="col" className={styles.headerCell}>
-                    Title
-                  </th>
-                  <th scope="col" className={clsx(styles.headerCell, styles.headerCellCenter)}>
-                    Type
-                  </th>
-                  <th scope="col" className={clsx(styles.headerCell, styles.headerCellCenter)}>
-                    Players
-                  </th>
-                  <th scope="col" className={clsx(styles.headerCell, styles.headerCellCenter)}>
-                    Winner
-                  </th>
-                  <th scope="col" className={clsx(styles.headerCell, styles.headerCellCenter)}>
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className={styles.tableBody}>
-                {games === null ? (
-                  skeletonRows.map((_, idx) => (
-                    <tr key={`skeleton-${idx}`} className={styles.skeletonRow}>
-                      <td className={styles.cell}>
-                        <div className={styles.titleGroup}>
-                          <Skeleton className={styles.skeletonTitle} />
-                          <Skeleton className={styles.skeletonSubtitle} />
-                        </div>
-                      </td>
-                      <td className={clsx(styles.cell, styles.cellCenter)}>
-                        <Skeleton className={styles.skeletonType} />
-                      </td>
-                      <td className={clsx(styles.cell, styles.cellCenter)}>
-                        <Skeleton className={styles.skeletonPlayers} />
-                      </td>
-                      <td className={clsx(styles.cell, styles.cellCenter)}>
-                        <Skeleton className={styles.skeletonWinner} />
-                      </td>
-                      <td className={clsx(styles.cell, styles.cellActions)}>
-                        <Skeleton className={styles.skeletonActions} />
-                      </td>
-                    </tr>
-                  ))
-                ) : games.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className={styles.emptyCell}>
-                      No archived single player games yet.
-                    </td>
-                  </tr>
-                ) : (
-                  games.map((g) => {
-                    const isCompleted = completedMap?.[g.id] ?? false;
-                    return (
-                      <tr
-                        key={g.id}
-                        className={styles.row}
-                        onClick={() => {
-                          router.push(resolveArchivedGameRoute(g.id));
-                        }}
-                      >
-                        <td className={styles.cell}>
-                          <div className={styles.titleGroup}>
-                            <div className={styles.titleText}>{g.title || 'Untitled'}</div>
-                            <div className={styles.titleMeta}>{formatDateTime(g.finishedAt)}</div>
-                          </div>
-                        </td>
-                        <td className={clsx(styles.cell, styles.cellCenter)}>
-                          {describeGameMode(g)}
-                        </td>
-                        <td className={clsx(styles.cell, styles.cellCenter)}>
-                          {resolveGamePlayerCount(g)}
-                        </td>
-                        <td className={clsx(styles.cell, styles.cellCenter, styles.cellEmphasis)}>
-                          {g.summary.winnerName ?? '-'}
-                        </td>
-                        <td className={clsx(styles.cell, styles.cellActions)}>
-                          <div
-                            className={styles.actionCluster}
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <div className={styles.desktopActions}>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => {
-                                  router.push(resolveGameModalRoute(g.id, 'delete'));
-                                }}
-                              >
-                                Remove
-                              </Button>
-                              {!isCompleted ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    router.push(resolveGameModalRoute(g.id, 'restore'));
-                                  }}
-                                >
-                                  Restore
-                                </Button>
-                              ) : null}
-                            </div>
-                            <div className={styles.mobileActions}>
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                aria-label="Actions"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  const rect = (
-                                    event.currentTarget as HTMLElement
-                                  ).getBoundingClientRect();
-                                  const spaceBelow = window.innerHeight - rect.bottom;
-                                  const openUp = spaceBelow < 140;
-                                  setMenuOpen((current) =>
-                                    current && current.id === g.id
-                                      ? null
-                                      : {
-                                          id: g.id,
-                                          x: rect.right,
-                                          y: openUp ? rect.top : rect.bottom,
-                                          openUp,
-                                        },
-                                  );
-                                }}
-                              >
-                                <MoreHorizontal className={styles.moreIcon} />
-                              </Button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-          {menuOpen ? (
-            <>
-              <div className={styles.menuBackdrop} onClick={() => setMenuOpen(null)} />
-              <div
-                className={styles.menuContent}
-                style={{
-                  top: menuOpen.openUp ? menuOpen.y - 8 : menuOpen.y + 8,
-                  left: menuOpen.x,
-                  transform: menuOpen.openUp ? 'translate(-100%, -100%)' : 'translateX(-100%)',
-                }}
-                onClick={(event) => event.stopPropagation()}
-              >
-                {!menuGameCompleted && menuGame ? (
-                  <button
-                    className={styles.menuItem}
-                    onClick={() => {
-                      if (menuGame) {
-                        router.push(resolveGameModalRoute(menuGame.id, 'restore'));
-                        setMenuOpen(null);
-                      }
-                    }}
-                    disabled={!menuGame}
-                  >
-                    Restore
-                  </button>
-                ) : null}
-                <button
-                  className={clsx(styles.menuItem, styles.menuItemDestructive)}
-                  onClick={() => {
-                    if (menuGame) {
-                      router.push(resolveGameModalRoute(menuGame.id, 'delete'));
-                      setMenuOpen(null);
-                    }
-                  }}
-                  disabled={!menuGame}
-                >
-                  Remove
-                </button>
-              </div>
-            </>
-          ) : null}
-        </Card>
+        <GamesTable games={games} loading={games === null} onGamesChange={load} />
+        <BackLink href="/games/scorecards">View Scorecard Games</BackLink>
+        <BackLink href="/games/archived">View Archived Games</BackLink>
       </div>
-    </>
+    </div>
   );
 }

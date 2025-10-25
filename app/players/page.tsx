@@ -4,7 +4,7 @@ import React from 'react';
 
 import { PlayersTable } from '@/components/players/PlayersTable';
 import { trackPlayersView } from '@/lib/observability/events';
-import { Card, Button } from '@/components/ui';
+import { Card, Button, BackLink } from '@/components/ui';
 import { Plus } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
 import { uuid } from '@/lib/utils';
@@ -59,11 +59,7 @@ export default function PlayersPage() {
         <Card>
           <PlayersTable />
         </Card>
-        <div className={styles.archivedLinkContainer}>
-          <Link href="/players/archived" className={styles.archivedLink}>
-            View Archived Players
-          </Link>
-        </div>
+        <BackLink href="/players/archived">View Archived Players</BackLink>
       </div>
     </div>
   );

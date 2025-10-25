@@ -217,6 +217,30 @@
   }
 }
 
+.typeSelect {
+  min-inline-size: 6rem;
+  height: 2rem; // Slightly smaller for table
+  padding-block: spacing.spacing('space-1');
+  padding-inline: spacing.spacing('space-2');
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  @include typography.body('body-xs');
+  box-sizing: border-box;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &:focus {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
 // Force buttons in add row to match height
 .addButton {
   height: 2.25rem;

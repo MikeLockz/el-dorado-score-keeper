@@ -1,35 +1,38 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 
-import { PlayersTable } from '@/components/players/PlayersTable';
+import { Button, Card, BackLink } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import { selectArchivedPlayers } from '@/lib/state';
 import { trackPlayersView } from '@/lib/observability/events';
-import { Card } from '@/components/ui';
+import { PlayersTable } from '@/components/players/PlayersTable';
 
-import styles from '../../page.module.scss';
+import styles from './page.module.scss';
 
 export default function ArchivedPlayersPage() {
   const { state } = useAppState();
+  const archivedPlayers = React.useMemo(() => {
+    return selectArchivedPlayers(state);
+  }, [state]);
 
   React.useEffect(() => {
     trackPlayersView({ filter: 'archived', source: 'players.archived.page' });
   }, []);
 
-  const archivedPlayers = React.useMemo(() => {
-    return selectArchivedPlayers(state);
-  }, [state]);
-
   return (
     <div className={styles.container}>
-      <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Archived Players</h2>
-        <p className={styles.sectionDescription}>View and manage all archived players.</p>
-        <Card>
-          <PlayersTable players={archivedPlayers} showArchived={true} />
-        </Card>
-      </div>
+      <header className={styles.header}>
+        <div>
+          <h1 className={styles.title}>Archived Players</h1>
+          <p className={styles.description}>Previously saved players that have been archived.</p>
+        </div>
+      </header>
+      <Card>
+        <PlayersTable players={archivedPlayers} showArchived={true} />
+      </Card>
+      <BackLink href="/players">Back to Players</BackLink>
     </div>
   );
 }

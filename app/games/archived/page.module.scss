@@ -1,0 +1,91 @@
+@use '../../../styles/mixins/typography' as typography;
+@use '../../../styles/tokens/spacing' as spacing;
+
+.container {
+  max-inline-size: 56rem;
+  margin-inline: auto;
+  padding: spacing.spacing('space-4');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-4');
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: spacing.spacing('space-2');
+}
+
+.title {
+  @include typography.heading('heading-sm');
+  font-weight: 700;
+}
+
+.description {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: spacing.spacing('space-3');
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+  padding: spacing.spacing('space-3');
+}
+
+.cardTitle {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.meta {
+  @include typography.body('body-xs');
+  color: var(--color-muted-foreground);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: spacing.spacing('space-2');
+  padding-block: spacing.spacing('space-1');
+  border-radius: var(--radius-full);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+  color: var(--color-muted-foreground);
+  @include typography.body('body-xs');
+}
+
+.emptyState {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+}
+
+.archivedLinkContainer {
+  margin-top: spacing.spacing('space-4');
+  text-align: center;
+}
+
+.archivedLink {
+  color: var(--color-muted-foreground);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.2s ease-in-out;
+
+  &:hover {
+    color: var(--color-foreground);
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}

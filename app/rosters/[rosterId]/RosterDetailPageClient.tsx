@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Plus, Archive, Trash2, Undo2, X, UserPlus } from 'lucide-react';
 
 import { Button, InlineEdit } from '@/components/ui';
-import { Card } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import {
   assertEntityAvailable,
@@ -270,6 +269,18 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
     setPending(null);
   }, [appendMany, pending, promptDialog, rosterId, runWithRosterAction, state]);
 
+  const handleChangePlayerType = React.useCallback(
+    async (player: RosterPlayer, newType: 'human' | 'bot') => {
+      if (pending) return;
+      setPending(`type:${player.id}`);
+      await runWithRosterAction('change-roster-player-type', async () => {
+        await append(events.rosterPlayerTypeSet({ rosterId, id: player.id, type: newType }));
+      });
+      setPending(null);
+    },
+    [append, pending, rosterId, runWithRosterAction],
+  );
+
   const handleRemovePlayer = React.useCallback(
     async (player: RosterPlayer) => {
       if (pending) return;
@@ -374,114 +385,111 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
         </div>
       </header>
 
-      {/* Roster Details Section */}
-      <Card className={styles.rosterDetailsSection}>
-        <div className={styles.rosterDetailsHeader}>
-          <h2 className={styles.rosterDetailsTitle}>Roster Details</h2>
-          <p className={styles.rosterDetailsDescription}>
+      <section className={styles.section}>
+        <div>
+          <h2 className={styles.sectionTitle}>Roster Details</h2>
+          <p className={styles.sectionDescription}>
             View and manage roster information and configuration.
           </p>
         </div>
-        <dl className={styles.rosterDetailsList}>
-          <div className={styles.rosterDetailsItem}>
-            <dt className={styles.rosterDetailsTerm}>Roster Name</dt>
-            <dd className={styles.rosterDetailsDescription}>
-              <InlineEdit
-                value={roster?.name ?? ''}
-                onSave={handleSaveRosterName}
-                placeholder="Roster name"
-                disabled={!ready || busy}
-                fontWeight={600}
-                validate={(value) => {
-                  if (!value.trim()) return 'Roster name is required';
-                  return null;
-                }}
-                saveLabel="Save"
-                cancelLabel="Cancel"
-                errorLabel="Failed to save roster name"
-              />
-            </dd>
+        <Card>
+          <div className={styles.detailsGrid}>
+            <div className={styles.detailItem}>
+              <div className={styles.detailTerm}>Roster Name</div>
+              <div className={styles.detailDescription}>
+                <InlineEdit
+                  value={roster?.name ?? ''}
+                  onSave={handleSaveRosterName}
+                  placeholder="Roster name"
+                  disabled={!ready || busy}
+                  fontWeight={600}
+                  validate={(value) => {
+                    if (!value.trim()) return 'Roster name is required';
+                    return null;
+                  }}
+                  saveLabel="Save"
+                  cancelLabel="Cancel"
+                  errorLabel="Failed to save roster name"
+                />
+              </div>
+            </div>
+            <div className={styles.detailItem}>
+              <div className={styles.detailTerm}>Roster ID</div>
+              <div className={styles.detailDescription}>{availability.entity?.id}</div>
+            </div>
+            <div className={styles.detailItem}>
+              <div className={styles.detailTerm}>Mode</div>
+              <div className={styles.detailDescription}>
+                <span className={styles.badge}>
+                  {roster.type === 'single' ? 'Single Player' : 'Scorecard'}
+                </span>
+              </div>
+            </div>
+            <div className={styles.detailItem}>
+              <div className={styles.detailTerm}>Status</div>
+              <div className={styles.detailDescription}>
+                <span
+                  className={`${styles.badge} ${archived ? styles.archivedBadge : styles.activeBadge}`}
+                >
+                  {archived ? 'Archived' : 'Active'}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className={styles.rosterDetailsItem}>
-            <dt className={styles.rosterDetailsTerm}>Roster ID</dt>
-            <dd className={styles.rosterDetailsDescription}>{availability.entity?.id}</dd>
-          </div>
-          <div className={styles.rosterDetailsItem}>
-            <dt className={styles.rosterDetailsTerm}>Mode</dt>
-            <dd className={styles.rosterDetailsDescription}>
-              <span className={styles.badge}>
-                {roster.type === 'single' ? 'Single Player' : 'Scorecard'}
-              </span>
-            </dd>
-          </div>
-          <div className={styles.rosterDetailsItem}>
-            <dt className={styles.rosterDetailsTerm}>Status</dt>
-            <dd className={styles.rosterDetailsDescription}>
-              {archived ? (
-                <span className={`${styles.badge} ${styles.archivedBadge}`}>Archived</span>
-              ) : (
-                <span className={`${styles.badge} ${styles.activeBadge}`}>Active</span>
-              )}
-            </dd>
-          </div>
-        </dl>
-      </Card>
+        </Card>
+      </section>
 
-      {/* Roster Actions Section */}
-      <Card className={styles.rosterActionsSection}>
-        <div className={styles.rosterActionsHeader}>
-          <h2 className={styles.rosterActionsTitle}>Roster Actions</h2>
-          <p className={styles.rosterActionsDescription}>
-            Manage this roster's status and availability.
-          </p>
+      <section className={styles.section}>
+        <div>
+          <h2 className={styles.sectionTitle}>Roster Actions</h2>
+          <p className={styles.sectionDescription}>Manage this roster's status and availability.</p>
         </div>
-        <div className={styles.rosterActionsList}>
-          {archived ? (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => void handleRestore()}
-                disabled={!ready || !archived || pending !== null}
-                className={styles.actionButton}
-              >
-                {pending === 'restore' ? (
-                  <Loader2 className={styles.spinner} aria-hidden="true" />
-                ) : (
-                  <Undo2 aria-hidden="true" />
-                )}{' '}
-                Restore Roster
-              </Button>
+        <Card>
+          <div className={styles.actionButtons}>
+            {archived ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => void handleRestore()}
+                  disabled={!ready || !archived || pending !== null}
+                >
+                  {pending === 'restore' ? (
+                    <Loader2 className={styles.spinner} aria-hidden="true" />
+                  ) : (
+                    <Undo2 aria-hidden="true" />
+                  )}{' '}
+                  Restore roster
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => void handleDelete()}
+                  disabled={!ready || busy}
+                >
+                  {pending === 'delete' ? (
+                    <Loader2 className={styles.spinner} aria-hidden="true" />
+                  ) : (
+                    <Trash2 aria-hidden="true" />
+                  )}{' '}
+                  Delete roster
+                </Button>
+              </>
+            ) : (
               <Button
                 variant="destructive"
-                onClick={() => void handleDelete()}
-                disabled={!ready || busy}
-                className={styles.actionButton}
+                onClick={() => void handleArchive()}
+                disabled={!ready || busy || archived}
               >
-                {pending === 'delete' ? (
+                {pending === 'archive' ? (
                   <Loader2 className={styles.spinner} aria-hidden="true" />
                 ) : (
-                  <Trash2 aria-hidden="true" />
+                  <Archive aria-hidden="true" />
                 )}{' '}
-                Delete Roster
+                Archive roster
               </Button>
-            </>
-          ) : (
-            <Button
-              variant="destructive"
-              onClick={() => void handleArchive()}
-              disabled={!ready || busy || archived}
-              className={styles.actionButton}
-            >
-              {pending === 'archive' ? (
-                <Loader2 className={styles.spinner} aria-hidden="true" />
-              ) : (
-                <Archive aria-hidden="true" />
-              )}{' '}
-              Archive Roster
-            </Button>
-          )}
-        </div>
-      </Card>
+            )}
+          </div>
+        </Card>
+      </section>
 
       <section className={styles.section}>
         <div>
@@ -509,14 +517,19 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
                       <span className={styles.playerName}>{player.name}</span>
                     </td>
                     <td className={styles.tableCell}>
-                      <span
-                        className={clsx(
-                          styles.typeBadge,
-                          styles[player.type === 'bot' ? 'botBadge' : 'humanBadge'],
-                        )}
+                      <select
+                        className={styles.typeSelect}
+                        value={player.type}
+                        onChange={(event) => {
+                          const newType = event.target.value as 'human' | 'bot';
+                          void handleChangePlayerType(player, newType);
+                        }}
+                        disabled={!ready || pending !== null}
+                        aria-label={`Change ${player.name} type`}
                       >
-                        {player.type === 'bot' ? 'Bot' : 'Human'}
-                      </span>
+                        <option value="human">Human</option>
+                        <option value="bot">Bot</option>
+                      </select>
                     </td>
                     <td className={styles.tableCell}>
                       <Button

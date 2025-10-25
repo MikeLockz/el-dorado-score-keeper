@@ -11,6 +11,11 @@ import ScorecardGrid, {
   type ScorecardRoundEntry,
   type ScorecardRoundView,
 } from '@/components/views/scorecard/ScorecardGrid';
+import { deleteGame } from '@/lib/state';
+import { useConfirmDialog } from '@/components/dialogs/ConfirmDialog';
+import { useToast } from '@/components/ui/toast';
+import { captureBrowserException } from '@/lib/observability/browser';
+import { Archive } from 'lucide-react';
 import {
   type AppState,
   type GameRecord,
@@ -160,6 +165,8 @@ function buildReadOnlyScorecardGrid(
 
 export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
   const router = useRouter();
+  const { toast } = useToast();
+  const confirmDialog = useConfirmDialog();
   const [game, setGame] = React.useState<GameRecord | null | undefined>(undefined);
 
   const describeError = React.useCallback((error: unknown) => {
@@ -218,6 +225,7 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
 
   const stats = React.useMemo(() => (game ? analyzeGame(game) : null), [game]);
   const isCompleted = React.useMemo(() => (game ? isGameRecordCompleted(game) : false), [game]);
+  const isArchived = React.useMemo(() => (game ? game.archived : false), [game]);
   const reconstructedState = React.useMemo(() => {
     if (!game) return null;
     let next = INITIAL_STATE;
@@ -245,6 +253,48 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
   );
 
   const playersById = game?.summary.playersById ?? {};
+
+  const handleArchiveGame = React.useCallback(async () => {
+    if (!game) return;
+
+    const gameTitle = game.title || 'Untitled Game';
+
+    const confirmed = await confirmDialog({
+      title: 'Archive game',
+      description: `Archive ${gameTitle}? It will be removed from the active games list but can be restored later.`,
+      confirmLabel: 'Archive game',
+      cancelLabel: 'Cancel',
+      variant: 'destructive',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await deleteGame(undefined, game.id);
+      toast({
+        title: 'Game archived',
+        description: `${gameTitle} has been archived.`,
+      });
+      // Navigate to games list after a short delay
+      setTimeout(() => {
+        router.push('/games');
+      }, 1000);
+    } catch (error) {
+      captureBrowserException(
+        error instanceof Error ? error : new Error('Failed to archive game'),
+        {
+          scope: 'game-detail',
+          action: 'archive-game',
+          gameId,
+        },
+      );
+      toast({
+        title: 'Failed to archive game',
+        description: 'Please try again.',
+        variant: 'destructive',
+      });
+    }
+  }, [game, gameId, confirmDialog, toast, router]);
   const sp = game?.summary.sp;
   const summaryHeading =
     game?.summary.mode === 'single-player' ? 'Single Player Summary' : 'Game Summary';
@@ -269,44 +319,122 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
   }
 
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
+    <div className={styles.container}>
+      <header className={styles.header}>
         <div>
           <h1 className={styles.title}>{game.title || 'Game'}</h1>
           <div className={styles.headerMeta}>Finished {formatDateTime(game.finishedAt)}</div>
         </div>
-        <div className={styles.headerActions}>
-          <Button
-            variant="outline"
-            onClick={() => router.push(resolveGameModalRoute(gameId, 'delete'))}
-          >
-            Remove
-          </Button>
-          {!isCompleted ? (
-            <Button onClick={() => router.push(resolveGameModalRoute(gameId, 'restore'))}>
-              Restore
-            </Button>
-          ) : null}
+      </header>
+
+      <Card className={styles.gameDetailsSection}>
+        <div className={styles.gameDetailsHeader}>
+          <h2 className={styles.gameDetailsTitle}>Game Details</h2>
+          <p className={styles.gameDetailsDescription}>
+            View and manage game information and configuration.
+          </p>
         </div>
-      </div>
+        <dl className={styles.gameDetailsList}>
+          <div className={styles.gameDetailsItem}>
+            <dt className={styles.gameDetailsTerm}>Game Title</dt>
+            <dd className={styles.gameDetailsDescription}>{game.title || 'Untitled'}</dd>
+          </div>
+          <div className={styles.gameDetailsItem}>
+            <dt className={styles.gameDetailsTerm}>Game ID</dt>
+            <dd className={styles.gameDetailsDescription}>{game.id}</dd>
+          </div>
+          <div className={styles.gameDetailsItem}>
+            <dt className={styles.gameDetailsTerm}>Game Mode</dt>
+            <dd className={styles.gameDetailsDescription}>
+              <span className={styles.badge}>
+                {game.summary.mode === 'single' ? 'Single Player' : 'Scorecard'}
+              </span>
+            </dd>
+          </div>
+          <div className={styles.gameDetailsItem}>
+            <dt className={styles.gameDetailsTerm}>Status</dt>
+            <dd className={styles.gameDetailsDescription}>
+              {isCompleted ? (
+                <span className={`${styles.badge} ${styles.completedBadge}`}>Completed</span>
+              ) : (
+                <span className={`${styles.badge} ${styles.incompleteBadge}`}>Incomplete</span>
+              )}
+            </dd>
+          </div>
+          <div className={styles.gameDetailsItem}>
+            <dt className={styles.gameDetailsTerm}>Finished At</dt>
+            <dd className={styles.gameDetailsDescription}>{formatDateTime(game.finishedAt)}</dd>
+          </div>
+          <div className={styles.gameDetailsItem}>
+            <dt className={styles.gameDetailsTerm}>Player Count</dt>
+            <dd className={styles.gameDetailsDescription}>{game.summary.players} players</dd>
+          </div>
+          <div className={styles.gameDetailsItem}>
+            <dt className={styles.gameDetailsTerm}>Winner</dt>
+            <dd className={styles.gameDetailsDescription}>{game.summary.winnerName || '—'}</dd>
+          </div>
+        </dl>
+      </Card>
+
+      {/* Game Actions Section */}
+      <Card className={styles.gameActionsSection}>
+        <div className={styles.gameActionsHeader}>
+          <h2 className={styles.gameActionsTitle}>Game Actions</h2>
+          <p className={styles.gameActionsDescription}>
+            Manage this game's status and availability.
+          </p>
+        </div>
+        <div className={styles.gameActionsList}>
+          {!isArchived ? (
+            <Button
+              variant="destructive"
+              onClick={handleArchiveGame}
+              className={styles.actionButton}
+            >
+              <Archive aria-hidden="true" /> Archive Game
+            </Button>
+          ) : (
+            <Button
+              onClick={() => router.push(resolveGameModalRoute(gameId, 'restore'))}
+              className={styles.actionButton}
+            >
+              Restore Game
+            </Button>
+          )}
+        </div>
+      </Card>
 
       {scorecardGrid ? (
-        <section className={styles.scorecardSection}>
-          <h2 className={styles.scorecardHeading}>Scorecard</h2>
-          <ScorecardGrid
-            columns={scorecardGrid.columns}
-            rounds={scorecardGrid.rounds}
-            disableInputs
-            disableRoundStateCycling
-          />
-        </section>
+        <Card className={styles.scorecardSection}>
+          <div className={styles.scorecardHeader}>
+            <h2 className={styles.scorecardTitle}>Scorecard</h2>
+            <p className={styles.scorecardDescription}>
+              View the complete game scorecard with bids, tricks, and cumulative scores.
+            </p>
+          </div>
+          <div className={styles.scorecardContent}>
+            <ScorecardGrid
+              columns={scorecardGrid.columns}
+              rounds={scorecardGrid.rounds}
+              disableInputs
+              disableRoundStateCycling
+            />
+          </div>
+        </Card>
       ) : null}
 
-      <section className={styles.summarySection}>
-        <h2 className={styles.summaryHeading}>{summaryHeading}</h2>
-        <div className={styles.summaryBody}>
-          <Card className={styles.sectionCard}>
-            <div className={styles.sectionHeading}>Final Scores</div>
+      <Card className={styles.summarySection}>
+        <div className={styles.summaryHeader}>
+          <h2 className={styles.summaryTitle}>{summaryHeading}</h2>
+          <p className={styles.summaryDescription}>
+            Review game results, player performance, and detailed statistics.
+          </p>
+        </div>
+        <div className={styles.summaryContent}>
+          <Card className={styles.finalScoresSection}>
+            <div className={styles.finalScoresHeader}>
+              <h3 className={styles.finalScoresTitle}>Final Scores</h3>
+            </div>
             {scoresEntries.length === 0 ? (
               <div className={styles.emptyText}>No players</div>
             ) : (
@@ -326,27 +454,34 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
           </Card>
 
           {sp && (
-            <Card className={styles.sectionCard}>
-              <div className={styles.sectionHeading}>Single-Player Snapshot</div>
-              <div className={styles.snapshotGrid}>
-                <div className={styles.snapshotLabel}>Phase</div>
-                <div className={styles.snapshotValue}>{sp.phase}</div>
-                <div className={styles.snapshotLabel}>Round</div>
-                <div className={styles.snapshotValue}>{sp.roundNo ?? '—'}</div>
-                <div className={styles.snapshotLabel}>Dealer</div>
-                <div className={styles.snapshotValue}>
-                  {playersById[sp.dealerId ?? ''] ?? sp.dealerId ?? '—'}
+            <Card className={styles.snapshotSection}>
+              <div className={styles.snapshotHeader}>
+                <h3 className={styles.snapshotTitle}>Single-Player Snapshot</h3>
+                <p className={styles.snapshotDescription}>
+                  Game state when it was archived or completed.
+                </p>
+              </div>
+              <div className={styles.snapshotContent}>
+                <div className={styles.snapshotGrid}>
+                  <div className={styles.snapshotLabel}>Phase</div>
+                  <div className={styles.snapshotValue}>{sp.phase}</div>
+                  <div className={styles.snapshotLabel}>Round</div>
+                  <div className={styles.snapshotValue}>{sp.roundNo ?? '—'}</div>
+                  <div className={styles.snapshotLabel}>Dealer</div>
+                  <div className={styles.snapshotValue}>
+                    {playersById[sp.dealerId ?? ''] ?? sp.dealerId ?? '—'}
+                  </div>
+                  <div className={styles.snapshotLabel}>Leader</div>
+                  <div className={styles.snapshotValue}>
+                    {playersById[sp.leaderId ?? ''] ?? sp.leaderId ?? '—'}
+                  </div>
+                  <div className={styles.snapshotLabel}>Trump</div>
+                  <div className={styles.snapshotValue}>
+                    {sp.trump && sp.trumpCard ? `${sp.trumpCard.rank} of ${sp.trump}` : '—'}
+                  </div>
+                  <div className={styles.snapshotLabel}>Trump Broken</div>
+                  <div className={styles.snapshotValue}>{sp.trumpBroken ? 'yes' : 'no'}</div>
                 </div>
-                <div className={styles.snapshotLabel}>Leader</div>
-                <div className={styles.snapshotValue}>
-                  {playersById[sp.leaderId ?? ''] ?? sp.leaderId ?? '—'}
-                </div>
-                <div className={styles.snapshotLabel}>Trump</div>
-                <div className={styles.snapshotValue}>
-                  {sp.trump && sp.trumpCard ? `${sp.trumpCard.rank} of ${sp.trump}` : '—'}
-                </div>
-                <div className={styles.snapshotLabel}>Trump Broken</div>
-                <div className={styles.snapshotValue}>{sp.trumpBroken ? 'yes' : 'no'}</div>
               </div>
             </Card>
           )}
@@ -357,135 +492,159 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
             </div>
           </Card>
 
-          <Card className={styles.sectionCard}>
-            <div className={styles.sectionHeading}>Statistics</div>
-            <div className={styles.statsColumns}>
-              <div>
-                <div className={styles.subHeading}>Leaders</div>
-                <div className={styles.statsList}>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Most Total Bid:</span>
-                    <span className={styles.statValue}>
-                      {stats?.leaders.mostTotalBid
-                        ? `${stats.leaders.mostTotalBid.name} (${stats.leaders.mostTotalBid.totalBid})`
-                        : '—'}
-                    </span>
-                  </div>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Least Total Bid:</span>
-                    <span className={styles.statValue}>
-                      {stats?.leaders.leastTotalBid
-                        ? `${stats.leaders.leastTotalBid.name} (${stats.leaders.leastTotalBid.totalBid})`
-                        : '—'}
-                    </span>
-                  </div>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Highest Single Bid:</span>
-                    <span className={styles.statValue}>
-                      {stats?.leaders.highestSingleBid
-                        ? `${stats.leaders.highestSingleBid.name} (R${stats.leaders.highestSingleBid.round}: ${stats.leaders.highestSingleBid.bid})`
-                        : '—'}
-                    </span>
-                  </div>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Largest Loss:</span>
-                    <span className={styles.statValue}>
-                      {stats?.leaders.biggestSingleLoss
-                        ? `${stats.leaders.biggestSingleLoss.name} (R${stats.leaders.biggestSingleLoss.round}: -${stats.leaders.biggestSingleLoss.loss})`
-                        : '—'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div className={styles.subHeading}>Totals</div>
-                <div className={styles.statsList}>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Points bid:</span>
-                    <span className={styles.statValue}>
-                      {stats ? stats.totals.totalPointsBid : '—'}
-                    </span>
-                  </div>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Hands won:</span>
-                    <span className={styles.statValue}>
-                      {stats ? stats.totals.totalHandsWon : '—'}
-                    </span>
-                  </div>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Hands lost:</span>
-                    <span className={styles.statValue}>
-                      {stats ? stats.totals.totalHandsLost : '—'}
-                    </span>
-                  </div>
-                  <div className={styles.statItem}>
-                    <span className={styles.statLabel}>Elapsed time:</span>
-                    <span className={styles.statValue}>
-                      {stats ? formatDuration(stats.timing.durationMs) : '—'}
-                    </span>
-                  </div>
-                </div>
-              </div>
+          <Card className={styles.statisticsSection}>
+            <div className={styles.statisticsHeader}>
+              <h3 className={styles.statisticsTitle}>Statistics</h3>
+              <p className={styles.statisticsDescription}>
+                Detailed game statistics and player performance metrics.
+              </p>
             </div>
-          </Card>
-
-          <Card className={clsx(styles.sectionCard, styles.roundsSection)}>
-            <div className={styles.sectionHeading}>Rounds</div>
-            {stats?.rounds?.length ? (
-              <div className={styles.roundsGrid}>
-                <div className={clsx(styles.roundsHeader, styles.alignStart)}>Round</div>
-                <div className={clsx(styles.roundsHeader, styles.alignStart)}>Bids vs tricks</div>
-                <div className={clsx(styles.roundsHeader, styles.alignStart)}>Outcome</div>
-                {stats.rounds.map((round) => (
-                  <React.Fragment key={`round-${round.round}`}>
-                    <div className={styles.roundCell}>R{round.round}</div>
-                    <div className={styles.roundCell}>
-                      {round.sumBids} / {round.tricks}
-                    </div>
-                    <div className={styles.roundCell}>
-                      <span
-                        className={clsx(
-                          styles.roundBadge,
-                          round.overUnder === 'over'
-                            ? styles.roundBadgeOver
-                            : round.overUnder === 'under'
-                              ? styles.roundBadgeUnder
-                              : styles.roundBadgeExact,
-                        )}
-                      >
-                        {round.overUnder}
+            <div className={styles.statisticsContent}>
+              <div className={styles.statsColumns}>
+                <div>
+                  <div className={styles.subHeading}>Leaders</div>
+                  <div className={styles.statsList}>
+                    <div className={styles.statItem}>
+                      <span className={styles.statLabel}>Most Total Bid:</span>
+                      <span className={styles.statValue}>
+                        {stats?.leaders.mostTotalBid
+                          ? `${stats.leaders.mostTotalBid.name} (${stats.leaders.mostTotalBid.totalBid})`
+                          : '—'}
                       </span>
                     </div>
-                  </React.Fragment>
-                ))}
+                    <div className={styles.statItem}>
+                      <span className={styles.statLabel}>Least Total Bid:</span>
+                      <span className={styles.statValue}>
+                        {stats?.leaders.leastTotalBid
+                          ? `${stats.leaders.leastTotalBid.name} (${stats.leaders.leastTotalBid.totalBid})`
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className={styles.statItem}>
+                      <span className={styles.statLabel}>Highest Single Bid:</span>
+                      <span className={styles.statValue}>
+                        {stats?.leaders.highestSingleBid
+                          ? `${stats.leaders.highestSingleBid.name} (R${stats.leaders.highestSingleBid.round}: ${stats.leaders.highestSingleBid.bid})`
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className={styles.statItem}>
+                      <span className={styles.statLabel}>Largest Loss:</span>
+                      <span className={styles.statValue}>
+                        {stats?.leaders.biggestSingleLoss
+                          ? `${stats.leaders.biggestSingleLoss.name} (R${stats.leaders.biggestSingleLoss.round}: -${stats.leaders.biggestSingleLoss.loss})`
+                          : '—'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div className={styles.subHeading}>Totals</div>
+                  <div className={styles.statsList}>
+                    <div className={styles.statItem}>
+                      <span className={styles.statLabel}>Points bid:</span>
+                      <span className={styles.statValue}>
+                        {stats ? stats.totals.totalPointsBid : '—'}
+                      </span>
+                    </div>
+                    <div className={styles.statItem}>
+                      <span className={styles.statLabel}>Hands won:</span>
+                      <span className={styles.statValue}>
+                        {stats ? stats.totals.totalHandsWon : '—'}
+                      </span>
+                    </div>
+                    <div className={styles.statItem}>
+                      <span className={styles.statLabel}>Hands lost:</span>
+                      <span className={styles.statValue}>
+                        {stats ? stats.totals.totalHandsLost : '—'}
+                      </span>
+                    </div>
+                    <div className={styles.statItem}>
+                      <span className={styles.statLabel}>Elapsed time:</span>
+                      <span className={styles.statValue}>
+                        {stats ? formatDuration(stats.timing.durationMs) : '—'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div className={styles.emptyText}>No round data recorded for this game.</div>
-            )}
+            </div>
           </Card>
 
-          <div className={styles.timingGrid}>
-            <div className={styles.timingGroup}>
-              <span className={styles.statLabel}>Started</span>
-              <span className={styles.timingValue}>
-                {stats ? formatDateTime(stats.timing.startedAt) : '—'}
-              </span>
+          <Card className={styles.roundsSection}>
+            <div className={styles.roundsHeader}>
+              <h3 className={styles.roundsTitle}>Rounds</h3>
+              <p className={styles.roundsDescription}>
+                Round-by-round breakdown of bids, tricks, and outcomes.
+              </p>
             </div>
-            <div className={styles.timingGroup}>
-              <span className={styles.statLabel}>Finished</span>
-              <span className={styles.timingValue}>
-                {stats ? formatDateTime(stats.timing.finishedAt) : '—'}
-              </span>
+            <div className={styles.roundsContent}>
+              {stats?.rounds?.length ? (
+                <div className={styles.roundsGrid}>
+                  <div className={clsx(styles.roundsHeader, styles.alignStart)}>Round</div>
+                  <div className={clsx(styles.roundsHeader, styles.alignStart)}>Bids vs tricks</div>
+                  <div className={clsx(styles.roundsHeader, styles.alignStart)}>Outcome</div>
+                  {stats.rounds.map((round) => (
+                    <React.Fragment key={`round-${round.round}`}>
+                      <div className={styles.roundCell}>R{round.round}</div>
+                      <div className={styles.roundCell}>
+                        {round.sumBids} / {round.tricks}
+                      </div>
+                      <div className={styles.roundCell}>
+                        <span
+                          className={clsx(
+                            styles.roundBadge,
+                            round.overUnder === 'over'
+                              ? styles.roundBadgeOver
+                              : round.overUnder === 'under'
+                                ? styles.roundBadgeUnder
+                                : styles.roundBadgeExact,
+                          )}
+                        >
+                          {round.overUnder}
+                        </span>
+                      </div>
+                    </React.Fragment>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.emptyText}>No round data recorded for this game.</div>
+              )}
             </div>
-            <div className={styles.timingGroup}>
-              <span className={styles.statLabel}>Duration</span>
-              <span className={styles.timingValue}>
-                {stats ? formatDuration(stats.timing.durationMs) : '—'}
-              </span>
+          </Card>
+
+          <Card className={styles.timingSection}>
+            <div className={styles.timingHeader}>
+              <h3 className={styles.timingTitle}>Game Timing</h3>
+              <p className={styles.timingDescription}>
+                Start time, duration, and completion details for this game.
+              </p>
             </div>
-          </div>
+            <div className={styles.timingContent}>
+              <div className={styles.timingGrid}>
+                <div className={styles.timingGroup}>
+                  <span className={styles.timingLabel}>Started</span>
+                  <span className={styles.timingValue}>
+                    {stats ? formatDateTime(stats.timing.startedAt) : '—'}
+                  </span>
+                </div>
+                <div className={styles.timingGroup}>
+                  <span className={styles.timingLabel}>Finished</span>
+                  <span className={styles.timingValue}>
+                    {stats ? formatDateTime(stats.timing.finishedAt) : '—'}
+                  </span>
+                </div>
+                <div className={styles.timingGroup}>
+                  <span className={styles.timingLabel}>Duration</span>
+                  <span className={styles.timingValue}>
+                    {stats ? formatDuration(stats.timing.durationMs) : '—'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
         </div>
-      </section>
+      </Card>
     </div>
   );
 }

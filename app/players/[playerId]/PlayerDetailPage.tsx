@@ -290,6 +290,12 @@ export function PlayerDetailPage({ playerId }: PlayerDetailPageProps) {
     }
   }, [playerId]); // Run when playerId changes
 
+  // Check if this player is designated as the single-player human
+  const isSinglePlayerHuman = React.useMemo(() => {
+    const singlePlayerHumanId = selectHumanIdFor(state, 'single');
+    return singlePlayerHumanId === playerId;
+  }, [state, playerId]);
+
   if (!ready) {
     return (
       <div className={styles.container}>
@@ -309,12 +315,6 @@ export function PlayerDetailPage({ playerId }: PlayerDetailPageProps) {
   const archived = detail?.detail?.archived ?? false;
   const archivedAt = detail?.detail?.archivedAt ?? null;
   const type = detail?.detail?.type ?? 'human';
-
-  // Check if this player is designated as the single-player human
-  const isSinglePlayerHuman = React.useMemo(() => {
-    const singlePlayerHumanId = selectHumanIdFor(state, 'single');
-    return singlePlayerHumanId === playerId;
-  }, [state, playerId]);
 
   return (
     <div className={styles.container}>

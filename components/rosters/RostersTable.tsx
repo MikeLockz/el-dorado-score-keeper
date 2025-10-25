@@ -47,11 +47,13 @@ const runWithRosterError = async (action: string, op: () => Promise<void>, toast
 type RostersTableProps = {
   rosters?: Roster[];
   onRostersChange?: () => void;
+  emptyMessage?: string;
 };
 
 export function RostersTable({
   rosters: externalRosters,
   onRostersChange,
+  emptyMessage,
 }: RostersTableProps = {}) {
   const router = useRouter();
   const { toast } = useToast();
@@ -194,7 +196,7 @@ export function RostersTable({
       data={rosters}
       columns={columns}
       onRowClick={handleRosterClick}
-      emptyMessage="No active rosters to display."
+      emptyMessage={emptyMessage || 'No active rosters to display.'}
       defaultSorting={[{ id: 'createdAt', desc: true }]}
     />
   );

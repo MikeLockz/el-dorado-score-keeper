@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 
-import { Button, Card } from '@/components/ui';
+import { Button, Card, BackLink } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import { selectAllRosters } from '@/lib/state';
 import { trackRostersView } from '@/lib/observability/events';
@@ -51,11 +51,7 @@ export default function RostersPage() {
         <Card>
           <RostersTable rosters={currentActive} onRostersChange={handleRostersChange} />
         </Card>
-        <div className={styles.archivedLinkContainer}>
-          <Link href="/rosters/archived" className={styles.archivedLink}>
-            Browse archived rosters
-          </Link>
-        </div>
+        <BackLink href="/rosters/archived">Browse archived rosters</BackLink>
       </div>
     </div>
   );
