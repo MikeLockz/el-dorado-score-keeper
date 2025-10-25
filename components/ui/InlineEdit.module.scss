@@ -46,6 +46,7 @@
   transition: opacity 0.15s ease;
   color: var(--color-muted-foreground);
   flex-shrink: 0;
+  margin-left: spacing.spacing('space-2');
 }
 
 .inlineEditContainer {

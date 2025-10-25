@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
 
-import { Button, Card } from '@/components/ui';
+import { Button, Card, InlineEdit } from '@/components/ui';
 import ScorecardGrid, {
   type ScorecardPlayerColumn,
   type ScorecardRoundEntry,
@@ -295,6 +295,22 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
       });
     }
   }, [game, gameId, confirmDialog, toast, router]);
+
+  // Game title editing handler (for display consistency - games are immutable)
+  const handleSaveGameTitle = React.useCallback(
+    async (newTitle: string) => {
+      // Games are immutable records, so we show a message explaining this
+      toast({
+        title: 'Game titles cannot be changed',
+        description:
+          'Games are historical records and their titles cannot be modified after completion.',
+        variant: 'warning',
+      });
+      throw new Error('Game titles cannot be changed - games are immutable records');
+    },
+    [toast],
+  );
+
   const sp = game?.summary.sp;
   const summaryHeading =
     game?.summary.mode === 'single-player' ? 'Single Player Summary' : 'Game Summary';
@@ -320,13 +336,6 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>{game.title || 'Game'}</h1>
-          <div className={styles.headerMeta}>Finished {formatDateTime(game.finishedAt)}</div>
-        </div>
-      </header>
-
       <Card className={styles.gameDetailsSection}>
         <div className={styles.gameDetailsHeader}>
           <h2 className={styles.gameDetailsTitle}>Game Details</h2>
@@ -337,7 +346,22 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
         <dl className={styles.gameDetailsList}>
           <div className={styles.gameDetailsItem}>
             <dt className={styles.gameDetailsTerm}>Game Title</dt>
-            <dd className={styles.gameDetailsDescription}>{game.title || 'Untitled'}</dd>
+            <dd className={styles.gameDetailsDescription}>
+              <InlineEdit
+                value={game.title || 'Untitled'}
+                onSave={handleSaveGameTitle}
+                placeholder="Game title"
+                disabled={game === undefined}
+                fontWeight={600}
+                validate={(value) => {
+                  if (!value.trim()) return 'Game title is required';
+                  return null;
+                }}
+                saveLabel="Save"
+                cancelLabel="Cancel"
+                errorLabel="Game titles cannot be changed"
+              />
+            </dd>
           </div>
           <div className={styles.gameDetailsItem}>
             <dt className={styles.gameDetailsTerm}>Game ID</dt>

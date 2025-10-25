@@ -4,7 +4,7 @@ import React from 'react';
 import clsx from 'clsx';
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
 
-import { Button, EditableCell, useToast, DataTable } from '@/components/ui';
+import { Button, EditableCell, useToast, DataTable, Skeleton, Card } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import {
   selectPlayersOrdered,
@@ -23,6 +23,8 @@ type Player = ReturnType<typeof selectPlayersOrdered>[number] & {
 type ArchivedPlayer = ReturnType<typeof selectArchivedPlayers>[number] & {
   createdAt?: number | undefined;
 };
+
+const skeletonRows = Array.from({ length: 4 });
 
 const describeError = (error: unknown) => {
   if (error instanceof Error) return error.message;
@@ -62,12 +64,14 @@ type PlayersTableProps = {
   onPlayersChange?: () => void;
   players?: Player[] | ArchivedPlayer[];
   showArchived?: boolean;
+  loading?: boolean;
 };
 
 export function PlayersTable({
   onPlayersChange,
   players: externalPlayers,
   showArchived = false,
+  loading = false,
 }: PlayersTableProps = {}) {
   const router = useRouter();
   const { state, ready, append } = useAppState();
@@ -220,6 +224,126 @@ export function PlayersTable({
       ),
     }),
   ];
+
+  if (loading) {
+    return (
+      <Card>
+        <div style={{ width: '100%', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            <thead style={{ background: 'var(--color-surface-subtle)' }}>
+              <tr>
+                <th
+                  scope="col"
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    background: 'var(--color-surface-subtle)',
+                    color: 'var(--color-surface-subtle-foreground)',
+                    borderBottom: '1px solid var(--color-border)',
+                  }}
+                >
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      color: 'inherit',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    Player Name
+                    <span style={{ fontSize: '0.75rem' }}>↕</span>
+                  </button>
+                </th>
+                <th
+                  scope="col"
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    background: 'var(--color-surface-subtle)',
+                    color: 'var(--color-surface-subtle-foreground)',
+                    borderBottom: '1px solid var(--color-border)',
+                  }}
+                >
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      color: 'inherit',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    Type
+                    <span style={{ fontSize: '0.75rem' }}>↕</span>
+                  </button>
+                </th>
+                <th
+                  scope="col"
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    background: 'var(--color-surface-subtle)',
+                    color: 'var(--color-surface-subtle-foreground)',
+                    borderBottom: '1px solid var(--color-border)',
+                  }}
+                >
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      color: 'inherit',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    Created
+                    <span style={{ fontSize: '0.75rem' }}>↕</span>
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {skeletonRows.map((_, idx) => (
+                <tr
+                  key={`skeleton-${idx}`}
+                  style={{ borderBottom: '1px solid var(--color-border)' }}
+                >
+                  <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <Skeleton style={{ width: '8rem', height: '1rem' }} />
+                      <Skeleton style={{ width: '6rem', height: '0.75rem' }} />
+                    </div>
+                  </td>
+                  <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                    <Skeleton style={{ width: '5.5rem', height: '1rem' }} />
+                  </td>
+                  <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                    <Skeleton style={{ width: '6rem', height: '0.75rem' }} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <DataTable

@@ -4,7 +4,7 @@ import React from 'react';
 import clsx from 'clsx';
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
 
-import { Button, EditableCell, useToast, DataTable } from '@/components/ui';
+import { Button, EditableCell, useToast, DataTable, Skeleton, Card } from '@/components/ui';
 import { useRouter } from 'next/navigation';
 import { formatDate } from '@/lib/format';
 import { selectRostersOrdered, resolveRosterRoute, events } from '@/lib/state';
@@ -12,6 +12,8 @@ import { captureBrowserException } from '@/lib/observability/browser';
 import type { RosterSummary } from '@/lib/state';
 
 type Roster = RosterSummary;
+
+const skeletonRows = Array.from({ length: 4 });
 
 const describeError = (error: unknown) => {
   if (error instanceof Error) return error.message;
@@ -48,12 +50,14 @@ type RostersTableProps = {
   rosters?: Roster[];
   onRostersChange?: () => void;
   emptyMessage?: string;
+  loading?: boolean;
 };
 
 export function RostersTable({
   rosters: externalRosters,
   onRostersChange,
   emptyMessage,
+  loading = false,
 }: RostersTableProps = {}) {
   const router = useRouter();
   const { toast } = useToast();
@@ -190,6 +194,173 @@ export function RostersTable({
       ),
     }),
   ];
+
+  if (loading) {
+    return (
+      <Card>
+        <div style={{ width: '100%', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            <thead style={{ background: 'var(--color-surface-subtle)' }}>
+              <tr>
+                <th
+                  scope="col"
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    background: 'var(--color-surface-subtle)',
+                    color: 'var(--color-surface-subtle-foreground)',
+                    borderBottom: '1px solid var(--color-border)',
+                  }}
+                >
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      color: 'inherit',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    Roster Name
+                    <span style={{ fontSize: '0.75rem' }}>↕</span>
+                  </button>
+                </th>
+                <th
+                  scope="col"
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    background: 'var(--color-surface-subtle)',
+                    color: 'var(--color-surface-subtle-foreground)',
+                    borderBottom: '1px solid var(--color-border)',
+                  }}
+                >
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      color: 'inherit',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    Players
+                    <span style={{ fontSize: '0.75rem' }}>↕</span>
+                  </button>
+                </th>
+                <th
+                  scope="col"
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    background: 'var(--color-surface-subtle)',
+                    color: 'var(--color-surface-subtle-foreground)',
+                    borderBottom: '1px solid var(--color-border)',
+                  }}
+                >
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      color: 'inherit',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    Type
+                    <span style={{ fontSize: '0.75rem' }}>↕</span>
+                  </button>
+                </th>
+                <th
+                  scope="col"
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    background: 'var(--color-surface-subtle)',
+                    color: 'var(--color-surface-subtle-foreground)',
+                    borderBottom: '1px solid var(--color-border)',
+                  }}
+                >
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      color: 'inherit',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    Created
+                    <span style={{ fontSize: '0.75rem' }}>↕</span>
+                  </button>
+                </th>
+                <th
+                  scope="col"
+                  style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    background: 'var(--color-surface-subtle)',
+                    color: 'var(--color-surface-subtle-foreground)',
+                    borderBottom: '1px solid var(--color-border)',
+                  }}
+                >
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {skeletonRows.map((_, idx) => (
+                <tr
+                  key={`skeleton-${idx}`}
+                  style={{ borderBottom: '1px solid var(--color-border)' }}
+                >
+                  <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <Skeleton style={{ width: '8rem', height: '1rem' }} />
+                      <Skeleton style={{ width: '6rem', height: '0.75rem' }} />
+                    </div>
+                  </td>
+                  <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                    <Skeleton style={{ width: '4rem', height: '1rem' }} />
+                  </td>
+                  <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                    <Skeleton style={{ width: '5.5rem', height: '1rem' }} />
+                  </td>
+                  <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                    <Skeleton style={{ width: '6rem', height: '0.75rem' }} />
+                  </td>
+                  <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                    <Skeleton style={{ width: '5rem', height: '2rem' }} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <DataTable

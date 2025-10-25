@@ -14,6 +14,19 @@ import styles from './page.module.scss';
 
 export default function RostersPage() {
   const { state, ready } = useAppState();
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    trackRostersView({ filter: 'active', source: 'rosters.page' });
+  }, []);
+
+  React.useEffect(() => {
+    // Only show loading while the app state is getting ready
+    if (ready) {
+      setIsLoading(false);
+    }
+  }, [ready]);
+
   const rosters = selectAllRosters(state);
   const active = rosters.filter((roster) => !roster.archived);
 
@@ -21,10 +34,6 @@ export default function RostersPage() {
   const [key, setKey] = React.useState(0);
   const handleRostersChange = React.useCallback(() => {
     setKey((prev) => prev + 1);
-  }, []);
-
-  React.useEffect(() => {
-    trackRostersView({ filter: 'active', source: 'rosters.page' });
   }, []);
 
   // Recalculate active rosters when state or key changes
@@ -49,7 +58,11 @@ export default function RostersPage() {
           </Button>
         </div>
         <Card>
-          <RostersTable rosters={currentActive} onRostersChange={handleRostersChange} />
+          <RostersTable
+            rosters={currentActive}
+            onRostersChange={handleRostersChange}
+            loading={isLoading}
+          />
         </Card>
         <BackLink href="/rosters/archived">Browse archived rosters</BackLink>
       </div>

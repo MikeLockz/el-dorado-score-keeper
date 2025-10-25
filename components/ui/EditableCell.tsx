@@ -152,7 +152,7 @@ export function EditableCell({
         <div className={styles.inlineEditActions}>
           <Button
             size="sm"
-            variant="destructive"
+            variant="outline"
             onClick={(e) => {
               e.stopPropagation();
               handleCancelEditing(e);

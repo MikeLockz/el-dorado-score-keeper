@@ -4,7 +4,7 @@ import React from 'react';
 
 import { PlayersTable } from '@/components/players/PlayersTable';
 import { trackPlayersView } from '@/lib/observability/events';
-import { Card, Button, BackLink } from '@/components/ui';
+import { Card, Button, BackLink, Skeleton } from '@/components/ui';
 import { Plus } from 'lucide-react';
 import { useAppState } from '@/components/state-provider';
 import { uuid } from '@/lib/utils';
@@ -15,11 +15,19 @@ import Link from 'next/link';
 import styles from './page.module.scss';
 
 export default function PlayersPage() {
-  const { append, state } = useAppState();
+  const { append, state, ready } = useAppState();
+  const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     trackPlayersView({ filter: 'active', source: 'players.page' });
   }, []);
+
+  React.useEffect(() => {
+    // Only show loading while the app state is getting ready
+    if (ready) {
+      setIsLoading(false);
+    }
+  }, [ready]);
 
   const handleAddNewPlayer = async () => {
     const playerCount = Object.keys(state.players || {}).length;
@@ -57,7 +65,7 @@ export default function PlayersPage() {
           </Button>
         </div>
         <Card>
-          <PlayersTable />
+          <PlayersTable loading={isLoading} />
         </Card>
         <BackLink href="/players/archived">View Archived Players</BackLink>
       </div>

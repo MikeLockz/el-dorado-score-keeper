@@ -5,7 +5,7 @@ import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import { Loader2, Plus, Archive, Trash2, Undo2, X, UserPlus } from 'lucide-react';
 
-import { Button, InlineEdit } from '@/components/ui';
+import { Button, InlineEdit, Card } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import {
   assertEntityAvailable,
@@ -385,59 +385,57 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
         </div>
       </header>
 
-      <section className={styles.section}>
-        <div>
-          <h2 className={styles.sectionTitle}>Roster Details</h2>
-          <p className={styles.sectionDescription}>
+      <Card className={styles.playerDetailsSection}>
+        <div className={styles.playerDetailsHeader}>
+          <h2 className={styles.playerDetailsTitle}>Roster details</h2>
+          <p className={styles.playerDetailsDescription}>
             View and manage roster information and configuration.
           </p>
         </div>
-        <Card>
-          <div className={styles.detailsGrid}>
-            <div className={styles.detailItem}>
-              <div className={styles.detailTerm}>Roster Name</div>
-              <div className={styles.detailDescription}>
-                <InlineEdit
-                  value={roster?.name ?? ''}
-                  onSave={handleSaveRosterName}
-                  placeholder="Roster name"
-                  disabled={!ready || busy}
-                  fontWeight={600}
-                  validate={(value) => {
-                    if (!value.trim()) return 'Roster name is required';
-                    return null;
-                  }}
-                  saveLabel="Save"
-                  cancelLabel="Cancel"
-                  errorLabel="Failed to save roster name"
-                />
-              </div>
-            </div>
-            <div className={styles.detailItem}>
-              <div className={styles.detailTerm}>Roster ID</div>
-              <div className={styles.detailDescription}>{availability.entity?.id}</div>
-            </div>
-            <div className={styles.detailItem}>
-              <div className={styles.detailTerm}>Mode</div>
-              <div className={styles.detailDescription}>
-                <span className={styles.badge}>
-                  {roster.type === 'single' ? 'Single Player' : 'Scorecard'}
-                </span>
-              </div>
-            </div>
-            <div className={styles.detailItem}>
-              <div className={styles.detailTerm}>Status</div>
-              <div className={styles.detailDescription}>
-                <span
-                  className={`${styles.badge} ${archived ? styles.archivedBadge : styles.activeBadge}`}
-                >
-                  {archived ? 'Archived' : 'Active'}
-                </span>
-              </div>
-            </div>
+        <dl className={styles.playerDetailsList}>
+          <div className={styles.playerDetailsItem}>
+            <dt className={styles.playerDetailsTerm}>Roster Name</dt>
+            <dd className={styles.playerDetailsDescription}>
+              <InlineEdit
+                value={roster?.name ?? ''}
+                onSave={handleSaveRosterName}
+                placeholder="Roster name"
+                disabled={!ready || busy}
+                fontWeight={600}
+                validate={(value) => {
+                  if (!value.trim()) return 'Roster name is required';
+                  return null;
+                }}
+                saveLabel="Save"
+                cancelLabel="Cancel"
+                errorLabel="Failed to save roster name"
+              />
+            </dd>
           </div>
-        </Card>
-      </section>
+          <div className={styles.playerDetailsItem}>
+            <dt className={styles.playerDetailsTerm}>Roster ID</dt>
+            <dd className={styles.playerDetailsDescription}>{availability.entity?.id}</dd>
+          </div>
+          <div className={styles.playerDetailsItem}>
+            <dt className={styles.playerDetailsTerm}>Mode</dt>
+            <dd className={styles.playerDetailsDescription}>
+              <span className={styles.badge}>
+                {roster.type === 'single' ? 'Single Player' : 'Scorecard'}
+              </span>
+            </dd>
+          </div>
+          <div className={styles.playerDetailsItem}>
+            <dt className={styles.playerDetailsTerm}>Status</dt>
+            <dd className={styles.playerDetailsDescription}>
+              <span
+                className={`${styles.badge} ${archived ? styles.archivedBadge : styles.activeBadge}`}
+              >
+                {archived ? 'Archived' : 'Active'}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </Card>
 
       <section className={styles.section}>
         <div>
