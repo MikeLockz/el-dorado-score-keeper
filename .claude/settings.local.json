@@ -26,7 +26,11 @@
       "Bash(pnpm lint:*)",
       "Bash(npm run test:*)",
       "Bash(pnpm coverage:*)",
-      "Bash(pnpm vitest run:*)"
+      "Bash(pnpm vitest run:*)",
+      "Bash(npm run dev)",
+      "Bash(npm run tokens:sync:*)",
+      "Bash(gh pr create:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

@@ -122,8 +122,22 @@ const init = (input: BrowserVendorInitConfig) => {
     try {
       const originalError = console.error.bind(console);
       console.error = (...args: unknown[]) => {
-        enqueue('console.error', { arguments: args });
-        originalError(...args);
+        // Check if this is a PostHog rate limiting message
+        const isPostHogRateLimit = args.some(
+          (arg) =>
+            typeof arg === 'string' &&
+            arg.includes('[PostHog.js]') &&
+            arg.includes('rate limiting'),
+        );
+
+        if (isPostHogRateLimit) {
+          // Treat PostHog rate limiting as warnings instead of errors
+          console.warn(...args);
+          enqueue('console.warn', { arguments: args });
+        } else {
+          enqueue('console.error', { arguments: args });
+          originalError(...args);
+        }
       };
     } catch (error) {
       if (config.debug) {

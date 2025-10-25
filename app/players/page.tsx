@@ -2,19 +2,73 @@
 
 import React from 'react';
 
-import { PlayerManagement } from '@/components/players';
+import { PlayersTable } from '@/components/players/PlayersTable';
 import { trackPlayersView } from '@/lib/observability/events';
+import { Card, Button, BackLink, Skeleton } from '@/components/ui';
+import { Plus } from 'lucide-react';
+import { useAppState } from '@/components/state-provider';
+import { uuid } from '@/lib/utils';
+import { events } from '@/lib/state';
+import { trackPlayersAdded } from '@/lib/observability/events';
+import Link from 'next/link';
 
 import styles from './page.module.scss';
 
 export default function PlayersPage() {
+  const { append, state, ready } = useAppState();
+  const [isLoading, setIsLoading] = React.useState(true);
+
   React.useEffect(() => {
     trackPlayersView({ filter: 'active', source: 'players.page' });
   }, []);
 
+  React.useEffect(() => {
+    // Only show loading while the app state is getting ready
+    if (ready) {
+      setIsLoading(false);
+    }
+  }, [ready]);
+
+  const handleAddNewPlayer = async () => {
+    const playerCount = Object.keys(state.players || {}).length;
+    if (playerCount >= 10) return;
+
+    const newPlayerName = `Player ${playerCount + 1}`;
+    const id = uuid();
+
+    await append(events.playerAdded({ id, name: newPlayerName }));
+    trackPlayersAdded({
+      addedCount: 1,
+      totalPlayers: Math.max(0, playerCount + 1),
+      inputMethod: 'quick-add-button',
+      source: 'players.page.active-table',
+      mode: 'scorecard',
+    });
+  };
+
   return (
     <div className={styles.container}>
-      <PlayerManagement />
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <h1 className={styles.title}>Players</h1>
+            <p className={styles.description}>
+              Manage active players, edit names and types, and view player statistics.
+            </p>
+          </div>
+          <Button
+            onClick={() => void handleAddNewPlayer()}
+            disabled={Object.keys(state.players || {}).length >= 10}
+            className={styles.newPlayerButton}
+          >
+            <Plus aria-hidden="true" /> New Player
+          </Button>
+        </div>
+        <Card>
+          <PlayersTable loading={isLoading} />
+        </Card>
+        <BackLink href="/players/archived">View Archived Players</BackLink>
+      </div>
     </div>
   );
 }

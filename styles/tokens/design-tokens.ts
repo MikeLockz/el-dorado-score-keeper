@@ -134,6 +134,12 @@ export const designTokens = {
     'space-16': '4rem',
   },
   typography: {
+    'display-xl': {
+      fontSize: '3rem',
+      lineHeight: '3.75rem',
+      fontWeight: 700,
+      letterSpacing: '-0.025em',
+    },
     'display-lg': {
       fontSize: '2.5rem',
       lineHeight: '3rem',
@@ -145,6 +151,18 @@ export const designTokens = {
       lineHeight: '2.5rem',
       fontWeight: 700,
       letterSpacing: '-0.015em',
+    },
+    'display-xs': {
+      fontSize: '1.5rem',
+      lineHeight: '2rem',
+      fontWeight: 700,
+      letterSpacing: '-0.01em',
+    },
+    'heading-xl': {
+      fontSize: '2.25rem',
+      lineHeight: '2.75rem',
+      fontWeight: 700,
+      letterSpacing: '-0.025em',
     },
     'heading-lg': {
       fontSize: '1.75rem',
@@ -163,6 +181,18 @@ export const designTokens = {
       lineHeight: '1.75rem',
       fontWeight: 600,
       letterSpacing: '-0.005em',
+    },
+    'heading-xs': {
+      fontSize: '1rem',
+      lineHeight: '1.5rem',
+      fontWeight: 600,
+      letterSpacing: '-0.0025em',
+    },
+    'body-xl': {
+      fontSize: '1.25rem',
+      lineHeight: '1.75rem',
+      fontWeight: 400,
+      letterSpacing: '-0.01em',
     },
     'body-lg': {
       fontSize: '1.125rem',
@@ -188,11 +218,23 @@ export const designTokens = {
       fontWeight: 400,
       letterSpacing: '0em',
     },
+    'label-xl': {
+      fontSize: '0.875rem',
+      lineHeight: '1.25rem',
+      fontWeight: 500,
+      letterSpacing: '0.025em',
+    },
     'label-sm': {
       fontSize: '0.75rem',
       lineHeight: '1rem',
       fontWeight: 500,
       letterSpacing: '0.02em',
+    },
+    'label-xs': {
+      fontSize: '0.625rem',
+      lineHeight: '0.75rem',
+      fontWeight: 500,
+      letterSpacing: '0.015em',
     },
   },
 } as const;

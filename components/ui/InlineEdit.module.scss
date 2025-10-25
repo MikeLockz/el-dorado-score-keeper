@@ -1,0 +1,105 @@
+@use '../../styles/mixins/typography' as typography;
+@use '../../styles/tokens/spacing' as spacing;
+
+.editContainer {
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid transparent;
+
+  &:hover {
+    color: var(--color-primary);
+    background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+    border-color: var(--color-border);
+  }
+
+  &:hover .editIcon {
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+.editDisplay {
+  color: var(--color-foreground);
+  flex: 1;
+}
+
+.editIcon {
+  width: 1rem;
+  height: 1rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+  margin-left: spacing.spacing('space-2');
+}
+
+.inlineEditContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inlineEditInput {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground);
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.inlineEditActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.inlineEditButton {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+}
+
+.inlineEditError {
+  color: var(--color-destructive);
+  font-size: 0.75rem;
+  margin-top: 4px;
+}
+
+.spinner {
+  inline-size: 1rem;
+  block-size: 1rem;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

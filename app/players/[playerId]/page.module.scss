@@ -8,57 +8,235 @@
   display: flex;
   flex-direction: column;
   gap: spacing.spacing('space-4');
+  min-height: 100vh; // Ensure container fills viewport height
+  scroll-margin-top: 0; // Prevent scroll restoration issues
 }
 
 .header {
   display: flex;
   flex-direction: column;
-  gap: spacing.spacing('space-2');
+  gap: spacing.spacing('space-3');
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .title {
-  @include typography.heading('heading-sm');
+  @include typography.heading('heading-lg');
   font-weight: 700;
+  margin: 0;
 }
 
-.meta {
-  @include typography.body('body-sm');
+/* Player Details Section - Tailwind UI Description List Pattern */
+.playerDetailsSection {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 3px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  overflow: hidden;
+}
+
+.playerDetailsHeader {
+  padding: spacing.spacing('space-6');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+}
+
+.playerDetailsTitle {
+  @include typography.heading('heading-lg');
+  font-weight: 700;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.playerDetailsDescription {
+  @include typography.body('body-md');
   color: var(--color-muted-foreground);
+  margin: 0;
 }
 
-.section {
+.playerDetailsList {
+  padding: spacing.spacing('space-6');
+}
+
+.playerDetailsItem {
   display: flex;
-  flex-direction: column;
-  gap: spacing.spacing('space-2');
+  flex-wrap: wrap;
+  gap: spacing.spacing('space-4');
+  padding: spacing.spacing('space-4') 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &:first-child {
+    padding-top: 0;
+  }
 }
 
-.sectionHeading {
+.playerDetailsTerm {
+  flex-shrink: 0;
+  width: 140px;
+  @include typography.body('body-sm');
   font-weight: 600;
   color: var(--color-foreground);
 }
 
-.valueRow {
+.playerDetailsDescription {
+  flex: 1;
+  @include typography.body('body-md');
+  color: var(--color-foreground);
+  text-align: right;
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: spacing.spacing('space-2');
-  @include typography.body('body-sm');
+  align-items: center;
+  justify-content: flex-end;
 }
 
-.badge {
+.playerName {
+  @include typography.heading('heading-md');
+  font-weight: 700;
+  color: var(--color-foreground);
+}
+
+.playerBadge {
   display: inline-flex;
   align-items: center;
-  padding-inline: spacing.spacing('space-2');
-  padding-block: spacing.spacing('space-1');
+  padding: spacing.spacing('space-1') spacing.spacing('space-3');
   border-radius: var(--radius-full);
-  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
-  color: var(--color-muted-foreground);
-  @include typography.body('body-xs');
+  font-weight: 500;
+  @include typography.body('body-sm');
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
-.actions {
+.humanBadge {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+.botBadge {
+  background: var(--color-secondary);
+  color: var(--color-secondary-foreground);
+}
+
+.activeBadge {
+  background: color-mix(in oklch, var(--color-success) 20%, transparent);
+  color: var(--color-success);
+  border: 1px solid color-mix(in oklch, var(--color-success) 40%, transparent);
+}
+
+.archivedBadge {
+  background: color-mix(in oklch, var(--color-muted) 30%, transparent);
+  color: var(--color-muted-foreground);
+  border: 1px solid color-mix(in oklch, var(--color-muted) 50%, transparent);
+}
+
+.singlePlayerHumanBadge {
   display: inline-flex;
+  align-items: center;
+  gap: spacing.spacing('space-1');
+  padding: spacing.spacing('space-1') spacing.spacing('space-3');
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  @include typography.body('body-sm');
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+
+  // Constrain icon size to match text height
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+.typeSelect {
+  min-inline-size: 8rem;
+  padding: spacing.spacing('space-2') spacing.spacing('space-3');
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  @include typography.body('body-sm');
+  font-weight: 500;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.playerId {
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+  padding: spacing.spacing('space-1') spacing.spacing('space-2');
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  @include typography.body('body-sm');
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
+}
+
+/* Player Actions Section */
+.playerActionsSection {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 3px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  overflow: hidden;
+}
+
+.playerActionsHeader {
+  padding: spacing.spacing('space-6');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+}
+
+.playerActionsTitle {
+  @include typography.heading('heading-lg');
+  font-weight: 700;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.playerActionsDescription {
+  @include typography.body('body-md');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.playerActionsList {
+  padding: spacing.spacing('space-6');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
   gap: spacing.spacing('space-2');
-  flex-wrap: wrap;
+  justify-content: flex-start;
+  min-height: 2.75rem;
+  width: 100%;
+
+  @media (min-width: 640px) {
+    width: auto;
+    min-width: 12rem;
+  }
 }
 
 .spinnerRow {
@@ -78,5 +256,504 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Player Name Inline Edit Styles */
+.playerNameContainer {
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid transparent;
+
+  &:hover {
+    color: var(--color-primary);
+    background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+    border-color: var(--color-border);
+  }
+
+  &:hover .editIcon {
+    opacity: 1;
+  }
+}
+
+.editIcon {
+  width: 1rem;
+  height: 1rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: var(--color-muted-foreground);
+}
+
+.inlineEditContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inlineEditInput {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  @include typography.body('body-md');
+  font-weight: 700;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+}
+
+.inlineEditActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.inlineEditButton {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+}
+
+.inlineEditError {
+  color: var(--color-destructive);
+  font-size: 0.75rem;
+  margin-top: 4px;
+}
+
+/* Statistics Section Styles - Following AdvancedInsightsPanel pattern */
+.statisticsSection {
+  display: grid;
+  gap: spacing.spacing('space-4');
+}
+
+.statisticsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: spacing.spacing('space-4');
+}
+
+.metricsCard {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+  padding: spacing.spacing('space-3');
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--color-muted) 58%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+.cardHeading {
+  display: flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+  @include typography.heading('heading-sm');
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+/* Primary Stats Skeleton - matches 3-column grid layout with min-height 6.5rem */
+.primaryStatsSkeleton {
+  display: grid;
+  gap: spacing.spacing('space-3');
+
+  @media (min-width: 40rem) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.primaryMetricSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+  padding: spacing.spacing('space-3');
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-muted) 65%, transparent);
+  min-block-size: 6.5rem;
+}
+
+.primaryMetricLabel {
+  height: 0.875rem; // body-sm line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 60%;
+}
+
+.primaryMetricValue {
+  height: 1.75rem; // heading-md line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 40%;
+  margin-top: auto;
+}
+
+/* Secondary Stats Skeleton - matches auto-fit grid with min-height 5.5rem */
+.secondaryStatsSkeleton {
+  display: grid;
+  gap: spacing.spacing('space-3');
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+
+  @media (min-width: 40rem) {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
+}
+
+.secondaryMetricSkeleton {
+  display: flex;
+  gap: spacing.spacing('space-3');
+  align-items: center;
+  padding: spacing.spacing('space-3');
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-muted) 55%, transparent);
+  min-block-size: 5.5rem;
+}
+
+.secondaryMetricIcon {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-muted);
+  flex-shrink: 0;
+}
+
+.secondaryMetricContent {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+  flex: 1;
+}
+
+.secondaryMetricLabel {
+  height: 0.875rem; // body-sm line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 70%;
+}
+
+.secondaryMetricValue {
+  height: 1.25rem; // heading-sm line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 50%;
+}
+
+/* Round Accuracy Chart Skeleton - matches table + summary grid */
+.roundAccuracySkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.roundAccuracyTableSkeleton {
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in oklch, var(--color-border) 70%, transparent);
+  background: color-mix(in oklch, var(--color-card) 96%, transparent);
+  overflow: hidden;
+}
+
+.roundAccuracyHeaderSkeleton {
+  background: color-mix(in oklch, var(--color-muted) 18%, transparent);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: spacing.spacing('space-2');
+  padding: spacing.spacing('space-2') spacing.spacing('space-3');
+  min-height: 2rem;
+}
+
+.roundAccuracyHeaderCell {
+  height: 0.75rem; // body-xs line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 80%;
+}
+
+.roundAccuracyRowsSkeleton {
+  display: grid;
+  gap: 0;
+}
+
+.roundAccuracyRowSkeleton {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: spacing.spacing('space-2');
+  padding: spacing.spacing('space-2') spacing.spacing('space-3');
+  min-height: 2.5rem;
+  border-top: 1px solid color-mix(in oklch, var(--color-border) 65%, transparent);
+}
+
+.roundAccuracyCellSkeleton {
+  height: 0.875rem; // body-sm line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 60%;
+}
+
+.roundAccuracySummarySkeleton {
+  display: grid;
+  gap: spacing.spacing('space-3');
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.roundAccuracySummaryItemSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+  padding: spacing.spacing('space-2');
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-muted) 12%, transparent);
+  min-height: 3rem;
+}
+
+.roundAccuracySummaryLabel {
+  height: 0.75rem; // body-xs line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 70%;
+}
+
+.roundAccuracySummaryValue {
+  height: 1rem; // body-md line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 50%;
+}
+
+.roundAccuracySummaryDetail {
+  height: 0.75rem; // body-xs line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 40%;
+}
+
+/* Hand Insights Skeleton - matches list layout */
+.handInsightsSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.handInsightSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-2');
+  padding: spacing.spacing('space-3');
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-muted) 45%, transparent);
+  min-height: 4rem;
+}
+
+.handInsightLabel {
+  height: 0.875rem; // body-sm line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 65%;
+}
+
+.handInsightValue {
+  height: 1.25rem; // heading-sm line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 45%;
+}
+
+.handInsightDetail {
+  height: 0.875rem; // body-sm line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 80%;
+  margin-top: auto;
+}
+
+/* Advanced Analytics Skeleton - matches complex grid layout */
+.advancedAnalyticsSkeleton {
+  display: grid;
+  gap: spacing.spacing('space-4');
+}
+
+.advancedSectionSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.advancedSectionHeaderSkeleton {
+  display: flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+  min-height: 1.5rem;
+}
+
+.advancedSectionIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+}
+
+.advancedSectionTitle {
+  height: 0.875rem; // body-sm line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 35%;
+}
+
+.advancedMetricGridSkeleton {
+  display: grid;
+  gap: spacing.spacing('space-3');
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+}
+
+.advancedMetricSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-1');
+  padding: spacing.spacing('space-3');
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-muted) 35%, transparent);
+  min-height: 5rem;
+}
+
+.advancedMetricLabel {
+  height: 0.75rem; // body-xs line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 60%;
+}
+
+.advancedMetricValue {
+  height: 1.5rem; // heading-md line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 40%;
+  margin-top: auto;
+}
+
+.advancedTableSkeleton {
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in oklch, var(--color-border) 70%, transparent);
+  background: color-mix(in oklch, var(--color-card) 96%, transparent);
+  overflow: hidden;
+}
+
+.advancedTableHeaderSkeleton {
+  background: color-mix(in oklch, var(--color-muted) 18%, transparent);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: spacing.spacing('space-2');
+  padding: spacing.spacing('space-2') spacing.spacing('space-3');
+  min-height: 2rem;
+}
+
+.advancedTableHeaderCell {
+  height: 0.75rem; // body-xs line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 70%;
+}
+
+.advancedTableRowsSkeleton {
+  display: grid;
+  gap: 0;
+}
+
+.advancedTableRowSkeleton {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: spacing.spacing('space-2');
+  padding: spacing.spacing('space-2') spacing.spacing('space-3');
+  min-height: 2.5rem;
+  border-top: 1px solid color-mix(in oklch, var(--color-border) 65%, transparent);
+}
+
+.advancedTableCellSkeleton {
+  height: 0.875rem; // body-sm line height
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  width: 65%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .secondaryStatsSkeleton {
+    grid-template-columns: 1fr;
+  }
+
+  .roundAccuracyHeaderSkeleton,
+  .roundAccuracyRowSkeleton {
+    grid-template-columns: 1fr;
+    gap: spacing.spacing('space-2');
+  }
+
+  .advancedTableHeaderSkeleton,
+  .advancedTableRowSkeleton {
+    grid-template-columns: 1fr;
+    gap: spacing.spacing('space-2');
+  }
+
+  .advancedMetricGridSkeleton {
+    grid-template-columns: 1fr;
+  }
+
+  .roundAccuracySummarySkeleton {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .roundAccuracySummarySkeleton {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .playerDetailsHeader {
+    padding: spacing.spacing('space-4');
+  }
+
+  .playerDetailsList {
+    padding: spacing.spacing('space-4');
+  }
+
+  .playerDetailsItem {
+    flex-direction: column;
+    gap: spacing.spacing('space-2');
+    padding: spacing.spacing('space-3') 0;
+  }
+
+  .playerDetailsTerm {
+    width: auto;
+    text-align: left;
+  }
+
+  .playerDetailsDescription {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: spacing.spacing('space-2');
+    align-items: flex-start;
+  }
+
+  .statisticsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .skeletonGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .skeletonGrid {
+    grid-template-columns: 1fr;
   }
 }

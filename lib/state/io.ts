@@ -201,7 +201,8 @@ export type GameRecord = {
   createdAt: number;
   finishedAt: number;
   lastSeq: number;
-  deletedAt?: number | null;
+  archived: boolean;
+  archivedAt: number | null;
   summary: {
     players: number;
     scores: Record<string, number>;
@@ -682,9 +683,59 @@ export async function listGames(gamesDbName: string = GAMES_DB_NAME): Promise<Ga
           };
           cursorReq.onerror = () => rej(asError(cursorReq.error, 'Failed listing games'));
         });
-        const filtered = out.filter((game) => !game?.deletedAt);
+        // Normalize game records to include archived properties for backward compatibility
+        const normalized = out.map((game) => ({
+          ...game,
+          archived: game.archived ?? false,
+          archivedAt: game.archivedAt ?? null,
+        }));
+        const filtered = normalized.filter((game) => !game.archived);
         filtered.sort((a, b) => b.createdAt - a.createdAt);
         span?.setAttribute('games.count', filtered.length);
+        span?.setAttribute('index.used', useIndex);
+        return filtered;
+      } finally {
+        db.close();
+      }
+    },
+    { runtime: 'browser' },
+  );
+}
+
+export async function listArchivedGames(
+  gamesDbName: string = GAMES_DB_NAME,
+): Promise<GameRecord[]> {
+  return withSpan(
+    'state.games-list-archived',
+    { dbName: gamesDbName },
+    async (span) => {
+      const db = await openDB(gamesDbName);
+      try {
+        const t = tx(db, 'readonly', [storeNames.GAMES]);
+        const store = t.objectStore(storeNames.GAMES);
+        const useIndex = store.indexNames.contains?.('createdAt') ?? false;
+        const cursorReq = useIndex
+          ? store.index('createdAt').openCursor(null, 'prev')
+          : store.openCursor();
+        const out: GameRecord[] = [];
+        await new Promise<void>((res, rej) => {
+          cursorReq.onsuccess = () => {
+            const c = cursorReq.result;
+            if (!c) return res();
+            out.push(c.value as GameRecord);
+            c.continue();
+          };
+          cursorReq.onerror = () => rej(asError(cursorReq.error, 'Failed listing archived games'));
+        });
+        // Normalize game records to include archived properties for backward compatibility
+        const normalized = out.map((game) => ({
+          ...game,
+          archived: game.archived ?? false,
+          archivedAt: game.archivedAt ?? null,
+        }));
+        const filtered = normalized.filter((game) => game.archived);
+        filtered.sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
+        span?.setAttribute('games.archived.count', filtered.length);
         span?.setAttribute('index.used', useIndex);
         return filtered;
       } finally {
@@ -711,10 +762,18 @@ export async function getGame(
           req.onsuccess = () => res((req.result as GameRecord | null) ?? null);
           req.onerror = () => rej(asError(req.error, 'Failed to get game record'));
         });
-        const resolved = rec && rec.deletedAt ? null : rec;
+        // Normalize game record to include archived properties for backward compatibility
+        const normalized = rec
+          ? {
+              ...rec,
+              archived: rec.archived ?? false,
+              archivedAt: rec.archivedAt ?? null,
+            }
+          : null;
+        const resolved = normalized && !normalized.archived ? normalized : null;
         span?.setAttribute('game.found', !!resolved);
-        if (rec?.deletedAt) {
-          span?.setAttribute('game.deleted', true);
+        if (normalized?.archived) {
+          span?.setAttribute('game.archived', true);
         }
         return resolved;
       } finally {
@@ -751,20 +810,24 @@ export async function deleteGame(gamesDbName: string = GAMES_DB_NAME, id: string
           await txDone.catch(() => {});
           return;
         }
-        if (rec.deletedAt) {
-          span?.setAttribute('game.deleted', true);
+        if (rec.archived) {
+          span?.setAttribute('game.archived', true);
           span?.setAttribute('game.soft', true);
           await txDone;
           return;
         }
-        const putReq = writeStore.put({ ...rec, deletedAt: Date.now() });
+        const putReq = writeStore.put({
+          ...rec,
+          archived: true,
+          archivedAt: Date.now(),
+        });
         await new Promise<void>((res, rej) => {
           putReq.onsuccess = () => res();
-          putReq.onerror = () => rej(asError(putReq.error, 'Failed to soft delete game record'));
+          putReq.onerror = () => rej(asError(putReq.error, 'Failed to archive game record'));
         });
         await txDone;
-        span?.setAttribute('game.deleted', true);
-        span?.setAttribute('game.soft', true);
+        span?.setAttribute('game.archived', true);
+        span?.setAttribute('game.archivedAt', Date.now());
         emitGamesSignal({ type: 'deleted', gameId: id });
       } finally {
         db.close();

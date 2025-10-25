@@ -23,26 +23,396 @@
   }
 }
 
-.page {
+.container {
   max-inline-size: 42rem;
   margin-inline: auto;
-  padding: spacing.spacing('space-3');
+  padding: spacing.spacing('space-4');
   display: flex;
   flex-direction: column;
-  gap: spacing.spacing('space-3');
+  gap: spacing.spacing('space-4');
+  min-height: 100vh; // Ensure container fills viewport height
+  scroll-margin-top: 0; // Prevent scroll restoration issues
 }
 
 .header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: spacing.spacing('space-3');
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .headerActions {
   display: inline-flex;
   gap: spacing.spacing('space-2');
   flex-wrap: wrap;
+}
+
+/* Game Details Section - Matching Player Details Pattern */
+.gameDetailsSection {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 3px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  overflow: hidden;
+}
+
+.gameDetailsHeader {
+  padding: spacing.spacing('space-6');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+}
+
+.gameDetailsTitle {
+  @include typography.heading('heading-lg');
+  font-weight: 700;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.gameDetailsDescription {
+  @include typography.body('body-md');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.gameDetailsList {
+  padding: spacing.spacing('space-6');
+}
+
+.gameDetailsItem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing.spacing('space-4');
+  padding: spacing.spacing('space-4') 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &:first-child {
+    padding-top: 0;
+  }
+}
+
+.gameDetailsTerm {
+  flex-shrink: 0;
+  width: 140px;
+  @include typography.body('body-sm');
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.gameDetailsDescription {
+  flex: 1;
+  @include typography.body('body-md');
+  color: var(--color-foreground);
+  text-align: right;
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing.spacing('space-2');
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: spacing.spacing('space-1') spacing.spacing('space-3');
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  @include typography.body('body-xs');
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.completedBadge {
+  background: var(--color-success);
+  color: var(--color-success-foreground);
+  border: 1px solid var(--color-success);
+}
+
+.incompleteBadge {
+  background: var(--color-warning);
+  color: var(--color-warning-foreground);
+  border: 1px solid var(--color-warning);
+}
+
+/* Game Actions Section - Matching Roster Actions Pattern */
+.gameActionsSection {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 3px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  overflow: hidden;
+}
+
+.gameActionsHeader {
+  padding: spacing.spacing('space-6');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+}
+
+.gameActionsTitle {
+  @include typography.heading('heading-lg');
+  font-weight: 700;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.gameActionsDescription {
+  @include typography.body('body-xs');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.gameActionsList {
+  padding: spacing.spacing('space-6');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+  justify-content: flex-start;
+  min-height: 2.75rem;
+  width: 100%;
+
+  @media (min-width: 640px) {
+    width: auto;
+    min-width: 12rem;
+  }
+}
+
+/* Scorecard Section */
+.scorecardSection {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 3px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  overflow: hidden;
+}
+
+.scorecardHeader {
+  padding: spacing.spacing('space-6');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+}
+
+.scorecardTitle {
+  @include typography.heading('heading-lg');
+  font-weight: 700;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.scorecardDescription {
+  @include typography.body('body-md');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.scorecardContent {
+  padding: spacing.spacing('space-6');
+}
+
+/* Summary Section */
+.summarySection {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 3px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  overflow: hidden;
+}
+
+.summaryHeader {
+  padding: spacing.spacing('space-6');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+}
+
+.summaryTitle {
+  @include typography.heading('heading-lg');
+  font-weight: 700;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.summaryDescription {
+  @include typography.body('body-md');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.summaryContent {
+  padding: spacing.spacing('space-6');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-4');
+}
+
+/* Final Scores Section */
+.finalScoresSection {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.finalScoresHeader {
+  padding: spacing.spacing('space-4');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 10%, transparent);
+}
+
+.finalScoresTitle {
+  @include typography.heading('heading-md');
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin: 0;
+}
+
+/* Single-Player Snapshot Section */
+.snapshotSection {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.snapshotHeader {
+  padding: spacing.spacing('space-4');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 10%, transparent);
+}
+
+.snapshotTitle {
+  @include typography.heading('heading-md');
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.snapshotDescription {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.snapshotContent {
+  padding: spacing.spacing('space-4');
+}
+
+/* Statistics Section */
+.statisticsSection {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.statisticsHeader {
+  padding: spacing.spacing('space-4');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 10%, transparent);
+}
+
+.statisticsTitle {
+  @include typography.heading('heading-md');
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.statisticsDescription {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.statisticsContent {
+  padding: spacing.spacing('space-4');
+}
+
+/* Rounds Section */
+.roundsSection {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.roundsHeader {
+  padding: spacing.spacing('space-4');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 10%, transparent);
+}
+
+.roundsTitle {
+  @include typography.heading('heading-md');
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.roundsDescription {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.roundsContent {
+  padding: spacing.spacing('space-4');
+}
+
+/* Timing Section */
+.timingSection {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.timingHeader {
+  padding: spacing.spacing('space-4');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 10%, transparent);
+}
+
+.timingTitle {
+  @include typography.heading('heading-md');
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.timingDescription {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.timingContent {
+  padding: spacing.spacing('space-4');
+}
+
+.timingLabel {
+  @include typography.body('body-sm');
+  color: var(--color-muted-foreground);
+  font-weight: 500;
 }
 
 .title {

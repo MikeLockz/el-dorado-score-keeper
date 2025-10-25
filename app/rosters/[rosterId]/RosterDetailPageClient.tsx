@@ -1,11 +1,11 @@
 'use client';
 
 import React from 'react';
+import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
-import { Loader2, Plus, Archive, Trash2, Undo2, X, UserPlus, Link2 } from 'lucide-react';
+import { Loader2, Plus, Archive, Trash2, Undo2, X, UserPlus } from 'lucide-react';
 
-import { Button } from '@/components/ui';
-import { Input } from '@/components/ui/input';
+import { Button, InlineEdit, Card } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import {
   assertEntityAvailable,
@@ -17,7 +17,6 @@ import {
 import type { AppState } from '@/lib/state';
 import { usePromptDialog } from '@/components/dialogs/PromptDialog';
 import { useConfirmDialog } from '@/components/dialogs/ConfirmDialog';
-import { shareLink } from '@/lib/ui/share';
 import { useToast } from '@/components/ui/toast';
 import { captureBrowserException } from '@/lib/observability/browser';
 import { uuid } from '@/lib/utils';
@@ -143,13 +142,8 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
     return options;
   }, [rosterPlayers, state.playerDetails, state.players]);
 
-  const [nameValue, setNameValue] = React.useState(roster?.name ?? '');
   const [selectedPlayerId, setSelectedPlayerId] = React.useState('');
   const [pending, setPending] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    setNameValue(roster?.name ?? '');
-  }, [roster?.name]);
 
   React.useEffect(() => {
     if (
@@ -159,8 +153,6 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
       setSelectedPlayerId('');
     }
   }, [existingPlayerOptions, selectedPlayerId]);
-
-  const shareRosterName = roster?.name ?? rosterId;
 
   React.useEffect(() => {
     if (!ready) return;
@@ -191,39 +183,15 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
     [toast],
   );
 
-  const handleCopyLink = React.useCallback(async () => {
-    await shareLink({
-      href: resolveRosterRoute(rosterId),
-      toast,
-      title: shareRosterName || 'Roster detail',
-      successMessage: 'Roster link copied',
-    });
-  }, [rosterId, shareRosterName, toast]);
-
-  const handleCommitName = React.useCallback(async () => {
-    if (!roster) return;
-    const currentName = roster.name ?? '';
-    const trimmed = nameValue.trim();
-    if (!trimmed) {
-      toast({
-        title: 'Roster name required',
-        description: 'Enter a roster name before saving.',
-        variant: 'warning',
+  // Roster name editing handler
+  const handleSaveRosterName = React.useCallback(
+    async (newName: string) => {
+      return await runWithRosterAction('rename-roster', async () => {
+        await append(events.rosterRenamed({ rosterId, name: newName }));
       });
-      setNameValue(currentName);
-      return;
-    }
-    if (trimmed === currentName) return;
-    if (pending) return;
-    setPending('rename');
-    const ok = await runWithRosterAction('rename-roster', async () => {
-      await append(events.rosterRenamed({ rosterId, name: trimmed }));
-    });
-    setPending(null);
-    if (!ok) {
-      setNameValue(currentName);
-    }
-  }, [append, nameValue, pending, roster, rosterId, runWithRosterAction, toast]);
+    },
+    [runWithRosterAction, rosterId, append],
+  );
 
   const handleAddExistingPlayer = React.useCallback(async () => {
     if (!roster) return;
@@ -300,6 +268,18 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
     });
     setPending(null);
   }, [appendMany, pending, promptDialog, rosterId, runWithRosterAction, state]);
+
+  const handleChangePlayerType = React.useCallback(
+    async (player: RosterPlayer, newType: 'human' | 'bot') => {
+      if (pending) return;
+      setPending(`type:${player.id}`);
+      await runWithRosterAction('change-roster-player-type', async () => {
+        await append(events.rosterPlayerTypeSet({ rosterId, id: player.id, type: newType }));
+      });
+      setPending(null);
+    },
+    [append, pending, rosterId, runWithRosterAction],
+  );
 
   const handleRemovePlayer = React.useCallback(
     async (player: RosterPlayer) => {
@@ -387,49 +367,7 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <div className={styles.titleRow}>
-          <Input
-            value={nameValue}
-            onChange={(event) => setNameValue(event.target.value)}
-            onBlur={() => void handleCommitName()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                void handleCommitName();
-              }
-              if (event.key === 'Escape') {
-                event.preventDefault();
-                setNameValue(roster.name ?? '');
-              }
-            }}
-            disabled={!ready || busy}
-            className={styles.nameInput}
-            aria-label="Roster name"
-          />
-          {archived ? (
-            <span className={`${styles.badge} ${styles.archivedBadge}`}>Archived</span>
-          ) : null}
-        </div>
-        <div className={styles.meta}>Roster ID: {availability.entity?.id}</div>
-        <div className={styles.meta}>
-          Mode:{' '}
-          <span className={styles.badge}>
-            {roster.type === 'single' ? 'Single Player' : 'Scorecard'}
-          </span>
-        </div>
         <div className={styles.actions}>
-          <Button variant="outline" onClick={() => router.push(resolvePlayerRoute(null))}>
-            Manage via Players hub
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => router.push(resolveRosterRoute(null, { fallback: 'archived' }))}
-          >
-            Browse archived rosters
-          </Button>
-          <Button variant="outline" onClick={() => void handleCopyLink()}>
-            <Link2 aria-hidden="true" /> Copy link
-          </Button>
           {archived ? (
             <Button
               variant="outline"
@@ -447,6 +385,110 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
         </div>
       </header>
 
+      <Card className={styles.playerDetailsSection}>
+        <div className={styles.playerDetailsHeader}>
+          <h2 className={styles.playerDetailsTitle}>Roster details</h2>
+          <p className={styles.playerDetailsDescription}>
+            View and manage roster information and configuration.
+          </p>
+        </div>
+        <dl className={styles.playerDetailsList}>
+          <div className={styles.playerDetailsItem}>
+            <dt className={styles.playerDetailsTerm}>Roster Name</dt>
+            <dd className={styles.playerDetailsDescription}>
+              <InlineEdit
+                value={roster?.name ?? ''}
+                onSave={handleSaveRosterName}
+                placeholder="Roster name"
+                disabled={!ready || busy}
+                fontWeight={600}
+                validate={(value) => {
+                  if (!value.trim()) return 'Roster name is required';
+                  return null;
+                }}
+                saveLabel="Save"
+                cancelLabel="Cancel"
+                errorLabel="Failed to save roster name"
+              />
+            </dd>
+          </div>
+          <div className={styles.playerDetailsItem}>
+            <dt className={styles.playerDetailsTerm}>Roster ID</dt>
+            <dd className={styles.playerDetailsDescription}>{availability.entity?.id}</dd>
+          </div>
+          <div className={styles.playerDetailsItem}>
+            <dt className={styles.playerDetailsTerm}>Mode</dt>
+            <dd className={styles.playerDetailsDescription}>
+              <span className={styles.badge}>
+                {roster.type === 'single' ? 'Single Player' : 'Scorecard'}
+              </span>
+            </dd>
+          </div>
+          <div className={styles.playerDetailsItem}>
+            <dt className={styles.playerDetailsTerm}>Status</dt>
+            <dd className={styles.playerDetailsDescription}>
+              <span
+                className={`${styles.badge} ${archived ? styles.archivedBadge : styles.activeBadge}`}
+              >
+                {archived ? 'Archived' : 'Active'}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </Card>
+
+      <section className={styles.section}>
+        <div>
+          <h2 className={styles.sectionTitle}>Roster Actions</h2>
+          <p className={styles.sectionDescription}>Manage this roster's status and availability.</p>
+        </div>
+        <Card>
+          <div className={styles.actionButtons}>
+            {archived ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => void handleRestore()}
+                  disabled={!ready || !archived || pending !== null}
+                >
+                  {pending === 'restore' ? (
+                    <Loader2 className={styles.spinner} aria-hidden="true" />
+                  ) : (
+                    <Undo2 aria-hidden="true" />
+                  )}{' '}
+                  Restore roster
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => void handleDelete()}
+                  disabled={!ready || busy}
+                >
+                  {pending === 'delete' ? (
+                    <Loader2 className={styles.spinner} aria-hidden="true" />
+                  ) : (
+                    <Trash2 aria-hidden="true" />
+                  )}{' '}
+                  Delete roster
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="destructive"
+                onClick={() => void handleArchive()}
+                disabled={!ready || busy || archived}
+              >
+                {pending === 'archive' ? (
+                  <Loader2 className={styles.spinner} aria-hidden="true" />
+                ) : (
+                  <Archive aria-hidden="true" />
+                )}{' '}
+                Archive roster
+              </Button>
+            )}
+          </div>
+        </Card>
+      </section>
+
       <section className={styles.section}>
         <div>
           <h2 className={styles.sectionTitle}>Players</h2>
@@ -454,36 +496,61 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
             Add players from your library or create new ones for this roster.
           </p>
         </div>
-        {rosterPlayers.length === 0 ? (
-          <div className={styles.empty}>No players assigned to this roster yet.</div>
-        ) : (
-          <div className={styles.playerChips} role="list">
-            {rosterPlayers.map((player) => (
-              <div key={player.id} className={styles.playerChip} role="listitem">
-                <div className={styles.playerChipInfo}>
-                  <span className={styles.playerChipName}>{player.name}</span>
-                  <span className={styles.playerChipMeta}>
-                    {player.type === 'bot' ? 'Bot' : 'Human'}
-                  </span>
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className={styles.playerChipRemove}
-                  onClick={() => void handleRemovePlayer(player)}
-                  disabled={!ready || pending !== null}
-                  aria-label={`Remove ${player.name}`}
-                >
-                  {pending === `remove:${player.id}` ? (
-                    <Loader2 className={styles.spinner} aria-hidden="true" />
-                  ) : (
-                    <X aria-hidden="true" />
-                  )}
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+        <Card>
+          {rosterPlayers.length === 0 ? (
+            <div className={styles.emptyTableState}>No players assigned to this roster yet.</div>
+          ) : (
+            <table className={styles.playersTable}>
+              <thead>
+                <tr>
+                  <th className={styles.tableHeader}>Player Name</th>
+                  <th className={styles.tableHeader}>Type</th>
+                  <th className={styles.tableHeader}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rosterPlayers.map((player) => (
+                  <tr key={player.id} className={styles.tableRow}>
+                    <td className={styles.tableCell}>
+                      <span className={styles.playerName}>{player.name}</span>
+                    </td>
+                    <td className={styles.tableCell}>
+                      <select
+                        className={styles.typeSelect}
+                        value={player.type}
+                        onChange={(event) => {
+                          const newType = event.target.value as 'human' | 'bot';
+                          void handleChangePlayerType(player, newType);
+                        }}
+                        disabled={!ready || pending !== null}
+                        aria-label={`Change ${player.name} type`}
+                      >
+                        <option value="human">Human</option>
+                        <option value="bot">Bot</option>
+                      </select>
+                    </td>
+                    <td className={styles.tableCell}>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => void handleRemovePlayer(player)}
+                        disabled={!ready || pending !== null}
+                        aria-label={`Remove ${player.name}`}
+                      >
+                        {pending === `remove:${player.id}` ? (
+                          <Loader2 className={styles.spinner} aria-hidden="true" />
+                        ) : (
+                          <X aria-hidden="true" />
+                        )}
+                        Remove
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
         <div className={styles.addRow}>
           <select
             className={styles.selectControl}
@@ -503,46 +570,16 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
             variant="outline"
             onClick={() => void handleAddExistingPlayer()}
             disabled={!ready || busy || !selectedPlayerId || existingPlayerOptions.length === 0}
+            className={styles.addButton}
           >
             <Plus aria-hidden="true" /> Add player
           </Button>
-          <Button onClick={() => void handleCreateNewPlayer()} disabled={!ready || busy}>
-            <UserPlus aria-hidden="true" /> Create new player
-          </Button>
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <div>
-          <h2 className={styles.sectionTitle}>Status</h2>
-          <p className={styles.sectionDescription}>
-            Archive to hide the roster from active lists or delete it permanently.
-          </p>
-        </div>
-        <div className={styles.statusActions}>
           <Button
-            variant="outline"
-            onClick={() => void handleArchive()}
-            disabled={!ready || busy || archived}
-          >
-            {pending === 'archive' ? (
-              <Loader2 className={styles.spinner} aria-hidden="true" />
-            ) : (
-              <Archive aria-hidden="true" />
-            )}{' '}
-            Archive roster
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => void handleDelete()}
+            onClick={() => void handleCreateNewPlayer()}
             disabled={!ready || busy}
+            className={styles.addButton}
           >
-            {pending === 'delete' ? (
-              <Loader2 className={styles.spinner} aria-hidden="true" />
-            ) : (
-              <Trash2 aria-hidden="true" />
-            )}{' '}
-            Delete roster
+            <UserPlus aria-hidden="true" /> Create new player
           </Button>
         </div>
       </section>

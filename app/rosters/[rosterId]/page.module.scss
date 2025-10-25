@@ -2,12 +2,14 @@
 @use '../../../styles/tokens/spacing' as spacing;
 
 .container {
-  max-inline-size: 56rem;
+  max-inline-size: 42rem;
   margin-inline: auto;
   padding: spacing.spacing('space-4');
   display: flex;
   flex-direction: column;
-  gap: spacing.spacing('space-5');
+  gap: spacing.spacing('space-4');
+  min-height: 100vh; // Ensure container fills viewport height
+  scroll-margin-top: 0; // Prevent scroll restoration issues
 }
 
 .header {
@@ -23,24 +25,39 @@
   gap: spacing.spacing('space-2');
 }
 
-.nameInput {
-  inline-size: min(100%, 32rem);
-  border: 1px solid transparent;
-  background: transparent;
-  padding: 0;
-  box-shadow: none;
-  @include typography.heading('heading-sm');
+.pageTitle {
+  @include typography.heading('heading-lg');
   font-weight: 700;
   color: var(--color-foreground);
+  margin: 0;
+}
+
+.rosterNameInput {
+  inline-size: min(100%, 20rem);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  padding: spacing.spacing('space-2') spacing.spacing('space-3');
+  border-radius: var(--radius-md);
+  @include typography.body('body-md');
+  font-weight: 500;
+  color: var(--color-foreground);
+  transition:
+    border-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
 
   &:focus-visible {
     border-color: var(--ring);
     box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 40%, transparent);
-    background: color-mix(in oklch, var(--color-background) 92%, transparent);
+    outline: none;
   }
 
   &:disabled {
     opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: color-mix(in oklch, var(--color-border) 80%, var(--color-foreground) 20%);
   }
 }
 
@@ -58,6 +75,7 @@
   background: color-mix(in oklch, var(--color-muted) 20%, transparent);
   color: var(--color-muted-foreground);
   @include typography.body('body-xs');
+  font-weight: 500;
 }
 
 .archivedBadge {
@@ -87,57 +105,83 @@
 }
 
 .sectionDescription {
-  @include typography.body('body-sm');
+  @include typography.body('body-xs');
+  font-weight: 400;
   color: var(--color-muted-foreground);
   margin: 0;
 }
 
-.playerChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: spacing.spacing('space-2');
+// Players Table Styles
+.playersTable {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
 }
 
-.playerChip {
+.tableHeader {
+  padding: spacing.spacing('space-3');
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 30%, transparent);
+  @include typography.body('body-xs');
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.tableRow {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.2s ease-in-out;
+
+  &:hover {
+    background: color-mix(in oklch, var(--color-muted) 10%, transparent);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.tableCell {
+  padding: spacing.spacing('space-4');
+  vertical-align: middle;
+}
+
+.playerName {
+  @include typography.body('body-sm');
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.typeBadge {
   display: inline-flex;
   align-items: center;
-  gap: spacing.spacing('space-2');
-  padding-inline: spacing.spacing('space-3');
-  padding-block: spacing.spacing('space-1');
-  border: 1px solid color-mix(in oklch, var(--color-border) 75%, transparent);
+  padding: spacing.spacing('space-1') spacing.spacing('space-3');
   border-radius: var(--radius-full);
-  background: color-mix(in oklch, var(--muted) 92%, transparent);
-}
-
-.playerChipInfo {
-  display: flex;
-  flex-direction: column;
-  gap: spacing.spacing('space-1');
-}
-
-.playerChipName {
-  @include typography.body('body-sm');
-  font-weight: 600;
-}
-
-.playerChipMeta {
+  font-weight: 500;
   @include typography.body('body-xs');
-  color: var(--color-muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
-.playerChipRemove {
+.humanBadge {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  border: 1px solid var(--color-primary);
+}
+
+.botBadge {
+  background: var(--color-secondary);
+  color: var(--color-secondary-foreground);
+  border: 1px solid var(--color-secondary);
+}
+
+.emptyTableState {
+  padding: spacing.spacing('space-8');
+  text-align: center;
   color: var(--color-muted-foreground);
-  padding: 0;
-
-  &:hover,
-  &:focus-visible {
-    color: var(--destructive);
-  }
-
-  :global(svg) {
-    inline-size: 1rem;
-    block-size: 1rem;
-  }
+  @include typography.body('body-md');
 }
 
 .empty {
@@ -152,23 +196,132 @@
 .addRow {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch; // Make all items same height
   gap: spacing.spacing('space-2');
 }
 
 .selectControl {
   min-inline-size: 14rem;
+  height: 2.25rem; // Fixed height
+  padding-block: spacing.spacing('space-2'); // Match button padding
   padding-inline: spacing.spacing('space-2');
-  padding-block: spacing.spacing('space-1');
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-background);
   color: var(--color-foreground);
   @include typography.body('body-sm');
+  box-sizing: border-box;
 
   &:disabled {
     opacity: 0.6;
   }
+}
+
+.typeSelect {
+  min-inline-size: 6rem;
+  height: 2rem; // Slightly smaller for table
+  padding-block: spacing.spacing('space-1');
+  padding-inline: spacing.spacing('space-2');
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  @include typography.body('body-xs');
+  box-sizing: border-box;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &:focus {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+// Force buttons in add row to match height
+.addButton {
+  height: 2.25rem;
+  box-sizing: border-box;
+}
+
+/* Roster Name Inline Edit Styles */
+.rosterNameContainer {
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid transparent;
+
+  &:hover {
+    color: var(--color-primary);
+    background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+    border-color: var(--color-border);
+  }
+
+  &:hover .editIcon {
+    opacity: 1;
+  }
+}
+
+.rosterNameDisplay {
+  @include typography.body('body-md');
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.editIcon {
+  width: 1rem;
+  height: 1rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: var(--color-muted-foreground);
+}
+
+.inlineEditContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inlineEditInput {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  @include typography.body('body-md');
+  font-weight: 600;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+}
+
+.inlineEditActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.inlineEditButton {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+}
+
+.inlineEditError {
+  color: var(--color-destructive);
+  font-size: 0.75rem;
+  margin-top: 4px;
 }
 
 .statusActions {
@@ -194,5 +347,175 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Roster Details Section - Matching Player Details Pattern */
+.rosterDetailsSection {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 3px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  overflow: hidden;
+}
+
+.rosterDetailsHeader {
+  padding: spacing.spacing('space-6');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+}
+
+.rosterDetailsTitle {
+  @include typography.heading('heading-lg');
+  font-weight: 700;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.rosterDetailsDescription {
+  @include typography.body('body-xs');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.rosterDetailsList {
+  padding: spacing.spacing('space-6');
+}
+
+.rosterDetailsItem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing.spacing('space-4');
+  padding: spacing.spacing('space-4') 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &:first-child {
+    padding-top: 0;
+  }
+}
+
+.rosterDetailsTerm {
+  flex-shrink: 0;
+  width: 140px;
+  @include typography.body('body-sm');
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.rosterDetailsDescription {
+  flex: 1;
+  @include typography.body('body-sm');
+  font-weight: 400;
+  color: var(--color-foreground);
+  text-align: right;
+}
+
+.rosterId {
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+  padding: spacing.spacing('space-1') spacing.spacing('space-2');
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  @include typography.body('body-sm');
+  font-weight: 400;
+  color: var(--color-muted-foreground);
+  border: 1px solid var(--color-border);
+}
+
+/* Active badge styling */
+.badge.activeBadge {
+  background: color-mix(in oklch, var(--color-success) 20%, transparent);
+  color: var(--color-success);
+  border: 1px solid color-mix(in oklch, var(--color-success) 40%, transparent);
+}
+
+/* Roster Actions Section - Matching Player Actions Pattern */
+.rosterActionsSection {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 3px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  overflow: hidden;
+}
+
+.rosterActionsHeader {
+  padding: spacing.spacing('space-6');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+}
+
+.rosterActionsTitle {
+  @include typography.heading('heading-lg');
+  font-weight: 700;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.rosterActionsDescription {
+  @include typography.body('body-xs');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.rosterActionsList {
+  padding: spacing.spacing('space-6');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+  justify-content: flex-start;
+  min-height: 2.75rem;
+  width: 100%;
+
+  @media (min-width: 640px) {
+    width: auto;
+    min-width: 12rem;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rosterDetailsHeader {
+    padding: spacing.spacing('space-4');
+  }
+
+  .rosterDetailsList {
+    padding: spacing.spacing('space-4');
+  }
+
+  .rosterDetailsItem {
+    flex-direction: column;
+    gap: spacing.spacing('space-2');
+    padding: spacing.spacing('space-3') 0;
+  }
+
+  .rosterDetailsTerm {
+    width: auto;
+    text-align: left;
+  }
+
+  .rosterDetailsDescription {
+    text-align: left;
+  }
+
+  .rosterActionsHeader {
+    padding: spacing.spacing('space-4');
+  }
+
+  .rosterActionsList {
+    padding: spacing.spacing('space-4');
   }
 }

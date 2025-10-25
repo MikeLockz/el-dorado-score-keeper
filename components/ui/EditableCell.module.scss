@@ -1,0 +1,111 @@
+@use '../../styles/mixins/typography' as typography;
+@use '../../styles/tokens/spacing' as spacing;
+
+.editContainer {
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 4px 8px;
+  border-radius: var(--radius-md);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid transparent;
+  min-height: 2rem; // Ensure consistent minimum height
+
+  &:hover {
+    color: var(--color-primary);
+    background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+    border-color: var(--color-border);
+  }
+
+  &:hover .editIcon {
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+.editDisplay {
+  color: var(--color-foreground);
+  flex: 1;
+}
+
+.editIcon {
+  width: 1rem;
+  height: 1rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+}
+
+.inlineEditContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 2rem; // Match the display mode height
+}
+
+.inlineEditInput {
+  width: 100%;
+  padding: 4px 6px; // Smaller padding to maintain height
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-size: 0.875rem; // Match parent text size
+  min-height: 1.5rem; // Maintain consistent input height
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 20%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.inlineEditActions {
+  display: flex;
+  gap: 4px; // Smaller gap
+  justify-content: flex-end;
+  margin-top: 2px; // Small margin
+}
+
+.inlineEditButton {
+  font-size: 0.7rem;
+  padding: 2px 6px; // Smaller buttons
+  min-height: 1.5rem; // Consistent height
+}
+
+.inlineEditError {
+  color: var(--color-destructive);
+  font-size: 0.7rem;
+  margin: 2px 0 0 0;
+  line-height: 1.2;
+}
+
+.spinner {
+  inline-size: 1rem;
+  block-size: 1rem;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
