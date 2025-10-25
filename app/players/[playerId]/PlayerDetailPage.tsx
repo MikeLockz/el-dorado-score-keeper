@@ -49,8 +49,12 @@ export function PlayerDetailPage({ playerId }: PlayerDetailPageProps) {
   React.useEffect(() => {
     // Immediately scroll to top to prevent any scroll restoration
     if (typeof window !== 'undefined') {
+      const prevScrollRestoration = window.history.scrollRestoration;
       window.history.scrollRestoration = 'manual';
       window.scrollTo({ top: 0, left: 0 });
+      return () => {
+        window.history.scrollRestoration = prevScrollRestoration;
+      };
     }
   }, []); // Run once on mount
 
