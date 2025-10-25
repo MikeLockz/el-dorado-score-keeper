@@ -23,16 +23,18 @@ export default function ArchivedRostersPage() {
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Archived Rosters</h1>
-          <p className={styles.description}>Previously saved lineups that have been archived.</p>
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <h1 className={styles.title}>Archived Rosters</h1>
+            <p className={styles.description}>Previously saved lineups that have been archived.</p>
+          </div>
         </div>
-      </header>
-      <Card>
-        <RostersTable rosters={archivedRosters} emptyMessage="No archived rosters found." />
-      </Card>
-      <BackLink href="/rosters">Back to active rosters</BackLink>
+        <Card>
+          <RostersTable rosters={archivedRosters} emptyMessage="No archived rosters found." />
+        </Card>
+        <BackLink href="/rosters">Back to active rosters</BackLink>
+      </div>
     </div>
   );
 }

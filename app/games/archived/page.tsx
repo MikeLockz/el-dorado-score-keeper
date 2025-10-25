@@ -36,16 +36,20 @@ export default function ArchivedGamesPage() {
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Archived Games</h1>
-          <p className={styles.description}>Previously completed games that have been archived.</p>
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <h1 className={styles.title}>Archived Games</h1>
+            <p className={styles.description}>
+              Previously completed games that have been archived.
+            </p>
+          </div>
         </div>
-      </header>
-      <Card>
-        <GamesTable games={games} loading={games === null} onGamesChange={loadGames} />
-      </Card>
-      <BackLink href="/games">Back to Games</BackLink>
+        <Card>
+          <GamesTable games={games} loading={games === null} onGamesChange={loadGames} />
+        </Card>
+        <BackLink href="/games">Back to Games</BackLink>
+      </div>
     </div>
   );
 }

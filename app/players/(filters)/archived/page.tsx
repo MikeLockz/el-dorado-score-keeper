@@ -23,16 +23,18 @@ export default function ArchivedPlayersPage() {
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Archived Players</h1>
-          <p className={styles.description}>Previously saved players that have been archived.</p>
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <h1 className={styles.title}>Archived Players</h1>
+            <p className={styles.description}>Previously saved players that have been archived.</p>
+          </div>
         </div>
-      </header>
-      <Card>
-        <PlayersTable players={archivedPlayers} showArchived={true} />
-      </Card>
-      <BackLink href="/players">Back to Players</BackLink>
+        <Card>
+          <PlayersTable players={archivedPlayers} showArchived={true} />
+        </Card>
+        <BackLink href="/players">Back to Players</BackLink>
+      </div>
     </div>
   );
 }
