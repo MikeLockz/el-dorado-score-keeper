@@ -351,7 +351,7 @@
 }
 
 /* Roster Details Section - Matching Player Details Pattern */
-.rosterDetailsSection {
+.playerDetailsSection {
   background: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -361,30 +361,30 @@
   overflow: hidden;
 }
 
-.rosterDetailsHeader {
+.playerDetailsHeader {
   padding: spacing.spacing('space-6');
   border-bottom: 1px solid var(--color-border);
   background: color-mix(in oklch, var(--color-muted) 20%, transparent);
 }
 
-.rosterDetailsTitle {
+.playerDetailsTitle {
   @include typography.heading('heading-lg');
   font-weight: 700;
   color: var(--color-foreground);
   margin: 0 0 spacing.spacing('space-1') 0;
 }
 
-.rosterDetailsDescription {
-  @include typography.body('body-xs');
+.playerDetailsDescription {
+  @include typography.body('body-md');
   color: var(--color-muted-foreground);
   margin: 0;
 }
 
-.rosterDetailsList {
+.playerDetailsList {
   padding: spacing.spacing('space-6');
 }
 
-.rosterDetailsItem {
+.playerDetailsItem {
   display: flex;
   flex-wrap: wrap;
   gap: spacing.spacing('space-4');
@@ -401,20 +401,24 @@
   }
 }
 
-.rosterDetailsTerm {
+.playerDetailsTerm {
   flex-shrink: 0;
   width: 140px;
   @include typography.body('body-sm');
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-foreground);
 }
 
-.rosterDetailsDescription {
+.playerDetailsDescription {
   flex: 1;
-  @include typography.body('body-sm');
-  font-weight: 400;
+  @include typography.body('body-md');
   color: var(--color-foreground);
   text-align: right;
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing.spacing('space-2');
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .rosterId {
@@ -423,16 +427,32 @@
   border-radius: var(--radius-md);
   font-family: var(--font-mono);
   @include typography.body('body-sm');
-  font-weight: 400;
-  color: var(--color-muted-foreground);
+  color: var(--color-foreground);
   border: 1px solid var(--color-border);
 }
 
-/* Active badge styling */
-.badge.activeBadge {
+/* Player badge styling - matching player details */
+.playerBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: spacing.spacing('space-1') spacing.spacing('space-3');
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  @include typography.body('body-sm');
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.activeBadge {
   background: color-mix(in oklch, var(--color-success) 20%, transparent);
   color: var(--color-success);
   border: 1px solid color-mix(in oklch, var(--color-success) 40%, transparent);
+}
+
+.archivedBadge {
+  background: color-mix(in oklch, var(--color-muted) 30%, transparent);
+  color: var(--color-muted-foreground);
+  border: 1px solid color-mix(in oklch, var(--color-muted) 50%, transparent);
 }
 
 /* Roster Actions Section - Matching Player Actions Pattern */
@@ -488,34 +508,38 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .rosterDetailsHeader {
+  .playerDetailsHeader {
     padding: spacing.spacing('space-4');
   }
 
-  .rosterDetailsList {
+  .playerDetailsList {
     padding: spacing.spacing('space-4');
   }
 
-  .rosterDetailsItem {
+  .playerDetailsItem {
     flex-direction: column;
     gap: spacing.spacing('space-2');
     padding: spacing.spacing('space-3') 0;
   }
 
-  .rosterDetailsTerm {
+  .playerDetailsTerm {
     width: auto;
     text-align: left;
   }
 
-  .rosterDetailsDescription {
+  .playerDetailsDescription {
     text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: spacing.spacing('space-2');
+    align-items: flex-start;
   }
 
-  .rosterActionsHeader {
+  .playerActionsHeader {
     padding: spacing.spacing('space-4');
   }
 
-  .rosterActionsList {
+  .playerActionsList {
     padding: spacing.spacing('space-4');
   }
 }

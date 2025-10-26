@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 
 import { Button, Card, BackLink } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
@@ -9,11 +8,13 @@ import { selectAllRosters } from '@/lib/state';
 import { trackRostersView } from '@/lib/observability/events';
 import { RostersTable } from '@/components/rosters/RostersTable';
 import { Plus } from 'lucide-react';
+import { events } from '@/lib/state';
+import { uuid } from '@/lib/utils';
 
 import styles from './page.module.scss';
 
 export default function RostersPage() {
-  const { state, ready } = useAppState();
+  const { state, ready, append } = useAppState();
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -41,6 +42,21 @@ export default function RostersPage() {
     return selectAllRosters(state).filter((roster) => !roster.archived);
   }, [state, key]);
 
+  const handleCreateNewRoster = async () => {
+    const rosterCount = currentActive.length;
+    const newRosterName = `Roster ${rosterCount + 1}`;
+    const rosterId = uuid();
+
+    await append(
+      events.rosterCreated({
+        rosterId,
+        name: newRosterName,
+        type: 'scorecard',
+      }),
+    );
+    handleRostersChange();
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.section}>
@@ -51,10 +67,8 @@ export default function RostersPage() {
               Manage saved lineups for scorecard and single-player modes.
             </p>
           </div>
-          <Button asChild>
-            <Link href="/rosters/new">
-              <Plus aria-hidden="true" /> Create New Roster
-            </Link>
+          <Button onClick={() => void handleCreateNewRoster()} className={styles.newRosterButton}>
+            <Plus aria-hidden="true" /> Create New Roster
           </Button>
         </div>
         <Card>
