@@ -173,6 +173,17 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
     }
     case 'roster/player/added': {
       const p = event.payload as EventMap['roster/player/added'];
+      const normalizedType: 'human' | 'bot' =
+        p.type ?? state.playerDetails?.[p.id]?.type ?? 'human';
+
+      // First, create/update the player entity
+      let nextState = applyPlayerAdded(state, event, {
+        id: p.id,
+        name: p.name,
+        type: normalizedType,
+      });
+
+      // Then, add the player to the roster
       const base = {
         rosterId: p.rosterId,
         id: p.id,
@@ -184,11 +195,19 @@ function reduceRosterAndPlayers(state: AppState, event: KnownAppEvent): AppState
         type?: 'human' | 'bot';
       };
       if (p.type !== undefined) base.type = p.type;
-      return rosterOps.addPlayer(state, base);
+      return rosterOps.addPlayer(nextState, base);
     }
     case 'roster/player/renamed': {
       const p = event.payload as EventMap['roster/player/renamed'];
-      return rosterOps.renamePlayer(state, { rosterId: p.rosterId, id: p.id, name: p.name });
+
+      // First, update the player entity
+      let nextState = state;
+      if (state.players[p.id]) {
+        nextState = { ...state, players: { ...state.players, [p.id]: String(p.name) } };
+      }
+
+      // Then, update the roster
+      return rosterOps.renamePlayer(nextState, { rosterId: p.rosterId, id: p.id, name: p.name });
     }
     case 'roster/player/removed': {
       const p = event.payload as EventMap['roster/player/removed'];

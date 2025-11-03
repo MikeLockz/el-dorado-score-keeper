@@ -1048,3 +1048,52 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
     { runtime: 'browser' },
   );
 }
+
+export async function updateGameTitle(gamesDbName: string = GAMES_DB_NAME, id: string, newTitle: string): Promise<void> {
+  if (!id) {
+    throw new Error('Game ID is required');
+  }
+
+  if (!newTitle || !newTitle.trim()) {
+    throw new Error('Game title is required');
+  }
+
+  const db = await openDB(gamesDbName);
+  try {
+    const transaction = tx(db, 'readwrite', [storeNames.GAMES]);
+    const store = transaction.objectStore(storeNames.GAMES);
+
+    // Get the existing game record
+    const getRequest = store.get(id);
+    const record = await new Promise<GameRecord | null>((resolve, reject) => {
+      getRequest.onsuccess = () => resolve(getRequest.result || null);
+      getRequest.onerror = () => reject(getRequest.error || new Error('Failed to get game record'));
+    });
+
+    if (!record) {
+      throw new Error('Game not found');
+    }
+
+    // Update the title
+    const updatedRecord: GameRecord = {
+      ...record,
+      title: newTitle.trim(),
+    };
+
+    // Save the updated record
+    const putRequest = store.put(updatedRecord);
+    await new Promise<void>((resolve, reject) => {
+      putRequest.onsuccess = () => resolve();
+      putRequest.onerror = () => reject(putRequest.error || new Error('Failed to update game title'));
+    });
+
+    // Emit a signal to notify other components of the change
+    emitGamesSignal({ type: 'updated', gameId: id });
+  } finally {
+    try {
+      db.close();
+    } catch {
+      // ignore close failures
+    }
+  }
+}

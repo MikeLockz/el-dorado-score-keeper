@@ -162,9 +162,9 @@ export const selectPlayersOrderedFor = memo2((s: AppState, mode: Mode): PlayerIt
   for (const id of Object.keys(r.playersById)) if (!ids.includes(id)) ids.push(id);
   return ids.map((id) => ({
     id,
-    name: r.playersById[id] ?? id,
-    type: r.playerTypesById?.[id] ?? 'human',
-    archived: false,
+    name: s.players[id] ?? id, // Get name from player entity, fallback to ID
+    type: s.playerDetails?.[id]?.type ?? r.playerTypesById?.[id] ?? 'human',
+    archived: s.playerDetails?.[id]?.archived ?? false,
   }));
 });
 

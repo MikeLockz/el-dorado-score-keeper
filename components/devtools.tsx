@@ -10,6 +10,7 @@ import {
   deriveGameRoute,
   selectHumanIdFor,
   selectPlayersOrderedFor,
+  listGames,
   type BackfillCandidate,
   type BackfillGameResult,
 } from '@/lib/state';
@@ -510,6 +511,34 @@ export default function Devtools() {
               title="Copy full event bundle JSON to clipboard"
             >
               Copy bundle JSON
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+            <button
+              onClick={() => {
+                void (async () => {
+                  try {
+                    const games = await listGames();
+                    await navigator.clipboard.writeText(JSON.stringify(games, null, 2));
+                  } catch (e) {
+                    const reason = e instanceof Error ? e.message : 'Unknown error';
+                    captureBrowserMessage('devtools.copy-games.failed', {
+                      level: 'warn',
+                      attributes: { reason },
+                    });
+                  }
+                })();
+              }}
+              style={{
+                fontSize: 11,
+                padding: '4px 6px',
+                background: '#334155',
+                color: '#fff',
+                borderRadius: 4,
+              }}
+              title="Copy games list JSON to clipboard (powers /games view)"
+            >
+              Copy games JSON
             </button>
           </div>
           <div

@@ -62,15 +62,15 @@ export function addPlayer(
   if (!r) return state;
   const currentCount = Object.keys(r.playersById).length;
   if (currentCount >= 10) return state;
-  const trimmed = String(p.name).trim();
-  if (!trimmed) return state;
-  const existsByName = Object.values(r.playersById).some(
-    (n) => (n ?? '').trim().toLowerCase() === trimmed.toLowerCase(),
-  );
-  if (existsByName) return state;
+
+  // Check if player already exists in this roster
   if (r.playersById[p.id]) return state;
+
+  // Don't duplicate player data in roster - player entity is now in state.players
+  // Just store a simple reference that the player is in this roster
   const playersById = clone(r.playersById);
-  playersById[p.id] = trimmed;
+  playersById[p.id] = ''; // Empty string indicates player exists (data is in state.players)
+
   const playerTypesById = clone(r.playerTypesById ?? {});
   playerTypesById[p.id] = p.type ?? 'human';
   const displayOrder = clone(r.displayOrder);
@@ -88,17 +88,10 @@ export function renamePlayer(
 ): AppState {
   const r = ensureRoster(state, p.rosterId);
   if (!r || !r.playersById[p.id]) return state;
-  const trimmed = String(p.name).trim();
-  if (!trimmed) return state;
-  const existsByName = Object.entries(r.playersById).some(
-    ([id, n]) => id !== p.id && (n ?? '').trim().toLowerCase() === trimmed.toLowerCase(),
-  );
-  if (existsByName) return state;
-  const playersById = clone(r.playersById);
-  playersById[p.id] = trimmed;
-  const rosters = clone(state.rosters);
-  rosters[p.rosterId] = Object.assign({}, r, { playersById });
-  return Object.assign({}, state, { rosters });
+
+  // Player name is now managed in state.players
+  // No need to duplicate in roster - just keep the reference
+  return state;
 }
 
 export function setPlayerType(

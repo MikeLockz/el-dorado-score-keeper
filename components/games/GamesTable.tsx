@@ -153,7 +153,7 @@ export function GamesTable({
         );
       },
     }),
-    columnHelper.accessor('gameType', {
+    columnHelper.accessor('summary.mode', {
       header: ({ column }) => (
         <button
           className="sortableHeader"
@@ -180,7 +180,10 @@ export function GamesTable({
         );
       },
     }),
-    columnHelper.accessor('playerCount', {
+    columnHelper.accessor(
+    (game) => resolveGamePlayerCount(game),
+    {
+      id: 'playerCount',
       header: ({ column }) => (
         <button
           className="sortableHeader"
@@ -194,15 +197,22 @@ export function GamesTable({
       ),
       cell: ({ row }) => {
         const game = row.original;
+        const playerCount = resolveGamePlayerCount(game);
         return (
           <span className="secondaryText">
-            {resolveGamePlayerCount(game)}{' '}
-            {resolveGamePlayerCount(game) === 1 ? 'player' : 'players'}
+            {playerCount} {playerCount === 1 ? 'player' : 'players'}
           </span>
         );
       },
-    }),
-    columnHelper.accessor('winner', {
+    },
+  ),
+    columnHelper.accessor(
+    (game) => {
+      const isCompleted = isGameRecordCompleted(game);
+      return isCompleted ? (game.summary.winnerName ?? '-') : 'incomplete';
+    },
+    {
+      id: 'winner',
       header: ({ column }) => (
         <button
           className="sortableHeader"
@@ -216,13 +226,15 @@ export function GamesTable({
       ),
       cell: ({ row }) => {
         const game = row.original;
+        const isCompleted = isGameRecordCompleted(game);
         return (
           <span className={clsx('secondaryText', styles.cellEmphasis)}>
-            {game.summary.winnerName ?? '-'}
+            {isCompleted ? (game.summary.winnerName ?? '-') : 'incomplete'}
           </span>
         );
       },
-    }),
+    },
+  ),
     columnHelper.display({
       id: 'actions',
       header: 'Actions',

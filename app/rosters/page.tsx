@@ -51,7 +51,7 @@ export default function RostersPage() {
       events.rosterCreated({
         rosterId,
         name: newRosterName,
-        type: 'scorecard',
+        // No type field needed - rosters are just player collections
       }),
     );
     handleRostersChange();

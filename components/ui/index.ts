@@ -10,3 +10,4 @@ export * from './EditableCell';
 export * from './toast';
 export * from './DataTable';
 export * from './BackLink';
+export * from './EntityActionsCard';

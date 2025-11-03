@@ -85,6 +85,7 @@ export function PlayersTable({
       }));
     }
 
+    // Get players from the unified player system
     const orderedPlayers = selectPlayersOrdered(state);
     return orderedPlayers.map((player) => ({
       ...player,

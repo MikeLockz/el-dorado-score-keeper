@@ -5,7 +5,7 @@ import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import { Loader2, Plus, Archive, Trash2, Undo2, X, UserPlus } from 'lucide-react';
 
-import { Button, InlineEdit, Card } from '@/components/ui';
+import { Button, InlineEdit, Card, EntityActionsCard } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import {
   assertEntityAvailable,
@@ -183,17 +183,57 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
     [toast],
   );
 
-  // Roster name editing handler
+  // Roster name editing handler - creates new roster version to preserve history
   const handleSaveRosterName = React.useCallback(
     async (newName: string) => {
+      if (newName.trim() === roster?.name) {
+        // No change needed
+        toast({
+          title: 'No changes',
+          description: 'Roster name is already set to this value.',
+          variant: 'warning',
+        });
+        return;
+      }
+
       try {
         await runWithRosterAction('rename-roster', async () => {
-          await append(events.rosterRenamed({ rosterId, name: newName }));
-        });
-        toast({
-          title: 'Roster name updated',
-          description: `Name changed to "${newName}"`,
-          variant: 'success',
+          // Create new roster version with same players but new ID
+          const newRosterId = uuid();
+          const currentPlayers = rosterPlayers.map((player) => ({
+            id: player.id,
+            name: player.name,
+            type: player.type,
+          }));
+
+          // Create new roster with same players
+          await append(
+            events.rosterCreated({
+              rosterId: newRosterId,
+              name: newName,
+              type: roster.type || 'scorecard', // Preserve original type
+            }),
+          );
+
+          // Add all existing players to new roster
+          for (const player of currentPlayers) {
+            await append(
+              events.rosterPlayerAdded({
+                rosterId: newRosterId,
+                id: player.id,
+                name: player.name,
+                type: player.type,
+              }),
+            );
+          }
+
+          // Update any games that referenced the old roster to use new roster ID
+          // This would require a new event to update game roster references
+          toast({
+            title: 'Roster updated',
+            description: `Created new roster version "${newName}"`,
+            variant: 'success',
+          });
         });
       } catch (error) {
         // Error is already handled by runWithRosterAction
@@ -270,11 +310,49 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
     if (!trimmed) return;
     setPending('add-new');
     await runWithRosterAction('create-player-for-roster', async () => {
-      const playerId = uuid();
-      await appendMany([
-        events.playerAdded({ id: playerId, name: trimmed, type: 'human' }),
-        events.rosterPlayerAdded({ rosterId, id: playerId, name: trimmed, type: 'human' }),
-      ]);
+      // Create new roster version when adding player
+      const newRosterId = uuid();
+      const currentPlayers = rosterPlayers.map((player) => ({
+        id: player.id,
+        name: player.name,
+        type: player.type,
+      }));
+
+      // Create new roster with current players + new player
+      await append(
+        events.rosterCreated({
+          rosterId: newRosterId,
+          name: roster.name, // Preserve original name
+          type: roster.type || 'scorecard',
+        }),
+      );
+
+      // Add all players (current + new) to new roster
+      const allPlayers = [
+        ...currentPlayers,
+        {
+          id: playerId,
+          name: trimmed,
+          type: 'human',
+        },
+      ];
+
+      for (const player of allPlayers) {
+        await append(
+          events.rosterPlayerAdded({
+            rosterId: newRosterId,
+            id: player.id,
+            name: player.name,
+            type: player.type,
+          }),
+        );
+      }
+
+      toast({
+        title: 'Roster updated',
+        description: `Added ${trimmed} to roster (new version created)`,
+        variant: 'success',
+      });
     });
     setPending(null);
   }, [appendMany, pending, promptDialog, rosterId, runWithRosterAction, state]);
@@ -304,11 +382,37 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
       }
       setPending(`remove:${player.id}`);
       await runWithRosterAction('remove-roster-player', async () => {
+        // Create new roster version when removing player
+        const newRosterId = uuid();
+        const otherPlayers = rosterPlayers.filter((p) => p.id !== player.id);
+
+        // Create new roster with remaining players
+        await append(
+          events.rosterCreated({
+            rosterId: newRosterId,
+            name: roster.name, // Preserve original name
+            type: roster.type || 'scorecard',
+          }),
+        );
+
+        // Add remaining players to new roster
+        for (const otherPlayer of otherPlayers) {
+          await append(
+            events.rosterPlayerAdded({
+              rosterId: newRosterId,
+              id: otherPlayer.id,
+              name: otherPlayer.name,
+              type: otherPlayer.type,
+            }),
+          );
+        }
+
+        // Remove player from old roster
         await append(events.rosterPlayerRemoved({ rosterId, id: player.id }));
       });
       setPending(null);
     },
-    [append, pending, rosterId, rosterPlayers.length, runWithRosterAction, toast],
+    [append, pending, rosterId, rosterPlayers, runWithRosterAction, toast],
   );
 
   const handleArchive = React.useCallback(async () => {
@@ -449,60 +553,44 @@ export function RosterDetailPageClient({ rosterId }: RosterDetailPageClientProps
         </dl>
       </Card>
 
-      <Card className={styles.playerActionsSection}>
-        <div className={styles.playerActionsHeader}>
-          <h2 className={styles.playerActionsTitle}>Roster Actions</h2>
-          <p className={styles.playerActionsDescription}>
-            Manage this roster's status and availability.
-          </p>
-        </div>
-        <div className={styles.playerActionsList}>
-          {archived ? (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => void handleRestore()}
-                disabled={!ready || !archived || pending !== null}
-                className={styles.actionButton}
-              >
-                {pending === 'restore' ? (
-                  <Loader2 className={styles.spinner} aria-hidden="true" />
-                ) : (
-                  <Undo2 aria-hidden="true" />
-                )}{' '}
-                Restore Roster
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => void handleDelete()}
-                disabled={!ready || busy}
-                className={styles.actionButton}
-              >
-                {pending === 'delete' ? (
-                  <Loader2 className={styles.spinner} aria-hidden="true" />
-                ) : (
-                  <Trash2 aria-hidden="true" />
-                )}{' '}
-                Delete Roster
-              </Button>
-            </>
-          ) : (
-            <Button
-              variant="destructive"
-              onClick={() => void handleArchive()}
-              disabled={!ready || busy || archived}
-              className={styles.actionButton}
-            >
-              {pending === 'archive' ? (
-                <Loader2 className={styles.spinner} aria-hidden="true" />
-              ) : (
-                <Archive aria-hidden="true" />
-              )}{' '}
-              Archive Roster
-            </Button>
-          )}
-        </div>
-      </Card>
+      <EntityActionsCard
+        title="Roster Actions"
+        description="Manage this roster's status and availability."
+        actions={
+          archived
+            ? [
+                {
+                  id: 'restore-roster',
+                  label: 'Restore Roster',
+                  variant: 'outline',
+                  icon: <Undo2 aria-hidden="true" />,
+                  onClick: () => void handleRestore(),
+                  disabled: !ready || !archived || pending !== null,
+                  pending: pending === 'restore',
+                },
+                {
+                  id: 'delete-roster',
+                  label: 'Delete Roster',
+                  variant: 'destructive',
+                  icon: <Trash2 aria-hidden="true" />,
+                  onClick: () => void handleDelete(),
+                  disabled: !ready || busy,
+                  pending: pending === 'delete',
+                },
+              ]
+            : [
+                {
+                  id: 'archive-roster',
+                  label: 'Archive Roster',
+                  variant: 'destructive',
+                  icon: <Archive aria-hidden="true" />,
+                  onClick: () => void handleArchive(),
+                  disabled: !ready || busy || archived,
+                  pending: pending === 'archive',
+                },
+              ]
+        }
+      />
 
       <section className={styles.section}>
         <div>

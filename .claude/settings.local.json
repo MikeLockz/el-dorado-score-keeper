@@ -30,7 +30,8 @@
       "Bash(npm run dev)",
       "Bash(npm run tokens:sync:*)",
       "Bash(gh pr create:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(pnpm tokens:sync:*)"
     ],
     "deny": [],
     "ask": []

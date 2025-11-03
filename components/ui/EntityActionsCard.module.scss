@@ -1,0 +1,75 @@
+@use '../../styles/mixins/typography' as typography;
+@use '../../styles/tokens/spacing' as spacing;
+
+.entityActionsSection {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 3px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  overflow: hidden;
+}
+
+.entityActionsHeader {
+  padding: spacing.spacing('space-6');
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-muted) 20%, transparent);
+}
+
+.entityActionsTitle {
+  @include typography.heading('heading-lg');
+  font-weight: 700;
+  color: var(--color-foreground);
+  margin: 0 0 spacing.spacing('space-1') 0;
+}
+
+.entityActionsDescription {
+  @include typography.body('body-md');
+  color: var(--color-muted-foreground);
+  margin: 0;
+}
+
+.entityActionsList {
+  padding: spacing.spacing('space-6');
+  display: flex;
+  flex-direction: column;
+  gap: spacing.spacing('space-3');
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: spacing.spacing('space-2');
+  justify-content: flex-start;
+  min-height: 2.75rem;
+  width: 100%;
+
+  @media (min-width: 640px) {
+    width: auto;
+    min-width: 12rem;
+  }
+}
+
+.spinner {
+  inline-size: 1rem;
+  block-size: 1rem;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .entityActionsHeader {
+    padding: spacing.spacing('space-4');
+  }
+
+  .entityActionsList {
+    padding: spacing.spacing('space-4');
+  }
+}

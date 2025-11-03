@@ -5,7 +5,7 @@ import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-import { Button, Card, InlineEdit } from '@/components/ui';
+import { Button, Card, InlineEdit, EntityActionsCard } from '@/components/ui';
 import { useAppState } from '@/components/state-provider';
 import {
   assertEntityAvailable,
@@ -263,6 +263,7 @@ export function PlayerDetailPage({ playerId }: PlayerDetailPageProps) {
         toast({
           title: 'Player name updated',
           description: `Name changed to "${newName}"`,
+          variant: 'success',
         });
       } catch (error) {
         throw new Error('Failed to update player name');
@@ -415,33 +416,19 @@ export function PlayerDetailPage({ playerId }: PlayerDetailPageProps) {
       </Card>
 
       {/* Player Actions Section */}
-      <Card className={styles.playerActionsSection}>
-        <div className={styles.playerActionsHeader}>
-          <h2 className={styles.playerActionsTitle}>Player Actions</h2>
-          <p className={styles.playerActionsDescription}>
-            Manage this player's status and availability.
-          </p>
-        </div>
-        <div className={styles.playerActionsList}>
-          {archived ? (
-            <Button
-              variant="outline"
-              onClick={handleUnarchivePlayer}
-              className={styles.actionButton}
-            >
-              <Undo2 aria-hidden="true" /> Restore Player
-            </Button>
-          ) : (
-            <Button
-              variant="destructive"
-              onClick={handleArchivePlayer}
-              className={styles.actionButton}
-            >
-              <Archive aria-hidden="true" /> Archive Player
-            </Button>
-          )}
-        </div>
-      </Card>
+      <EntityActionsCard
+        title="Player Actions"
+        description="Manage this player's status and availability."
+        actions={[
+          {
+            id: archived ? 'restore-player' : 'archive-player',
+            label: archived ? 'Restore Player' : 'Archive Player',
+            variant: archived ? 'outline' : 'destructive',
+            icon: archived ? <Undo2 aria-hidden="true" /> : <Archive aria-hidden="true" />,
+            onClick: archived ? handleUnarchivePlayer : handleArchivePlayer,
+          },
+        ]}
+      />
 
       {/* Statistics Section - Following AdvancedInsightsPanel pattern */}
       <div className={styles.statisticsSection} aria-live="polite">

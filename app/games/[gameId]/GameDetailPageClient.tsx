@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
 
 import { Button, Card, InlineEdit } from '@/components/ui';
+import { useAppState } from '@/components/state-provider';
 import ScorecardGrid, {
   type ScorecardPlayerColumn,
   type ScorecardRoundEntry,
@@ -15,7 +16,7 @@ import { deleteGame } from '@/lib/state';
 import { useConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { captureBrowserException } from '@/lib/observability/browser';
-import { Archive } from 'lucide-react';
+import { Archive, Play } from 'lucide-react';
 import {
   type AppState,
   type GameRecord,
@@ -30,11 +31,15 @@ import {
   selectRoundInfosAll,
   ROUNDS_TOTAL,
   tricksForRound,
+  updateGameTitle,
+  restoreGame,
+  deriveGameMode,
 } from '@/lib/state';
 import { analyzeGame } from '@/lib/analytics';
 import { formatDateTime } from '@/lib/format';
 import { formatDuration } from '@/lib/utils';
 import { captureBrowserMessage } from '@/lib/observability/browser';
+import { resolveSinglePlayerRoute, resolveScorecardRoute } from '@/lib/state';
 import ArchivedGameMissing from '../_components/ArchivedGameMissing';
 import { subscribeToGamesSignal } from '@/lib/state/game-signals';
 import { trackGameDetailView } from '@/lib/observability/events';
@@ -167,7 +172,9 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
   const router = useRouter();
   const { toast } = useToast();
   const confirmDialog = useConfirmDialog();
+  const { ready, awaitHydration, hydrationEpoch } = useAppState();
   const [game, setGame] = React.useState<GameRecord | null | undefined>(undefined);
+  const [resumePending, setResumePending] = React.useState<string | null>(null);
 
   const describeError = React.useCallback((error: unknown) => {
     if (error instanceof Error) return error.message;
@@ -296,19 +303,102 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
     }
   }, [game, gameId, confirmDialog, toast, router]);
 
-  // Game title editing handler (for display consistency - games are immutable)
+  // Game title editing handler
   const handleSaveGameTitle = React.useCallback(
     async (newTitle: string) => {
-      // Games are immutable records, so we show a message explaining this
-      toast({
-        title: 'Game titles cannot be changed',
-        description:
-          'Games are historical records and their titles cannot be modified after completion.',
-        variant: 'warning',
-      });
-      throw new Error('Game titles cannot be changed - games are immutable records');
+      if (!game) {
+        throw new Error('Game not found');
+      }
+
+      try {
+        await updateGameTitle(undefined, game.id, newTitle);
+
+        // Update local state to reflect the change immediately
+        setGame(prev => prev ? { ...prev, title: newTitle.trim() } : null);
+
+        toast({
+          title: 'Game title updated',
+          description: 'The game title has been successfully changed.',
+          variant: 'success',
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to update game title';
+        captureBrowserException(
+          error instanceof Error ? error : new Error(message),
+          {
+            scope: 'game-detail',
+            action: 'update-title',
+            gameId: game.id,
+          },
+        );
+        toast({
+          title: 'Failed to update game title',
+          description: message,
+          variant: 'destructive',
+        });
+        throw error;
+      }
     },
-    [toast],
+    [game, toast],
+  );
+
+  // Game resume handler
+  const handleResumeGame = React.useCallback(
+    async () => {
+      if (!game || resumePending) return;
+
+      // Don't allow resuming completed games
+      if (isCompleted) {
+        toast({
+          title: 'Cannot resume completed game',
+          description: 'This game has been completed and cannot be resumed.',
+          variant: 'warning',
+        });
+        return;
+      }
+
+      setResumePending(game.id);
+      try {
+        const previousEpoch = hydrationEpoch;
+        await restoreGame(undefined, game.id);
+
+        const mode = deriveGameMode(game);
+
+        // Wait for hydration or timeout
+        await Promise.race([
+          awaitHydration(previousEpoch),
+          new Promise((resolve) => setTimeout(resolve, 750)),
+        ]);
+
+        // Navigate to the appropriate route based on game mode
+        const route = mode === 'single-player'
+          ? resolveSinglePlayerRoute(null, { fallback: 'entry' })
+          : resolveScorecardRoute(null);
+
+        router.push(route);
+
+        toast({
+          title: 'Game resumed',
+          description: `Resumed ${mode === 'single-player' ? 'single player' : 'scorecard'} game.`,
+          variant: 'success',
+        });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : 'Unknown error';
+        captureBrowserMessage('games.detail.resume.failed', {
+          level: 'warn',
+          attributes: { reason, gameId: game.id },
+        });
+
+        toast({
+          title: 'Failed to resume game',
+          description: 'Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setResumePending(null);
+      }
+    },
+    [game, resumePending, isCompleted, toast, hydrationEpoch, restoreGame, deriveGameMode, awaitHydration, router],
   );
 
   const sp = game?.summary.sp;
@@ -359,7 +449,7 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
                 }}
                 saveLabel="Save"
                 cancelLabel="Cancel"
-                errorLabel="Game titles cannot be changed"
+                errorLabel="Failed to update game title"
               />
             </dd>
           </div>
@@ -409,6 +499,25 @@ export function GameDetailPageClient({ gameId }: GameDetailPageClientProps) {
           </p>
         </div>
         <div className={styles.gameActionsList}>
+          {/* Resume Game button - only shown for incomplete games */}
+          {!isArchived && !isCompleted && (
+            <Button
+              onClick={handleResumeGame}
+              disabled={resumePending !== null || !ready}
+              className={styles.actionButton}
+            >
+              {resumePending ? (
+                <>
+                  <Loader2 className={styles.spinner} aria-hidden="true" />
+                  Resuming…
+                </>
+              ) : (
+                <>
+                  <Play aria-hidden="true" /> Resume Game
+                </>
+              )}
+            </Button>
+          )}
           {!isArchived ? (
             <Button
               variant="destructive"
