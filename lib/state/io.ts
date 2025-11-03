@@ -1021,45 +1021,75 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
 
       await importBundleSoft(dbName, rec.bundle);
 
-      // Fix for single-player game restoration: ensure restored games get indexed properly
+      // Fix for single-player game restoration: ensure restored games use archive UUID and get indexed properly
       if (rec.bundle.mode === 'single-player') {
         try {
-          // Get the current state to extract the new gameId
-          const currentState = await previewAt(dbName, rec.lastSeq || 0);
-          const currentGameId = getCurrentSinglePlayerGameId(currentState);
+          // Use the archive ID instead of generating a new gameId
+          const archiveGameId = id; // The archive ID should be a UUID
 
-          if (currentGameId) {
-            // Create/update the sp-game-index entry
-            const db = await openDB(dbName);
-            try {
-              const transaction = db.transaction(['state'], 'readwrite');
-              const store = transaction.objectStore('state');
+          // Validate that the archive ID is a valid UUID
+          if (
+            !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(archiveGameId)
+          ) {
+            throw new Error(`Archive ID ${archiveGameId} is not a valid UUID format`);
+          }
 
-              // Get existing index
-              const indexRequest = store.get('sp/game-index');
-              const gameIndex = await new Promise<any>((resolve, reject) => {
-                indexRequest.onsuccess = () => resolve(indexRequest.result || { games: {} });
-                indexRequest.onerror = () => reject(indexRequest.error);
-              });
+          // Create/update the sp-game-index entry with the archive ID
+          const db = await openDB(dbName);
+          try {
+            const transaction = db.transaction(['state'], 'readwrite');
+            const store = transaction.objectStore('state');
 
-              // Update index with new game
-              gameIndex.games = gameIndex.games || {};
-              gameIndex.games[currentGameId] = {
-                height: rec.lastSeq || 0,
-                savedAt: Date.now(),
+            // Get existing index
+            const indexRequest = store.get('sp/game-index');
+            const gameIndex = await new Promise<any>((resolve, reject) => {
+              indexRequest.onsuccess = () => resolve(indexRequest.result || { games: {} });
+              indexRequest.onerror = () => reject(indexRequest.error);
+            });
+
+            // Update index with archive game ID
+            gameIndex.games = gameIndex.games || {};
+            gameIndex.games[archiveGameId] = {
+              height: rec.lastSeq || 0,
+              savedAt: Date.now(),
+            };
+
+            // Save updated index
+            const putRequest = store.put(gameIndex);
+            await new Promise<void>((resolve, reject) => {
+              putRequest.onsuccess = () => resolve();
+              putRequest.onerror = () => reject(putRequest.error);
+            });
+
+            // Update the single-player state to use the archive gameId
+            // This ensures getCurrentSinglePlayerGameId returns the archive ID
+            const stateRequest = store.get('current');
+            const currentState = await new Promise<any>((resolve, reject) => {
+              stateRequest.onsuccess = () => resolve(stateRequest.result);
+              stateRequest.onerror = () => reject(stateRequest.error);
+            });
+
+            if (currentState && currentState.state && currentState.state.sp) {
+              const updatedState = {
+                ...currentState.state,
+                sp: {
+                  ...currentState.state.sp,
+                  currentGameId: archiveGameId,
+                  gameId: archiveGameId,
+                },
               };
 
-              // Save updated index
-              const putRequest = store.put(gameIndex);
+              const putStateRequest = store.put(updatedState);
               await new Promise<void>((resolve, reject) => {
-                putRequest.onsuccess = () => resolve();
-                putRequest.onerror = () => reject(putRequest.error);
+                putStateRequest.onsuccess = () => resolve();
+                putStateRequest.onerror = () => reject(putStateRequest.error);
               });
-
-              span?.setAttribute('sp.index.updated', 'true');
-            } finally {
-              db.close();
             }
+
+            span?.setAttribute('sp.index.updated', 'true');
+            span?.setAttribute('sp.archiveId', archiveGameId);
+          } finally {
+            db.close();
           }
         } catch (error) {
           captureBrowserMessage('restore.sp_index_update.failed', {
