@@ -19,6 +19,154 @@ import { captureBrowserMessage } from '@/lib/observability/browser';
 import { saveGeneratedGame } from '@/lib/devtools/generator/saveGeneratedGame';
 import type { CurrentUserProfile } from '@/lib/devtools/generator/gameDataGenerator';
 import { uuid } from '@/lib/utils';
+import { openDB } from '@/lib/state/db';
+import {
+  checkMigrationNeeded,
+  getMigrationStatus,
+  runMigrationSafely,
+  type MigrationStatus,
+} from '@/lib/migration/migrate-sp-to-uuid';
+
+async function gatherIndexedDbDebugInfo() {
+  const debugInfo: any = {
+    timestamp: new Date().toISOString(),
+    url: typeof window !== 'undefined' ? window.location.href : 'unknown',
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+    indexedDb: {
+      databases: [],
+      spSnapshot: null,
+      spGameIndex: null,
+      allStateKeys: [],
+      missingGames: [],
+      currentGameInfo: null,
+    },
+    currentState: {
+      height: 0,
+      currentGameId: null,
+      activeSingleRosterId: null,
+      spPhase: null,
+      spRoundNo: null,
+    },
+  };
+
+  try {
+    // Get available databases
+    if (typeof indexedDB !== 'undefined') {
+      const databases = await indexedDB.databases();
+      debugInfo.indexedDb.databases = databases;
+
+      // Try to open the app database
+      const appDb = await openDB('app-db');
+
+      // Check STATE store exists (single-player data is stored here)
+      if (appDb.objectStoreNames.contains('state')) {
+        const transaction = appDb.transaction(['state'], 'readonly');
+        const store = transaction.objectStore('state');
+
+        // Get specific single-player records
+        const snapshotRequest = store.get('sp/snapshot');
+        const indexRequest = store.get('sp/game-index');
+
+        debugInfo.indexedDb.spSnapshot = await new Promise((resolve, reject) => {
+          snapshotRequest.onsuccess = () => resolve(snapshotRequest.result);
+          snapshotRequest.onerror = () => reject(snapshotRequest.error);
+        });
+
+        debugInfo.indexedDb.spGameIndex = await new Promise((resolve, reject) => {
+          indexRequest.onsuccess = () => resolve(indexRequest.result);
+          indexRequest.onerror = () => reject(indexRequest.error);
+        });
+
+        // Get all state keys to see what's available
+        const allKeysRequest = store.getAllKeys();
+        const allKeys = await new Promise((resolve, reject) => {
+          allKeysRequest.onsuccess = () => resolve(allKeysRequest.result);
+          allKeysRequest.onerror = () => reject(allKeysRequest.error);
+        });
+
+        debugInfo.indexedDb.allStateKeys = allKeys;
+
+        appDb.close();
+      }
+    }
+  } catch (error) {
+    debugInfo.indexedDb.error = error instanceof Error ? error.message : String(error);
+  }
+
+  // Add current app state information
+  try {
+    if (typeof window !== 'undefined' && (window as any).__APP_STATE__) {
+      const appState = (window as any).__APP_STATE__;
+      debugInfo.currentState = {
+        height: appState.current || 0,
+        currentGameId: appState.state?.sp?.currentGameId || appState.state?.sp?.gameId || null,
+        activeSingleRosterId: appState.state?.activeSingleRosterId || null,
+        spPhase: appState.state?.sp?.phase || null,
+        spRoundNo: appState.state?.sp?.roundNo || null,
+        sessionSeed: appState.state?.sp?.sessionSeed || null,
+        rosters: Object.keys(appState.state?.rosters || {}),
+        players: Object.keys(appState.state?.players || {}),
+      };
+
+      // Check if current gameId exists in game index
+      const currentGameId = debugInfo.currentState.currentGameId;
+      if (currentGameId && !debugInfo.indexedDb.spGameIndex?.games?.[currentGameId]) {
+        debugInfo.indexedDb.missingGames.push(currentGameId);
+      }
+
+      // Add details about the current game
+      if (currentGameId) {
+        debugInfo.currentGameInfo = {
+          gameId: currentGameId,
+          urlGameId: debugInfo.url.match(/\/single-player\/([^\/]+)/)?.[1] || null,
+          inIndex: !!debugInfo.indexedDb.spGameIndex?.games?.[currentGameId],
+          hasSnapshot: !!debugInfo.indexedDb.spSnapshot,
+          snapshotGameId: debugInfo.indexedDb.spSnapshot?.snapshot?.gameId || null,
+          rosterId: debugInfo.currentState.activeSingleRosterId,
+          rosterExists:
+            !!debugInfo.currentState.activeSingleRosterId &&
+            debugInfo.currentState.rosters.includes(debugInfo.currentState.activeSingleRosterId),
+        };
+      }
+    }
+  } catch (error) {
+    debugInfo.currentState.error = error instanceof Error ? error.message : String(error);
+  }
+
+  return debugInfo;
+}
+
+async function handleUuidMigration(): Promise<void> {
+  console.log('🔍 Checking UUID migration status...');
+
+  try {
+    const status = await getMigrationStatus();
+
+    console.log('📊 Migration Status:');
+    console.log(`   Total Games: ${status.totalGames}`);
+    console.log(`   sp-### Format: ${status.spFormatGames}`);
+    console.log(`   UUID Format: ${status.uuidFormatGames}`);
+    console.log(`   Needs Migration: ${status.needsMigration}`);
+
+    if (!status.needsMigration) {
+      console.log('✅ No migration needed - all games already use UUID format');
+      return;
+    }
+
+    console.log('🔄 Starting UUID migration...');
+    const result = await runMigrationSafely();
+
+    if (result.success) {
+      console.log(`✅ Migration completed successfully!`);
+      console.log(`   Migrated ${result.migrated} games from sp-### to UUID format`);
+      console.log('🔄 Please refresh the page to see updated game IDs');
+    } else {
+      console.error('❌ Migration failed:', result.error);
+    }
+  } catch (error) {
+    console.error('❌ Migration error:', error);
+  }
+}
 
 export default function Devtools() {
   const {
@@ -539,6 +687,62 @@ export default function Devtools() {
               title="Copy games list JSON to clipboard (powers /games view)"
             >
               Copy games JSON
+            </button>
+            <button
+              onClick={() => {
+                void (async () => {
+                  try {
+                    const debugInfo = await gatherIndexedDbDebugInfo();
+                    console.log('=== SINGLE PLAYER DEBUG INFO ===');
+                    console.log(JSON.stringify(debugInfo, null, 2));
+                    console.log('=== END DEBUG INFO ===');
+                    await navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2));
+                  } catch (e) {
+                    const reason = e instanceof Error ? e.message : 'Unknown error';
+                    console.error('Failed to gather debug info:', reason);
+                    captureBrowserMessage('devtools.debug-info.failed', {
+                      level: 'warn',
+                      attributes: { reason },
+                    });
+                  }
+                })();
+              }}
+              style={{
+                fontSize: 11,
+                padding: '4px 6px',
+                background: '#dc2626',
+                color: '#fff',
+                borderRadius: 4,
+              }}
+              title="Output IndexedDB debugging information to console and clipboard"
+            >
+              Debug IndexedDB
+            </button>
+            <button
+              onClick={() => {
+                void (async () => {
+                  try {
+                    await handleUuidMigration();
+                  } catch (e) {
+                    const reason = e instanceof Error ? e.message : 'Unknown error';
+                    console.error('Failed to run UUID migration:', reason);
+                    captureBrowserMessage('devtools.uuid-migration.failed', {
+                      level: 'warn',
+                      attributes: { reason },
+                    });
+                  }
+                })();
+              }}
+              style={{
+                fontSize: 11,
+                padding: '4px 6px',
+                background: '#7c3aed',
+                color: '#fff',
+                borderRadius: 4,
+              }}
+              title="Migrate sp-### format games to UUID format (check console for details)"
+            >
+              Migrate to UUID
             </button>
           </div>
           <div
