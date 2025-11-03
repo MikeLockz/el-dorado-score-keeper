@@ -77,15 +77,26 @@ export default function RestoreGameModalClient() {
         new Promise((resolve) => setTimeout(resolve, 750)),
       ]);
       const snapshot = stateRef.current;
-      const candidate =
-        mode === 'single-player'
-          ? resolveSinglePlayerRoute(snapshot, { fallback: 'entry' })
-          : resolveScorecardRoute(snapshot);
+
       if (mode === 'single-player') {
+        // For single-player games, explicitly use the archive UUID to ensure route consistency
+        // This prevents the race condition where state hydration might not be complete
+        const currentGameId = snapshot?.sp?.currentGameId;
+        if (
+          currentGameId &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentGameId)
+        ) {
+          return `/single-player/${currentGameId}`;
+        }
+        // Fallback to normal route resolution if for some reason the gameId isn't available
+        const candidate = resolveSinglePlayerRoute(snapshot, { fallback: 'entry' });
         return candidate.startsWith('/single-player/') && candidate.split('/').length >= 3
           ? candidate
           : resolveSinglePlayerRoute(snapshot, { fallback: 'entry' });
       }
+
+      // For scorecard games, use the existing logic
+      const candidate = resolveScorecardRoute(snapshot);
       return candidate.startsWith('/scorecard/') ? candidate : SCORECARD_HUB_PATH;
     },
     [appState.awaitHydration],
