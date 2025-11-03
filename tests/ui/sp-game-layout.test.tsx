@@ -32,7 +32,7 @@ function mountAppState(state: AppState, overrides: Partial<MockAppStateHook> = {
 
 suite('Single Player game layout entity guard', () => {
   beforeEach(() => {
-    setMockParams({ gameId: 'sp-test' });
+    setMockParams({ gameId: '550e8400-e29b-41d4-a716-446655440000' });
   });
 
   it('renders navigation for the requested game when available', async () => {
@@ -42,7 +42,7 @@ suite('Single Player game layout entity guard', () => {
       phase: 'playing',
       hands: { a: [{ suit: 'diamonds', rank: 4 }] },
       trickPlays: [],
-      currentGameId: 'sp-test',
+      currentGameId: '550e8400-e29b-41d4-a716-446655440000',
     } as AppState['sp'];
     mountAppState(state, { ready: true });
 
@@ -53,7 +53,11 @@ suite('Single Player game layout entity guard', () => {
     root.render(React.createElement(Layout, null, React.createElement('div', { id: 'child' })));
 
     await waitFor(() => {
-      const links = Array.from(container.querySelectorAll('a[href^="/single-player/sp-test"]'));
+      const links = Array.from(
+        container.querySelectorAll(
+          'a[href^="/single-player/550e8400-e29b-41d4-a716-446655440000"]',
+        ),
+      );
       expect(links).toHaveLength(3);
     });
 

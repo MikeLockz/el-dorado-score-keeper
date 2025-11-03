@@ -55,7 +55,7 @@ suite('Single Player root layout redirects', () => {
       phase: 'playing',
       hands: { a: [{ suit: 'clubs', rank: 5 }] },
       trickPlays: [{ playerId: 'a', card: { suit: 'clubs', rank: 5 } }],
-      currentGameId: 'sp-live-123',
+      currentGameId: '123e4567-e89b-12d3-a456-426614174000',
     } as AppState['sp'];
     mountAppState(state, { ready: true });
 
@@ -66,7 +66,9 @@ suite('Single Player root layout redirects', () => {
     root.render(React.createElement(Layout, null, React.createElement('div')));
 
     await waitFor(() => {
-      expect(router.replace).toHaveBeenCalledWith('/single-player/sp-live-123');
+      expect(router.replace).toHaveBeenCalledWith(
+        '/single-player/123e4567-e89b-12d3-a456-426614174000',
+      );
     });
 
     root.unmount();
