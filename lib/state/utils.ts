@@ -15,17 +15,47 @@ export function generateUUID(): string {
 }
 
 function deriveGameIdFromSessionSeed(seed: unknown): string | null {
+  // Phase 4 of UUID migration: Generate UUIDs instead of sp-### format
+  // The session seed is still used for reproducible deals, but game IDs are now UUIDs
+
   if (typeof seed === 'number' && Number.isFinite(seed) && seed > 0) {
+    // Create deterministic UUID from seed for reproducible game IDs
     const normalized = Math.floor(Math.abs(seed));
     if (normalized === 0) return null;
-    return `sp-${normalized.toString(36)}`;
+
+    // Generate a UUID seeded with the sessionSeed for reproducibility
+    const hash = (normalized * 2654435761) % 0xffffffff;
+    const random = () => {
+      const x = Math.sin(hash) * 10000;
+      return x - Math.floor(x);
+    };
+
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
   }
+
   if (typeof seed === 'string') {
     const parsed = Number(seed);
     if (Number.isFinite(parsed) && parsed > 0) {
-      return `sp-${Math.floor(Math.abs(parsed)).toString(36)}`;
+      // Use same deterministic UUID generation for string seeds
+      const normalized = Math.floor(Math.abs(parsed));
+      const hash = (normalized * 2654435761) % 0xffffffff;
+      const random = () => {
+        const x = Math.sin(hash) * 10000;
+        return x - Math.floor(x);
+      };
+
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
     }
   }
+
   return null;
 }
 
