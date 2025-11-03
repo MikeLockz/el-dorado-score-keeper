@@ -6,6 +6,14 @@ function normalizeLooseId(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+export function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 function deriveGameIdFromSessionSeed(seed: unknown): string | null {
   if (typeof seed === 'number' && Number.isFinite(seed) && seed > 0) {
     const normalized = Math.floor(Math.abs(seed));
@@ -64,11 +72,36 @@ export function getCurrentSinglePlayerGameId(state: AppState): string | null {
       }
     | undefined;
   const direct = normalizeLooseId(sp?.currentGameId);
-  if (direct) return direct;
+
+  // During migration, support both formats but prioritize UUIDs
+  if (direct) {
+    // Check if it's a UUID format (preferred)
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(direct)) {
+      return direct;
+    }
+    // Handle legacy sp-### format during migration
+    if (direct.startsWith('sp-')) {
+      return direct; // Return as-is for now, will be migrated later
+    }
+    return direct;
+  }
+
   const legacy = normalizeLooseId(sp?.gameId);
-  if (legacy) return legacy;
-  const derived = deriveGameIdFromSessionSeed(sp?.sessionSeed);
-  return derived;
+  if (legacy) {
+    // Handle legacy sp-### format during migration
+    if (legacy.startsWith('sp-')) {
+      return legacy; // Return as-is for now, will be migrated later
+    }
+    return legacy;
+  }
+
+  // Generate new UUID if no game ID exists
+  const sessionSeed = typeof sp?.sessionSeed === 'number' ? sp.sessionSeed : null;
+  if (sessionSeed) {
+    return generateUUID(); // New UUID-based generation instead of sp-###
+  }
+
+  return null;
 }
 
 export function getActiveScorecardId(state: AppState): string | null {
@@ -129,7 +162,19 @@ export function ensureSinglePlayerGameIdentifiers(state: AppState): AppState {
     gameId?: string | null;
   };
   const id = getCurrentSinglePlayerGameId(state);
-  if (!id) return state;
+
+  // If no ID exists, generate a new UUID instead of sp-###
+  if (!id) {
+    const sp = state.sp as SinglePlayerStateWithIds;
+    const newId = generateUUID();
+    const nextSp: SinglePlayerStateWithIds = { ...sp };
+    if (nextSp) {
+      nextSp.currentGameId = newId;
+      nextSp.gameId = newId;
+    }
+    return { ...state, sp: nextSp };
+  }
+
   const sp = state.sp as SinglePlayerStateWithIds;
   const hasCurrent = normalizeLooseId(sp?.currentGameId) === id;
   const hasLegacy = normalizeLooseId(sp?.gameId) === id;
