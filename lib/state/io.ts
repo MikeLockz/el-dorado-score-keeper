@@ -11,7 +11,7 @@ import { uuid } from '@/lib/utils';
 import { formatDateTime } from '@/lib/format';
 import { withSpan } from '@/lib/observability/spans';
 import { captureBrowserMessage } from '@/lib/observability/browser';
-import { scorecardPath, singlePlayerPath } from './utils';
+import { scorecardPath, singlePlayerPath, getCurrentSinglePlayerGameId } from './utils';
 import { emitGamesSignal } from './game-signals';
 import { selectIsGameComplete } from './selectors';
 
@@ -1020,6 +1020,58 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
       }
 
       await importBundleSoft(dbName, rec.bundle);
+
+      // Fix for single-player game restoration: ensure restored games get indexed properly
+      if (rec.bundle.mode === 'single-player') {
+        try {
+          // Get the current state to extract the new gameId
+          const currentState = await previewAt(dbName, rec.lastSeq || 0);
+          const currentGameId = getCurrentSinglePlayerGameId(currentState);
+
+          if (currentGameId) {
+            // Create/update the sp-game-index entry
+            const db = await openDB(dbName);
+            try {
+              const transaction = db.transaction(['state'], 'readwrite');
+              const store = transaction.objectStore('state');
+
+              // Get existing index
+              const indexRequest = store.get('sp/game-index');
+              const gameIndex = await new Promise<any>((resolve, reject) => {
+                indexRequest.onsuccess = () => resolve(indexRequest.result || { games: {} });
+                indexRequest.onerror = () => reject(indexRequest.error);
+              });
+
+              // Update index with new game
+              gameIndex.games = gameIndex.games || {};
+              gameIndex.games[currentGameId] = {
+                height: rec.lastSeq || 0,
+                savedAt: Date.now(),
+              };
+
+              // Save updated index
+              const putRequest = store.put(gameIndex);
+              await new Promise<void>((resolve, reject) => {
+                putRequest.onsuccess = () => resolve();
+                putRequest.onerror = () => reject(putRequest.error);
+              });
+
+              span?.setAttribute('sp.index.updated', 'true');
+            } finally {
+              db.close();
+            }
+          }
+        } catch (error) {
+          captureBrowserMessage('restore.sp_index_update.failed', {
+            level: 'warn',
+            attributes: {
+              gameId: id,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            },
+          });
+        }
+      }
+
       span?.setAttribute('restored', true);
       span?.setAttribute('events.count', rec.bundle.events.length);
       span?.setAttribute('last.seq', rec.lastSeq ?? 0);
@@ -1049,7 +1101,11 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
   );
 }
 
-export async function updateGameTitle(gamesDbName: string = GAMES_DB_NAME, id: string, newTitle: string): Promise<void> {
+export async function updateGameTitle(
+  gamesDbName: string = GAMES_DB_NAME,
+  id: string,
+  newTitle: string,
+): Promise<void> {
   if (!id) {
     throw new Error('Game ID is required');
   }
@@ -1084,7 +1140,8 @@ export async function updateGameTitle(gamesDbName: string = GAMES_DB_NAME, id: s
     const putRequest = store.put(updatedRecord);
     await new Promise<void>((resolve, reject) => {
       putRequest.onsuccess = () => resolve();
-      putRequest.onerror = () => reject(putRequest.error || new Error('Failed to update game title'));
+      putRequest.onerror = () =>
+        reject(putRequest.error || new Error('Failed to update game title'));
     });
 
     // Emit a signal to notify other components of the change
