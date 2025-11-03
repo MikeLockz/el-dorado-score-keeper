@@ -29,17 +29,24 @@ const DEFAULT_ROUTE_CONTEXT: RouteHydrationContext = Object.freeze({
 
 const SINGLE_PLAYER_RESERVED_SEGMENTS = new Set(['new']);
 const SCORECARD_RESERVED_SEGMENTS = new Set(['new']);
-// Route IDs must be at least 6 characters long and consist of letters (a-z, case-insensitive), numbers (0-9), or hyphens (-).
-// Example valid ID: "abc123", "game-01"
-const ROUTE_ID_PATTERN = /^[a-z0-9-]{6,}$/i;
+// Route IDs support UUID format (preferred) and legacy sp-### format during migration
+// UUID format: 8-4-4-4-12 hex characters (e.g., "550e8400-e29b-41d4-a716-446655440000")
+// Legacy sp-### format: sp- followed by alphanumeric characters (e.g., "sp-mgxywbt0")
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LEGACY_SP_PATTERN = /^sp-[a-z0-9-]{6,}$/i;
 
 function normalizeId(candidate: unknown, reserved: Set<string>): string | null {
   if (typeof candidate !== 'string') return null;
   const trimmed = candidate.trim();
   if (!trimmed) return null;
   if (reserved.has(trimmed)) return null;
-  if (!ROUTE_ID_PATTERN.test(trimmed)) return null;
-  return trimmed;
+
+  // Support both UUID and legacy sp-### formats during migration
+  if (UUID_PATTERN.test(trimmed) || LEGACY_SP_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+
+  return null;
 }
 
 export function deriveRouteContext(pathname: string | null): RouteHydrationContext {
