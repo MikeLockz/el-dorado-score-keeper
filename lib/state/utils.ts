@@ -15,8 +15,8 @@ export function generateUUID(): string {
 }
 
 function deriveGameIdFromSessionSeed(seed: unknown): string | null {
-  // Phase 4 of UUID migration: Generate UUIDs instead of sp-### format
-  // The session seed is still used for reproducible deals, but game IDs are now UUIDs
+  // UUID-only: Generate UUIDs from session seed for reproducible game IDs
+  // The session seed is used for reproducible deals, game IDs are always UUIDs
 
   if (typeof seed === 'number' && Number.isFinite(seed) && seed > 0) {
     // Create deterministic UUID from seed for reproducible game IDs
@@ -103,26 +103,24 @@ export function getCurrentSinglePlayerGameId(state: AppState): string | null {
     | undefined;
   const direct = normalizeLooseId(sp?.currentGameId);
 
-  // During migration, support both formats but prioritize UUIDs
+  // Only support UUID format - reject sp-### format
   if (direct) {
-    // Check if it's a UUID format (preferred)
+    // Check if it's a UUID format
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(direct)) {
       return direct;
     }
-    // Handle legacy sp-### format during migration
-    if (direct.startsWith('sp-')) {
-      return direct; // Return as-is for now, will be migrated later
-    }
-    return direct;
+    // Reject sp-### format - this will trigger "game not found" behavior
+    return null;
   }
 
   const legacy = normalizeLooseId(sp?.gameId);
   if (legacy) {
-    // Handle legacy sp-### format during migration
-    if (legacy.startsWith('sp-')) {
-      return legacy; // Return as-is for now, will be migrated later
+    // Only accept UUID format from legacy field
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(legacy)) {
+      return legacy;
     }
-    return legacy;
+    // Reject sp-### format
+    return null;
   }
 
   // Generate new UUID if no game ID exists
@@ -193,7 +191,7 @@ export function ensureSinglePlayerGameIdentifiers(state: AppState): AppState {
   };
   const id = getCurrentSinglePlayerGameId(state);
 
-  // If no ID exists, generate a new UUID instead of sp-###
+  // If no ID exists, generate a new UUID
   if (!id) {
     const sp = state.sp as SinglePlayerStateWithIds;
     const newId = generateUUID();

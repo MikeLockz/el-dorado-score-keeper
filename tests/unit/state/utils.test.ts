@@ -35,13 +35,19 @@ describe('state utils helpers', () => {
     expect(getCurrentSinglePlayerGameId(state)).toBe('legacy-789');
   });
 
-  it('getCurrentSinglePlayerGameId derives identifier from session seed when missing explicit ids', () => {
+  it('getCurrentSinglePlayerGameId derives UUID from session seed when missing explicit ids', () => {
     const state = structuredClone(INITIAL_STATE);
     (state as any).sp = {
       ...state.sp,
       sessionSeed: 123456789,
     };
-    expect(getCurrentSinglePlayerGameId(state)).toBe('sp-21i3v9');
+    const gameId = getCurrentSinglePlayerGameId(state);
+    expect(gameId).not.toBeNull();
+    // Should be a UUID format
+    expect(gameId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    // Should be deterministic for the same seed
+    const gameId2 = getCurrentSinglePlayerGameId(state);
+    expect(gameId2).toBe(gameId);
   });
 
   it('getActiveScorecardId returns trimmed roster id', () => {
