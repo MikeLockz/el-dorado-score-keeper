@@ -20,12 +20,6 @@ import { saveGeneratedGame } from '@/lib/devtools/generator/saveGeneratedGame';
 import type { CurrentUserProfile } from '@/lib/devtools/generator/gameDataGenerator';
 import { uuid } from '@/lib/utils';
 import { openDB } from '@/lib/state/db';
-import {
-  checkMigrationNeeded,
-  getMigrationStatus,
-  runMigrationSafely,
-  type MigrationStatus,
-} from '@/lib/migration/migrate-sp-to-uuid';
 
 async function gatherIndexedDbDebugInfo() {
   const debugInfo: any = {
@@ -717,32 +711,6 @@ export default function Devtools() {
               title="Output IndexedDB debugging information to console and clipboard"
             >
               Debug IndexedDB
-            </button>
-            <button
-              onClick={() => {
-                void (async () => {
-                  try {
-                    await handleUuidMigration();
-                  } catch (e) {
-                    const reason = e instanceof Error ? e.message : 'Unknown error';
-                    console.error('Failed to run UUID migration:', reason);
-                    captureBrowserMessage('devtools.uuid-migration.failed', {
-                      level: 'warn',
-                      attributes: { reason },
-                    });
-                  }
-                })();
-              }}
-              style={{
-                fontSize: 11,
-                padding: '4px 6px',
-                background: '#7c3aed',
-                color: '#fff',
-                borderRadius: 4,
-              }}
-              title="Migrate sp-### format games to UUID format (check console for details)"
-            >
-              Migrate to UUID
             </button>
           </div>
           <div
