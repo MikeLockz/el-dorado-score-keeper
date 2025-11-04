@@ -701,12 +701,6 @@ export async function createInstance(opts?: {
         memoryState.players &&
         Object.values(memoryState.players).every((name) => name === 'You')
       ) {
-        console.log('🔧 Applying player name fixes to snapshot-loaded state:', {
-          gameId: target,
-          playersBefore: memoryState.players,
-          rosterId: memoryState.activeSingleRosterId,
-        });
-
         // Try to get correct player names from rosters
         const rosterId =
           typeof memoryState.activeSingleRosterId === 'string'
@@ -748,9 +742,9 @@ export async function createInstance(opts?: {
               ...memoryState,
               players: fixedPlayers,
             };
-            console.log('✅ Applied player name fixes to snapshot:', {
+            console.log('✅ Fixed player names in archived game snapshot:', {
               gameId: target,
-              playersAfter: memoryState.players,
+              correctedPlayers: Object.keys(fixedPlayers).length,
             });
           }
         }

@@ -1324,16 +1324,6 @@ function enrichStateWithSummaryRoster(
     const prioritizedName =
       normalizedName || fallbackNameFromEvents || fallbackNameFromState || existingName || pid;
 
-    console.log('[restore]', 'assignName', {
-      pid,
-      normalizedName,
-      fallbackNameFromEvents,
-      fallbackNameFromState,
-      existingName,
-      chosen: prioritizedName,
-      summaryPlayers: summary.playersById,
-      rosterSnapshotPlayers: rosterSnapshot?.playersById,
-    });
     const name = prioritizedName;
     nextPlayers[pid] = name;
     const existingDetail = nextPlayerDetails[pid];
@@ -1695,32 +1685,6 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
                 statePlayerTypes,
               );
 
-              console.log('🧱 Updated state players (post-enrich):', updatedState.players);
-              console.log('🧱 Archive player data sources:', {
-                summaryPlayers: rec.summary?.playersById,
-                eventPlayerNames,
-                rosterSnapshotPlayers: rec.summary?.rosterSnapshot?.playersById,
-                bundleEvents: rec.bundle.events?.slice(0, 3), // First few events to see player creation
-              });
-              console.log(
-                '🧱 Updated state rosters (post-enrich):',
-                Object.fromEntries(
-                  Object.entries(updatedState.rosters ?? {}).map(([rid, roster]) => [
-                    rid,
-                    {
-                      playersById: roster.playersById,
-                      playerTypesById: roster.playerTypesById,
-                      displayOrder: roster.displayOrder,
-                    },
-                  ]),
-                ),
-              );
-              console.log(
-                '🧱 Updated state playerDetails (post-enrich):',
-                updatedState.playerDetails,
-              );
-              console.log('🧱 Updated state SP order (post-enrich):', updatedState.sp?.order);
-
               if (isSinglePlayerGame) {
                 console.log('✅ State updated to use archive ID:', {
                   afterCurrentId: updatedState.sp?.currentGameId,
@@ -1754,12 +1718,6 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
             await transactionDone;
 
             if (snapshotState) {
-              console.log('🔄 Creating corrected snapshot for archive restoration:', {
-                gameId: archiveGameId,
-                height: snapshotHeight,
-                playersInSnapshot: snapshotState.players,
-                playerDetailsInSnapshot: snapshotState.playerDetails,
-              });
               try {
                 const persistResult = await persistSpSnapshot(snapshotState, snapshotHeight, {
                   gameId: archiveGameId,
@@ -1783,12 +1741,6 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
                       },
                     });
                   },
-                });
-                console.log('✅ Snapshot persistence result:', {
-                  persisted: persistResult.persisted,
-                  reason: persistResult.skippedReason,
-                  gameId: archiveGameId,
-                  height: snapshotHeight,
                 });
                 if (persistResult.persisted) {
                   span?.setAttribute('sp.snapshot.persisted', 'true');
