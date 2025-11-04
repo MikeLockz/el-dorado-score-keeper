@@ -1516,11 +1516,13 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
             eventType.includes('single-player') ||
             eventType.includes('sp.') ||
             eventType.includes('sp-') ||
+            eventType.startsWith('sp') ||
             eventType === 'sp-start-round' ||
             eventType === 'sp-deal' ||
             eventType === 'sp-trick' ||
             eventType === 'sp-advance' ||
-            eventType.startsWith('sp')
+            eventType === 'sp-game-started' ||
+            eventType === 'sp-phase-set'
           );
         });
 
@@ -1534,9 +1536,9 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
       // Check for both single-player and scorecard games that need UUID preservation
       // Prioritize event-based detection over bundle metadata for better accuracy
       const isSinglePlayerGame =
+        hasSinglePlayerEvents || // Event-based detection is most reliable
         rec.bundle.mode === 'single-player' ||
-        (rec.bundle.sp && typeof rec.bundle.sp === 'object') ||
-        hasSinglePlayerEvents; // Event-based detection is most reliable
+        (rec.bundle.sp && typeof rec.bundle.sp === 'object');
       const isScorecardGame =
         rec.bundle.mode === 'scorecard' ||
         (rec.bundle.rosters && typeof rec.bundle.rosters === 'object');
