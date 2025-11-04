@@ -738,13 +738,24 @@ export async function createInstance(opts?: {
           }
 
           if (hasFixes) {
+            // Also fix the roster data to ensure selectPlayersOrderedFor gets correct names
+            const fixedRosters = { ...memoryState.rosters };
+            if (rosterId && fixedRosters[rosterId]) {
+              fixedRosters[rosterId] = {
+                ...fixedRosters[rosterId],
+                playersById: fixedPlayers,
+              };
+            }
+
             memoryState = {
               ...memoryState,
               players: fixedPlayers,
+              rosters: fixedRosters,
             };
             console.log('✅ Fixed player names in archived game snapshot:', {
               gameId: target,
               correctedPlayers: Object.keys(fixedPlayers).length,
+              fixedRosterId: rosterId,
             });
           }
         }
