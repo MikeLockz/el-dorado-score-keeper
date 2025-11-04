@@ -667,6 +667,12 @@ export async function createInstance(opts?: {
           applied: result.applied,
           duration_ms: durationMs,
         });
+        devLog('rehydrate.sp_snapshot_fallback_local_storage', {
+          gameId: target,
+          height: result.height,
+          entry: result.entry,
+          snapshotPlayers: Object.keys(result.snapshot?.players ?? {}).length,
+        });
       }
       if (!result.applied || !result.state) {
         if (result.reason) {
@@ -676,14 +682,102 @@ export async function createInstance(opts?: {
             height,
           );
         }
+        devLog('rehydrate.sp_snapshot_unapplied', {
+          gameId: target,
+          reason: result.reason ?? null,
+          source: result.source ?? 'none',
+          height: result.height,
+          indexEntry: result.entry,
+        });
         return result;
       }
       memoryState = result.state;
       height = result.height;
+
+      // Apply player name fixes for archived games that were loaded from snapshots
+      // This handles the case where archived games contain corrupted player names
+      if (
+        memoryState &&
+        memoryState.players &&
+        Object.values(memoryState.players).every((name) => name === 'You')
+      ) {
+        // Try to get correct player names from rosters
+        const rosterId =
+          typeof memoryState.activeSingleRosterId === 'string'
+            ? memoryState.activeSingleRosterId
+            : null;
+        const roster = rosterId ? memoryState.rosters?.[rosterId] : undefined;
+
+        if (roster?.playersById) {
+          const fixedPlayers = { ...memoryState.players };
+          let hasFixes = false;
+
+          // Extract correct names from roster data
+          for (const [playerId, rosterName] of Object.entries(roster.playersById)) {
+            if (typeof rosterName === 'string' && rosterName !== 'You' && rosterName.trim()) {
+              if (fixedPlayers[playerId] === 'You') {
+                fixedPlayers[playerId] = rosterName.trim();
+                hasFixes = true;
+              }
+            }
+          }
+
+          // Also try to fix bot names with generic "Bot N" pattern if they're all "You"
+          if (!hasFixes && Object.keys(fixedPlayers).length > 1) {
+            const playerIds = Object.keys(fixedPlayers);
+            playerIds.forEach((playerId, index) => {
+              if (index === 0) {
+                // Keep first player as "You" (human player)
+                fixedPlayers[playerId] = 'You';
+              } else {
+                // Set bot players to proper names
+                fixedPlayers[playerId] = `Bot ${index}`;
+                hasFixes = true;
+              }
+            });
+          }
+
+          if (hasFixes) {
+            // Also fix the roster data to ensure selectPlayersOrderedFor gets correct names
+            const fixedRosters = { ...memoryState.rosters };
+            if (rosterId && fixedRosters[rosterId]) {
+              fixedRosters[rosterId] = {
+                ...fixedRosters[rosterId],
+                playersById: fixedPlayers,
+              };
+            }
+
+            memoryState = {
+              ...memoryState,
+              players: fixedPlayers,
+              rosters: fixedRosters,
+            };
+            console.log('✅ Fixed player names in archived game snapshot:', {
+              gameId: target,
+              correctedPlayers: Object.keys(fixedPlayers).length,
+              fixedRosterId: rosterId,
+            });
+          }
+        }
+      }
+
+      const rosterId =
+        typeof memoryState.activeSingleRosterId === 'string'
+          ? memoryState.activeSingleRosterId
+          : null;
+      const roster = rosterId ? result.state.rosters?.[rosterId] : undefined;
+      const sp = result.state.sp ?? {};
       devLog('rehydrate.sp_snapshot_applied', {
         gameId: target,
         source: result.source,
         height: result.height,
+        players: Object.keys(result.state.players ?? {}).length,
+        rosterId,
+        rosterPlayers: roster ? Object.keys(roster.playersById ?? {}).length : 0,
+        orderCount: Array.isArray(sp.order) ? sp.order.length : 0,
+        trickCounts: sp.trickCounts ? Object.keys(sp.trickCounts).length : 0,
+        phase: sp.phase ?? null,
+        currentGameId: sp.currentGameId ?? null,
       });
       return result;
     } catch (error) {
@@ -918,9 +1012,30 @@ export async function createInstance(opts?: {
             reason: spResult?.reason ?? 'unknown',
             source: spResult?.source ?? null,
           });
+
+          // When snapshot lookup fails for a specific game ID, preserve that game ID
+          // This prevents losing restored game IDs due to missing snapshots
+          await loadCurrent();
+          if (memoryState && targetSpGameId) {
+            const sp = memoryState.sp as any;
+            const hasCurrentId = sp?.currentGameId === targetSpGameId;
+            const hasLegacyId = sp?.gameId === targetSpGameId;
+
+            if (!hasCurrentId || !hasLegacyId) {
+              // When rehydration fails for a specific game ID, preserve that game ID
+              // This prevents losing restored game IDs due to missing snapshots
+              memoryState = {
+                ...memoryState,
+                sp: {
+                  ...memoryState.sp,
+                  currentGameId: targetSpGameId,
+                  gameId: targetSpGameId,
+                },
+              };
+            }
+          }
         }
-      }
-      if (!spResult?.applied) {
+      } else {
         await loadCurrent();
       }
       await applyTail(height);

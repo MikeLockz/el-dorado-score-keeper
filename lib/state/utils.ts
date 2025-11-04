@@ -6,18 +6,56 @@ function normalizeLooseId(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+export function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 function deriveGameIdFromSessionSeed(seed: unknown): string | null {
+  // UUID-only: Generate UUIDs from session seed for reproducible game IDs
+  // The session seed is used for reproducible deals, game IDs are always UUIDs
+
   if (typeof seed === 'number' && Number.isFinite(seed) && seed > 0) {
+    // Create deterministic UUID from seed for reproducible game IDs
     const normalized = Math.floor(Math.abs(seed));
     if (normalized === 0) return null;
-    return `sp-${normalized.toString(36)}`;
+
+    // Generate a UUID seeded with the sessionSeed for reproducibility
+    const hash = (normalized * 2654435761) % 0xffffffff;
+    const random = () => {
+      const x = Math.sin(hash) * 10000;
+      return x - Math.floor(x);
+    };
+
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
   }
+
   if (typeof seed === 'string') {
     const parsed = Number(seed);
     if (Number.isFinite(parsed) && parsed > 0) {
-      return `sp-${Math.floor(Math.abs(parsed)).toString(36)}`;
+      // Use same deterministic UUID generation for string seeds
+      const normalized = Math.floor(Math.abs(parsed));
+      const hash = (normalized * 2654435761) % 0xffffffff;
+      const random = () => {
+        const x = Math.sin(hash) * 10000;
+        return x - Math.floor(x);
+      };
+
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
     }
   }
+
   return null;
 }
 
@@ -64,11 +102,34 @@ export function getCurrentSinglePlayerGameId(state: AppState): string | null {
       }
     | undefined;
   const direct = normalizeLooseId(sp?.currentGameId);
-  if (direct) return direct;
+
+  // Only support UUID format - reject sp-### format
+  if (direct) {
+    // Check if it's a UUID format
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(direct)) {
+      return direct;
+    }
+    // Reject sp-### format - this will trigger "game not found" behavior
+    return null;
+  }
+
   const legacy = normalizeLooseId(sp?.gameId);
-  if (legacy) return legacy;
-  const derived = deriveGameIdFromSessionSeed(sp?.sessionSeed);
-  return derived;
+  if (legacy) {
+    // Only accept UUID format from legacy field
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(legacy)) {
+      return legacy;
+    }
+    // Reject sp-### format
+    return null;
+  }
+
+  // Generate new UUID if no game ID exists
+  const sessionSeed = typeof sp?.sessionSeed === 'number' ? sp.sessionSeed : null;
+  if (sessionSeed) {
+    return generateUUID(); // New UUID-based generation instead of sp-###
+  }
+
+  return null;
 }
 
 export function getActiveScorecardId(state: AppState): string | null {
@@ -129,7 +190,19 @@ export function ensureSinglePlayerGameIdentifiers(state: AppState): AppState {
     gameId?: string | null;
   };
   const id = getCurrentSinglePlayerGameId(state);
-  if (!id) return state;
+
+  // If no ID exists, generate a new UUID
+  if (!id) {
+    const sp = state.sp as SinglePlayerStateWithIds;
+    const newId = generateUUID();
+    const nextSp: SinglePlayerStateWithIds = { ...sp };
+    if (nextSp) {
+      nextSp.currentGameId = newId;
+      nextSp.gameId = newId;
+    }
+    return { ...state, sp: nextSp };
+  }
+
   const sp = state.sp as SinglePlayerStateWithIds;
   const hasCurrent = normalizeLooseId(sp?.currentGameId) === id;
   const hasLegacy = normalizeLooseId(sp?.gameId) === id;

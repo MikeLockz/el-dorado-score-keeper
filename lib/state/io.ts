@@ -1,17 +1,19 @@
 import { openDB, storeNames, tx } from './db';
-import type { AppEvent, AppState } from './types';
+import type { AppEvent, AppState, PlayerDetail } from './types';
 import { INITIAL_STATE, reduce } from './types';
 import { events } from './events';
 import {
   clearSnapshot,
   createIndexedDbAdapter,
   createLocalStorageAdapter,
+  persistSpSnapshot,
+  SP_GAME_INDEX_RETENTION_MS,
 } from './persistence/sp-snapshot';
 import { uuid } from '@/lib/utils';
 import { formatDateTime } from '@/lib/format';
 import { withSpan } from '@/lib/observability/spans';
 import { captureBrowserMessage } from '@/lib/observability/browser';
-import { scorecardPath, singlePlayerPath } from './utils';
+import { scorecardPath, singlePlayerPath, getCurrentSinglePlayerGameId } from './utils';
 import { emitGamesSignal } from './game-signals';
 import { selectIsGameComplete } from './selectors';
 
@@ -389,6 +391,12 @@ export async function importBundleSoft(dbName: string, bundle: ExportBundle): Pr
     'state.import-bundle-soft',
     { dbName, eventCount: bundle.events.length },
     async (span) => {
+      console.log('📦 ImportBundleSoft starting:', {
+        bundleMode: bundle.mode,
+        bundleGameId: bundle.sp?.currentGameId || bundle.sp?.gameId,
+        bundleSessionSeed: bundle.sp?.sessionSeed,
+      });
+
       const db = await openDB(dbName);
       try {
         const t = tx(db, 'readwrite', [storeNames.EVENTS, storeNames.STATE, storeNames.SNAPSHOTS]);
@@ -968,6 +976,427 @@ export async function archiveCurrentGameAndReset(
 
 export type GameMode = 'single-player' | 'scorecard';
 
+type SpGameIndexEntry = {
+  height: number;
+  savedAt: number;
+};
+
+const SP_GAME_INDEX_RECORD_KEY = 'sp/game-index';
+const MAX_SP_GAME_INDEX_ENTRIES = 8;
+
+function normalizeSpGameIndex(value: unknown): Record<string, SpGameIndexEntry> {
+  if (!value || typeof value !== 'object') return {};
+  const games = (value as { games?: unknown }).games ?? value;
+  if (!games || typeof games !== 'object') return {};
+
+  const entries: Record<string, SpGameIndexEntry> = {};
+  for (const [key, raw] of Object.entries(games as Record<string, unknown>)) {
+    if (typeof key !== 'string' || !raw || typeof raw !== 'object') continue;
+    const rawHeight = Number((raw as { height?: unknown }).height);
+    if (!Number.isFinite(rawHeight) || rawHeight < 0) continue;
+    const rawSavedAt = Number((raw as { savedAt?: unknown }).savedAt);
+    entries[key] = {
+      height: Math.max(0, Math.floor(rawHeight)),
+      savedAt: Number.isFinite(rawSavedAt) ? rawSavedAt : 0,
+    };
+  }
+  return entries;
+}
+
+function trimSpGameIndex(
+  entries: Record<string, SpGameIndexEntry>,
+): Record<string, SpGameIndexEntry> {
+  const now = Date.now();
+  const cutoff =
+    SP_GAME_INDEX_RETENTION_MS > 0 ? now - SP_GAME_INDEX_RETENTION_MS : Number.NEGATIVE_INFINITY;
+
+  const pairs = Object.entries(entries).filter(([, entry]) => {
+    if (!entry || !Number.isFinite(entry.height)) return false;
+    const savedAt = Number.isFinite(entry.savedAt) ? entry.savedAt : null;
+    if (savedAt && savedAt < cutoff) return false;
+    return true;
+  });
+
+  pairs.sort(([, a], [, b]) => {
+    const savedDiff = (b.savedAt ?? 0) - (a.savedAt ?? 0);
+    if (savedDiff !== 0) return savedDiff;
+    return (b.height ?? 0) - (a.height ?? 0);
+  });
+
+  const trimmed: Record<string, SpGameIndexEntry> = {};
+  for (const [key, entry] of pairs.slice(0, MAX_SP_GAME_INDEX_ENTRIES)) {
+    trimmed[key] = {
+      height: Math.max(0, Math.floor(entry.height ?? 0)),
+      savedAt: Number.isFinite(entry.savedAt) ? entry.savedAt : 0,
+    };
+  }
+
+  return trimmed;
+}
+
+function derivePlayerMetadataFromEvents(events: AppEvent[] | undefined) {
+  const names: Record<string, string> = {};
+  const types: Record<string, 'human' | 'bot'> = {};
+  const order: string[] = [];
+
+  if (!Array.isArray(events)) return { names, types };
+
+  for (const event of events) {
+    if (!event || typeof event !== 'object') continue;
+    const type = (event as { type?: unknown }).type;
+    const payload = (event as { payload?: unknown }).payload as Record<string, unknown> | undefined;
+    if (!payload || typeof payload !== 'object' || typeof type !== 'string') continue;
+
+    const assignName = (idValue: unknown, nameValue: unknown) => {
+      if (typeof idValue !== 'string') return;
+      const trimmedId = idValue.trim();
+      if (!trimmedId) return;
+      const name = typeof nameValue === 'string' ? nameValue.trim() : '';
+      if (name) names[trimmedId] = name;
+    };
+
+    const assignType = (idValue: unknown, typeValue: unknown) => {
+      if (typeof idValue !== 'string') return;
+      const trimmedId = idValue.trim();
+      if (!trimmedId) return;
+      if (typeValue === 'bot') types[trimmedId] = 'bot';
+      else if (typeValue === 'human') types[trimmedId] = 'human';
+    };
+
+    switch (type) {
+      case 'player/added':
+      case 'player/renamed':
+        assignName(payload.id, payload.name);
+        assignType(payload.id, payload.type);
+        break;
+      case 'player/type-set':
+        assignType(payload.id, payload.type);
+        break;
+      case 'roster/player/added':
+      case 'roster/player/renamed':
+        assignName(payload.id, payload.name);
+        assignType(payload.id, payload.type);
+        break;
+      case 'roster/player/type-set':
+        assignType(payload.id, payload.type);
+        break;
+      case 'sp/deal': {
+        const orderPayload = (payload as { order?: unknown }).order;
+        if (Array.isArray(orderPayload)) {
+          order.length = 0;
+          for (const value of orderPayload) {
+            if (typeof value === 'string' && value.trim()) order.push(value.trim());
+          }
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  return { names, types, order };
+}
+
+function extractPlayerMetadataFromState(state: AppState | undefined) {
+  const names: Record<string, string> = {};
+  const types: Record<string, 'human' | 'bot'> = {};
+  if (!state) return { names, types };
+
+  for (const [pid, name] of Object.entries(state.players ?? {})) {
+    if (!pid) continue;
+    if (typeof name === 'string' && name.trim()) {
+      names[pid] = name.trim();
+    }
+  }
+
+  for (const [pid, detail] of Object.entries(state.playerDetails ?? {})) {
+    if (!pid || !detail) continue;
+    if (typeof detail.name === 'string' && detail.name.trim()) {
+      names[pid] = detail.name.trim();
+    }
+    if (detail.type === 'bot' || detail.type === 'human') {
+      types[pid] = detail.type;
+    }
+  }
+
+  for (const roster of Object.values(state.rosters ?? {})) {
+    if (!roster) continue;
+    for (const [pid, name] of Object.entries(roster.playersById ?? {})) {
+      if (typeof name === 'string' && name.trim()) {
+        names[pid] = name.trim();
+      }
+    }
+    for (const [pid, type] of Object.entries(roster.playerTypesById ?? {})) {
+      if (type === 'bot' || type === 'human') {
+        types[pid] = type;
+      }
+    }
+  }
+
+  return { names, types };
+}
+
+function enrichStateWithSummaryRoster(
+  state: AppState,
+  summary: GameRecord['summary'] | undefined,
+  fallbackRosterId: string,
+  fallbackNames: Record<string, string>,
+  fallbackTypes: Record<string, 'human' | 'bot'>,
+  stateNames: Record<string, string>,
+  stateTypes: Record<string, 'human' | 'bot'>,
+  eventOrder: ReadonlyArray<string>,
+): AppState {
+  if (!summary) return state;
+  const rosterSnapshot = summary.rosterSnapshot ?? null;
+  const aliasToId = summary.slotMapping?.aliasToId ?? {};
+
+  const mapAliases = <T extends string | 'human' | 'bot'>(
+    source: Record<string, T>,
+  ): Record<string, T> => {
+    const result: Record<string, T> = { ...source };
+    for (const [key, value] of Object.entries(source)) {
+      if (typeof key !== 'string') continue;
+      const normalized = normalizeAlias(key);
+      if (!normalized) continue;
+      const mappedId = aliasToId[normalized];
+      if (typeof mappedId === 'string' && mappedId.trim()) {
+        result[mappedId.trim()] = value;
+      }
+    }
+    return result;
+  };
+
+  const fallbackNamesWithAliases = mapAliases(fallbackNames);
+  const fallbackTypesWithAliases = mapAliases(fallbackTypes);
+  const stateNamesWithAliases = mapAliases(stateNames);
+  const stateTypesWithAliases = mapAliases(stateTypes);
+
+  const displayEntries = Object.entries(rosterSnapshot?.displayOrder ?? {}).sort(
+    (a, b) => (a[1] ?? 0) - (b[1] ?? 0),
+  );
+  const aliasOrder = displayEntries.length
+    ? displayEntries.map(([alias]) => alias)
+    : Object.keys({
+        ...(rosterSnapshot?.playersById ?? {}),
+        ...(summary.playersById ?? {}),
+        ...fallbackNamesWithAliases,
+        ...stateNamesWithAliases,
+      });
+  const canonicalOrderSources: Array<ReadonlyArray<string>> = [
+    eventOrder,
+    Array.isArray(state.sp?.order)
+      ? (state.sp.order as Array<unknown>).filter(
+          (pid): pid is string => typeof pid === 'string' && pid.trim(),
+        )
+      : [],
+    Object.keys(state.players ?? {}),
+  ];
+  const canonicalOrder = canonicalOrderSources
+    .flat()
+    .filter((pid, index, self) => pid && self.indexOf(pid) === index);
+
+  const knownActualIds = new Set<string>();
+  const addKnownId = (value: unknown) => {
+    if (typeof value !== 'string') return;
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    knownActualIds.add(trimmed);
+  };
+  for (const id of Object.keys(rosterSnapshot?.playersById ?? {})) addKnownId(id);
+  for (const id of Object.keys(summary.playersById ?? {})) addKnownId(id);
+  for (const id of Object.keys(state.players ?? {})) addKnownId(id);
+  for (const id of Object.keys(state.playerDetails ?? {})) addKnownId(id);
+  for (const id of canonicalOrder) addKnownId(id);
+  for (const id of Object.values(aliasToId)) addKnownId(id);
+
+  const aliasToActual: Record<string, string> = {};
+  for (const aliasId of aliasOrder) {
+    if (typeof aliasId !== 'string') continue;
+    const trimmedAlias = aliasId.trim();
+    if (!trimmedAlias) continue;
+    if (knownActualIds.has(trimmedAlias)) {
+      aliasToActual[trimmedAlias] = trimmedAlias;
+    }
+  }
+
+  for (let i = 0; i < aliasOrder.length && i < canonicalOrder.length; i += 1) {
+    const aliasId = aliasOrder[i];
+    const actualId = canonicalOrder[i];
+    if (typeof aliasId !== 'string' || typeof actualId !== 'string') continue;
+    const trimmedAlias = aliasId.trim();
+    const trimmedActual = actualId.trim();
+    if (!trimmedAlias || !trimmedActual) continue;
+    if (!aliasToActual[trimmedAlias]) {
+      aliasToActual[trimmedAlias] = trimmedActual;
+    }
+  }
+
+  for (const [aliasString, aliasId] of Object.entries(aliasToId)) {
+    if (typeof aliasString !== 'string' || typeof aliasId !== 'string') continue;
+    const trimmedAliasId = aliasId.trim();
+    if (!trimmedAliasId) continue;
+    const targetId = aliasToActual[trimmedAliasId] ?? trimmedAliasId;
+    aliasToActual[trimmedAliasId] = targetId;
+    aliasToActual[aliasString] = targetId;
+  }
+
+  const mapToActualIds = <T extends string | 'human' | 'bot'>(
+    source: Record<string, T>,
+  ): Record<string, T> => {
+    const result: Record<string, T> = { ...source };
+    for (const [key, value] of Object.entries(source)) {
+      const mappedId = aliasToActual[key];
+      if (mappedId && value) {
+        if (!result[mappedId]) {
+          result[mappedId] = value;
+        }
+      }
+    }
+    return result;
+  };
+
+  const fallbackNamesExpanded = mapToActualIds(fallbackNamesWithAliases);
+  const fallbackTypesExpanded = mapToActualIds(fallbackTypesWithAliases);
+  const stateNamesExpanded = mapToActualIds(stateNamesWithAliases);
+  const stateTypesExpanded = mapToActualIds(stateTypesWithAliases);
+
+  console.log('[restore]', 'aliasMapping.actual', aliasToActual);
+  console.log('[restore]', 'aliasMapping.raw', aliasToId);
+  console.log('[restore]', 'fallbackNamesExpanded', fallbackNamesExpanded);
+  console.log('[restore]', 'stateNamesExpanded', stateNamesExpanded);
+
+  const combinedPlayers: Record<string, string> = {
+    ...mapToActualIds(rosterSnapshot?.playersById ?? {}),
+    ...mapToActualIds(summary.playersById ?? {}),
+    ...fallbackNamesExpanded,
+    ...stateNamesExpanded,
+  };
+  const aliasDisplayOrderEntries = Object.entries(rosterSnapshot?.displayOrder ?? {}).sort(
+    (a, b) => (a[1] ?? 0) - (b[1] ?? 0),
+  );
+  const actualOrder = canonicalOrder.length ? canonicalOrder : aliasOrder;
+  for (let i = 0; i < Math.min(aliasDisplayOrderEntries.length, actualOrder.length); i += 1) {
+    const aliasId = aliasDisplayOrderEntries[i]?.[0];
+    const actualId = actualOrder[i];
+    if (!aliasId || !actualId) continue;
+    const aliasNameCandidate =
+      combinedPlayers[aliasId] ?? fallbackNamesExpanded[aliasId] ?? stateNamesExpanded[aliasId];
+    if (aliasNameCandidate) {
+      combinedPlayers[actualId] = aliasNameCandidate;
+      fallbackNamesExpanded[actualId] = fallbackNamesExpanded[actualId] ?? aliasNameCandidate;
+      stateNamesExpanded[actualId] = stateNamesExpanded[actualId] ?? aliasNameCandidate;
+    }
+    const aliasTypeCandidate =
+      rosterSnapshot?.playerTypesById?.[aliasId] ??
+      fallbackTypesExpanded[aliasId] ??
+      stateTypesExpanded[aliasId];
+    if (aliasTypeCandidate === 'bot' || aliasTypeCandidate === 'human') {
+      fallbackTypesExpanded[actualId] = fallbackTypesExpanded[actualId] ?? aliasTypeCandidate;
+      stateTypesExpanded[actualId] = stateTypesExpanded[actualId] ?? aliasTypeCandidate;
+    }
+  }
+  const entries = Object.entries(combinedPlayers).filter(([pid]) => typeof pid === 'string' && pid);
+  if (!entries.length) return state;
+
+  const now = Date.now();
+  const nextPlayers = { ...state.players };
+  const nextPlayerDetails = { ...state.playerDetails } as Record<string, PlayerDetail>;
+  const nextDisplayOrder = { ...state.display_order };
+  const nextRosters = { ...state.rosters };
+
+  console.log('[restore]', 'enrichStateWithSummaryRoster.entries', entries);
+  console.log('[restore]', 'statePlayers.pre', state.players);
+  console.log('[restore]', 'statePlayerDetails.pre', state.playerDetails);
+  console.log('[restore]', 'summary.playersById', summary.playersById);
+  console.log('[restore]', 'rosterSnapshot.playersById', rosterSnapshot?.playersById);
+
+  for (const [pid, rawName] of entries) {
+    const normalizedName = typeof rawName === 'string' ? rawName.trim() : '';
+    const fallbackNameFromEvents =
+      typeof fallbackNamesExpanded[pid] === 'string' ? fallbackNamesExpanded[pid].trim() : '';
+    const fallbackNameFromState =
+      typeof stateNamesExpanded[pid] === 'string' ? stateNamesExpanded[pid].trim() : '';
+    const existingName = typeof nextPlayers[pid] === 'string' ? nextPlayers[pid].trim() : '';
+
+    // Prioritize names in order: summary > events > state > existing
+    // During restoration, archive data should be trusted over current state
+    const prioritizedName =
+      normalizedName || fallbackNameFromEvents || fallbackNameFromState || existingName || pid;
+
+    const name = prioritizedName;
+    nextPlayers[pid] = name;
+    const existingDetail = nextPlayerDetails[pid];
+    const typeFromSnapshot = rosterSnapshot?.playerTypesById?.[pid];
+    const fallbackType = fallbackTypesExpanded[pid] ?? stateTypesExpanded[pid];
+    const resolvedType =
+      typeFromSnapshot === 'bot' || fallbackType === 'bot' || existingDetail?.type === 'bot'
+        ? 'bot'
+        : 'human';
+    nextPlayerDetails[pid] = {
+      name,
+      type: resolvedType,
+      archived: false,
+      archivedAt: null,
+      createdAt: existingDetail?.createdAt ?? now,
+      updatedAt: now,
+    };
+  }
+
+  const rosterIdCandidate =
+    (rosterSnapshot && Object.keys(rosterSnapshot.playersById ?? {}).length > 0
+      ? rosterSnapshot.rosterId
+      : null) ||
+    state.activeSingleRosterId ||
+    fallbackRosterId;
+
+  if (rosterIdCandidate) {
+    const existingRoster = nextRosters[rosterIdCandidate];
+    const mergedPlayersById: Record<string, string> = {
+      ...(existingRoster?.playersById ?? {}),
+    };
+    for (const [pid] of entries) {
+      mergedPlayersById[pid] = nextPlayers[pid];
+    }
+    const mergedPlayerTypes: Record<string, 'human' | 'bot'> = {
+      ...(existingRoster?.playerTypesById ?? {}),
+      ...(rosterSnapshot?.playerTypesById ?? {}),
+      ...fallbackTypesExpanded,
+    };
+    for (const [pid, t] of Object.entries(stateTypesExpanded)) {
+      if (t === 'bot' || t === 'human') mergedPlayerTypes[pid] = t;
+    }
+    const mergedDisplayOrder = mapToActualIds({
+      ...(existingRoster?.displayOrder ?? {}),
+      ...(rosterSnapshot?.displayOrder ?? {}),
+    });
+    nextRosters[rosterIdCandidate] = {
+      name: existingRoster?.name ?? 'Single Player',
+      playersById: mergedPlayersById,
+      playerTypesById: mergedPlayerTypes,
+      displayOrder: mergedDisplayOrder,
+      type: 'single',
+      createdAt: existingRoster?.createdAt ?? now,
+      archivedAt: existingRoster?.archivedAt ?? null,
+    };
+    return {
+      ...state,
+      players: nextPlayers,
+      playerDetails: nextPlayerDetails,
+      rosters: nextRosters,
+      display_order: nextDisplayOrder,
+      activeSingleRosterId: rosterIdCandidate,
+    };
+  }
+
+  return {
+    ...state,
+    players: nextPlayers,
+    playerDetails: nextPlayerDetails,
+    display_order: nextDisplayOrder,
+  };
+}
+
 export function deriveGameMode(game: GameRecord): GameMode {
   const declaredMode = game.summary.mode;
   if (declaredMode === 'single-player' || declaredMode === 'scorecard') {
@@ -1003,11 +1432,44 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
     'state.restore-game',
     { dbName, gameId: id },
     async (span) => {
+      console.log('🔄 Starting restoration for archive ID:', id);
       const rec = await getGame(GAMES_DB_NAME, id);
       if (!rec) {
         span?.setAttribute('restored', false);
         return;
       }
+
+      console.log('📋 Archive record structure:', {
+        gameId: id,
+        hasBundle: !!rec.bundle,
+        bundleKeys: rec.bundle ? Object.keys(rec.bundle) : 'no bundle',
+        bundleMode: rec.bundle?.mode,
+        hasEvents: rec.bundle?.events && rec.bundle.events.length > 0,
+        eventCount: rec.bundle?.events?.length,
+        hasSp: !!rec.bundle?.sp,
+        spKeys: rec.bundle?.sp ? Object.keys(rec.bundle.sp) : 'no sp',
+        spSnapshotPlayers: rec.bundle?.sp?.players,
+        spSnapshotRosterId: rec.bundle?.sp?.currentGameId,
+        spDebug: rec.bundle?.sp,
+        bundleSample: rec.bundle
+          ? {
+              eventsCount: rec.bundle.events?.length || 0,
+              hasState: !!rec.bundle.state,
+              hasInitial: !!rec.bundle.initial,
+              otherKeys: Object.keys(rec.bundle).filter(
+                (k) => !['events', 'state', 'initial', 'sp', 'rosters', 'mode'].includes(k),
+              ),
+            }
+          : 'no bundle',
+      });
+      console.log('🧾 Summary roster snapshot:', {
+        rosterId: rec.summary?.rosterSnapshot?.rosterId ?? rec.summary?.rosterSnapshot?.id ?? null,
+        rosterPlayers: rec.summary?.rosterSnapshot?.playersById,
+        rosterPlayerTypes: rec.summary?.rosterSnapshot?.playerTypesById,
+        rosterDisplayOrder: rec.summary?.rosterSnapshot?.displayOrder,
+        playersById: rec.summary?.playersById,
+        slotMapping: rec.summary?.slotMapping,
+      });
       if (isGameRecordCompleted(rec)) {
         span?.setAttribute('restored', false);
         span?.setAttribute('restore.blocked', 'completed');
@@ -1020,6 +1482,296 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
       }
 
       await importBundleSoft(dbName, rec.bundle);
+
+      const bundleEvents = Array.isArray(rec.bundle?.events)
+        ? (rec.bundle?.events as AppEvent[])
+        : [];
+      if (bundleEvents.length) {
+        console.log('🗃️ Sample archived event payload:', bundleEvents.slice(0, 5));
+      } else {
+        console.log('🗃️ No archived events found in bundle');
+      }
+      const { names: eventPlayerNames, types: eventPlayerTypes } =
+        derivePlayerMetadataFromEvents(bundleEvents);
+      console.log('🧾 Event-derived player metadata:', {
+        names: eventPlayerNames,
+        types: eventPlayerTypes,
+      });
+
+      // Also check if this game was archived from a single-player session by looking at the events
+      const hasSinglePlayerEvents =
+        rec.bundle.events &&
+        rec.bundle.events.some((event: any) => {
+          if (!event.type) return false;
+          const eventType = event.type.toLowerCase();
+          return (
+            eventType.includes('single-player') ||
+            eventType.includes('sp.') ||
+            eventType.includes('sp-') ||
+            eventType.startsWith('sp') ||
+            eventType === 'sp-start-round' ||
+            eventType === 'sp-deal' ||
+            eventType === 'sp-trick' ||
+            eventType === 'sp-advance' ||
+            eventType === 'sp-game-started' ||
+            eventType === 'sp-phase-set'
+          );
+        });
+
+      const hasSummaryPlayers = Object.keys(rec.summary?.playersById ?? {}).some((key) => {
+        if (typeof key !== 'string') return false;
+        const name = rec.summary?.playersById?.[key];
+        return typeof name === 'string';
+      });
+
+      // Fix for single-player game restoration: ensure restored games use archive UUID and get indexed properly
+      // Check for both single-player and scorecard games that need UUID preservation
+      // Prioritize event-based detection over bundle metadata for better accuracy
+      const isSinglePlayerGame =
+        hasSinglePlayerEvents || // Event-based detection is most reliable
+        rec.bundle.mode === 'single-player' ||
+        (rec.bundle.sp && typeof rec.bundle.sp === 'object');
+      const isScorecardGame =
+        rec.bundle.mode === 'scorecard' ||
+        (rec.bundle.rosters && typeof rec.bundle.rosters === 'object');
+
+      const needsUuidPreservation = isSinglePlayerGame || isScorecardGame || hasSummaryPlayers;
+
+      console.log('🎯 Checking game mode for restoration:', {
+        bundleMode: rec.bundle.mode,
+        hasSpData: !!(rec.bundle.sp && typeof rec.bundle.sp === 'object'),
+        hasRostersData: !!(rec.bundle.rosters && typeof rec.bundle.rosters === 'object'),
+        hasSinglePlayerEvents,
+        isSinglePlayerGame,
+        isScorecardGame,
+        needsUuidPreservation,
+        archiveId: id,
+      });
+
+      let snapshotState: AppState | null = null;
+      let snapshotHeight = Math.max(0, Math.floor(rec.lastSeq ?? 0));
+
+      if (needsUuidPreservation) {
+        console.log(
+          '✅ Executing UUID preservation logic for:',
+          id,
+          `(${isSinglePlayerGame ? 'single-player' : 'scorecard'})`,
+        );
+        console.log('✅ Executing single-player restoration logic for:', id);
+        try {
+          // Use the archive ID instead of generating a new gameId
+          const archiveGameId = id; // The archive ID should be a UUID
+
+          // Validate that the archive ID is a valid UUID
+          if (
+            !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(archiveGameId)
+          ) {
+            throw new Error(`Archive ID ${archiveGameId} is not a valid UUID format`);
+          }
+
+          // Check if the game bundle contains a different UUID than the archive ID
+          const bundleGameId = rec.bundle.sp?.currentGameId || rec.bundle.sp?.gameId;
+          console.log('📋 Restoration ID comparison:', {
+            archiveId: archiveGameId,
+            bundleGameId: bundleGameId,
+            bundleSessionSeed: rec.bundle.sp?.sessionSeed,
+            idsMatch: archiveGameId === bundleGameId,
+          });
+
+          // Create/update the sp-game-index entry with the archive ID
+          const db = await openDB(dbName);
+          try {
+            const transaction = db.transaction(['state'], 'readwrite');
+            const transactionDone = new Promise<void>((resolve, reject) => {
+              transaction.oncomplete = () => resolve();
+              transaction.onerror = () =>
+                reject(
+                  transaction.error ??
+                    new Error('Transaction error updating SP state during restore'),
+                );
+              transaction.onabort = () =>
+                reject(
+                  transaction.error ??
+                    new Error('Transaction aborted updating SP state during restore'),
+                );
+            });
+            const store = transaction.objectStore('state');
+
+            // Get existing index
+            const indexRequest = store.get(SP_GAME_INDEX_RECORD_KEY);
+            const rawIndex = await new Promise<unknown>((resolve, reject) => {
+              indexRequest.onsuccess = () => resolve(indexRequest.result ?? null);
+              indexRequest.onerror = () => reject(indexRequest.error);
+            });
+
+            const existingEntries = normalizeSpGameIndex(rawIndex);
+            const nextEntries = {
+              ...existingEntries,
+              [archiveGameId]: {
+                height: Math.max(0, Math.floor(rec.lastSeq ?? 0)),
+                savedAt: Date.now(),
+              },
+            } satisfies Record<string, SpGameIndexEntry>;
+            const trimmedEntries = trimSpGameIndex(nextEntries);
+
+            const putRequest = store.put({
+              id: SP_GAME_INDEX_RECORD_KEY,
+              games: trimmedEntries,
+            });
+            await new Promise<void>((resolve, reject) => {
+              putRequest.onsuccess = () => resolve();
+              putRequest.onerror = () => reject(putRequest.error);
+            });
+
+            // Update the single-player state to use the archive gameId
+            // This ensures getCurrentSinglePlayerGameId returns the archive ID
+            const currentStateRequest = store.get('current');
+            const currentState = await new Promise<any>((resolve, reject) => {
+              currentStateRequest.onsuccess = () => resolve(currentStateRequest.result);
+              currentStateRequest.onerror = () => reject(currentStateRequest.error);
+            });
+
+            console.log('🔄 Updating state with archive ID:', {
+              currentStateExists: !!currentState,
+              hasState: !!(currentState && currentState.state),
+              hasSp: !!(currentState && currentState.state && currentState.state.sp),
+              beforeCurrentId: currentState?.state?.sp?.currentGameId,
+              beforeGameId: currentState?.state?.sp?.gameId,
+              archiveId: archiveGameId,
+            });
+            console.log('🧱 Current state players (pre-restore):', currentState?.state?.players);
+            console.log(
+              '🧱 Current state roster keys (pre-restore):',
+              currentState?.state?.rosters ? Object.keys(currentState.state.rosters) : [],
+            );
+            console.log(
+              '🧱 Current state playerDetails (pre-restore):',
+              currentState?.state?.playerDetails,
+            );
+            console.log('🧱 Current state SP order (pre-restore):', currentState?.state?.sp?.order);
+
+            if (currentState && currentState.state) {
+              let updatedState: AppState = currentState.state as AppState;
+
+              if (isSinglePlayerGame && updatedState.sp) {
+                updatedState = {
+                  ...updatedState,
+                  sp: {
+                    ...updatedState.sp,
+                    currentGameId: archiveGameId,
+                    gameId: archiveGameId,
+                  },
+                };
+              }
+
+              const { names: statePlayerNames, types: statePlayerTypes } =
+                extractPlayerMetadataFromState(currentState.state as AppState);
+              console.log('🧾 State-derived player metadata:', {
+                names: statePlayerNames,
+                types: statePlayerTypes,
+              });
+
+              const fallbackRosterId =
+                rec.summary?.rosterSnapshot?.playersById && rec.summary?.rosterSnapshot?.playersById
+                  ? (rec.summary?.rosterSnapshot?.rosterId ?? archiveGameId)
+                  : archiveGameId;
+              updatedState = enrichStateWithSummaryRoster(
+                updatedState,
+                rec.summary,
+                fallbackRosterId,
+                eventPlayerNames,
+                eventPlayerTypes,
+                statePlayerNames,
+                statePlayerTypes,
+              );
+
+              if (isSinglePlayerGame) {
+                console.log('✅ State updated to use archive ID:', {
+                  afterCurrentId: updatedState.sp?.currentGameId,
+                  afterGameId: updatedState.sp?.gameId,
+                });
+              }
+
+              const putStateRequest = store.put({
+                id: 'current',
+                height: currentState.height || 0,
+                state: updatedState,
+              });
+              await new Promise<void>((resolve, reject) => {
+                putStateRequest.onsuccess = () => resolve();
+                putStateRequest.onerror = () => reject(putStateRequest.error);
+              });
+
+              snapshotState = updatedState;
+              snapshotHeight = Math.max(
+                0,
+                Math.floor(
+                  rec.lastSeq ??
+                    (typeof currentState.height === 'number' ? currentState.height : 0),
+                ),
+              );
+            }
+
+            span?.setAttribute('sp.index.updated', 'true');
+            span?.setAttribute('sp.archiveId', archiveGameId);
+
+            await transactionDone;
+
+            if (snapshotState) {
+              try {
+                const persistResult = await persistSpSnapshot(snapshotState, snapshotHeight, {
+                  gameId: archiveGameId,
+                  force: true,
+                  adapters: {
+                    indexedDb: createIndexedDbAdapter(db),
+                    localStorage: createLocalStorageAdapter(),
+                  },
+                  onWarn: (code, info) => {
+                    captureBrowserMessage('restore.sp_snapshot.persist.warn', {
+                      level: 'warn',
+                      attributes: {
+                        gameId: archiveGameId,
+                        code,
+                        info:
+                          typeof info === 'string'
+                            ? info
+                            : info && typeof info === 'object'
+                              ? JSON.stringify(info)
+                              : undefined,
+                      },
+                    });
+                  },
+                });
+                if (persistResult.persisted) {
+                  span?.setAttribute('sp.snapshot.persisted', 'true');
+                  span?.setAttribute('sp.snapshot.source', 'restore');
+                  span?.setAttribute('sp.snapshot.height', snapshotHeight);
+                }
+              } catch (error) {
+                captureBrowserMessage('restore.sp_snapshot.persist.failed', {
+                  level: 'warn',
+                  attributes: {
+                    gameId: archiveGameId,
+                    code: 'sp.snapshot.persist.exception',
+                    reason: error instanceof Error ? error.message : String(error),
+                  },
+                });
+              }
+            }
+          } finally {
+            db.close();
+          }
+        } catch (error) {
+          captureBrowserMessage('restore.sp_index_update.failed', {
+            level: 'warn',
+            attributes: {
+              gameId: id,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            },
+          });
+        }
+      }
+
       span?.setAttribute('restored', true);
       span?.setAttribute('events.count', rec.bundle.events.length);
       span?.setAttribute('last.seq', rec.lastSeq ?? 0);
@@ -1049,7 +1801,11 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
   );
 }
 
-export async function updateGameTitle(gamesDbName: string = GAMES_DB_NAME, id: string, newTitle: string): Promise<void> {
+export async function updateGameTitle(
+  gamesDbName: string = GAMES_DB_NAME,
+  id: string,
+  newTitle: string,
+): Promise<void> {
   if (!id) {
     throw new Error('Game ID is required');
   }
@@ -1084,7 +1840,8 @@ export async function updateGameTitle(gamesDbName: string = GAMES_DB_NAME, id: s
     const putRequest = store.put(updatedRecord);
     await new Promise<void>((resolve, reject) => {
       putRequest.onsuccess = () => resolve();
-      putRequest.onerror = () => reject(putRequest.error || new Error('Failed to update game title'));
+      putRequest.onerror = () =>
+        reject(putRequest.error || new Error('Failed to update game title'));
     });
 
     // Emit a signal to notify other components of the change
