@@ -505,7 +505,8 @@ export async function loadSnapshotByGameId(
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(snapshot.gameId);
 
         // If both are UUIDs and we have a valid snapshot, allow loading during archive restoration
-        if (isArchiveId && isSnapshotUuid && snapshot.height > 0) {
+        // Relax height requirement to allow snapshots with height >= 0 (not just > 0)
+        if (isArchiveId && isSnapshotUuid && snapshot.height >= 0) {
           console.log('🔄 Archive restoration: using fallback snapshot with different gameId', {
             archiveId: gameId,
             snapshotGameId: snapshot.gameId,
@@ -514,6 +515,20 @@ export async function loadSnapshotByGameId(
 
           // Update the snapshot's gameId to match the archive ID for future loads
           const updatedSnapshot = { ...snapshot, gameId };
+
+          // Persist the corrected snapshot to prevent future mismatches
+          if (adapters.indexedDb?.writeSnapshot) {
+            try {
+              await adapters.indexedDb.writeSnapshot(updatedSnapshot);
+              console.log('🔄 Updated snapshot persisted with new gameId:', {
+                oldGameId: snapshot.gameId,
+                newGameId: gameId,
+              });
+            } catch (error) {
+              console.warn('⚠️ Failed to persist updated snapshot:', error);
+              // Continue with the updated snapshot even if persistence fails
+            }
+          }
 
           return { snapshot: updatedSnapshot, source: 'indexed-db', entry };
         }
