@@ -1319,10 +1319,10 @@ function enrichStateWithSummaryRoster(
       typeof stateNamesExpanded[pid] === 'string' ? stateNamesExpanded[pid].trim() : '';
     const existingName = typeof nextPlayers[pid] === 'string' ? nextPlayers[pid].trim() : '';
 
-    // Prioritize names in order: state > events > summary > existing
-    // This prevents incorrect summary data from overriding correct player names
+    // Prioritize names in order: summary > events > state > existing
+    // During restoration, archive data should be trusted over current state
     const prioritizedName =
-      fallbackNameFromState || fallbackNameFromEvents || normalizedName || existingName || pid;
+      normalizedName || fallbackNameFromEvents || fallbackNameFromState || existingName || pid;
 
     console.log('[restore]', 'assignName', {
       pid,
