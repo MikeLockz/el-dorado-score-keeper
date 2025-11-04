@@ -1331,6 +1331,8 @@ function enrichStateWithSummaryRoster(
       fallbackNameFromState,
       existingName,
       chosen: prioritizedName,
+      summaryPlayers: summary.playersById,
+      rosterSnapshotPlayers: rosterSnapshot?.playersById,
     });
     const name = prioritizedName;
     nextPlayers[pid] = name;
@@ -1694,6 +1696,12 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
               );
 
               console.log('🧱 Updated state players (post-enrich):', updatedState.players);
+              console.log('🧱 Archive player data sources:', {
+                summaryPlayers: rec.summary?.playersById,
+                eventPlayerNames,
+                rosterSnapshotPlayers: rec.summary?.rosterSnapshot?.playersById,
+                bundleEvents: rec.bundle.events?.slice(0, 3), // First few events to see player creation
+              });
               console.log(
                 '🧱 Updated state rosters (post-enrich):',
                 Object.fromEntries(
