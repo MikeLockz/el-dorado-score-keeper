@@ -477,6 +477,9 @@ export async function loadSnapshotByGameId(
     try {
       const index = await adapters.indexedDb.readIndex();
       entry = index?.[gameId] ?? null;
+      if (!entry) {
+        options.onWarn?.('sp.snapshot.load.index_missing', { gameId });
+      }
     } catch (error) {
       options.onWarn?.('sp.snapshot.load.indexeddb_index_failed', error);
     }
@@ -490,6 +493,37 @@ export async function loadSnapshotByGameId(
         snapshot.gameId === gameId
       ) {
         return { snapshot, source: 'indexed-db', entry };
+      }
+
+      // Archive restoration fallback: allow loading snapshots with different gameIds
+      // if we have a recent snapshot and the gameId looks like an archive UUID
+      if (snapshot && snapshot.version === SINGLE_PLAYER_SNAPSHOT_VERSION) {
+        const isArchiveId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          gameId,
+        );
+        const isSnapshotUuid =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(snapshot.gameId);
+
+        // If both are UUIDs and we have a valid snapshot, allow loading during archive restoration
+        if (isArchiveId && isSnapshotUuid && snapshot.height > 0) {
+          console.log('🔄 Archive restoration: using fallback snapshot with different gameId', {
+            archiveId: gameId,
+            snapshotGameId: snapshot.gameId,
+            snapshotHeight: snapshot.height,
+          });
+
+          // Update the snapshot's gameId to match the archive ID for future loads
+          const updatedSnapshot = { ...snapshot, gameId };
+
+          return { snapshot: updatedSnapshot, source: 'indexed-db', entry };
+        }
+
+        options.onWarn?.('sp.snapshot.load.index_mismatch', {
+          expected: gameId,
+          snapshotGameId: snapshot.gameId,
+        });
+      } else {
+        options.onWarn?.('sp.snapshot.load.indexeddb_snapshot_missing', { gameId });
       }
     } catch (error) {
       options.onWarn?.('sp.snapshot.load.by_game_indexeddb_failed', error);
@@ -513,6 +547,38 @@ export async function loadSnapshotByGameId(
             source: 'local-storage',
             entry: entry ?? inferredEntry,
           };
+        }
+
+        // Archive restoration fallback for localStorage snapshots
+        if (isValidSnapshot(parsed)) {
+          const isArchiveId =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(gameId);
+          const isSnapshotUuid =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parsed.gameId);
+
+          if (isArchiveId && isSnapshotUuid && parsed.height > 0) {
+            console.log(
+              '🔄 Archive restoration: using localStorage fallback snapshot with different gameId',
+              {
+                archiveId: gameId,
+                snapshotGameId: parsed.gameId,
+                snapshotHeight: parsed.height,
+              },
+            );
+
+            // Update the snapshot's gameId to match the archive ID
+            const updatedSnapshot = { ...parsed, gameId };
+
+            const inferredEntry: SpGameIndexEntry = {
+              height: updatedSnapshot.height,
+              savedAt: updatedSnapshot.savedAt,
+            };
+            return {
+              snapshot: updatedSnapshot,
+              source: 'local-storage',
+              entry: entry ?? inferredEntry,
+            };
+          }
         }
       }
     } catch (error) {
