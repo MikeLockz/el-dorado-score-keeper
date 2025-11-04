@@ -1754,6 +1754,12 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
             await transactionDone;
 
             if (snapshotState) {
+              console.log('🔄 Creating corrected snapshot for archive restoration:', {
+                gameId: archiveGameId,
+                height: snapshotHeight,
+                playersInSnapshot: snapshotState.players,
+                playerDetailsInSnapshot: snapshotState.playerDetails,
+              });
               try {
                 const persistResult = await persistSpSnapshot(snapshotState, snapshotHeight, {
                   gameId: archiveGameId,
@@ -1777,6 +1783,12 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
                       },
                     });
                   },
+                });
+                console.log('✅ Snapshot persistence result:', {
+                  persisted: persistResult.persisted,
+                  reason: persistResult.skippedReason,
+                  gameId: archiveGameId,
+                  height: snapshotHeight,
                 });
                 if (persistResult.persisted) {
                   span?.setAttribute('sp.snapshot.persisted', 'true');
