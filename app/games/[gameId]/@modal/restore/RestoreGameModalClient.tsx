@@ -155,20 +155,19 @@ export default function RestoreGameModalClient() {
           typeof expectedArchiveId === 'string' &&
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedArchiveId);
 
+        // During archive restoration, prioritize the expected archive ID to avoid race conditions
+        if (expectedIsUuid) {
+          console.log('✅ Using archive UUID (priority during restoration):', expectedArchiveId);
+          return `/single-player/${expectedArchiveId}`;
+        }
+
+        // Fallback to current game ID if no archive ID is available
         if (
           currentGameId &&
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentGameId)
         ) {
-          if (!expectedIsUuid || currentGameId === expectedArchiveId) {
-            console.log('✅ Using found game ID:', currentGameId);
-            return `/single-player/${currentGameId}`;
-          }
-          console.log('⚠️ Archive restoration timeout - using expected UUID as fallback');
-        }
-
-        if (expectedIsUuid) {
-          console.log('✅ Using archive UUID fallback after timeout:', expectedArchiveId);
-          return `/single-player/${expectedArchiveId}`;
+          console.log('✅ Using found game ID (no archive UUID):', currentGameId);
+          return `/single-player/${currentGameId}`;
         }
 
         console.log('❌ No valid game ID found, using fallback');
