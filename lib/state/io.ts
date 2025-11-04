@@ -1506,21 +1506,23 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
         types: eventPlayerTypes,
       });
 
-      // Fix for single-player game restoration: ensure restored games use archive UUID and get indexed properly
-      // Check for both single-player and scorecard games that need UUID preservation
-      const isSinglePlayerGame =
-        rec.bundle.mode === 'single-player' || (rec.bundle.sp && typeof rec.bundle.sp === 'object');
-      const isScorecardGame =
-        rec.bundle.mode === 'scorecard' ||
-        (rec.bundle.rosters && typeof rec.bundle.rosters === 'object');
-
       // Also check if this game was archived from a single-player session by looking at the events
       const hasSinglePlayerEvents =
         rec.bundle.events &&
-        rec.bundle.events.some(
-          (event: any) =>
-            (event.type && event.type.includes('single-player')) || event.type?.includes('sp'),
-        );
+        rec.bundle.events.some((event: any) => {
+          if (!event.type) return false;
+          const eventType = event.type.toLowerCase();
+          return (
+            eventType.includes('single-player') ||
+            eventType.includes('sp.') ||
+            eventType.includes('sp-') ||
+            eventType === 'sp-start-round' ||
+            eventType === 'sp-deal' ||
+            eventType === 'sp-trick' ||
+            eventType === 'sp-advance' ||
+            eventType.startsWith('sp')
+          );
+        });
 
       const hasSummaryPlayers = Object.keys(rec.summary?.playersById ?? {}).some((key) => {
         if (typeof key !== 'string') return false;
@@ -1528,8 +1530,18 @@ export async function restoreGame(dbName: string = DEFAULT_DB_NAME, id: string):
         return typeof name === 'string';
       });
 
-      const needsUuidPreservation =
-        isSinglePlayerGame || isScorecardGame || hasSinglePlayerEvents || hasSummaryPlayers;
+      // Fix for single-player game restoration: ensure restored games use archive UUID and get indexed properly
+      // Check for both single-player and scorecard games that need UUID preservation
+      // Prioritize event-based detection over bundle metadata for better accuracy
+      const isSinglePlayerGame =
+        rec.bundle.mode === 'single-player' ||
+        (rec.bundle.sp && typeof rec.bundle.sp === 'object') ||
+        hasSinglePlayerEvents; // Event-based detection is most reliable
+      const isScorecardGame =
+        rec.bundle.mode === 'scorecard' ||
+        (rec.bundle.rosters && typeof rec.bundle.rosters === 'object');
+
+      const needsUuidPreservation = isSinglePlayerGame || isScorecardGame || hasSummaryPlayers;
 
       console.log('🎯 Checking game mode for restoration:', {
         bundleMode: rec.bundle.mode,
