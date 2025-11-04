@@ -3,7 +3,7 @@
 import React from 'react';
 import clsx from 'clsx';
 import { Loader2, Users } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { useAppState } from '@/components/state-provider';
 import {
@@ -120,6 +120,7 @@ function buildSingleRosterEvents(
 export default function SinglePlayerNewPageClient() {
   const router = useRouter();
   const { state, ready, appendMany } = useAppState();
+  const pathname = usePathname();
   const [cleared, setCleared] = React.useState(false);
   const [clearing, setClearing] = React.useState(false);
   const [clearError, setClearError] = React.useState<string | null>(null);
@@ -159,10 +160,11 @@ export default function SinglePlayerNewPageClient() {
 
   React.useEffect(() => {
     if (!ready) return;
-    if (targetRoute === '/single-player') {
-      router.replace('/single-player');
-    }
-  }, [ready, router, targetRoute]);
+    if (!targetRoute) return;
+    if (targetRoute === '/single-player/new') return;
+    if (pathname && pathname === targetRoute) return;
+    router.replace(targetRoute);
+  }, [pathname, ready, router, targetRoute]);
 
   React.useEffect(() => {
     if (!ready) return;
@@ -207,7 +209,8 @@ export default function SinglePlayerNewPageClient() {
   }, [rosterMap, selectedRosterId]);
 
   const actionPending = pendingAction !== null;
-  const awaitingSession = targetRoute === '/single-player/new';
+  const awaitingSession =
+    ready && targetRoute !== '/single-player/new' && pathname != null && targetRoute !== pathname;
   const disabled = actionPending || clearing || !cleared || awaitingSession;
   const countButtonsDisabled = actionPending || clearing || awaitingSession;
 
@@ -243,6 +246,7 @@ export default function SinglePlayerNewPageClient() {
           type,
         };
       });
+      const seedEvent = events.spSeedSet({ seed: Math.max(1, Math.floor(Date.now())) });
       const rosterEvents = buildSingleRosterEvents(state, rosterMap, specs, {
         name: roster.name,
         desiredRosterId: state.activeSingleRosterId ?? `sp-${selectedRosterId}`,
@@ -256,17 +260,16 @@ export default function SinglePlayerNewPageClient() {
       );
       const reorder = events.playersReordered({ order });
       const humanId = specs.find((spec) => spec.type === 'human')?.id ?? null;
-      const batch: KnownAppEvent[] = [...rosterEvents, ...addEvents, reorder];
+      const batch: KnownAppEvent[] = [seedEvent, ...rosterEvents, ...addEvents, reorder];
       if (humanId) batch.push(events.spHumanSet({ id: humanId }));
       await appendMany(batch);
-      router.replace(targetRoute);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : `Unable to load roster: ${String(error)}`;
       setSubmitError(message);
       setPendingAction(null);
     }
-  }, [appendMany, router, rosterMap, selectedRosterId, state, targetRoute]);
+  }, [appendMany, rosterMap, selectedRosterId, state]);
 
   const handleCreatePlayers = React.useCallback(async () => {
     const count = playerCountRef.current;
@@ -277,6 +280,7 @@ export default function SinglePlayerNewPageClient() {
     setPendingAction('create');
     setSubmitError(null);
     try {
+      const seedEvent = events.spSeedSet({ seed: Math.max(1, Math.floor(Date.now())) });
       const specs: PlayerSpec[] = Array.from({ length: count }).map((_, idx) => {
         const id = uuid();
         const type: 'human' | 'bot' = idx === 0 ? 'human' : 'bot';
@@ -296,17 +300,16 @@ export default function SinglePlayerNewPageClient() {
       );
       const reorder = events.playersReordered({ order: specs.map((spec) => spec.id) });
       const humanId = specs.find((spec) => spec.type === 'human')?.id ?? null;
-      const batch: KnownAppEvent[] = [...rosterEvents, ...addEvents, reorder];
+      const batch: KnownAppEvent[] = [seedEvent, ...rosterEvents, ...addEvents, reorder];
       if (humanId) batch.push(events.spHumanSet({ id: humanId }));
       await appendMany(batch);
-      router.replace(targetRoute);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : `Unable to create players: ${String(error)}`;
       setSubmitError(message);
       setPendingAction(null);
     }
-  }, [appendMany, playerCountRef, rosterMap, router, state, targetRoute]);
+  }, [appendMany, playerCountRef, rosterMap, state]);
 
   const showRosterList = rosterPlayers.length > 0;
 

@@ -1,4 +1,5 @@
 import { clampBid, finalizeRound } from './logic';
+import { deriveGameIdFromSessionSeed, generateUUID } from './utils';
 import type { Rank } from '@/lib/single-player/types';
 import type { AppEvent, AppState, EventMap, EventPayloadByType } from './types';
 import { INITIAL_STATE, type AppEventType, type KnownAppEvent } from './types';
@@ -620,8 +621,19 @@ function reduceSinglePlayer(state: AppState, event: KnownAppEvent): AppState | n
     }
     case 'sp/seed-set': {
       const { seed } = event.payload as EventMap['sp/seed-set'];
-      const n = Math.floor(seed);
-      return { ...state, sp: { ...state.sp, sessionSeed: Number.isFinite(n) ? n : 0 } };
+      const raw = Math.floor(seed);
+      const normalized = Number.isFinite(raw) ? Math.abs(raw) : 0;
+      const sessionSeed = normalized > 0 ? normalized : Math.max(1, Math.floor(Date.now()));
+      const nextGameId = deriveGameIdFromSessionSeed(sessionSeed) ?? generateUUID();
+      return {
+        ...state,
+        sp: {
+          ...state.sp,
+          sessionSeed,
+          currentGameId: nextGameId,
+          gameId: nextGameId,
+        },
+      };
     }
     case 'sp/round-tally-set': {
       const { round: roundNo, tallies } = event.payload as EventMap['sp/round-tally-set'];

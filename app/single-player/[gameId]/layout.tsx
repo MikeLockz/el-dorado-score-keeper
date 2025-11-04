@@ -1,9 +1,7 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
-import { useParams, usePathname } from 'next/navigation';
-import clsx from 'clsx';
+import { useParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 import { useAppState } from '@/components/state-provider';
@@ -12,7 +10,6 @@ import {
   selectSinglePlayerGame,
   type SinglePlayerGameSlice,
 } from '@/lib/state';
-import { trackSinglePlayerView } from '@/lib/observability/events';
 
 import SinglePlayerGameMissing from './_components/SinglePlayerGameMissing';
 import styles from './layout.module.scss';
@@ -25,26 +22,9 @@ function useGameId(): string {
   return '';
 }
 
-function formatGameLabel(slice: SinglePlayerGameSlice | null): string {
-  if (!slice?.id) return 'Active game';
-  return `Game ${slice.id.slice(0, 8).toUpperCase()}`;
-}
-
-function resolveView(
-  pathname: string | null | undefined,
-  gameId: string,
-): 'live' | 'scorecard' | 'summary' {
-  if (!pathname) return 'live';
-  const base = `/single-player/${gameId}`;
-  if (pathname.startsWith(`${base}/summary`)) return 'summary';
-  if (pathname.startsWith(`${base}/scorecard`)) return 'scorecard';
-  if (pathname === base || pathname.startsWith(`${base}?`)) return 'live';
-  return 'live';
-}
 
 export default function SinglePlayerGameLayout({ children }: { children: React.ReactNode }) {
   const gameId = useGameId();
-  const pathname = usePathname();
   const { state, ready } = useAppState();
   const gameSlice = React.useMemo(() => selectSinglePlayerGame(state, gameId), [state, gameId]);
   const availability = React.useMemo(
@@ -56,27 +36,6 @@ export default function SinglePlayerGameLayout({ children }: { children: React.R
         : null,
     [ready, gameSlice, gameId],
   );
-
-  const navItems = React.useMemo(() => {
-    const base = `/single-player/${gameId}`;
-    return [
-      { href: base, label: 'Live play', view: 'live' as const },
-      { href: `${base}/scorecard`, label: 'Scorecard', view: 'scorecard' as const },
-      { href: `${base}/summary`, label: 'Summary', view: 'summary' as const },
-    ];
-  }, [gameId]);
-
-  const lastTrackedRef = React.useRef<string | null>(null);
-  React.useEffect(() => {
-    if (!ready) return;
-    if (!availability || availability.status !== 'found') return;
-    if (!gameId) return;
-    const view = resolveView(pathname, gameId);
-    const key = `${gameId}:${view}`;
-    if (lastTrackedRef.current === key) return;
-    lastTrackedRef.current = key;
-    trackSinglePlayerView({ gameId, view, source: 'single-player.route' });
-  }, [ready, availability, gameId, pathname]);
 
   if (!ready) {
     return (
@@ -91,27 +50,8 @@ export default function SinglePlayerGameLayout({ children }: { children: React.R
     return <SinglePlayerGameMissing className={styles.missing ?? ''} />;
   }
 
-  const activeView = resolveView(pathname, gameId);
-
   return (
     <div className={styles.layout}>
-      <header className={styles.header}>
-        <div className={styles.titleRow}>
-          <h1 className={styles.title}>{formatGameLabel(gameSlice)}</h1>
-          <span className={styles.meta}>Single Player</span>
-        </div>
-        <nav className={styles.nav} aria-label="Single player views">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={clsx(styles.navLink, activeView === item.view && styles.navLinkActive)}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
       <section className={styles.content}>{children}</section>
     </div>
   );

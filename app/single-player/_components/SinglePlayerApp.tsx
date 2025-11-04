@@ -210,6 +210,56 @@ export default function SinglePlayerApp() {
 
   const isDev = typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false;
 
+  React.useEffect(() => {
+    if (!isDev) return;
+    try {
+      console.debug('[single-player]', 'state.debug', {
+        ready,
+        activePlayerNames: activePlayers.map((p) => `${p.id}:${p.name}`),
+        playersCount: activePlayers.length,
+        rosterId: state.activeSingleRosterId,
+        rosterKeys: Object.keys(state.rosters ?? {}),
+        spPhase,
+        spRoundNo,
+        spOrderLength: spOrder?.length ?? 0,
+        hasHands: Object.values(sp.hands ?? {}).some((cards) => (cards?.length ?? 0) > 0),
+        humanId: human,
+        dealerId: dealer,
+      });
+      for (const [rosterId, roster] of Object.entries(state.rosters ?? {})) {
+        const playersById = roster?.playersById ?? {};
+        const playerEntries = Object.entries(playersById).map(([id, name]) => ({ id, name }));
+        console.debug('[single-player]', 'roster.snapshot', {
+          rosterId,
+          players: playerEntries.map(({ id, name }) => `${id}:${name}`),
+          playerTypesById: roster?.playerTypesById,
+          displayOrder: roster?.displayOrder,
+        });
+      }
+      const playersSnapshot = Object.entries(state.players ?? {}).map(([id, name]) => `${id}:${name}`);
+      console.debug('[single-player]', 'players.snapshot', playersSnapshot);
+      (window as any).__APP_STATE_DEBUG__ = {
+        state,
+        players: state.players,
+        rosters: state.rosters,
+        activePlayers,
+      };
+    } catch {}
+  }, [
+    isDev,
+    ready,
+    activePlayers,
+    state,
+    state.activeSingleRosterId,
+    state.rosters,
+    spPhase,
+    spRoundNo,
+    spOrder,
+    sp.hands,
+    human,
+    dealer,
+  ]);
+
   // Centralized SP orchestration
   useSinglePlayerEngine({
     state,

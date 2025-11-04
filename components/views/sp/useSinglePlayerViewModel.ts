@@ -104,6 +104,13 @@ export function buildSinglePlayerDerivedState(
     if (!playerNamesById[id]) playerNamesById[id] = name;
   }
 
+  if (typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false) {
+    try {
+      console.debug('[sp-view-model]', 'players.ordered', players.map((p) => `${p.id}:${p.name}`));
+      console.debug('[sp-view-model]', 'playerNamesById', playerNamesById);
+    } catch {}
+  }
+
   const sp = state.sp ?? ({} as AppState['sp']);
   const spPhase = sp?.phase ?? 'setup';
   const spRoundNo = sp?.roundNo ?? 0;
@@ -375,6 +382,16 @@ export function useSinglePlayerViewModel({ humanId, rng }: { humanId: string; rn
     (pid: string) => derived.playerNamesById[pid] ?? (isDev ? pid : 'Unknown'),
     [derived.playerNamesById, isDev],
   );
+
+  React.useEffect(() => {
+    if (!isDev) return;
+    try {
+      console.debug('[sp-view-model]', 'playerName.lookup', {
+        playerNamesById: derived.playerNamesById,
+        sampleIds: derived.players.map((p) => p.id),
+      });
+    } catch {}
+  }, [isDev, derived.playerNamesById, derived.players]);
 
   const playerLabel = React.useCallback(
     (pid: string) => (pid === humanId ? `${playerName(pid)} (you)` : playerName(pid)),

@@ -1,0 +1,670 @@
+openapi: 3.0.3
+info:
+  title: El Dorado Multiplayer Game Engine API
+  description: |
+    RESTful API for the El Dorado multiplayer game engine supporting real-time gameplay,
+    player management, and game session operations. This API works in conjunction with WebSocket
+    connections for real-time game updates.
+
+    **Authentication**: Uses device-local cryptographic keys with JWT tokens for session management.
+  version: 1.0.0
+  contact:
+    name: El Dorado Game Development Team
+  license:
+    name: MIT
+
+servers:
+  - url: https://api.eldorado-game.com/v1
+    description: Production server
+  - url: https://staging-api.eldorado-game.com/v1
+    description: Staging server
+  - url: http://localhost:8080/v1
+    description: Development server
+
+paths:
+  /auth/profile:
+    post:
+      summary: Create player profile
+      description: Creates a new multiplayer player profile with cryptographic identity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProfileRequest'
+      responses:
+        '201':
+          description: Profile created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerProfile'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Public key already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      summary: Authenticate player
+      description: Authenticates a player and returns JWT token for session management
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /games:
+    get:
+      summary: List available games
+      description: Retrieves a list of public games available to join
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [waiting, active, completed]
+            description: Filter by game status
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            description: Maximum number of games to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            description: Number of games to skip
+      responses:
+        '200':
+          description: List of games
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  games:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GameSession'
+                  total:
+                    type: integer
+                    description: Total number of games
+                  has_more:
+                    type: boolean
+                    description: Whether more games are available
+
+    post:
+      summary: Create new game
+      description: Creates a new multiplayer game session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGameRequest'
+      responses:
+        '201':
+          description: Game created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameSession'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /games/{gameId}:
+    get:
+      summary: Get game details
+      description: Retrieves detailed information about a specific game
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Game ID or game code
+      responses:
+        '200':
+          description: Game details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameSession'
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Join game
+      description: Joins an existing game session
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinGameRequest'
+      responses:
+        '200':
+          description: Successfully joined game
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameSession'
+        '400':
+          description: Cannot join game (full, already started, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /games/{gameId}/start:
+    post:
+      summary: Start game
+      description: Starts a waiting game (host only)
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartGameRequest'
+      responses:
+        '200':
+          description: Game started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameSession'
+        '401':
+          description: Not authorized (not host)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Cannot start game (insufficient players, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /games/{gameId}/roster:
+    post:
+      summary: Create game roster
+      description: Creates or updates a roster for the game
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRosterRequest'
+      responses:
+        '200':
+          description: Roster created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerRoster'
+        '400':
+          description: Invalid roster data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /players/{playerId}/profile:
+    get:
+      summary: Get player profile
+      description: Retrieves player's multiplayer profile and statistics
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Player profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerProfile'
+        '404':
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update player profile
+      description: Updates player's profile information
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerProfile'
+        '400':
+          description: Invalid update data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /players/{playerId}/statistics:
+    get:
+      summary: Get player statistics
+      description: Retrieves detailed player statistics and achievements
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Player statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerStatistics'
+        '404':
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /players/{playerId}/actions:
+    get:
+      summary: Get player action history
+      description: Retrieves complete action history for games player participated in
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: gameId
+          in: query
+          schema:
+            type: string
+            description: Filter by specific game
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            description: Maximum actions to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            description: Number of actions to skip
+      responses:
+        '200':
+          description: Action history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PlayerAction'
+                  total:
+                    type: integer
+                  has_more:
+                    type: boolean
+
+components:
+  schemas:
+    PlayerProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique player identifier
+        player_name:
+          type: string
+          description: Display name for the player
+        total_games:
+          type: integer
+          description: Total number of games played
+        wins:
+          type: integer
+          description: Number of games won
+        losses:
+          type: integer
+          description: Number of games lost
+        total_playtime_seconds:
+          type: integer
+          description: Total time spent playing in seconds
+        rating:
+          type: number
+          format: float
+          description: Current player rating
+        created_at:
+          type: string
+          format: date-time
+          description: When profile was created
+        last_active_at:
+          type: string
+          format: date-time
+          description: Last time player was active
+
+    CreateProfileRequest:
+      type: object
+      required:
+        - public_key
+        - player_name
+      properties:
+        public_key:
+          type: string
+          description: Cryptographic public key for identity verification
+        player_name:
+          type: string
+          description: Player's display name (3-20 characters)
+
+    LoginRequest:
+      type: object
+      required:
+        - public_key
+        - signature
+      properties:
+        public_key:
+          type: string
+          description: Player's public key
+        signature:
+          type: string
+          description: Cryptographic signature of authentication challenge
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT token for session management
+        player_profile:
+          $ref: '#/components/schemas/PlayerProfile'
+        expires_at:
+          type: string
+          format: date-time
+          description: Token expiration time
+
+    GameSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique game identifier
+        name:
+          type: string
+          description: Game display name
+        game_code:
+          type: string
+          description: 6-character code for joining game
+        status:
+          type: string
+          enum: [waiting, active, completed, abandoned]
+          description: Current game status
+        max_players:
+          type: integer
+          minimum: 2
+          maximum: 10
+          description: Maximum number of players
+        current_players:
+          type: integer
+          description: Current number of players
+        host_player_id:
+          type: string
+          description: Player ID of game host
+        game_config:
+          type: object
+          description: Game-specific configuration
+        created_at:
+          type: string
+          format: date-time
+          description: When game was created
+        started_at:
+          type: string
+          format: date-time
+          description: When game started
+        completed_at:
+          type: string
+          format: date-time
+          description: When game completed
+
+    CreateGameRequest:
+      type: object
+      required:
+        - name
+        - max_players
+        - game_config
+      properties:
+        name:
+          type: string
+          description: Game display name
+        max_players:
+          type: integer
+          minimum: 2
+          maximum: 10
+          description: Maximum number of players
+        game_config:
+          type: object
+          description: Game-specific configuration and rules
+        moderation_config:
+          type: object
+          description: Moderation and timeout settings
+
+    JoinGameRequest:
+      type: object
+      required:
+        - player_name
+      properties:
+        player_name:
+          type: string
+          description: Player's display name for this game
+
+    StartGameRequest:
+      type: object
+      properties:
+        moderation_config:
+          type: object
+          description: Moderation configuration for this game
+
+    MultiplayerRoster:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        game_id:
+          type: string
+          format: uuid
+        player_id:
+          type: string
+          format: uuid
+        roster_data:
+          type: object
+          description: Roster configuration and player selections
+
+    CreateRosterRequest:
+      type: object
+      required:
+        - roster_data
+      properties:
+        roster_data:
+          type: object
+          description: Roster configuration and player selections
+
+    PlayerStatistics:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        player_id:
+          type: string
+          format: uuid
+        games_played:
+          type: integer
+        total_playtime:
+          type: integer
+          description: Total playtime in seconds
+        highest_rating:
+          type: number
+          format: float
+        current_rating:
+          type: number
+          format: float
+        achievements:
+          type: array
+          items:
+            type: object
+            description: Achievement data
+        last_calculated_at:
+          type: string
+          format: date-time
+
+    PlayerAction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        game_id:
+          type: string
+          format: uuid
+        player_id:
+          type: string
+          format: uuid
+        action_id:
+          type: string
+          description: Event ID for the action
+        action_type:
+          type: string
+          description: Type of action (play_card, pass, bid, etc.)
+        action_data:
+          type: object
+          description: Action-specific data
+        signature:
+          type: string
+          description: Cryptographic signature
+        timestamp:
+          type: integer
+          description: Unix timestamp
+        version:
+          type: integer
+          description: Event version number
+        created_at:
+          type: string
+          format: date-time
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        player_name:
+          type: string
+          description: New display name
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []

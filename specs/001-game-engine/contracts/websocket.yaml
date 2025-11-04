@@ -1,0 +1,430 @@
+# WebSocket API Specification - El Dorado Multiplayer Game Engine
+
+**Version**: 1.0.0
+**Protocol**: WebSocket (ws://) with progressive fallbacks (SSE, HTTP polling)
+
+## Overview
+
+The WebSocket API provides real-time communication for multiplayer gameplay, game state updates, and player interactions. This complements the REST API for session management and persistent data operations.
+
+## Connection
+
+### Endpoint
+```
+ws://api.eldorado-game.com/v1/ws/game/{gameId}?token={jwt_token}
+```
+
+### Authentication
+- JWT token must be provided in query parameter or Authorization header
+- Token must be valid and contain player identity
+- WebSocket upgrade validates token before establishing connection
+
+### Progressive Fallbacks
+1. **Primary**: WebSocket connection (sub-50ms latency)
+2. **Secondary**: Server-Sent Events (<200ms latency)
+3. **Tertiary**: HTTP long polling (<1000ms latency)
+
+## Message Format
+
+All messages are JSON with the following structure:
+
+```json
+{
+  "type": "message_type",
+  "timestamp": 1234567890,
+  "data": {
+    // Message-specific data
+  }
+}
+```
+
+## Client-to-Server Messages
+
+### Authentication
+```json
+{
+  "type": "auth",
+  "timestamp": 1234567890,
+  "data": {
+    "player_id": "uuid",
+    "signature": "cryptographic_signature",
+    "action_id": "uuid"
+  }
+}
+```
+
+### Join Game
+```json
+{
+  "type": "join_game",
+  "timestamp": 1234567890,
+  "data": {
+    "player_name": "PlayerName",
+    "player_id": "uuid",
+    "game_code": "ABCDEF"
+  }
+}
+```
+
+### Player Action
+```json
+{
+  "type": "player_action",
+  "timestamp": 1234567890,
+  "data": {
+    "action_id": "uuid",
+    "action_type": "play_card",
+    "action_data": {
+      "card_id": "card-uuid",
+      "target_player": "player-uuid",
+      "payment": 5
+    },
+    "signature": "cryptographic_signature"
+  }
+}
+```
+
+### Leave Game
+```json
+{
+  "type": "leave_game",
+  "timestamp": 1234567890,
+  "data": {
+    "player_id": "uuid",
+    "reason": "voluntary"
+  }
+}
+```
+
+### Heartbeat
+```json
+{
+  "type": "ping",
+  "timestamp": 1234567890,
+  "data": {}
+}
+```
+
+## Server-to-Client Messages
+
+### Authentication Response
+```json
+{
+  "type": "auth_response",
+  "timestamp": 1234567890,
+  "data": {
+    "success": true,
+    "player_id": "uuid",
+    "session_id": "session-uuid"
+  }
+}
+```
+
+### Game State Update
+```json
+{
+  "type": "game_state",
+  "timestamp": 1234567890,
+  "data": {
+    "game_id": "uuid",
+    "version": 123,
+    "status": "active",
+    "current_round": 3,
+    "current_turn": "player-uuid",
+    "turn_order": ["player-uuid-1", "player-uuid-2"],
+    "players": {
+      "player-uuid": {
+        "id": "uuid",
+        "name": "PlayerName",
+        "is_connected": true,
+        "is_host": true
+      }
+    },
+    "scores": {
+      "player-uuid": 25
+    },
+    "game_data": {
+      "specific game data"
+    },
+    "state_hash": "sha256hash"
+  }
+}
+```
+
+### Player Joined
+```json
+{
+  "type": "player_joined",
+  "timestamp": 1234567890,
+  "data": {
+    "player_id": "uuid",
+    "player_name": "NewPlayer",
+    "current_players": 3
+  }
+}
+```
+
+### Player Left
+```json
+{
+  "type": "player_left",
+  "timestamp": 1234567890,
+  "data": {
+    "player_id": "uuid",
+    "reason": "disconnected",
+    "current_players": 2
+  }
+}
+```
+
+### Player Action Processed
+```json
+{
+  "type": "action_processed",
+  "timestamp": 1234567890,
+  "data": {
+    "action_id": "uuid",
+    "player_id": "uuid",
+    "action_type": "play_card",
+    "success": true,
+    "new_state": {
+      "updated game data"
+    }
+  }
+}
+```
+
+### Action Rejected
+```json
+{
+  "type": "action_rejected",
+  "timestamp": 1234567890,
+  "data": {
+    "action_id": "uuid",
+    "reason": "invalid_turn",
+    "error": "It's not your turn",
+    "current_turn": "other-player-uuid"
+  }
+}
+```
+
+### Game Started
+```json
+{
+  "type": "game_started",
+  "timestamp": 1234567890,
+  "data": {
+    "game_id": "uuid",
+    "initial_state": "initial game state"
+  }
+}
+```
+
+### Game Completed
+```json
+{
+  "type": "game_completed",
+  "timestamp": 1234567890,
+  "data": {
+    "game_id": "uuid",
+    "winner": "player-uuid",
+    "final_scores": {
+      "player-uuid": 100
+    },
+    "statistics": "game statistics"
+  }
+}
+```
+
+### Moderation Vote
+```json
+{
+  "type": "moderation_vote",
+  "timestamp": 1234567890,
+  "data": {
+    "target_player_id": "uuid",
+    "vote_type": "skip_turn",
+    "initiated_by": "player-uuid",
+    "votes_needed": 2,
+    "current_votes": 1,
+    "expires_at": 1234567990
+  }
+}
+```
+
+### Reconciliation Sync
+```json
+{
+  "type": "reconciliation_sync",
+  "timestamp": 1234567890,
+  "data": {
+    "last_received_version": 100,
+    "missed_events": [
+      {
+        "event_id": "uuid",
+        "event_type": "player_action",
+        "event_data": {},
+        "timestamp": 1234567890
+      }
+    ]
+  }
+}
+```
+
+### Error Message
+```json
+{
+  "type": "error",
+  "timestamp": 1234567890,
+  "data": {
+    "error_code": "INVALID_SIGNATURE",
+    "message": "Invalid cryptographic signature",
+    "details": {}
+  }
+}
+```
+
+### Pong Response
+```json
+{
+  "type": "pong",
+  "timestamp": 1234567890,
+  "data": {}
+}
+```
+
+## Connection Lifecycle
+
+### 1. Connection Establishment
+1. Client initiates WebSocket connection with JWT token
+2. Server validates token and authenticates player
+3. Server sends `auth_response` with session details
+4. Client sends `join_game` with player information
+5. Server adds player to game and updates all connected clients
+
+### 2. Active Gameplay
+1. Client sends `player_action` for game moves
+2. Server validates signature and turn order
+3. Server processes action and updates game state
+4. Server broadcasts `game_state` and `action_processed` to all clients
+5. Heartbeat messages maintain connection health
+
+### 3. Reconnection Process
+1. Client reconnects and authenticates
+2. Server provides `reconciliation_sync` with missed events
+3. Client applies missed events and validates state hash
+4. Server sends current `game_state`
+5. Normal gameplay resumes
+
+## Error Handling
+
+### Connection Errors
+- **Authentication Failure**: Server closes connection with error message
+- **Invalid Game ID**: Server rejects connection with 404 error
+- **Player Already Connected**: Server accepts but updates connection
+
+### Action Errors
+- **Invalid Signature**: Server rejects action with `action_rejected`
+- **Wrong Turn**: Server rejects action with `action_rejected`
+- **Invalid Action**: Server rejects action with `action_rejected`
+- **Game Not Active**: Server rejects action with `action_rejected`
+
+### Network Errors
+- **Connection Lost**: Server detects and handles gracefully
+- **Timeout**: Server sends heartbeat and expects `ping` response
+- **Message Parsing Error**: Server logs and continues
+
+## Rate Limiting
+
+### Client Limits
+- Maximum 10 messages per second per client
+- Maximum 1 player action per 5 seconds
+- Maximum 100 concurrent connections per player
+
+### Server Responses
+- **Rate Limited**: Server sends error message and may disconnect
+- **Throttled**: Server queues and delays messages
+- **Blocked**: Server temporarily blocks abusive clients
+
+## Performance Considerations
+
+### Message Size
+- Maximum message size: 64KB
+- Large game states sent as incremental updates
+- Batch multiple small updates when possible
+
+### Broadcast Efficiency
+- Use efficient JSON serialization
+- Minimize redundant data transmission
+- Implement delta compression for large states
+
+### Memory Management
+- Limit in-memory game state size
+- Implement periodic cleanup of completed games
+- Use object pools for frequently allocated structures
+
+## Security
+
+### Message Validation
+- All player actions must include cryptographic signature
+- Server validates signatures against stored public keys
+- Invalid signatures result in connection termination
+
+### Data Privacy
+- No personal information transmitted in messages
+- Player limited to display names and game statistics
+- Sensitive data excluded from broadcast messages
+
+### Access Control
+- Players can only send actions when it's their turn
+- Host players have additional management permissions
+- Players cannot impersonate others or modify other players' actions
+
+## Fallback Behavior
+
+### WebSocket Unavailable
+- Automatically fallback to Server-Sent Events
+- Single-direction updates only (server to client)
+- Client actions sent via HTTP POST
+
+### SSE Unavailable
+- Fallback to HTTP long polling
+- Client periodically requests updates
+- Actions sent via HTTP POST
+
+### All Real-time Unavailable
+- HTTP polling with longer intervals
+- Significantly reduced responsiveness
+- Core functionality still available
+
+## Testing Considerations
+
+### Unit Tests
+- Message serialization/deserialization
+- Signature validation
+- Turn enforcement logic
+
+### Integration Tests
+- End-to-end game scenarios
+- Reconnection workflows
+- Error handling paths
+
+### Load Tests
+- Concurrent connection handling
+- Message throughput limits
+- Performance under load
+
+## Monitoring
+
+### Metrics to Track
+- Active connections per game
+- Message rates and types
+- Connection establishment time
+- Error rates and types
+- Reconnection success rates
+
+### Health Checks
+- WebSocket endpoint availability
+- Database connectivity
+- Authentication service status
+- Memory and CPU usage

@@ -14,7 +14,7 @@ export function generateUUID(): string {
   });
 }
 
-function deriveGameIdFromSessionSeed(seed: unknown): string | null {
+export function deriveGameIdFromSessionSeed(seed: unknown): string | null {
   // UUID-only: Generate UUIDs from session seed for reproducible game IDs
   // The session seed is used for reproducible deals, game IDs are always UUIDs
 
@@ -123,10 +123,12 @@ export function getCurrentSinglePlayerGameId(state: AppState): string | null {
     return null;
   }
 
-  // Generate new UUID if no game ID exists
+  // Generate new UUID if no game ID exists and we have a session seed (for new games only)
   const sessionSeed = typeof sp?.sessionSeed === 'number' ? sp.sessionSeed : null;
   if (sessionSeed) {
-    return generateUUID(); // New UUID-based generation instead of sp-###
+    const derived = deriveGameIdFromSessionSeed(sessionSeed);
+    if (derived) return derived;
+    return generateUUID();
   }
 
   return null;
@@ -189,12 +191,36 @@ export function ensureSinglePlayerGameIdentifiers(state: AppState): AppState {
     currentGameId?: string | null;
     gameId?: string | null;
   };
-  const id = getCurrentSinglePlayerGameId(state);
 
-  // If no ID exists, generate a new UUID
-  if (!id) {
-    const sp = state.sp as SinglePlayerStateWithIds;
-    const newId = generateUUID();
+  const sp = state.sp as SinglePlayerStateWithIds;
+  const existingCurrentId = sp?.currentGameId;
+  const existingLegacyId = sp?.gameId;
+
+  // If we already have valid UUIDs in the state, preserve them and ensure consistency
+  // This prevents overwriting restored archive UUIDs with new ones
+  if (existingCurrentId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(existingCurrentId)) {
+    const nextSp: SinglePlayerStateWithIds = { ...sp };
+    if (nextSp) {
+      nextSp.currentGameId = existingCurrentId;
+      nextSp.gameId = existingCurrentId; // Keep both fields in sync
+    }
+    return { ...state, sp: nextSp };
+  }
+
+  if (existingLegacyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(existingLegacyId)) {
+    const nextSp: SinglePlayerStateWithIds = { ...sp };
+    if (nextSp) {
+      nextSp.currentGameId = existingLegacyId;
+      nextSp.gameId = existingLegacyId; // Keep both fields in sync
+    }
+    return { ...state, sp: nextSp };
+  }
+
+  // Only generate new UUID if we have a sessionSeed AND no existing UUIDs at all
+  // This is for genuinely new games, not restored ones
+  const sessionSeed = typeof sp?.sessionSeed === 'number' ? sp.sessionSeed : null;
+  if (sessionSeed && !existingCurrentId && !existingLegacyId) {
+    const newId = deriveGameIdFromSessionSeed(sessionSeed) ?? generateUUID();
     const nextSp: SinglePlayerStateWithIds = { ...sp };
     if (nextSp) {
       nextSp.currentGameId = newId;
@@ -203,16 +229,8 @@ export function ensureSinglePlayerGameIdentifiers(state: AppState): AppState {
     return { ...state, sp: nextSp };
   }
 
-  const sp = state.sp as SinglePlayerStateWithIds;
-  const hasCurrent = normalizeLooseId(sp?.currentGameId) === id;
-  const hasLegacy = normalizeLooseId(sp?.gameId) === id;
-  if (hasCurrent && hasLegacy) {
-    return state;
-  }
-  const nextSp: SinglePlayerStateWithIds = { ...sp };
-  if (!hasCurrent) nextSp.currentGameId = id;
-  if (!hasLegacy) nextSp.gameId = id;
-  return { ...state, sp: nextSp };
+  // If no sessionSeed or we have existing IDs, preserve current state
+  return state;
 }
 
 export type ScorecardRouteView = 'live' | 'summary';

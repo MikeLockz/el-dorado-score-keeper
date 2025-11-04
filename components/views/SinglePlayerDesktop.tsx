@@ -82,12 +82,32 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     if (height > pendingHeight) setPendingHeight(null);
   }, [height, pendingHeight]);
 
+  const [selected, setSelected] = React.useState<SpCard | null>(null);
+  const isSelected = (c: SpCard) =>
+    !!selected && selected.suit === c.suit && selected.rank === c.rank;
+  const hasAdvanceBatch = userAdvanceBatch.length > 0;
+  const hasPlayableSelection = React.useMemo(
+    () => (selected ? canPlayCard(selected) : false),
+    [selected, canPlayCard],
+  );
+  React.useEffect(() => {
+    if (spPhase !== 'playing' || reveal) setSelected(null);
+  }, [spPhase, reveal]);
   const isProcessingAdvance = pendingHeight != null;
   const advanceDisabled =
-    userAdvanceBatch.length === 0 || ctaMeta.autoWait || isBatchPending || isProcessingAdvance;
+    (!hasAdvanceBatch && !hasPlayableSelection) ||
+    ctaMeta.autoWait ||
+    isBatchPending ||
+    isProcessingAdvance;
 
   const onAdvance = React.useCallback(() => {
-    if (advanceDisabled) return;
+    if (ctaMeta.autoWait || isBatchPending || isProcessingAdvance) return;
+    if (!hasAdvanceBatch && selected && canPlayCard(selected)) {
+      setSelected(null);
+      void playCard(selected);
+      return;
+    }
+    if (!hasAdvanceBatch) return;
     const startHeight = height;
     setPendingHeight(startHeight);
     const promise = Promise.resolve(appendMany(userAdvanceBatch));
@@ -103,7 +123,19 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
         setPendingHeight((prev) => (prev === startHeight ? null : prev));
       });
     void promise;
-  }, [advanceDisabled, appendMany, height, userAdvanceBatch, players.length]);
+  }, [
+    appendMany,
+    canPlayCard,
+    ctaMeta.autoWait,
+    hasAdvanceBatch,
+    height,
+    isBatchPending,
+    isProcessingAdvance,
+    playCard,
+    players.length,
+    selected,
+    userAdvanceBatch,
+  ]);
 
   const loadingLabel = React.useMemo(() => {
     switch (ctaMeta.stage) {
@@ -118,14 +150,18 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     }
   }, [ctaMeta.stage]);
 
-  const advanceLabel = isProcessingAdvance ? (
-    <span className={styles.loadingLabel}>
-      <Loader2 className={styles.spinner} aria-hidden="true" />
-      {loadingLabel}
-    </span>
-  ) : (
-    ctaMeta.label
-  );
+  const advanceLabel = (() => {
+    if (isProcessingAdvance) {
+      return (
+        <span className={styles.loadingLabel}>
+          <Loader2 className={styles.spinner} aria-hidden="true" />
+          {loadingLabel}
+        </span>
+      );
+    }
+    if (!hasAdvanceBatch && hasPlayableSelection) return 'Play card';
+    return ctaMeta.label;
+  })();
 
   const [autoCanceled, setAutoCanceled] = React.useState(false);
   const [remainingMs, setRemainingMs] = React.useState<number>(0);
@@ -156,10 +192,6 @@ export default function SinglePlayerDesktop({ humanId, rng }: Props) {
     const id = setInterval(tick, 250);
     return () => clearInterval(id);
   }, [state, summaryEnteredAt, spPhase, autoCanceled, appendMany, players.length]);
-
-  const [selected, setSelected] = React.useState<SpCard | null>(null);
-  const isSelected = (c: SpCard) =>
-    !!selected && selected.suit === c.suit && selected.rank === c.rank;
 
   const playSelectedCard = React.useCallback(
     (card: SpCard) => {

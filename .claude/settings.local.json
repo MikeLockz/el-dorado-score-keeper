@@ -31,7 +31,21 @@
       "Bash(npm run tokens:sync:*)",
       "Bash(gh pr create:*)",
       "Bash(git restore:*)",
-      "Bash(pnpm tokens:sync:*)"
+      "Bash(pnpm tokens:sync:*)",
+      "Bash(.bash/create-new-feature.sh:*)",
+      "Bash(.bash/chmod:*)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh:*)",
+      "Bash(chmod:*)",
+      "Bash(.bash/check-prerequisites.sh:*)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh:*)",
+      "Bash(.specify/scripts/bash/setup-plan.sh:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(.specify/scripts/bash/update-agent-context.sh:*)",
+      "WebFetch(domain:brandur.org)",
+      "WebFetch(domain:www.enterprisedb.com)",
+      "WebFetch(domain:pganalyze.com)",
+      "WebFetch(domain:pgmustard.com)"
     ],
     "deny": [],
     "ask": []
