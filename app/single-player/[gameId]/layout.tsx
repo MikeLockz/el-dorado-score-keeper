@@ -22,7 +22,6 @@ function useGameId(): string {
   return '';
 }
 
-
 export default function SinglePlayerGameLayout({ children }: { children: React.ReactNode }) {
   const gameId = useGameId();
   const { state, ready } = useAppState();

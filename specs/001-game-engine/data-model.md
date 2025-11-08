@@ -6,9 +6,11 @@
 ## Core Entities
 
 ### Game Session
+
 Represents an individual multiplayer game instance with current state, players, and host controls.
 
 **Fields**:
+
 ```go
 type GameSession struct {
     ID              string    `json:"id" db:"id"`
@@ -27,14 +29,17 @@ type GameSession struct {
 ```
 
 **Validation Rules**:
+
 - `max_players`: Must be between 2-10 (FR-008)
 - `status`: Must be one of: waiting, active, completed, abandoned
 - `game_code`: Must be unique, 6-character alphanumeric
 
 ### Player Profile
+
 Server-side multiplayer identity with cryptographic key pair and statistics.
 
 **Fields**:
+
 ```go
 type PlayerProfile struct {
     ID              string          `json:"id" db:"id"`
@@ -51,14 +56,17 @@ type PlayerProfile struct {
 ```
 
 **Validation Rules**:
+
 - `public_key`: Valid cryptographic public key format
 - `player_name`: 3-20 characters, alphanumeric and spaces
 - `rating`: 1000-3000 range with 1500 default
 
 ### Player Action
+
 Individual moves or decisions made by players, cryptographically signed and permanently stored.
 
 **Fields**:
+
 ```go
 type PlayerAction struct {
     ID          string      `json:"id" db:"id"`
@@ -75,14 +83,17 @@ type PlayerAction struct {
 ```
 
 **Validation Rules**:
+
 - `signature`: Valid cryptographic signature using player's private key
 - `action_type`: Must be valid game action (play_card, pass, bid, etc.)
 - `version`: Sequential, validated against game state version
 
 ### Game State
+
 Complete snapshot of all game data with cryptographic verification.
 
 **Fields**:
+
 ```go
 type GameState struct {
     GameID        string                 `json:"game_id"`
@@ -101,14 +112,17 @@ type GameState struct {
 ```
 
 **Validation Rules**:
+
 - `state_hash`: SHA-256 hash of complete state for integrity verification
 - `version`: Must be sequential and match event count
 - `current_turn`: Must be in turn_order list and valid player
 
 ### Multiplayer Roster
+
 Team composition created specifically for multiplayer games.
 
 **Fields**:
+
 ```go
 type MultiplayerRoster struct {
     ID          string    `json:"id" db:"id"`
@@ -121,9 +135,11 @@ type MultiplayerRoster struct {
 ```
 
 ### Player Statistics
+
 Core gameplay metrics and achievement data.
 
 **Fields**:
+
 ```go
 type PlayerStatistics struct {
     ID                string    `json:"id" db:"id"`
@@ -140,6 +156,7 @@ type PlayerStatistics struct {
 ## Relationships
 
 ### Entity Relationships
+
 ```
 GameSession (1) -----> (N) PlayerAction
 GameSession (1) -----> (N) MultiplayerRoster
@@ -150,6 +167,7 @@ PlayerProfile (1) -----> (N) MultiplayerRoster
 ```
 
 ### Foreign Keys
+
 - `PlayerAction.game_id` → `GameSession.id`
 - `PlayerAction.player_id` → `PlayerProfile.id`
 - `MultiplayerRoster.game_id` → `GameSession.id`
@@ -159,6 +177,7 @@ PlayerProfile (1) -----> (N) MultiplayerRoster
 ## State Transitions
 
 ### Game Session States
+
 ```
 waiting → active → completed
     ↓
@@ -166,17 +185,20 @@ abandoned
 ```
 
 **Transition Rules**:
+
 - `waiting → active`: Host starts game with minimum players
 - `active → completed`: Game reaches completion conditions
 - `waiting → abandoned`: Game creation cancelled by host
 - `active → abandoned`: Game disrupted and cannot continue
 
 ### Player Action Processing
+
 ```
 Received → Validate Signature → Apply Event → Broadcast Update → Persist
 ```
 
 **Processing Rules**:
+
 - Cryptographic signature validation (FR-043)
 - Turn-based order enforcement (FR-010, FR-025)
 - Action type validation
@@ -186,16 +208,19 @@ Received → Validate Signature → Apply Event → Broadcast Update → Persist
 ## Data Flow Patterns
 
 ### Event Sourcing Flow
+
 ```
 Player Action → Validate → Store Event → Update State → Broadcast → Cache
 ```
 
 ### Reconnection Flow
+
 ```
 Client Reconnect → State Hash Check → Event Reconciliation → State Sync → Resume
 ```
 
 ### Game Creation Flow
+
 ```
 Host Creates Game → Generate Game Code → Initialize State → Wait for Players → Start
 ```
@@ -205,6 +230,7 @@ Host Creates Game → Generate Game Code → Initialize State → Wait for Playe
 ### Primary Tables
 
 #### games
+
 ```sql
 CREATE TABLE games (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -223,6 +249,7 @@ CREATE TABLE games (
 ```
 
 #### player_profiles
+
 ```sql
 CREATE TABLE player_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -239,6 +266,7 @@ CREATE TABLE player_profiles (
 ```
 
 #### player_actions
+
 ```sql
 CREATE TABLE player_actions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -261,6 +289,7 @@ CREATE TABLE player_actions (
 ### Supporting Tables
 
 #### multiplayer_rosters
+
 ```sql
 CREATE TABLE multiplayer_rosters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -274,6 +303,7 @@ CREATE TABLE multiplayer_rosters (
 ```
 
 #### player_statistics
+
 ```sql
 CREATE TABLE player_statistics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -289,6 +319,7 @@ CREATE TABLE player_statistics (
 ```
 
 #### game_snapshots
+
 ```sql
 CREATE TABLE game_snapshots (
     game_id UUID PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
@@ -303,6 +334,7 @@ CREATE TABLE game_snapshots (
 ## Indexes and Performance
 
 ### Critical Indexes
+
 - `player_actions(game_id, version)`: Event retrieval for reconstruction
 - `player_actions(player_id)`: Player action history
 - `games(status, created_at)`: Game discovery and listing
@@ -310,6 +342,7 @@ CREATE TABLE game_snapshots (
 - `player_statistics(current_rating)`: Leaderboard queries
 
 ### Performance Considerations
+
 - Event table partitioning by created_at for large datasets
 - JSONB indexes for game_config and action_data queries
 - Connection pooling for PostgreSQL
@@ -318,6 +351,7 @@ CREATE TABLE game_snapshots (
 ## Data Integrity Constraints
 
 ### Business Rules
+
 1. **Player Uniqueness**: One player profile per public key
 2. **Game Code Uniqueness**: No duplicate game codes
 3. **Action Sequence**: Version numbers must be sequential
@@ -325,6 +359,7 @@ CREATE TABLE game_snapshots (
 5. **Signature Validity**: All actions must have valid signatures
 
 ### Triggers and Constraints
+
 ```sql
 -- Ensure max_players constraint
 ALTER TABLE games ADD CONSTRAINT check_max_players

@@ -106,7 +106,11 @@ export function buildSinglePlayerDerivedState(
 
   if (typeof process !== 'undefined' ? process.env?.NODE_ENV !== 'production' : false) {
     try {
-      console.debug('[sp-view-model]', 'players.ordered', players.map((p) => `${p.id}:${p.name}`));
+      console.debug(
+        '[sp-view-model]',
+        'players.ordered',
+        players.map((p) => `${p.id}:${p.name}`),
+      );
       console.debug('[sp-view-model]', 'playerNamesById', playerNamesById);
     } catch {}
   }

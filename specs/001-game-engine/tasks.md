@@ -1,6 +1,5 @@
 ---
-
-description: "Task list for Standalone Game Engine Service implementation"
+description: 'Task list for Standalone Game Engine Service implementation'
 ---
 
 # Tasks: Standalone Game Engine Service

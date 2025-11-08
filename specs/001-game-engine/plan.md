@@ -13,47 +13,54 @@ This feature creates a standalone Go-based multiplayer game engine that operates
 
 **Language/Version**: Go 1.21+ (server), TypeScript/React 19 (client integration)
 **Primary Dependencies**:
+
 - Server: Go standard library, gorilla/websocket, testify (testing), go-chi/chi (HTTP router), lib/pq (PostgreSQL driver), golang-jwt/jwt (cryptographic operations)
 - Client: WebSocket API, Server-Sent Events API, Web Crypto API, IndexedDB API
-**Storage**: PostgreSQL 14+ (authoritative state, events, profiles), Redis (optional caching/sessions)
-**Testing**: Go testing package + testify (server), Vitest + Playwright (integration)
-**Target Platform**: Linux server (Go binary), Modern web browsers (client)
-**Project Type**: Multi-service backend with browser client integration
-**Performance Goals**: Game action processing <1 second (99th percentile), real-time updates <50ms (WebSocket), support 1000+ concurrent games
-**Constraints**: Single server architecture initially, graceful scaling, 99.9% uptime target, <2MB per game state
-**Scale/Scope**: 2-10 players per game, unlimited concurrent games (hardware limited), permanent action history storage
+  **Storage**: PostgreSQL 14+ (authoritative state, events, profiles), Redis (optional caching/sessions)
+  **Testing**: Go testing package + testify (server), Vitest + Playwright (integration)
+  **Target Platform**: Linux server (Go binary), Modern web browsers (client)
+  **Project Type**: Multi-service backend with browser client integration
+  **Performance Goals**: Game action processing <1 second (99th percentile), real-time updates <50ms (WebSocket), support 1000+ concurrent games
+  **Constraints**: Single server architecture initially, graceful scaling, 99.9% uptime target, <2MB per game state
+  **Scale/Scope**: 2-10 players per game, unlimited concurrent games (hardware limited), permanent action history storage
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 ### Browser-First Architecture Compliance - **AMENDED FOR MULTIPLAYER**
+
 - [x] **EXCEPTIONAL CASE**: Single-player mode maintains full browser-first architecture compliance
 - [x] Multiplayer mode requires external state centralization as specified in feature clarifications (Q: Data storage model → A: Server-side persistence for multiplayer - external state centralization is fundamental to multiplayer)
 - [x] Multiplayer operates as alternative mode, preserving existing single-player browser functionality
 
 ### Test-Driven Development Compliance
+
 - [x] TDD methodology planned (Red-Green-Refactor) - **SPECIFIED IN DESIGN**
 - [x] Unit tests targeting 95%+ coverage on Go server components - **SPECIFIED IN DESIGN**
 - [x] Integration tests for PostgreSQL operations and client-server communication - **SPECIFIED IN DESIGN**
 - [x] Property-based tests for multiplayer state machine determinism - **SPECIFIED IN DESIGN**
 
 ### Observable User Experience Compliance
+
 - [x] Telemetry integration planned via Go server observability system - **SPECIFIED IN DESIGN**
 - [x] No personal data collection without explicit consent - **ALREADY SPECIFIED**
 - [x] Graceful degradation when telemetry disabled/failed - **SPECIFIED IN DESIGN**
 
 ### Deterministic State Management Compliance
+
 - [x] Event sourcing architecture with append-only log - **ALREADY SPECIFIED**
 - [x] Deterministic reducers for reproducible state reconstruction - **ALREADY SPECIFIED**
 - [x] Time travel and undo/redo capabilities preserved in action history - **ALREADY SPECIFIED**
 
 ### Progressive Enhancement Compliance
+
 - [x] Core single-player functionality works without external dependencies - **EXISTING PRESERVED**
 - [x] Mobile-first responsive design for multiplayer interface - **SPECIFIED IN DESIGN**
 - [x] Keyboard and screen reader accessibility for multiplayer features - **SPECIFIED IN DESIGN**
 
 ### Technical Constraints Compliance
+
 - [x] Bundle size impact analysis needed for multiplayer client integration - **SPECIFIED IN DESIGN**
 - [x] Performance requirements considered (server response <1s, real-time updates) - **ALREADY SPECIFIED**
 - [x] Data privacy requirements addressed with cryptographic identity - **ALREADY SPECIFIED**
@@ -131,15 +138,16 @@ app/
 
 > **Constitutional amendment justified for multiplayer functionality**
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| Browser-First Architecture | External state centralization is fundamental for true multiplayer gaming as specified in clarifications (FR-005: "System MUST persist game state on server-side with authoritative data storage for multiplayer sessions") | Browser-only multiplayer using BroadcastChannel/localStorage insufficient for persistent player identity, cross-session gameplay, and reliable state synchronization across different devices |
-| Server-side Runtime | True human multiplayer requires authoritative state management, persistent player profiles, and reliable cross-device connectivity as specified (FR-017: "System MUST provide server-side player profile creation and management for multiplayer identity") | P2P browser multiplayer cannot provide persistent player statistics, reliable reconnection, or cryptographic identity security needed for competitive gameplay |
-| Additional Dependencies | Go server, PostgreSQL, WebSocket libraries required for real-time multiplayer functionality and scalable persistent storage | Pure browser solutions cannot handle the performance, reliability, and feature requirements for 2-10 player competitive multiplayer games with permanent action history |
+| Violation                  | Why Needed                                                                                                                                                                                                                                                  | Simpler Alternative Rejected Because                                                                                                                                                          |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browser-First Architecture | External state centralization is fundamental for true multiplayer gaming as specified in clarifications (FR-005: "System MUST persist game state on server-side with authoritative data storage for multiplayer sessions")                                  | Browser-only multiplayer using BroadcastChannel/localStorage insufficient for persistent player identity, cross-session gameplay, and reliable state synchronization across different devices |
+| Server-side Runtime        | True human multiplayer requires authoritative state management, persistent player profiles, and reliable cross-device connectivity as specified (FR-017: "System MUST provide server-side player profile creation and management for multiplayer identity") | P2P browser multiplayer cannot provide persistent player statistics, reliable reconnection, or cryptographic identity security needed for competitive gameplay                                |
+| Additional Dependencies    | Go server, PostgreSQL, WebSocket libraries required for real-time multiplayer functionality and scalable persistent storage                                                                                                                                 | Pure browser solutions cannot handle the performance, reliability, and feature requirements for 2-10 player competitive multiplayer games with permanent action history                       |
 
 ## Phase Completion Status
 
 ### Phase 0: Research ✅ COMPLETED
+
 - ✅ Go multiplayer patterns and best practices researched
 - ✅ WebSocket vs SSE implementation patterns identified
 - ✅ Event sourcing architecture with PostgreSQL defined
@@ -148,6 +156,7 @@ app/
 - ✅ Testing frameworks and load testing approaches specified
 
 ### Phase 1: Design & Contracts ✅ COMPLETED
+
 - ✅ **Data Model**: Complete entity definitions with relationships, validation rules, and database schema
 - ✅ **API Contracts**: Comprehensive REST API specification and WebSocket API definition
 - ✅ **Quickstart Guide**: Complete setup instructions for server and client integration
@@ -155,6 +164,7 @@ app/
 - ✅ **Agent Context**: Updated with Go technology stack information
 
 ### Ready for Phase 2: Implementation
+
 - Complete specification and technical design available
 - All dependencies and tools researched and selected
 - Database schema and API contracts finalized
@@ -164,12 +174,14 @@ app/
 ## Next Steps
 
 ### Immediate Actions
+
 1. **Run `/speckit.tasks`** to generate implementation tasks based on this plan
 2. **Begin implementation** starting with core game engine components
 3. **Set up development environment** with Go toolchain and database
 4. **Implement authentication system** with cryptographic key management
 
 ### Implementation Priority
+
 1. **Core Infrastructure**: Database setup, basic HTTP API, WebSocket server
 2. **Authentication**: Player profiles, JWT tokens, cryptographic signatures
 3. **Game Engine**: Event sourcing, state management, action processing

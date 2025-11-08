@@ -347,9 +347,11 @@ export default function SinglePlayerNewPageClient() {
                         type="button"
                         size="sm"
                         variant={active ? 'default' : 'outline'}
+                        aria-label={`Select ${count} players`}
                         aria-pressed={active}
                         className={clsx(styles.countButton, active && styles.countButtonActive)}
                         data-active={active ? 'true' : 'false'}
+                        data-testid={`player-count-${count}`}
                         onClick={() => {
                           if (countButtonsDisabled) return;
                           setPlayerCount(count);
@@ -366,6 +368,8 @@ export default function SinglePlayerNewPageClient() {
               <Button
                 className={styles.actionButton}
                 variant="secondary"
+                data-testid="create-lineup"
+                aria-label="Create lineup"
                 onClick={() => void handleCreatePlayers()}
                 disabled={disabled}
               >
