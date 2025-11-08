@@ -1035,6 +1035,35 @@ export async function createInstance(opts?: {
             }
           }
         }
+
+        // Always apply systematic state validation and repair for single-player games
+        // This ensures corrupted player names and missing roster data are fixed
+        if (memoryState && targetSpGameId) {
+          const { validateAppState, applyStateRepairs } = await import('./defensive');
+
+          const validation = validateAppState(memoryState, {
+            urlGameId: targetSpGameId,
+            mode: 'single',
+          });
+
+          if (!validation.isValid) {
+            console.warn('[rehydrate] State validation failed, applying repairs:', {
+              gameId: targetSpGameId,
+              errors: validation.errors,
+              repairs: validation.repairs,
+            });
+            // Additional debug logging to understand what's wrong
+            console.info('[rehydrate] Pre-repair state debug:', {
+              activeSingleRosterId: memoryState.activeSingleRosterId,
+              rosterKeys: Object.keys(memoryState.rosters ?? {}),
+              playerCount: Object.keys(memoryState.players ?? {}).length,
+              spCurrentGameId: memoryState.sp?.currentGameId,
+              spGameId: memoryState.sp?.gameId,
+            });
+            memoryState = applyStateRepairs(memoryState, validation.repairs);
+            console.log('[rehydrate] State repairs applied successfully');
+          }
+        }
       } else {
         await loadCurrent();
       }

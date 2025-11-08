@@ -29,7 +29,7 @@
 - Q: Client state synchronization - full replacement vs event reconciliation vs client-driven? → A: Event reconciliation with server-side tracking and full state fallback
 - Q: Error handling strategy - fail-fast vs hierarchical graceful degradation vs silent recovery? → A: Hierarchical error handling with graceful degradation and user-friendly recovery
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - True Multiplayer Experience (Priority: P1)
 
@@ -151,7 +151,7 @@ Players experience fewer game interruptions, improved error recovery, and better
 - What occurs when players have conflicting actions in the same timeframe?
 - How are game sessions preserved during service maintenance or updates?
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -245,7 +245,7 @@ Players experience fewer game interruptions, improved error recovery, and better
 - **Error Recovery**: User-friendly mechanisms for recovering from various error conditions
 - **System Health**: Monitoring and detection of system-wide issues and problems
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

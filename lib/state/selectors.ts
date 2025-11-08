@@ -154,6 +154,54 @@ export const selectActiveRoster = memo2((s: AppState, mode: Mode): ActiveRosterV
   return null;
 });
 
+/**
+ * Safe version of selectActiveRoster that includes automatic state repair
+ * Use this in UI components to prevent "Game unavailable" errors
+ */
+export const selectActiveRosterSafe = memo2((s: AppState, mode: Mode): ActiveRosterView | null => {
+  // First try normal selection
+  const roster = selectActiveRoster(s, mode);
+  if (roster) return roster;
+
+  // If no roster found, this indicates a state issue
+  // We want to be defensive and try to recover in all environments
+  if (typeof window !== 'undefined') {
+    console.warn('[selectors] No active roster found, this may indicate state corruption:', {
+      mode,
+      activeRosterId: mode === 'scorecard' ? s.activeScorecardRosterId : s.activeSingleRosterId,
+      availableRosters: Object.keys(s.rosters ?? {}),
+      playerCount: Object.keys(s.players ?? {}).length,
+    });
+
+    // For single-player mode, create a minimal fallback roster
+    if (mode === 'single' && Object.keys(s.players ?? {}).length > 0) {
+      const playersById = s.players ?? {};
+      const playerIds = Object.keys(playersById);
+      const displayOrder: Record<string, number> = {};
+
+      playerIds.forEach((playerId, index) => {
+        displayOrder[playerId] = index;
+      });
+
+      const playerTypesById: Record<string, 'human' | 'bot'> = {};
+      playerIds.forEach(playerId => {
+        playerTypesById[playerId] = s.playerDetails?.[playerId]?.type ?? 'human';
+      });
+
+      console.info('[selectors] Creating fallback roster for recovery');
+      return {
+        rosterId: 'fallback',
+        name: 'Single Player',
+        playersById,
+        playerTypesById,
+        displayOrder,
+      };
+    }
+  }
+
+  return null;
+});
+
 export const selectPlayersOrderedFor = memo2((s: AppState, mode: Mode): PlayerItem[] => {
   const r = selectActiveRoster(s, mode);
   if (!r) return [];

@@ -12,7 +12,7 @@ import { useAppState } from '@/components/state-provider';
 import { ROUNDS_TOTAL } from '@/lib/state/logic';
 import {
   selectPlayersOrderedFor,
-  selectActiveRoster,
+  selectActiveRosterSafe,
   events,
   selectSpTricksForRound,
   selectSpHandBySuit,
@@ -236,7 +236,9 @@ export default function SinglePlayerApp() {
           displayOrder: roster?.displayOrder,
         });
       }
-      const playersSnapshot = Object.entries(state.players ?? {}).map(([id, name]) => `${id}:${name}`);
+      const playersSnapshot = Object.entries(state.players ?? {}).map(
+        ([id, name]) => `${id}:${name}`,
+      );
       console.debug('[single-player]', 'players.snapshot', playersSnapshot);
       (window as any).__APP_STATE_DEBUG__ = {
         state,
@@ -315,7 +317,8 @@ export default function SinglePlayerApp() {
 
   // Round finalization now handled by useSinglePlayerEngine
   // First-run modal: prompt to create an SP roster if none exists
-  const spRoster = React.useMemo(() => selectActiveRoster(state, 'single'), [state]);
+  // Use safe selector that includes automatic recovery
+  const spRoster = React.useMemo(() => selectActiveRosterSafe(state, 'single'), [state]);
 
   if (!ready) {
     return (

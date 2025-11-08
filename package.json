@@ -29,7 +29,8 @@
     "observability:upload-source-maps": "node --import tsx scripts/observability/upload-source-maps.ts",
     "postinstall": "node scripts/setup-hooks.mjs",
     "export:indexeddb": "node scripts/tools/export-indexeddb.mjs",
-    "posthog:bootstrap": "node --import tsx scripts/posthog/bootstrap-dashboards.ts"
+    "posthog:bootstrap": "node --import tsx scripts/posthog/bootstrap-dashboards.ts",
+    "test:ai:start-single-player": "python ai-smoke-test/start_single_player_test.py"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

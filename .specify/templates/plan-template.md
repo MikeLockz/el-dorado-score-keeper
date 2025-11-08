@@ -29,35 +29,41 @@
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 ### Browser-First Architecture Compliance
+
 - [ ] Feature works offline-first with IndexedDB persistence
 - [ ] No server-side runtime required for core functionality
 - [ ] Multi-player sync uses browser-native APIs (BroadcastChannel/localStorage)
 
 ### Test-Driven Development Compliance
+
 - [ ] TDD methodology planned (Red-Green-Refactor)
 - [ ] Unit tests targeting 95%+ coverage on reducers/selectors
 - [ ] Integration tests for IndexedDB operations and cross-tab sync
 - [ ] Property-based tests for state machine determinism
 
 ### Observable User Experience Compliance
+
 - [ ] Telemetry integration planned via browser observability system
 - [ ] No personal data collection without explicit consent
 - [ ] Graceful degradation when telemetry disabled/failed
 
 ### Deterministic State Management Compliance
+
 - [ ] Event sourcing architecture with append-only log
 - [ ] Deterministic reducers for reproducible state reconstruction
 - [ ] Time travel and undo/redo capabilities preserved
 
 ### Progressive Enhancement Compliance
+
 - [ ] Core functionality works without external dependencies
 - [ ] Mobile-first responsive design
 - [ ] Keyboard and screen reader accessibility
 
 ### Technical Constraints Compliance
+
 - [ ] Bundle size analysis planned (target: <250KB gzipped)
 - [ ] Performance requirements considered (1.5s first paint, 100ms rehydration)
 - [ ] Data privacy requirements addressed
@@ -77,6 +83,7 @@ specs/[###-feature]/
 ```
 
 ### Source Code (repository root)
+
 <!--
   ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
   for this feature. Delete unused options and expand the chosen structure with
@@ -127,7 +134,7 @@ directories captured above]
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| Violation                  | Why Needed         | Simpler Alternative Rejected Because |
+| -------------------------- | ------------------ | ------------------------------------ |
+| [e.g., 4th project]        | [current need]     | [why 3 projects insufficient]        |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient]  |

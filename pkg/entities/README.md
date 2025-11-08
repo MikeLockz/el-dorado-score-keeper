@@ -32,9 +32,11 @@ pkg/entities/
 ## Core Entities
 
 ### GameSession
+
 Represents an individual multiplayer game instance with complete lifecycle management.
 
 **Key Features:**
+
 - Supports 2-10 players per session
 - Host-controlled session lifecycle
 - Configurable moderation systems
@@ -43,9 +45,11 @@ Represents an individual multiplayer game instance with complete lifecycle manag
 - Persistent game history and audit trails
 
 ### PlayerProfile
+
 Server-side multiplayer identity with cryptographic key pair management.
 
 **Key Features:**
+
 - Cryptographic key pair generation and management
 - Player statistics tracking
 - Achievement system
@@ -53,9 +57,11 @@ Server-side multiplayer identity with cryptographic key pair management.
 - Cross-session identity persistence
 
 ### PlayerAction
+
 Individual moves or decisions made by players with cryptographic verification.
 
 **Key Features:**
+
 - Cryptographic action signing
 - Sequence-based processing
 - Permanent action storage
@@ -63,9 +69,11 @@ Individual moves or decisions made by players with cryptographic verification.
 - Validation and verification
 
 ### GameState
+
 Complete snapshot of all game data with integrity verification.
 
 **Key Features:**
+
 - SHA-256 state hashing
 - Version control with sequence numbers
 - JSONB storage for flexible data
@@ -73,18 +81,22 @@ Complete snapshot of all game data with integrity verification.
 - Audit trail support
 
 ### MultiplayerRoster
+
 Team composition created specifically for multiplayer games.
 
 **Key Features:**
+
 - Flexible player ordering
 - Player type management (human/bot)
 - Game-specific configuration
 - Persistent roster management
 
 ### PlayerStatistics
+
 Comprehensive player performance tracking and analytics.
 
 **Key Features:**
+
 - Core gameplay metrics
 - Social statistics
 - Achievement tracking
@@ -94,9 +106,11 @@ Comprehensive player performance tracking and analytics.
 ## Identity Entities
 
 ### CryptographicKeyPair
+
 Locally-generated RSA key pairs for player identity and action signing.
 
 **Key Features:**
+
 - RSA-2048 key generation (minimum)
 - PEM format storage
 - Key versioning and rotation
@@ -104,9 +118,11 @@ Locally-generated RSA key pairs for player identity and action signing.
 - Secure backup integration
 
 ### AuthenticationToken
+
 Secure credentials for player authentication and authorization.
 
 **Key Features:**
+
 - SHA-256 token hashing
 - Device-specific tokens
 - Multi-factor authentication support
@@ -114,9 +130,11 @@ Secure credentials for player authentication and authorization.
 - Revocation and expiration
 
 ### KeyBackup
+
 Secure backup mechanisms for cryptographic key recovery.
 
 **Key Features:**
+
 - AES-256-GCM encryption
 - Multiple backup types (encrypted, QR code, recovery phrase)
 - Device-specific backups
@@ -126,9 +144,11 @@ Secure backup mechanisms for cryptographic key recovery.
 ## Communication Entities
 
 ### RealTimeConnection
+
 Active communication channels with progressive fallback support.
 
 **Key Features:**
+
 - WebSocket/SSE/Polling support
 - Automatic fallback chains
 - Quality metrics and monitoring
@@ -136,9 +156,11 @@ Active communication channels with progressive fallback support.
 - Graceful degradation
 
 ### EventStream
+
 Server-side push mechanism for real-time game updates.
 
 **Key Features:**
+
 - Event filtering and routing
 - Performance optimization
 - Buffer management
@@ -146,9 +168,11 @@ Server-side push mechanism for real-time game updates.
 - Compression support
 
 ### StateHash
+
 Cryptographic verification of client game state integrity.
 
 **Key Features:**
+
 - SHA-256 state hashing
 - Component-based verification
 - Cross-client consistency checking
@@ -158,9 +182,11 @@ Cryptographic verification of client game state integrity.
 ## Session Management
 
 ### SessionState
+
 Connection and synchronization status for each player.
 
 **Key Features:**
+
 - Real-time connection tracking
 - Synchronization progress monitoring
 - Reconnection support
@@ -168,9 +194,11 @@ Connection and synchronization status for each player.
 - Turn management
 
 ### EventReceiptTracking
+
 Server-side record of event delivery confirmation.
 
 **Key Features:**
+
 - Event delivery verification
 - Retry mechanisms
 - Performance tracking
@@ -178,9 +206,11 @@ Server-side record of event delivery confirmation.
 - Expiration handling
 
 ### ReconnectionSession
+
 Temporary preservation of player state during disconnections.
 
 **Key Features:**
+
 - State snapshot management
 - Graceful reconnection
 - Event miss tracking
@@ -190,9 +220,11 @@ Temporary preservation of player state during disconnections.
 ## Error Handling
 
 ### ErrorHandler
+
 Hierarchical system for managing different error types.
 
 **Key Features:**
+
 - Pattern-based error matching
 - Priority-based handling
 - Circuit breaker support
@@ -200,9 +232,11 @@ Hierarchical system for managing different error types.
 - Automatic retry logic
 
 ### GracefulDegradation
+
 Progressive functionality reduction while maintaining core gameplay.
 
 **Key Features:**
+
 - Multi-level degradation
 - Automatic quality adjustment
 - Performance-based triggers
@@ -210,9 +244,11 @@ Progressive functionality reduction while maintaining core gameplay.
 - Feature toggling
 
 ### ErrorRecovery
+
 User-friendly mechanisms for recovering from error conditions.
 
 **Key Features:**
+
 - Multiple recovery strategies
 - User interaction support
 - Progress tracking
@@ -224,18 +260,21 @@ User-friendly mechanisms for recovering from error conditions.
 The database schema is designed for PostgreSQL with the following key considerations:
 
 ### Performance Optimization
+
 - Comprehensive indexing strategy
 - Partial indexes for common queries
 - JSONB storage for flexible data
 - Efficient foreign key relationships
 
 ### Data Integrity
+
 - Foreign key constraints with proper cascading
 - Check constraints for data validation
 - Unique constraints for key identifiers
 - Referential integrity protection
 
 ### Scalability
+
 - Horizontal scaling support
 - Query optimization
 - Efficient data types
@@ -246,18 +285,21 @@ The database schema is designed for PostgreSQL with the following key considerat
 The validation system provides comprehensive data integrity checking:
 
 ### Validation Types
+
 - Field-level validation
 - Entity-level validation
 - Cross-entity validation
 - Business rule validation
 
 ### Validation Rules
+
 - String length and format validation
 - Numeric range validation
 - Enum value validation
 - Relationship integrity checks
 
 ### Error Reporting
+
 - Detailed error messages
 - Error categorization
 - Localization support
@@ -268,12 +310,14 @@ The validation system provides comprehensive data integrity checking:
 The state transition system provides robust lifecycle management:
 
 ### State Machines
+
 - Game session lifecycle
 - Connection state management
 - Recovery process flow
 - Error handling workflow
 
 ### Transition Features
+
 - Condition-based transitions
 - Action execution
 - Hook system
@@ -281,6 +325,7 @@ The state transition system provides robust lifecycle management:
 - Security validation
 
 ### Monitoring
+
 - Transition logging
 - Performance tracking
 - Error detection
@@ -358,18 +403,21 @@ if result.Success {
 ## Security Considerations
 
 ### Cryptographic Security
+
 - RSA-2048 minimum key size
 - SHA-256 hashing algorithms
 - AES-256-GCM encryption
 - Secure random number generation
 
 ### Data Protection
+
 - Input validation and sanitization
 - SQL injection prevention
 - XSS protection
 - Rate limiting
 
 ### Access Control
+
 - Authentication token validation
 - Authorization checks
 - Session management
@@ -378,18 +426,21 @@ if result.Success {
 ## Performance Considerations
 
 ### Database Optimization
+
 - Strategic indexing
 - Query optimization
 - Connection pooling
 - Batch operations
 
 ### Memory Management
+
 - Efficient data structures
 - JSON parsing optimization
 - Connection pooling
 - Resource cleanup
 
 ### Network Optimization
+
 - Message compression
 - Binary protocols
 - Connection reuse
@@ -398,18 +449,21 @@ if result.Success {
 ## Monitoring and Analytics
 
 ### Performance Metrics
+
 - Connection quality monitoring
 - State transition tracking
 - Error rate monitoring
 - Resource usage tracking
 
 ### Business Metrics
+
 - Player engagement
 - Game completion rates
 - System performance
 - User satisfaction
 
 ### Health Checks
+
 - Database connectivity
 - Service availability
 - Performance thresholds
@@ -418,18 +472,21 @@ if result.Success {
 ## Testing
 
 ### Unit Testing
+
 - Entity validation testing
 - State transition testing
 - Business logic testing
 - Error condition testing
 
 ### Integration Testing
+
 - Database integration
 - API endpoint testing
 - State machine integration
 - Cross-entity interactions
 
 ### Performance Testing
+
 - Load testing
 - Stress testing
 - Benchmarking
@@ -438,24 +495,28 @@ if result.Success {
 ## Best Practices
 
 ### Code Organization
+
 - Follow Go conventions
 - Use dependency injection
 - Implement interfaces
 - Document public APIs
 
 ### Error Handling
+
 - Use structured errors
 - Provide context
 - Log appropriately
 - Handle gracefully
 
 ### Security
+
 - Validate all inputs
 - Use secure defaults
 - Implement least privilege
 - Regular security reviews
 
 ### Performance
+
 - Profile before optimizing
 - Use efficient algorithms
 - Minimize memory allocations

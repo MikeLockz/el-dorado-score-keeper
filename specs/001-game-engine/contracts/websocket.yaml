@@ -1,7 +1,7 @@
 # WebSocket API Specification - El Dorado Multiplayer Game Engine
-
-**Version**: 1.0.0
-**Protocol**: WebSocket (ws://) with progressive fallbacks (SSE, HTTP polling)
+#
+# Version: 1.0.0
+# Protocol: WebSocket (ws://) with progressive fallbacks (SSE, HTTP polling)
 
 ## Overview
 

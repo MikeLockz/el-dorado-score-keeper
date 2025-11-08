@@ -231,7 +231,11 @@ export default function SinglePlayerMobile({ humanId, rng }: Props) {
     const madeMap = currentMade;
     if (process.env.NODE_ENV !== 'production') {
       try {
-        console.debug('[sp-mobile]', 'render.summary', ids.map((id) => ({ id, name: playerName(id) })));
+        console.debug(
+          '[sp-mobile]',
+          'render.summary',
+          ids.map((id) => ({ id, name: playerName(id) })),
+        );
       } catch {}
     }
     const perPlayer = ids.map((id) => {

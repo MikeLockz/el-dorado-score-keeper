@@ -98,7 +98,7 @@ import { MultiplayerClient, PlayerIdentity } from '@eldorado/game-engine-client'
 // Initialize client
 const client = new MultiplayerClient({
   serverUrl: 'ws://localhost:8080',
-  apiBaseUrl: 'http://localhost:8080/v1'
+  apiBaseUrl: 'http://localhost:8080/v1',
 });
 ```
 
@@ -114,7 +114,7 @@ await identity.saveToBrowser();
 // Get player profile
 const profile = await client.createProfile({
   publicKey: identity.publicKey,
-  playerName: 'PlayerName'
+  playerName: 'PlayerName',
 });
 ```
 
@@ -127,7 +127,7 @@ await client.authenticate(identity);
 // Join existing game
 const game = await client.joinGame({
   gameCode: 'ABCDEF',
-  playerName: 'PlayerName'
+  playerName: 'PlayerName',
 });
 
 // OR create new game
@@ -136,7 +136,7 @@ const newGame = await client.createGame({
   maxPlayers: 4,
   gameConfig: {
     // Game-specific settings
-  }
+  },
 });
 ```
 
@@ -160,7 +160,7 @@ game.on('actionProcessed', (action) => {
 await game.playCard({
   cardId: 'card-123',
   targetPlayer: 'player-456',
-  payment: 5
+  payment: 5,
 });
 ```
 
@@ -222,7 +222,7 @@ make seed
 // Login with existing keys
 const authResponse = await client.login({
   publicKey: 'your-public-key',
-  signature: 'challenge-signature'
+  signature: 'challenge-signature',
 });
 
 console.log('JWT Token:', authResponse.token);
@@ -235,7 +235,7 @@ console.log('Player Profile:', authResponse.playerProfile);
 // List available games
 const games = await client.listGames({
   status: 'waiting',
-  limit: 50
+  limit: 50,
 });
 
 console.log('Available games:', games);
@@ -248,8 +248,8 @@ console.log('Game details:', gameDetails);
 await game.start({
   moderationConfig: {
     timeoutSeconds: 60,
-    votingEnabled: true
-  }
+    votingEnabled: true,
+  },
 });
 ```
 
@@ -287,13 +287,13 @@ console.log('Player stats:', stats);
 
 // Update profile
 await client.updateProfile({
-  playerName: 'NewPlayerName'
+  playerName: 'NewPlayerName',
 });
 
 // Get action history
 const history = await client.getActionHistory({
   playerId: 'player-id',
-  limit: 100
+  limit: 100,
 });
 ```
 
@@ -419,7 +419,7 @@ services:
   engine:
     image: eldorado-game-engine:latest
     ports:
-      - "8080:8080"
+      - '8080:8080'
     environment:
       - DATABASE_URL=postgresql://db:5432/eldorado_multiplayer
       - JWT_SECRET=${JWT_SECRET}
